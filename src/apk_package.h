@@ -81,6 +81,8 @@ struct apk_installed_package {
 	struct apk_string_array *pending_triggers;
 };
 
+#define APK_PKG_UNINSTALLABLE		((char*) -1)
+
 struct apk_package {
 	apk_hash_node hash_node;
 	unsigned repos;
