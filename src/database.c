@@ -30,6 +30,14 @@
 #include "apk_archive.h"
 #include "apk_print.h"
 
+#if defined(__x86_64__)
+#define APK_DEFAULT_ARCH       "x86_64"
+#elif defined(__i386__)
+#define APK_DEFAULT_ARCH       "x86"
+#else
+#define APK_DEFAULT_ARCH       "noarch"
+#endif
+
 enum {
 	APK_DISALLOW_RMDIR = 0,
 	APK_ALLOW_RMDIR = 1
@@ -37,6 +45,7 @@ enum {
 
 int apk_verbosity = 1;
 unsigned int apk_flags = 0;
+const char *apk_arch = APK_DEFAULT_ARCH;
 
 const char * const apkindex_tar_gz = "APKINDEX.tar.gz";
 const char * const apk_index_gz = "APK_INDEX.gz";
@@ -1125,6 +1134,8 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 
 	blob = APK_BLOB_STR("etc:*etc/init.d");
 	apk_blob_for_each_segment(blob, ":", add_protected_path, db);
+
+	db->arch = apk_arch;
 
 	db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
 	mkdirat(db->cache_fd, "tmp", 0644);
