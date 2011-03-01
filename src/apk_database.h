@@ -181,7 +181,7 @@ int apk_repository_update(struct apk_database *db, struct apk_repository *repo);
 
 int apk_db_cache_active(struct apk_database *db);
 void apk_cache_format_index(apk_blob_t to, struct apk_repository *repo, int ver);
-int apk_cache_download(struct apk_database *db, const char *url,
+int apk_cache_download(struct apk_database *db, const char *arch, const char *url,
 		       const char *item, const char *cache_item, int verify);
 
 int apk_db_install_pkg(struct apk_database *db,
