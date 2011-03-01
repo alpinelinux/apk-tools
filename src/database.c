@@ -683,7 +683,7 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 
 	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
 		pkg = ipkg->pkg;
-		r = apk_pkg_write_index_entry(pkg, os);
+		r = apk_pkg_write_index_entry(pkg, os, TRUE);
 		if (r < 0)
 			return r;
 
@@ -948,6 +948,7 @@ struct index_write_ctx {
 	struct apk_ostream *os;
 	int count;
 	int force;
+	int write_arch;
 };
 
 static int write_index_entry(apk_hash_item item, void *ctx)
@@ -959,7 +960,7 @@ static int write_index_entry(apk_hash_item item, void *ctx)
 	if (!iwctx->force && pkg->filename == NULL)
 		return 0;
 
-	r = apk_pkg_write_index_entry(pkg, iwctx->os);
+	r = apk_pkg_write_index_entry(pkg, iwctx->os, iwctx->write_arch);
 	if (r < 0)
 		return r;
 
@@ -972,7 +973,7 @@ static int write_index_entry(apk_hash_item item, void *ctx)
 
 static int apk_db_index_write_nr_cache(struct apk_database *db)
 {
-	struct index_write_ctx ctx = { NULL, 0, TRUE };
+	struct index_write_ctx ctx = { NULL, 0, TRUE, TRUE };
 	struct apk_installed_package *ipkg;
 	struct apk_ostream *os;
 	int r;
@@ -1006,7 +1007,7 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 
 int apk_db_index_write(struct apk_database *db, struct apk_ostream *os)
 {
-	struct index_write_ctx ctx = { os, 0, FALSE };
+	struct index_write_ctx ctx = { os, 0, FALSE, FALSE };
 
 	apk_hash_foreach(&db->available.packages, write_index_entry, &ctx);
 

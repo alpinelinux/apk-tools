@@ -150,7 +150,7 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 			unsigned int type, char **argv);
 
 struct apk_package *apk_pkg_parse_index_entry(struct apk_database *db, apk_blob_t entry);
-int apk_pkg_write_index_entry(struct apk_package *pkg, struct apk_ostream *os);
+int apk_pkg_write_index_entry(struct apk_package *pkg, struct apk_ostream *os, int write_arch);
 
 int apk_pkg_version_compare(struct apk_package *a, struct apk_package *b);
 

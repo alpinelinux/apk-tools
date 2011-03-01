@@ -637,9 +637,9 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 	case 'L':
 		pkg->license = apk_blob_cstr(value);
 		break;
-        case 'A':
-                pkg->arch = apk_blob_cstr(value);
-                break;
+	case 'A':
+		pkg->arch = apk_blob_cstr(value);
+		break;
 	case 'D':
 		apk_deps_parse(db, &pkg->depends, value);
 		break;
@@ -970,7 +970,7 @@ struct apk_package *apk_pkg_parse_index_entry(struct apk_database *db, apk_blob_
 }
 
 int apk_pkg_write_index_entry(struct apk_package *info,
-			      struct apk_ostream *os)
+			      struct apk_ostream *os, int write_arch)
 {
 	char buf[512];
 	apk_blob_t bbuf = APK_BLOB_BUF(buf);
@@ -982,9 +982,9 @@ int apk_pkg_write_index_entry(struct apk_package *info,
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR(info->name->name));
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nV:"));
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR(info->version));
-	if (info->arch != NULL) {
-                apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nA:"));
-                apk_blob_push_blob(&bbuf, APK_BLOB_STR(info->arch));
+	if (write_arch && info->arch != NULL) {
+		apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nA:"));
+		apk_blob_push_blob(&bbuf, APK_BLOB_STR(info->arch));
         }
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nS:"));
 	apk_blob_push_uint(&bbuf, info->size, 10);
