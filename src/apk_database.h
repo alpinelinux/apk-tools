@@ -124,7 +124,7 @@ struct apk_database {
 	const char *cache_dir;
 	char *cache_remount_dir;
 	apk_blob_t *arch;
-	unsigned int local_repos;
+	unsigned int local_repos, bad_repos;
 	int permanent : 1;
 	int compat_newfeatures : 1;
 	int compat_notinstallable : 1;
