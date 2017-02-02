@@ -182,6 +182,10 @@ void apk_pkg_uninstall(struct apk_database *db, struct apk_package *pkg);
 int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 			struct apk_istream *is,
 			unsigned int type, unsigned int size);
+
+int apk_run_post_script(void *ctx, int dirfd, const char *file);
+int apk_run_pre_script(void *ctx, int dirfd, const char *file);
+
 void apk_ipkg_run_script(struct apk_installed_package *ipkg, struct apk_database *db,
 			 unsigned int type, char **argv);
 
