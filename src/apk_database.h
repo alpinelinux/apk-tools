@@ -140,6 +140,8 @@ struct apk_repository_tag {
 	apk_blob_t tag, plain_name;
 };
 
+typedef enum { PRE_HOOK, POST_HOOK } HOOK_SCRIPT_TYPE ;
+
 struct apk_database {
 	char *root;
 	int root_fd, lock_fd, cache_fd, keys_fd;
@@ -155,6 +157,7 @@ struct apk_database {
 	int open_complete : 1;
 	int compat_newfeatures : 1;
 	int compat_notinstallable : 1;
+	HOOK_SCRIPT_TYPE hook_script;
 
 	struct apk_dependency_array *world;
 	struct apk_protected_path_array *protected_paths;

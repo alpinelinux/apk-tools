@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <libgen.h>
 #include <limits.h>
 #include <malloc.h>
 #include <string.h>
@@ -975,8 +976,9 @@ int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 	return 0;
 }
 
-static int run_script(char** argv, int dirfd, char* fn)
+static int run_script(char** argv, int root_fd, char* fn)
 {
+	char *script_name = basename(fn);
 	int status;
 	pid_t pid;
 	static char * const environment[] = {
@@ -991,25 +993,15 @@ static int run_script(char** argv, int dirfd, char* fn)
 	}
 	if (pid == 0) {
 		umask(0022);
-		if (fchdir(dirfd) == 0) {
-			if (fn == NULL)
-				execve(argv[0], argv, environment); /* pre/post hook */
-			else if (chroot(".") == 0)
-				execve(fn, argv, environment); /* apk "internal" script */
-			else
-				apk_error("chroot() failed for script with error str: %s", apk_error_str(errno));
-			apk_error("execve() failed for script with error str: %s", apk_error_str(errno));
-		} else
-			apk_error("change working dir failed with error str: %s", apk_error_str(errno));
+		if (fchdir(root_fd) == 0 && chroot(".") == 0) {
+				execve(fn, argv, environment);
+				apk_error("execve() failed for script with error str: %s", apk_error_str(errno));
+		}
 		exit(1); /* should not get here */
 	}
 	waitpid(pid, &status, 0);
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-		if (fn == NULL)
-			apk_error("%s: script exited with error %d", argv[2], WEXITSTATUS(status));
-		else
-			apk_error("%s: script exited with error %d", &fn[15], WEXITSTATUS(status));
-
+		apk_error("%s: script exited with error %d", script_name, WEXITSTATUS(status));
 		return -1;
 	}
 	return 0;
@@ -1018,21 +1010,28 @@ static int run_script(char** argv, int dirfd, char* fn)
 int apk_run_hook_script(void *ctx, int dirfd, const char *file)
 {
 	char fn[PATH_MAX];
-	char *stage = (char *)ctx;
-	char *script_args[] = { "/bin/sh", "-c", "", NULL };
+	struct apk_database *db = (struct apk_database *)ctx;
+	int root_fd = db->root_fd;
+	HOOK_SCRIPT_TYPE stage = db->hook_script;
+	char *argv[] = { "hook-script", NULL, NULL, NULL };
 
 	if ((apk_flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
 		return 0;
 
-	snprintf(fn, sizeof(fn), "./" "%s", file);
-	script_args[2] = (char *) fn;
+	if (stage == PRE_HOOK)
+		snprintf(fn, sizeof(fn), "etc/apk/pre_script.d/" "%s", file);
+	else
+		snprintf(fn, sizeof(fn), "etc/apk/post_script.d/" "%s", file);
 
-	if (apk_verbosity >= 2)
-		apk_message("Calling apk %s-script: %s\n", stage, fn);
+	if (apk_verbosity >= 2) {
+		if (stage == PRE_HOOK)
+			apk_message("Calling apk pre-script: %s\n", fn);
+		else
+			apk_message("Calling apk post-script: %s\n", fn);
+	}
 
-	if (run_script(script_args, dirfd, NULL) < 0 && strncmp(stage, "pre", 3) == 0)
+	if (run_script(argv, root_fd, fn) < 0 && stage == PRE_HOOK)
 		exit(1); /* error in a pre script is fatal */
-
 	return 0;
 }
 
