@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <libgen.h>
 #include <limits.h>
 #include <malloc.h>
 #include <string.h>
@@ -975,18 +976,67 @@ int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 	return 0;
 }
 
-void apk_ipkg_run_script(struct apk_installed_package *ipkg,
-			 struct apk_database *db,
-			 unsigned int type, char **argv)
+static int run_script(char** argv, int root_fd, char* fn)
 {
+	char *script_name = basename(fn);
+	int status;
+	pid_t pid;
 	static char * const environment[] = {
 		"PATH=/usr/sbin:/usr/bin:/sbin:/bin",
 		NULL
 	};
+
+	pid = fork();
+	if (pid == -1) {
+		apk_error("fork() failed with error str: %s", apk_error_str(errno));
+		return -2;
+	}
+	if (pid == 0) {
+		umask(0022);
+		if (fchdir(root_fd) == 0 && chroot(".") == 0) {
+				execve(fn, argv, environment);
+				apk_error("execve() failed for script with error str: %s", apk_error_str(errno));
+		}
+		exit(1); /* should not get here */
+	}
+	waitpid(pid, &status, 0);
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		apk_error("%s: script exited with error %d", script_name, WEXITSTATUS(status));
+		return -1;
+	}
+	return 0;
+}
+
+int apk_run_hook_script(void *ctx, int dirfd, const char *file)
+{
+	char fn[PATH_MAX];
+	struct apk_database *db = (struct apk_database *)ctx;
+	int root_fd = db->root_fd;
+	HOOK_SCRIPT_TYPE stage = db->hook_script;
+	char *argv[] = { "hook-script", NULL, NULL, NULL };
+	char *stage_str[] = { "pre", "post" };
+
+	if ((apk_flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
+		return 0;
+
+	snprintf(fn, sizeof(fn), "etc/apk/%s_script.d/" "%s", stage_str[stage], file);
+
+	if (apk_verbosity >= 2) {
+		apk_message("Calling apk %s-script: %s\n", stage_str[stage], fn);
+	}
+
+	if (run_script(argv, root_fd, fn) < 0 && stage == PRE_HOOK)
+		return -1; /* error in a pre script is fatal */
+	return 0;
+}
+
+void apk_ipkg_run_script(struct apk_installed_package *ipkg,
+			 struct apk_database *db,
+			 unsigned int type, char **argv)
+{
 	struct apk_package *pkg = ipkg->pkg;
 	char fn[PATH_MAX];
-	int fd, status, root_fd = db->root_fd;
-	pid_t pid;
+	int fd, root_fd = db->root_fd, ret;
 
 	if (type >= APK_SCRIPT_MAX || ipkg->script[type].ptr == NULL)
 		return;
@@ -1015,27 +1065,18 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	}
 	close(fd);
 
-	pid = fork();
-	if (pid == -1)
-		goto error;
-	if (pid == 0) {
-		umask(0022);
-		if (fchdir(root_fd) == 0 && chroot(".") == 0)
-			execve(fn, argv, environment);
-		exit(1);
-	}
-	waitpid(pid, &status, 0);
-	unlinkat(root_fd, fn, 0);
-	apk_id_cache_reset(&db->id_cache);
-
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-		apk_error("%s: script exited with error %d", &fn[15], WEXITSTATUS(status));
+	ret = run_script(argv, root_fd, fn);
+	if (ret < 0) {
+		if (ret == -2)
+			goto error;
 		ipkg->broken_script = 1;
 	}
+
 	return;
+
 error:
-	apk_error("%s: failed to execute: %s", &fn[15], apk_error_str(errno));
 	ipkg->broken_script = 1;
+	apk_error("%s: failed to execute: %s", &fn[15], apk_error_str(errno));
 }
 
 static int parse_index_line(void *ctx, apk_blob_t line)
