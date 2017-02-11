@@ -280,8 +280,9 @@ int apk_solver_commit_changeset(struct apk_database *db,
 
 	/* run pre scripts */
 	db->hook_script = PRE_HOOK;
-	apk_dir_foreach_file(openat(db->root_fd, "etc/apk/pre_script.d" , O_RDONLY | O_CLOEXEC),
-			apk_run_hook_script, db);
+	if (apk_dir_foreach_file(openat(db->root_fd, "etc/apk/pre_script.d" , O_RDONLY | O_CLOEXEC),
+			apk_run_hook_script, db) < 0)
+		return -1;
 
 	/* Go through changes */
 	foreach_array_item(change, changeset->changes) {

@@ -1014,24 +1014,19 @@ int apk_run_hook_script(void *ctx, int dirfd, const char *file)
 	int root_fd = db->root_fd;
 	HOOK_SCRIPT_TYPE stage = db->hook_script;
 	char *argv[] = { "hook-script", NULL, NULL, NULL };
+	char *stage_str[] = { "pre", "post" };
 
 	if ((apk_flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
 		return 0;
 
-	if (stage == PRE_HOOK)
-		snprintf(fn, sizeof(fn), "etc/apk/pre_script.d/" "%s", file);
-	else
-		snprintf(fn, sizeof(fn), "etc/apk/post_script.d/" "%s", file);
+	snprintf(fn, sizeof(fn), "etc/apk/%s_script.d/" "%s", stage_str[stage], file);
 
 	if (apk_verbosity >= 2) {
-		if (stage == PRE_HOOK)
-			apk_message("Calling apk pre-script: %s\n", fn);
-		else
-			apk_message("Calling apk post-script: %s\n", fn);
+		apk_message("Calling apk %s-script: %s\n", stage_str[stage], fn);
 	}
 
 	if (run_script(argv, root_fd, fn) < 0 && stage == PRE_HOOK)
-		exit(1); /* error in a pre script is fatal */
+		return -1; /* error in a pre script is fatal */
 	return 0;
 }
 
