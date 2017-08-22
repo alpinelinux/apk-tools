@@ -158,8 +158,6 @@ size_t apk_istream_skip(struct apk_istream *is, size_t size)
 		if (togo > sizeof(buf))
 			togo = sizeof(buf);
 		r = apk_istream_read(is, buf, togo);
-		if (r < 0)
-			return r;
 		done += r;
 		if (r != togo)
 			break;
@@ -207,15 +205,11 @@ size_t apk_istream_splice(void *stream, int fd, size_t size,
 		if (togo > bufsz)
 			togo = bufsz;
 		r = apk_istream_read(is, buf, togo);
-		if (r < 0)
-			goto err;
 		if (r == 0)
 			break;
 
 		if (mmapbase == MAP_FAILED) {
 			if (write(fd, buf, r) != r) {
-				if (r < 0)
-					r = -errno;
 				goto err;
 			}
 		} else
@@ -543,10 +537,6 @@ apk_blob_t apk_blob_from_istream(struct apk_istream *is, size_t size)
 		return APK_BLOB_NULL;
 
 	rsize = apk_istream_read(is, ptr, size);
-	if (rsize < 0) {
-		free(ptr);
-		return APK_BLOB_NULL;
-	}
 	if (rsize != size)
 		ptr = realloc(ptr, rsize);
 
