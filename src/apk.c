@@ -587,5 +587,8 @@ err:
 		free(ctx);
 
 	fetchConnectionCacheClose();
+
+	if (r < 0) r = 250;
+	if (r > 99) r = 99;
 	return r;
 }
