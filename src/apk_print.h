@@ -26,6 +26,7 @@ const char *apk_error_str(int error);
 
 void apk_reset_screen_width(void);
 int apk_get_screen_width(void);
+const char *apk_get_human_size(off_t size, off_t *dest);
 
 struct apk_indent {
 	int x;
