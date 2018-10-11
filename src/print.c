@@ -9,12 +9,14 @@
  * by the Free Software Foundation. See http://www.gnu.org/ for details.
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 
 #include "apk_defines.h"
 #include "apk_print.h"
@@ -23,6 +25,7 @@ int apk_progress_fd;
 static int apk_screen_width = 0;
 static int apk_progress_force = 1;
 static const char *apk_progress_char = "#";
+static const char *apk_size_units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
 
 void apk_reset_screen_width(void)
 {
@@ -51,6 +54,21 @@ int apk_get_screen_width(void)
 		apk_progress_char = progress_char;
 
 	return apk_screen_width;
+}
+
+const char *apk_get_human_size(off_t size, off_t *dest)
+{
+	size_t i;
+	off_t s;
+
+	assert(size >= 0);
+
+	for (i = 0, s = size; s >= 10000 &&
+	     i < ARRAY_SIZE(apk_size_units); i++)
+		s /= 1024;
+
+	if (dest) *dest = s;
+	return apk_size_units[min(i, ARRAY_SIZE(apk_size_units) - 1)];
 }
 
 void apk_print_progress(size_t done, size_t total)
