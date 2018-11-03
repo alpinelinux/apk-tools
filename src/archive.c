@@ -385,11 +385,15 @@ int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
 		else
 			return -1;
 
-		if (ae->name != NULL)
-			strncpy(buf.name, ae->name, sizeof(buf.name));
+		if (ae->name != NULL) {
+			strncpy(buf.name, ae->name, sizeof(buf.name) - 1);
+			buf.name[sizeof(buf.name) - 1] = '\0';
+		}
 
-		strncpy(buf.uname, ae->uname ?: "root", sizeof(buf.uname));
-		strncpy(buf.gname, ae->gname ?: "root", sizeof(buf.gname));
+		strncpy(buf.uname, ae->uname ?: "root", sizeof(buf.uname) - 1);
+		buf.uname[sizeof(buf.uname) - 1] = '\0';
+		strncpy(buf.gname, ae->gname ?: "root", sizeof(buf.gname) - 1);
+		buf.gname[sizeof(buf.gname) - 1] = '\0';
 
 		PUT_OCTAL(buf.size, ae->size);
 		PUT_OCTAL(buf.uid, ae->uid);
