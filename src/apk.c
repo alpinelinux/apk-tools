@@ -575,7 +575,7 @@ int main(int argc, char **argv)
 		for (i = 0; optgroups[i]; i++) {
 			r = optgroups[i]->parse(ctx, &dbopts, p, optarg);
 			if (r == 0) break;
-			if (r == -EINVAL) {
+			if (r == -EPERM) {
 				help_requested = 1;
 				break;
 			}
