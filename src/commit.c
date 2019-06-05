@@ -261,8 +261,9 @@ int apk_solver_commit_changeset(struct apk_database *db,
 {
 	struct progress prog;
 	struct apk_change *change;
-	char buf[32], size_unit;
-	ssize_t size_diff = 0;
+	char buf[32];
+	const char *size_unit;
+	off_t humanized, size_diff = 0;
 	int r, errors = 0;
 
 	if (apk_db_check_world(db, world) != 0) {
@@ -279,15 +280,11 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	foreach_array_item(change, changeset->changes) {
 		count_change(change, &prog.total);
 		if (change->new_pkg)
-			size_diff += change->new_pkg->installed_size / 1024;
+			size_diff += change->new_pkg->installed_size;
 		if (change->old_pkg)
-			size_diff -= change->old_pkg->installed_size / 1024;
+			size_diff -= change->old_pkg->installed_size;
 	}
-	size_unit = 'K';
-	if (labs(size_diff) > 10000) {
-		size_diff /= 1024;
-		size_unit = 'M';
-	}
+	size_unit = apk_get_human_size(llabs(size_diff), &humanized);
 
 	if ((apk_verbosity > 1 || (apk_flags & APK_INTERACTIVE)) &&
 	    !(apk_flags & APK_SIMULATE)) {
@@ -302,8 +299,8 @@ int apk_solver_commit_changeset(struct apk_database *db,
 					   "The following packages will be upgraded");
 			r += dump_packages(changeset, cmp_reinstall,
 					   "The following packages will be reinstalled");
-			printf("After this operation, %zd %ciB of %s.\n",
-				(size_diff < 0) ? -size_diff : size_diff,
+			printf("After this operation, %lld %s of %s.\n",
+				(long long)humanized,
 				size_unit,
 				(size_diff < 0) ?
 				"disk space will be freed" :
