@@ -90,7 +90,7 @@ static struct apk_package *create_virtual_package(struct apk_database *db, struc
 	time_t now = apk_time();
 	pid_t pid = getpid();
 
-	localtime_r(&now, &tm);
+	gmtime_r(&now, &tm);
 	strftime(ver, sizeof ver, "%Y%m%d.%H%M%S", &tm);
 
 	virtpkg = apk_pkg_new();
