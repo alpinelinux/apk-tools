@@ -97,7 +97,7 @@ static struct apk_package *create_virtual_package(struct apk_database *db, struc
 	if (virtpkg == NULL) return 0;
 
 	virtpkg->name = name;
-	virtpkg->version = apk_blob_atomize(APK_BLOB_STR(ver));
+	virtpkg->version = apk_blob_atomize_dup(APK_BLOB_STR(ver));
 	virtpkg->description = strdup("virtual meta package");
 	virtpkg->arch = apk_blob_atomize(APK_BLOB_STR("noarch"));
 
