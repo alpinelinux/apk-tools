@@ -1,0 +1,13 @@
+stages:
+    - test
+
+image: alpine
+
+test:
+    stage: test
+    script:
+        - apk update
+        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.2-dev
+        - make -j$(nproc) check
+    tags:
+        - docker-alpine
