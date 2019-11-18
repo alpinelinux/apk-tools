@@ -1,9 +1,8 @@
 stages:
     - test
 
-image: alpine
-
-test:
+test:alpine:
+    image: alpine
     stage: test
     script:
         - apk update
@@ -11,3 +10,16 @@ test:
         - make -j$(nproc) check
     tags:
         - docker-alpine
+
+test:debian:
+    image: debian
+    stage: test
+    script:
+        - apt-get update
+        - apt-get install -y make gcc git libssl-dev zlib1g-dev lua5.2-dev sudo
+        - unlink /bin/sh
+        - ln -s /bin/bash /bin/sh
+        - make -j$(nproc) check
+    tags:
+        - docker-alpine
+        - x86_64
