@@ -2391,7 +2391,11 @@ static const char *format_tmpname(struct apk_package *pkg, struct apk_db_file *f
 	EVP_MD_CTX_free(mdctx);
 
 	apk_blob_push_blob(&b, APK_BLOB_PTR_LEN(f->diri->dir->name, f->diri->dir->namelen));
-	apk_blob_push_blob(&b, APK_BLOB_STR("/.apk."));
+	if (f->diri->dir->namelen > 0) {
+		apk_blob_push_blob(&b, APK_BLOB_STR("/.apk."));
+	} else {
+		apk_blob_push_blob(&b, APK_BLOB_STR(".apk."));
+	}
 	apk_blob_push_hexdump(&b, APK_BLOB_PTR_LEN((char *)md, 24));
 	apk_blob_push_blob(&b, APK_BLOB_PTR_LEN("", 1));
 
