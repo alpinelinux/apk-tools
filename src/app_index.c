@@ -19,6 +19,8 @@
 #include "apk_database.h"
 #include "apk_print.h"
 
+#define APK_INDEXF_NO_WARNINGS	0x0001
+
 struct counts {
 	int unsatisfied;
 };
@@ -30,11 +32,13 @@ struct index_ctx {
 	apk_blob_t *rewrite_arch;
 	time_t index_mtime;
 	int method;
+	unsigned short index_flags;
 };
 
 enum {
 	OPT_INDEX_description,
 	OPT_INDEX_index,
+	OPT_INDEX_no_warnings,
 	OPT_INDEX_output,
 	OPT_INDEX_rewrite_arch,
 };
@@ -43,6 +47,7 @@ static const char option_desc[] =
 	APK_OPTAPPLET
 	APK_OPT2R("description", "d")
 	APK_OPT2R("index", "x")
+	APK_OPT1n("no-warnings")
 	APK_OPT2R("output", "o")
 	APK_OPT1R("rewrite-arch");
 
@@ -62,6 +67,9 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 		break;
 	case OPT_INDEX_rewrite_arch:
 		ictx->rewrite_arch = apk_blob_atomize(APK_BLOB_STR(optarg));
+		break;
+	case OPT_INDEX_no_warnings:
+		ictx->index_flags |= APK_INDEXF_NO_WARNINGS;
 		break;
 	default:
 		return -ENOTSUP;
@@ -244,7 +252,9 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 	}
 
 	total = r;
-	apk_hash_foreach(&db->available.names, warn_if_no_providers, &counts);
+	if (!(ictx->index_flags & APK_INDEXF_NO_WARNINGS)) {
+		apk_hash_foreach(&db->available.names, warn_if_no_providers, &counts);
+	}
 
 	if (counts.unsatisfied != 0)
 		apk_warning("Total of %d unsatisfiable package "
