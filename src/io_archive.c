@@ -337,7 +337,8 @@ int apk_tar_write_padding(struct apk_ostream *os, const struct apk_file_info *ae
 int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 			      const char *extract_name, const char *link_target,
 			      struct apk_istream *is,
-			      apk_progress_cb cb, void *cb_ctx)
+			      apk_progress_cb cb, void *cb_ctx,
+			      unsigned int apk_extract_flags)
 {
 	struct apk_xattr *xattr;
 	const char *fn = extract_name ?: ae->name;
@@ -385,21 +386,23 @@ int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 		return ret;
 	}
 
-	r = fchownat(atfd, fn, ae->uid, ae->gid, atflags);
-	if (r < 0) {
-		apk_error("Failed to set ownership on %s: %s",
-			  fn, strerror(errno));
-		if (!ret) ret = -errno;
-	}
-
-	/* chown resets suid bit so we need set it again */
-	if (ae->mode & 07000) {
-		r = fchmodat(atfd, fn, ae->mode & 07777, atflags);
+	if (!(apk_extract_flags & APK_EXTRACTF_NO_CHOWN)) {
+		r = fchownat(atfd, fn, ae->uid, ae->gid, atflags);
 		if (r < 0) {
-			apk_error("Failed to set file permissions "
-				  "on %s: %s",
+			apk_error("Failed to set ownership on %s: %s",
 				  fn, strerror(errno));
 			if (!ret) ret = -errno;
+		}
+
+		/* chown resets suid bit so we need set it again */
+		if (ae->mode & 07000) {
+			r = fchmodat(atfd, fn, ae->mode & 07777, atflags);
+			if (r < 0) {
+				apk_error("Failed to set file permissions "
+					  "on %s: %s",
+					  fn, strerror(errno));
+				if (!ret) ret = -errno;
+			}
 		}
 	}
 

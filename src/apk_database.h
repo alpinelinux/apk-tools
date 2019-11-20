@@ -155,6 +155,7 @@ struct apk_database {
 	unsigned int local_repos, available_repos, cache_max_age;
 	unsigned int repo_update_errors, repo_update_counter;
 	unsigned int pending_triggers;
+	unsigned int extract_flags;
 	int performing_self_upgrade : 1;
 	int permanent : 1;
 	int autoupdate : 1;

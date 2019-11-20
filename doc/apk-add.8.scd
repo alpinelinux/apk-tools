@@ -39,6 +39,12 @@ following options:
 	virtual package, and by deleting that package the *apk add* operation
 	may be easily reverted later.
 
+*--no-chown*
+	Do not change file owner or group. By default apk will manage the file
+	ownership when running as root. However, this option is turned on when
+	running as non-root user, as changing file ownership is not permitted
+	by the system then.
+
 # AUTHORS
 
 Natanael Copa <ncopa@alpinelinux.org>++

@@ -1347,6 +1347,10 @@ static int apk_db_create(struct apk_database *db)
 	if (fd < 0)
 		return -errno;
 	close(fd);
+	fd = openat(db->root_fd, apk_installed_file, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0644);
+	if (fd < 0)
+		return -errno;
+	close(fd);
 
 	return 0;
 }
@@ -2554,7 +2558,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 				db->root_fd, ae,
 				format_tmpname(pkg, file, tmpname_file),
 				format_tmpname(pkg, link_target_file, tmpname_link_target),
-				is, extract_cb, ctx);
+				is, extract_cb, ctx, db->extract_flags);
 
 		switch (r) {
 		case 0:

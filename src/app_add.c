@@ -20,6 +20,7 @@
 struct add_ctx {
 	const char *virtpkg;
 	unsigned short solver_flags;
+	unsigned short extract_flags;
 };
 
 static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
@@ -29,6 +30,9 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	switch (optch) {
 	case 0x10000:
 		dbopts->open_flags |= APK_OPENF_CREATE;
+		break;
+	case 0x10001:
+		actx->extract_flags |= APK_EXTRACTF_NO_CHOWN;
 		break;
 	case 'u':
 		actx->solver_flags |= APK_SOLVERF_UPGRADE;
@@ -47,6 +51,7 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 
 static const struct apk_option options_applet[] = {
 	{ 0x10000,	"initdb" },
+	{ 0x10001,	"no-chown" },
 	{ 'u',		"upgrade" },
 	{ 'l',		"latest" },
 	{ 't',		"virtual", required_argument, "NAME" },
@@ -117,6 +122,9 @@ static int add_main(void *ctx, struct apk_database *db, struct apk_string_array 
 	int r = 0;
 
 	apk_dependency_array_copy(&world, db->world);
+
+	if (getuid() != 0 || (actx->extract_flags & APK_EXTRACTF_NO_CHOWN))
+		db->extract_flags |= APK_EXTRACTF_NO_CHOWN;
 
 	if (actx->virtpkg) {
 		apk_blob_t b = APK_BLOB_STR(actx->virtpkg);
