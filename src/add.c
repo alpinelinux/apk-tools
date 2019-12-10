@@ -90,14 +90,14 @@ static struct apk_package *create_virtual_package(struct apk_database *db, struc
 	time_t now = apk_time();
 	pid_t pid = getpid();
 
-	localtime_r(&now, &tm);
+	gmtime_r(&now, &tm);
 	strftime(ver, sizeof ver, "%Y%m%d.%H%M%S", &tm);
 
 	virtpkg = apk_pkg_new();
 	if (virtpkg == NULL) return 0;
 
 	virtpkg->name = name;
-	virtpkg->version = apk_blob_atomize(APK_BLOB_STR(ver));
+	virtpkg->version = apk_blob_atomize_dup(APK_BLOB_STR(ver));
 	virtpkg->description = strdup("virtual meta package");
 	virtpkg->arch = apk_blob_atomize(APK_BLOB_STR("noarch"));
 

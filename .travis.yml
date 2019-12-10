@@ -1,5 +1,5 @@
 sudo: required
-dist: trusty
+dist: bionic
 language: minimal
 env:
   matrix:
@@ -10,12 +10,12 @@ env:
     - ARCH=ppc64le
 
 before_install:
-  - "wget 'https://raw.githubusercontent.com/alpinelinux/alpine-chroot-install/v0.7.0/alpine-chroot-install' \
-        && echo '090d323d887ef3a2fd4e752428553f22a52b87bb  alpine-chroot-install' | sha1sum -c || exit 1"
+  - "wget 'https://raw.githubusercontent.com/alpinelinux/alpine-chroot-install/v0.11.0/alpine-chroot-install' \
+        && echo 'df472cbd2dc93eb0b3126d06209363c4fc328ea3  alpine-chroot-install' | sha1sum -c || exit 1"
   - alpine() { /alpine/enter-chroot -u "$USER" "$@"; }
 install:
-  - sudo sh alpine-chroot-install -a "$ARCH"
-        -p 'build-base alpine-sdk libfetch-dev libressl libressl-dev linux-headers lua5.2-dev zlib-dev'
+  - sudo sh alpine-chroot-install -a "$ARCH" -b v3.10
+        -p 'build-base alpine-sdk linux-headers lua5.2-dev openssl openssl-dev zlib-dev'
 before_script:
   - /alpine/enter-chroot sh -c "addgroup $USER wheel && addgroup $USER abuild"
   - alpine abuild-keygen -ain
