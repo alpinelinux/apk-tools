@@ -49,8 +49,8 @@ struct apk_solver_package_state {
 	unsigned short max_dep_chain;
 	unsigned short pinning_allowed;
 	unsigned short pinning_preferred;
-	unsigned solver_flags : 4;
-	unsigned solver_flags_inheritable : 4;
+	unsigned solver_flags : 6;
+	unsigned solver_flags_inheritable : 6;
 	unsigned seen : 1;
 	unsigned pkg_available : 1;
 	unsigned pkg_selectable : 1;

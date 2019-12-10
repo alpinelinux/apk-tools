@@ -1,0 +1,7 @@
+@ARGS
+--test-repo upgrade.repo
+--test-instdb upgrade.installed
+--test-world app
+upgrade --ignore app
+@EXPECT
+OK: 0 MiB in 2 packages

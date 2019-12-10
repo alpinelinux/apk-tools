@@ -551,7 +551,8 @@ static int compare_providers(struct apk_solver_state *ss,
 			return r;
 
 		/* Prefer installed on self-upgrade */
-		if (db->performing_self_upgrade && !(solver_flags & APK_SOLVERF_UPGRADE)) {
+		if ((db->performing_self_upgrade && !(solver_flags & APK_SOLVERF_UPGRADE)) ||
+		    (solver_flags & APK_SOLVERF_IGNORE_UPGRADE)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r)
 				return r;
@@ -580,7 +581,8 @@ static int compare_providers(struct apk_solver_state *ss,
 			return r;
 
 		/* Prefer installed */
-		if (!(solver_flags & APK_SOLVERF_UPGRADE)) {
+		if (!(solver_flags & APK_SOLVERF_UPGRADE) ||
+		    (solver_flags & APK_SOLVERF_IGNORE_UPGRADE)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r)
 				return r;
