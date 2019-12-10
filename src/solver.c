@@ -668,7 +668,7 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 
 static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 {
-	struct apk_provider chosen = { NULL, &apk_null_blob }, *p;
+	struct apk_provider chosen = { NULL, &apk_null_blob }, *p, current = { NULL, &apk_null_blob };
 	struct apk_package *pkg = NULL;
 	struct apk_dependency *d;
 
@@ -694,12 +694,19 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 			    p->pkg->name->ss.requirers == 0 &&
 			    (p->pkg->provider_priority == 0 && name->providers->num > 1))
 				continue;
+      /* check if package is ignored and already installed */
+      if ((p->pkg->ss.solver_flags & APK_SOLVERF_IGNORE_UPGRADE) && p->pkg->ipkg != NULL)
+        current = *p;
 			if (compare_providers(ss, p, &chosen) > 0)
 				chosen = *p;
 		}
 	}
 
-	pkg = chosen.pkg;
+  if (current.pkg)
+	  chosen = current;
+  
+  pkg = chosen.pkg;
+
 	if (pkg) {
 		if (!pkg->ss.pkg_selectable || !pkg->ss.tag_ok) {
 			/* Selecting broken or unallowed package */
