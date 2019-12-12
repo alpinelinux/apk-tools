@@ -552,7 +552,7 @@ static int compare_providers(struct apk_solver_state *ss,
 
 		/* Prefer installed on self-upgrade */
 		if ((db->performing_self_upgrade && !(solver_flags & APK_SOLVERF_UPGRADE)) ||
-                   (pkgA->ss.solver_flags & APK_SOLVERF_IGNORE_UPGRADE)) {
+		    (pkgA->ss.solver_flags & APK_SOLVERF_IGNORE_UPGRADE)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r)
 				return r;
@@ -582,7 +582,7 @@ static int compare_providers(struct apk_solver_state *ss,
 
 		/* Prefer installed */
 		if (!(solver_flags & APK_SOLVERF_UPGRADE) || 
-                    (pkgA->ss.solver_flags & APK_SOLVERF_IGNORE_UPGRADE)) {
+		    (pkgA->ss.solver_flags & APK_SOLVERF_IGNORE_UPGRADE)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r)
 				return r;
@@ -701,7 +701,7 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 		}
 	}
 
-       pkg = chosen.pkg;
+	pkg = chosen.pkg;
 
 	if (pkg) {
 		if (!pkg->ss.pkg_selectable || !pkg->ss.tag_ok) {

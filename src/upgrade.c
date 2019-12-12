@@ -22,7 +22,7 @@ struct upgrade_ctx {
 	unsigned short solver_flags;
 	int no_self_upgrade : 1;
 	int self_upgrade_only : 1;
-        int ignore : 1;
+	int ignore : 1;
 };
 
 static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
@@ -36,9 +36,9 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	case 0x10001:
 		uctx->self_upgrade_only = 1;
 		break;
-        case 0x10002:
-	        uctx->ignore = 1;
-	        break;
+	case 0x10002:
+		uctx->ignore = 1;
+		break;
 	case 'a':
 		uctx->solver_flags |= APK_SOLVERF_AVAILABLE;
 		break;
@@ -63,8 +63,8 @@ static const struct apk_option options_applet[] = {
 	{ 0x10000, "no-self-upgrade",
 	  "Do not do early upgrade of 'apk-tools' package" },
 	{ 0x10001, "self-upgrade-only", "Only do self-upgrade" },
-        { 0x10002, "ignore", "Ignore the upgrade of PACKAGE.  Partial " 
-          "upgrades not supported, this might break your system."},
+	{ 0x10002, "ignore", "Ignore the upgrade of PACKAGE.  Partial "
+	  "upgrades not supported, this might break your system."},
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -164,14 +164,14 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 	if (uctx->self_upgrade_only)
 		return 0;
 
-        if (uctx->ignore) {
-                char **pkg_name;
-                struct apk_name *name;
-                foreach_array_item(pkg_name, args) {
-                        name = apk_db_get_name(db, APK_BLOB_STR(*pkg_name));
-                        apk_solver_set_name_flags(name, solver_flags | APK_SOLVERF_IGNORE_UPGRADE, 0); 
-                }
-        }
+	if (uctx->ignore) {
+		char **pkg_name;
+		struct apk_name *name;
+		foreach_array_item(pkg_name, args) {
+			name = apk_db_get_name(db, APK_BLOB_STR(*pkg_name));
+			apk_solver_set_name_flags(name, solver_flags | APK_SOLVERF_IGNORE_UPGRADE, 0);
+		}
+	}
 
 	if (solver_flags & APK_SOLVERF_AVAILABLE) {
 		apk_dependency_array_copy(&world, db->world);

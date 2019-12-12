@@ -35,7 +35,7 @@ struct apk_changeset {
 #define APK_SOLVERF_REINSTALL		0x0004
 #define APK_SOLVERF_LATEST		0x0008
 #define APK_SOLVERF_IGNORE_CONFLICT	0x0010
-#define APK_SOLVERF_IGNORE_UPGRADE 0x0020
+#define APK_SOLVERF_IGNORE_UPGRADE 	0x0020
 
 void apk_solver_set_name_flags(struct apk_name *name,
 			       unsigned short solver_flags,
