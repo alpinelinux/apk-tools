@@ -140,13 +140,13 @@ apk_blob_t apk_istream_get(struct apk_istream *is, size_t len)
 	return (struct apk_blob) { .len = is->err < 0 ? is->err : 0 };
 }
 
-apk_blob_t apk_istream_get_all(struct apk_istream *is)
+apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t max)
 {
 	if (is->ptr == is->end)
 		__apk_istream_fill(is);
 
 	if (is->ptr != is->end) {
-		apk_blob_t ret = APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr);
+		apk_blob_t ret = APK_BLOB_PTR_LEN((char*)is->ptr, min((size_t)(is->end - is->ptr), max));
 		is->ptr = is->end = 0;
 		return ret;
 	}
@@ -486,6 +486,32 @@ struct apk_istream *apk_istream_from_file(int atfd, const char *file)
 	return apk_istream_from_fd(fd);
 }
 
+ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size,
+			apk_progress_cb cb, void *cb_ctx, EVP_MD_CTX *mdctx)
+{
+	size_t done = 0;
+	apk_blob_t d;
+	int r;
+
+	while (done < size) {
+		if (cb != NULL) cb(cb_ctx, done);
+
+		d = apk_istream_get_max(is, size - done);
+		if (APK_BLOB_IS_NULL(d)) {
+			if (d.len) return d.len;
+			if (size != APK_IO_ALL) return -EBADMSG;
+			break;
+		}
+		if (mdctx) EVP_DigestUpdate(mdctx, d.ptr, d.len);
+
+		r = apk_ostream_write(os, d.ptr, d.len);
+		if (r < 0) return r;
+
+		done += d.len;
+	}
+	return done;
+}
+
 ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 			   apk_progress_cb cb, void *cb_ctx)
 {
@@ -496,7 +522,7 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 
 	bufsz = size;
 	if (size > 128 * 1024) {
-		if (size != APK_SPLICE_ALL) {
+		if (size != APK_IO_ALL) {
 			r = posix_fallocate(fd, 0, size);
 			if (r == 0)
 				mmapbase = mmap(NULL, size, PROT_READ | PROT_WRITE,
@@ -521,7 +547,7 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 		r = apk_istream_read(is, buf, togo);
 		if (r <= 0) {
 			if (r) goto err;
-			if (size != APK_SPLICE_ALL && done != size) {
+			if (size != APK_IO_ALL && done != size) {
 				r = -EBADMSG;
 				goto err;
 			}

@@ -663,7 +663,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 
 		if (fd >= 0) {
 			struct apk_file_meta meta;
-			r = apk_istream_splice(is, fd, APK_SPLICE_ALL, cb, cb_ctx);
+			r = apk_istream_splice(is, fd, APK_IO_ALL, cb, cb_ctx);
 			if (!autoupdate) {
 				apk_istream_get_meta(is, &meta);
 				apk_file_meta_to_fd(fd, &meta);
