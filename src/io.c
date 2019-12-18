@@ -63,17 +63,15 @@ struct apk_fd_istream {
 	int (*translate_status)(int status);
 };
 
-static void fdi_get_meta(void *stream, struct apk_file_meta *meta)
+static void fdi_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
 {
-	struct apk_fd_istream *fis =
-		container_of(stream, struct apk_fd_istream, is);
+	struct apk_fd_istream *fis = container_of(is, struct apk_fd_istream, is);
 	apk_file_meta_from_fd(fis->fd, meta);
 }
 
-static ssize_t fdi_read(void *stream, void *ptr, size_t size)
+static ssize_t fdi_read(struct apk_istream *is, void *ptr, size_t size)
 {
-	struct apk_fd_istream *fis =
-		container_of(stream, struct apk_fd_istream, is);
+	struct apk_fd_istream *fis = container_of(is, struct apk_fd_istream, is);
 	ssize_t i = 0, r;
 
 	if (ptr == NULL) {
@@ -100,10 +98,9 @@ static ssize_t fdi_read(void *stream, void *ptr, size_t size)
 	return i;
 }
 
-static void fdi_close(void *stream)
+static void fdi_close(struct apk_istream *is)
 {
-	struct apk_fd_istream *fis =
-		container_of(stream, struct apk_fd_istream, is);
+	struct apk_fd_istream *fis = container_of(is, struct apk_fd_istream, is);
 	int status;
 
 	close(fis->fd);
@@ -165,11 +162,10 @@ ssize_t apk_istream_skip(struct apk_istream *is, size_t size)
 	return done;
 }
 
-ssize_t apk_istream_splice(void *stream, int fd, size_t size,
+ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 			   apk_progress_cb cb, void *cb_ctx)
 {
 	static void *splice_buffer = NULL;
-	struct apk_istream *is = (struct apk_istream *) stream;
 	unsigned char *buf, *mmapbase = MAP_FAILED;
 	size_t bufsz, done = 0, togo;
 	ssize_t r;
@@ -234,17 +230,15 @@ struct apk_istream_bstream {
 	size_t size;
 };
 
-static void is_bs_get_meta(void *stream, struct apk_file_meta *meta)
+static void is_bs_get_meta(struct apk_bstream *bs, struct apk_file_meta *meta)
 {
-	struct apk_istream_bstream *isbs =
-		container_of(stream, struct apk_istream_bstream, bs);
+	struct apk_istream_bstream *isbs = container_of(bs, struct apk_istream_bstream, bs);
 	return apk_istream_get_meta(isbs->is, meta);
 }
 
-static apk_blob_t is_bs_read(void *stream, apk_blob_t token)
+static apk_blob_t is_bs_read(struct apk_bstream *bs, apk_blob_t token)
 {
-	struct apk_istream_bstream *isbs =
-		container_of(stream, struct apk_istream_bstream, bs);
+	struct apk_istream_bstream *isbs = container_of(bs, struct apk_istream_bstream, bs);
 	ssize_t size;
 	apk_blob_t ret;
 
@@ -296,10 +290,9 @@ ret:
 	return ret;
 }
 
-static void is_bs_close(void *stream, size_t *size)
+static void is_bs_close(struct apk_bstream *bs, size_t *size)
 {
-	struct apk_istream_bstream *isbs =
-		container_of(stream, struct apk_istream_bstream, bs);
+	struct apk_istream_bstream *isbs = container_of(bs, struct apk_istream_bstream, bs);
 
 	if (size != NULL)
 		*size = isbs->size;
@@ -341,17 +334,15 @@ struct apk_mmap_bstream {
 	apk_blob_t left;
 };
 
-static void mmap_get_meta(void *stream, struct apk_file_meta *meta)
+static void mmap_get_meta(struct apk_bstream *bs, struct apk_file_meta *meta)
 {
-	struct apk_mmap_bstream *mbs =
-		container_of(stream, struct apk_mmap_bstream, bs);
+	struct apk_mmap_bstream *mbs = container_of(bs, struct apk_mmap_bstream, bs);
 	return apk_file_meta_from_fd(mbs->fd, meta);
 }
 
-static apk_blob_t mmap_read(void *stream, apk_blob_t token)
+static apk_blob_t mmap_read(struct apk_bstream *bs, apk_blob_t token)
 {
-	struct apk_mmap_bstream *mbs =
-		container_of(stream, struct apk_mmap_bstream, bs);
+	struct apk_mmap_bstream *mbs = container_of(bs, struct apk_mmap_bstream, bs);
 	apk_blob_t ret;
 
 	if (!APK_BLOB_IS_NULL(token) && !APK_BLOB_IS_NULL(mbs->left)) {
@@ -366,10 +357,9 @@ static apk_blob_t mmap_read(void *stream, apk_blob_t token)
 	return ret;
 }
 
-static void mmap_close(void *stream, size_t *size)
+static void mmap_close(struct apk_bstream *bs, size_t *size)
 {
-	struct apk_mmap_bstream *mbs =
-		container_of(stream, struct apk_mmap_bstream, bs);
+	struct apk_mmap_bstream *mbs = container_of(bs, struct apk_mmap_bstream, bs);
 
 	if (size != NULL)
 		*size = mbs->size;
@@ -448,17 +438,15 @@ struct apk_tee_bstream {
 	void *cb_ctx;
 };
 
-static void tee_get_meta(void *stream, struct apk_file_meta *meta)
+static void tee_get_meta(struct apk_bstream *bs, struct apk_file_meta *meta)
 {
-	struct apk_tee_bstream *tbs =
-		container_of(stream, struct apk_tee_bstream, bs);
+	struct apk_tee_bstream *tbs = container_of(bs, struct apk_tee_bstream, bs);
 	apk_bstream_get_meta(tbs->inner_bs, meta);
 }
 
-static apk_blob_t tee_read(void *stream, apk_blob_t token)
+static apk_blob_t tee_read(struct apk_bstream *bs, apk_blob_t token)
 {
-	struct apk_tee_bstream *tbs =
-		container_of(stream, struct apk_tee_bstream, bs);
+	struct apk_tee_bstream *tbs = container_of(bs, struct apk_tee_bstream, bs);
 	apk_blob_t blob;
 
 	blob = apk_bstream_read(tbs->inner_bs, token);
@@ -470,11 +458,10 @@ static apk_blob_t tee_read(void *stream, apk_blob_t token)
 	return blob;
 }
 
-static void tee_close(void *stream, size_t *size)
+static void tee_close(struct apk_bstream *bs, size_t *size)
 {
 	struct apk_file_meta meta;
-	struct apk_tee_bstream *tbs =
-		container_of(stream, struct apk_tee_bstream, bs);
+	struct apk_tee_bstream *tbs = container_of(bs, struct apk_tee_bstream, bs);
 
 	if (tbs->copy_meta) {
 		apk_bstream_get_meta(tbs->inner_bs, &meta);
@@ -831,10 +818,9 @@ static ssize_t fdo_flush(struct apk_fd_ostream *fos)
 	return 0;
 }
 
-static ssize_t fdo_write(void *stream, const void *ptr, size_t size)
+static ssize_t fdo_write(struct apk_ostream *os, const void *ptr, size_t size)
 {
-	struct apk_fd_ostream *fos =
-		container_of(stream, struct apk_fd_ostream, os);
+	struct apk_fd_ostream *fos = container_of(os, struct apk_fd_ostream, os);
 	ssize_t r;
 
 	if (size + fos->bytes >= sizeof(fos->buffer)) {
@@ -855,10 +841,9 @@ static ssize_t fdo_write(void *stream, const void *ptr, size_t size)
 	return size;
 }
 
-static int fdo_close(void *stream)
+static int fdo_close(struct apk_ostream *os)
 {
-	struct apk_fd_ostream *fos =
-		container_of(stream, struct apk_fd_ostream, os);
+	struct apk_fd_ostream *fos = container_of(os, struct apk_fd_ostream, os);
 	int rc;
 
 	fdo_flush(fos);
@@ -937,19 +922,17 @@ struct apk_counter_ostream {
 	off_t *counter;
 };
 
-static ssize_t co_write(void *stream, const void *ptr, size_t size)
+static ssize_t co_write(struct apk_ostream *os, const void *ptr, size_t size)
 {
-	struct apk_counter_ostream *cos =
-		container_of(stream, struct apk_counter_ostream, os);
+	struct apk_counter_ostream *cos = container_of(os, struct apk_counter_ostream, os);
 
 	*cos->counter += size;
 	return size;
 }
 
-static int co_close(void *stream)
+static int co_close(struct apk_ostream *os)
 {
-	struct apk_counter_ostream *cos =
-		container_of(stream, struct apk_counter_ostream, os);
+	struct apk_counter_ostream *cos = container_of(os, struct apk_counter_ostream, os);
 
 	free(cos);
 	return 0;

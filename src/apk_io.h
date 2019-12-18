@@ -53,10 +53,14 @@ struct apk_file_info {
 	struct apk_xattr_array *xattrs;
 };
 
+struct apk_istream;
+struct apk_bstream;
+struct apk_ostream;
+
 struct apk_istream_ops {
-	void (*get_meta)(void *stream, struct apk_file_meta *meta);
-	ssize_t (*read)(void *stream, void *ptr, size_t size);
-	void (*close)(void *stream);
+	void (*get_meta)(struct apk_istream *is, struct apk_file_meta *meta);
+	ssize_t (*read)(struct apk_istream *is, void *ptr, size_t size);
+	void (*close)(struct apk_istream *is);
 };
 
 struct apk_istream {
@@ -67,9 +71,9 @@ struct apk_istream {
 #define APK_BSTREAM_EOF				0x0002
 
 struct apk_bstream_ops {
-	void (*get_meta)(void *stream, struct apk_file_meta *meta);
-	apk_blob_t (*read)(void *stream, apk_blob_t token);
-	void (*close)(void *stream, size_t *size);
+	void (*get_meta)(struct apk_bstream *bs, struct apk_file_meta *meta);
+	apk_blob_t (*read)(struct apk_bstream *bs, apk_blob_t token);
+	void (*close)(struct apk_bstream *bs, size_t *size);
 };
 
 struct apk_bstream {
@@ -78,8 +82,8 @@ struct apk_bstream {
 };
 
 struct apk_ostream_ops {
-	ssize_t (*write)(void *stream, const void *buf, size_t size);
-	int (*close)(void *stream);
+	ssize_t (*write)(struct apk_ostream *os, const void *buf, size_t size);
+	int (*close)(struct apk_ostream *os);
 };
 
 struct apk_ostream {
@@ -110,7 +114,7 @@ struct apk_istream *apk_istream_from_url_gz(const char *url);
 ssize_t apk_istream_skip(struct apk_istream *istream, size_t size);
 
 #define APK_SPLICE_ALL 0xffffffff
-ssize_t apk_istream_splice(void *stream, int fd, size_t size,
+ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 			   apk_progress_cb cb, void *cb_ctx);
 
 static inline struct apk_istream *apk_istream_from_fd(int fd)

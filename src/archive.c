@@ -89,20 +89,18 @@ struct apk_tar_entry_istream {
 	time_t mtime;
 };
 
-static void tar_entry_get_meta(void *stream, struct apk_file_meta *meta)
+static void tar_entry_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
 {
-	struct apk_tar_entry_istream *teis =
-		container_of(stream, struct apk_tar_entry_istream, is);
+	struct apk_tar_entry_istream *teis = container_of(is, struct apk_tar_entry_istream, is);
 	*meta = (struct apk_file_meta) {
 		.atime = teis->mtime,
 		.mtime = teis->mtime,
 	};
 }
 
-static ssize_t tar_entry_read(void *stream, void *ptr, size_t size)
+static ssize_t tar_entry_read(struct apk_istream *is, void *ptr, size_t size)
 {
-	struct apk_tar_entry_istream *teis =
-		container_of(stream, struct apk_tar_entry_istream, is);
+	struct apk_tar_entry_istream *teis = container_of(is, struct apk_tar_entry_istream, is);
 	ssize_t r;
 
 	if (size > teis->bytes_left)
@@ -131,7 +129,7 @@ static ssize_t tar_entry_read(void *stream, void *ptr, size_t size)
 	return r;
 }
 
-static void tar_entry_close(void *stream)
+static void tar_entry_close(struct apk_istream *is)
 {
 }
 

@@ -30,10 +30,9 @@ struct apk_gzip_istream {
 	apk_blob_t cbarg;
 };
 
-static void gzi_get_meta(void *stream, struct apk_file_meta *meta)
+static void gzi_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
 {
-	struct apk_gzip_istream *gis =
-		container_of(stream, struct apk_gzip_istream, is);
+	struct apk_gzip_istream *gis = container_of(is, struct apk_gzip_istream, is);
 	apk_bstream_get_meta(gis->bs, meta);
 }
 
@@ -47,10 +46,9 @@ static int gzi_boundary_change(struct apk_gzip_istream *gis)
 	return r;
 }
 
-static ssize_t gzi_read(void *stream, void *ptr, size_t size)
+static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 {
-	struct apk_gzip_istream *gis =
-		container_of(stream, struct apk_gzip_istream, is);
+	struct apk_gzip_istream *gis = container_of(is, struct apk_gzip_istream, is);
 	int r;
 
 	if (gis->err != 0) {
@@ -134,10 +132,9 @@ ret:
 	return size - gis->zs.avail_out;
 }
 
-static void gzi_close(void *stream)
+static void gzi_close(struct apk_istream *is)
 {
-	struct apk_gzip_istream *gis =
-		container_of(stream, struct apk_gzip_istream, is);
+	struct apk_gzip_istream *gis = container_of(is, struct apk_gzip_istream, is);
 
 	inflateEnd(&gis->zs);
 	apk_bstream_close(gis->bs, NULL);
@@ -184,9 +181,9 @@ struct apk_gzip_ostream {
 	z_stream zs;
 };
 
-static ssize_t gzo_write(void *stream, const void *ptr, size_t size)
+static ssize_t gzo_write(struct apk_ostream *os, const void *ptr, size_t size)
 {
-	struct apk_gzip_ostream *gos = (struct apk_gzip_ostream *) stream;
+	struct apk_gzip_ostream *gos = container_of(os, struct apk_gzip_ostream, os);
 	unsigned char buffer[1024];
 	ssize_t have, r;
 
@@ -209,9 +206,9 @@ static ssize_t gzo_write(void *stream, const void *ptr, size_t size)
 	return size;
 }
 
-static int gzo_close(void *stream)
+static int gzo_close(struct apk_ostream *os)
 {
-	struct apk_gzip_ostream *gos = (struct apk_gzip_ostream *) stream;
+	struct apk_gzip_ostream *gos = container_of(os, struct apk_gzip_ostream, os);
 	unsigned char buffer[1024];
 	size_t have;
 	int r, rc = 0;
@@ -229,7 +226,7 @@ static int gzo_close(void *stream)
 		rc = r;
 
 	deflateEnd(&gos->zs);
-	free(stream);
+	free(gos);
 
 	return rc;
 }

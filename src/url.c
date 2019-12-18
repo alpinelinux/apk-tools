@@ -67,9 +67,9 @@ static int fetch_maperror(int ec)
 	return map[ec];
 }
 
-static void fetch_get_meta(void *stream, struct apk_file_meta *meta)
+static void fetch_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
 {
-	struct apk_fetch_istream *fis = container_of(stream, struct apk_fetch_istream, is);
+	struct apk_fetch_istream *fis = container_of(is, struct apk_fetch_istream, is);
 
 	*meta = (struct apk_file_meta) {
 		.atime = fis->urlstat.atime,
@@ -77,9 +77,9 @@ static void fetch_get_meta(void *stream, struct apk_file_meta *meta)
 	};
 }
 
-static ssize_t fetch_read(void *stream, void *ptr, size_t size)
+static ssize_t fetch_read(struct apk_istream *is, void *ptr, size_t size)
 {
-	struct apk_fetch_istream *fis = container_of(stream, struct apk_fetch_istream, is);
+	struct apk_fetch_istream *fis = container_of(is, struct apk_fetch_istream, is);
 	ssize_t i = 0, r;
 
 	if (ptr == NULL) return apk_istream_skip(&fis->is, size);
@@ -94,9 +94,9 @@ static ssize_t fetch_read(void *stream, void *ptr, size_t size)
 	return i;
 }
 
-static void fetch_close(void *stream)
+static void fetch_close(struct apk_istream *is)
 {
-	struct apk_fetch_istream *fis = container_of(stream, struct apk_fetch_istream, is);
+	struct apk_fetch_istream *fis = container_of(is, struct apk_fetch_istream, is);
 
 	fetchIO_close(fis->fetchIO);
 	free(fis);
