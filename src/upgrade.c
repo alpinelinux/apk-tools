@@ -164,12 +164,20 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 	if (uctx->self_upgrade_only)
 		return 0;
 
-	if (uctx->ignore) {
+	if (args->num) {
+		unsigned int flags = solver_flags, in_flags;
+		if (uctx->ignore) {
+			flags |= APK_SOLVERF_IGNORE_UPGRADE;
+			in_flags = 0;
+		} else {
+			solver_flags &= ~APK_SOLVERF_UPGRADE;
+			in_flags = flags;
+		}
 		char **pkg_name;
 		struct apk_name *name;
 		foreach_array_item(pkg_name, args) {
 			name = apk_db_get_name(db, APK_BLOB_STR(*pkg_name));
-			apk_solver_set_name_flags(name, solver_flags | APK_SOLVERF_IGNORE_UPGRADE, 0);
+			apk_solver_set_name_flags(name, flags, in_flags);
 		}
 	}
 
