@@ -39,6 +39,7 @@
 #include "apk_openssl.h"
 
 static const apk_spn_match_def apk_spn_repo_separators = {
+	[1] = (1<<1) /* tab */,
 	[4] = (1<<0) /* */,
 	[7] = (1<<2) /*:*/,
 };
