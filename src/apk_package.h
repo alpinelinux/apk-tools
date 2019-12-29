@@ -193,6 +193,7 @@ int apk_pkg_write_index_entry(struct apk_package *pkg, struct apk_ostream *os);
 int apk_pkg_version_compare(struct apk_package *a, struct apk_package *b);
 
 unsigned int apk_foreach_genid(void);
+int apk_pkg_match_genid(struct apk_package *pkg, unsigned int match);
 void apk_pkg_foreach_matching_dependency(
 		struct apk_package *pkg, struct apk_dependency_array *deps,
 		unsigned int match, struct apk_package *mpkg,

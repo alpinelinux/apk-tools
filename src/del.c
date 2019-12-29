@@ -58,22 +58,30 @@ static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependenc
 				  struct apk_package *pkg, void *pctx)
 {
 	struct not_deleted_ctx *ctx = (struct not_deleted_ctx *) pctx;
+	struct apk_dependency *d;
+	struct apk_provider *p;
 
-	if (pkg0->name == ctx->name)
-		goto no_print;
+	if (pkg0->name != ctx->name) {
+		if (!ctx->header) {
+			apk_message("World updated, but the following packages are not removed due to:");
+			ctx->header = 1;
+		}
+		if (!ctx->indent.indent) {
+			ctx->indent.x = printf("  %s:", ctx->name->name);
+			ctx->indent.indent = ctx->indent.x + 1;
+		}
 
-	if (!ctx->header) {
-		apk_message("World updated, but the following packages are not removed due to:");
-		ctx->header = 1;
+		apk_print_indented(&ctx->indent, APK_BLOB_STR(pkg0->name->name));
 	}
-	if (!ctx->indent.indent) {
-		ctx->indent.x = printf("  %s:", ctx->name->name);
-		ctx->indent.indent = ctx->indent.x + 1;
-	}
 
-	apk_print_indented(&ctx->indent, APK_BLOB_STR(pkg0->name->name));
-no_print:
 	apk_pkg_foreach_reverse_dependency(pkg0, ctx->matches, print_not_deleted_pkg, pctx);
+	foreach_array_item(d, pkg0->install_if) {
+		foreach_array_item(p, d->name->providers) {
+			if (!p->pkg->marked) continue;
+			if (apk_pkg_match_genid(p->pkg, ctx->matches)) continue;
+			print_not_deleted_pkg(p->pkg, NULL, NULL, pctx);
+		}
+	}
 }
 
 static void print_not_deleted_name(struct apk_database *db, const char *match,
@@ -111,6 +119,7 @@ static void delete_name(struct apk_database *db, const char *match,
 	struct apk_package *pkg;
 
 	if (!name) {
+		apk_error("No such package: %s", match);
 		ctx->errors++;
 		return;
 	}

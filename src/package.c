@@ -1168,21 +1168,27 @@ unsigned int apk_foreach_genid(void)
 	return foreach_genid;
 }
 
+int apk_pkg_match_genid(struct apk_package *pkg, unsigned int match)
+{
+	unsigned int genid = match & APK_FOREACH_GENID_MASK;
+	if (pkg && genid) {
+		if (pkg->foreach_genid >= genid)
+			return 1;
+		pkg->foreach_genid = genid;
+	}
+	return 0;
+}
+
 void apk_pkg_foreach_matching_dependency(
 		struct apk_package *pkg, struct apk_dependency_array *deps,
 		unsigned int match, struct apk_package *mpkg,
 		void cb(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *ctx),
 		void *ctx)
 {
-	unsigned int genid = match & APK_FOREACH_GENID_MASK;
-	unsigned int one_dep_only = genid && !(match & APK_FOREACH_DEP);
+	unsigned int one_dep_only = (match & APK_FOREACH_GENID_MASK) && !(match & APK_FOREACH_DEP);
 	struct apk_dependency *d;
 
-	if (pkg && genid) {
-		if (pkg->foreach_genid >= genid)
-			return;
-		pkg->foreach_genid = genid;
-	}
+	if (apk_pkg_match_genid(pkg, match)) return;
 
 	foreach_array_item(d, deps) {
 		if (apk_dep_analyze(d, mpkg) & match) {
@@ -1199,10 +1205,9 @@ static void foreach_reverse_dependency(
 		void cb(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *ctx),
 		void *ctx)
 {
-	unsigned int genid = match & APK_FOREACH_GENID_MASK;
 	unsigned int marked = match & APK_FOREACH_MARKED;
 	unsigned int installed = match & APK_FOREACH_INSTALLED;
-	unsigned int one_dep_only = genid && !(match & APK_FOREACH_DEP);
+	unsigned int one_dep_only = (match & APK_FOREACH_GENID_MASK) && !(match & APK_FOREACH_DEP);
 	struct apk_name **pname0, *name0;
 	struct apk_provider *p0;
 	struct apk_package *pkg0;
@@ -1212,15 +1217,9 @@ static void foreach_reverse_dependency(
 		name0 = *pname0;
 		foreach_array_item(p0, name0->providers) {
 			pkg0 = p0->pkg;
-			if (installed && pkg0->ipkg == NULL)
-				continue;
-			if (marked && !pkg0->marked)
-				continue;
-			if (genid) {
-				if (pkg0->foreach_genid >= genid)
-					continue;
-				pkg0->foreach_genid = genid;
-			}
+			if (installed && pkg0->ipkg == NULL) continue;
+			if (marked && !pkg0->marked) continue;
+			if (apk_pkg_match_genid(pkg0, match)) continue;
 			foreach_array_item(d0, pkg0->depends) {
 				if (apk_dep_analyze(d0, pkg) & match) {
 					cb(pkg0, d0, pkg, ctx);
