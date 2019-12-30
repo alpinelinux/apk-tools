@@ -9,7 +9,7 @@ ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 
 # lua module
 ifneq ($(LUAAPK),)
-LUA_VERSION		?= 5.2
+LUA_VERSION		?= 5.3
 LUA_PC			?= lua$(LUA_VERSION)
 LUA_LIBDIR		?= /usr/lib/lua/$(LUA_VERSION)
 LIBAPK			:= YesPlease

@@ -17,24 +17,24 @@
 #endif
 
 struct flagmap {
-       const char *name;
-       int flag;
+	const char *name;
+	int flag;
 };
 
 struct flagmap opendb_flagmap[] = {
-       {"read",                APK_OPENF_READ},
-       {"write",               APK_OPENF_WRITE},
-       {"create",              APK_OPENF_CREATE},
-       {"no_installed",        APK_OPENF_NO_INSTALLED},
-       {"no_scripts",          APK_OPENF_NO_SCRIPTS},
-       {"no_world",            APK_OPENF_NO_WORLD},
-       {"no_sys_repos",        APK_OPENF_NO_SYS_REPOS},
-       {"no_installed_repo",   APK_OPENF_NO_INSTALLED_REPO},
-       {"no_repos",            APK_OPENF_NO_REPOS},
-       {"no_state",            APK_OPENF_NO_STATE},
-       {"no_scripts",          APK_OPENF_NO_SCRIPTS},
-       {"no_world",            APK_OPENF_NO_WORLD},
-       {NULL, 0}
+	{"read",                APK_OPENF_READ},
+	{"write",               APK_OPENF_WRITE},
+	{"create",              APK_OPENF_CREATE},
+	{"no_installed",        APK_OPENF_NO_INSTALLED},
+	{"no_scripts",          APK_OPENF_NO_SCRIPTS},
+	{"no_world",            APK_OPENF_NO_WORLD},
+	{"no_sys_repos",        APK_OPENF_NO_SYS_REPOS},
+	{"no_installed_repo",   APK_OPENF_NO_INSTALLED_REPO},
+	{"no_repos",            APK_OPENF_NO_REPOS},
+	{"no_state",            APK_OPENF_NO_STATE},
+	{"no_scripts",          APK_OPENF_NO_SCRIPTS},
+	{"no_world",            APK_OPENF_NO_WORLD},
+	{NULL, 0}
 };
 
 /* implemented as luaL_typerror until lua 5.1, dropped in 5.2
@@ -44,6 +44,11 @@ static int typerror (lua_State *L, int narg, const char *tname) {
 	const char *msg = lua_pushfstring(L, "%s expected, got %s",
 					  tname, luaL_typename(L, narg));
 	return luaL_argerror(L, narg, msg);
+}
+
+time_t apk_time(void)
+{
+	return time(NULL);
 }
 
 static apk_blob_t check_blob(lua_State *L, int index)

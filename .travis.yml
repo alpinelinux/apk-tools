@@ -15,7 +15,7 @@ before_install:
   - alpine() { /alpine/enter-chroot -u "$USER" "$@"; }
 install:
   - sudo sh alpine-chroot-install -a "$ARCH" -b v3.10
-        -p 'build-base alpine-sdk linux-headers lua5.2-dev openssl openssl-dev zlib-dev'
+        -p 'build-base alpine-sdk linux-headers lua5.3-dev openssl openssl-dev zlib-dev'
 before_script:
   - /alpine/enter-chroot sh -c "addgroup $USER wheel && addgroup $USER abuild"
   - alpine abuild-keygen -ain
