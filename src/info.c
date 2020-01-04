@@ -388,10 +388,10 @@ static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int op
 	case 'r':
 		ctx->subaction_mask |= APK_INFO_RDEPENDS;
 		break;
-	case 'I':
+	case 0x10002:
 		ctx->subaction_mask |= APK_INFO_INSTALL_IF;
 		break;
-	case 'i':
+	case 0x10003:
 		ctx->subaction_mask |= APK_INFO_RINSTALL_IF;
 		break;
 	case 's':
@@ -453,8 +453,8 @@ static const struct apk_option options_applet[] = {
 	{ 'P', "provides",	"List virtual packages provided by PACKAGE" },
 	{ 'r', "rdepends",	"List all packages depending on PACKAGE" },
 	{ 0x10000, "replaces",	"List packages whom files PACKAGE might replace" },
-	{ 'i', "install-if",	"List the PACKAGE's install_if rule" },
-	{ 'I', "rinstall-if",	"List all packages having install_if referencing PACKAGE" },
+	{ 0x10002, "install-if",	"List the PACKAGE's install_if rule" },
+	{ 0x10003, "rinstall-if",	"List all packages having install_if referencing PACKAGE" },
 	{ 'w', "webpage",	"Show URL for more information about PACKAGE" },
 	{ 's', "size",		"Show installed size of PACKAGE" },
 	{ 'd', "description",	"Print description for PACKAGE" },
