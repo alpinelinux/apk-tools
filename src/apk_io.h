@@ -73,7 +73,7 @@ struct apk_istream {
 struct apk_bstream_ops {
 	void (*get_meta)(struct apk_bstream *bs, struct apk_file_meta *meta);
 	apk_blob_t (*read)(struct apk_bstream *bs, apk_blob_t token);
-	void (*close)(struct apk_bstream *bs, size_t *size);
+	void (*close)(struct apk_bstream *bs);
 };
 
 struct apk_bstream {
@@ -178,9 +178,9 @@ static inline apk_blob_t apk_bstream_read(struct apk_bstream *bs, apk_blob_t tok
 {
 	return bs->ops->read(bs, token);
 }
-static inline void apk_bstream_close(struct apk_bstream *bs, size_t *size)
+static inline void apk_bstream_close(struct apk_bstream *bs)
 {
-	bs->ops->close(bs, size);
+	bs->ops->close(bs);
 }
 
 struct apk_ostream *apk_ostream_to_fd(int fd);

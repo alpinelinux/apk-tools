@@ -227,7 +227,6 @@ struct apk_istream_bstream {
 	struct apk_istream *is;
 	apk_blob_t left;
 	char buffer[8*1024];
-	size_t size;
 };
 
 static void is_bs_get_meta(struct apk_bstream *bs, struct apk_file_meta *meta)
@@ -263,7 +262,6 @@ static apk_blob_t is_bs_read(struct apk_bstream *bs, apk_blob_t token)
 	size = apk_istream_read(isbs->is, isbs->buffer + isbs->left.len,
 				sizeof(isbs->buffer) - isbs->left.len);
 	if (size > 0) {
-		isbs->size += size;
 		isbs->left.len += size;
 	} else if (size == 0) {
 		if (isbs->left.len == 0)
@@ -290,12 +288,9 @@ ret:
 	return ret;
 }
 
-static void is_bs_close(struct apk_bstream *bs, size_t *size)
+static void is_bs_close(struct apk_bstream *bs)
 {
 	struct apk_istream_bstream *isbs = container_of(bs, struct apk_istream_bstream, bs);
-
-	if (size != NULL)
-		*size = isbs->size;
 
 	apk_istream_close(isbs->is);
 	free(isbs);
@@ -320,8 +315,7 @@ struct apk_bstream *apk_bstream_from_istream(struct apk_istream *istream)
 		.ops = &is_bstream_ops,
 	};
 	isbs->is = istream;
-	isbs->left = APK_BLOB_PTR_LEN(isbs->buffer, 0),
-	isbs->size = 0;
+	isbs->left = APK_BLOB_PTR_LEN(isbs->buffer, 0);
 
 	return &isbs->bs;
 }
@@ -357,12 +351,10 @@ static apk_blob_t mmap_read(struct apk_bstream *bs, apk_blob_t token)
 	return ret;
 }
 
-static void mmap_close(struct apk_bstream *bs, size_t *size)
+static void mmap_close(struct apk_bstream *bs)
 {
 	struct apk_mmap_bstream *mbs = container_of(bs, struct apk_mmap_bstream, bs);
 
-	if (size != NULL)
-		*size = mbs->size;
 	munmap(mbs->ptr, mbs->size);
 	close(mbs->fd);
 	free(mbs);
@@ -391,14 +383,14 @@ static struct apk_bstream *apk_mmap_bstream_from_fd(int fd)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	mbs->bs = (struct apk_bstream) {
-		.flags = APK_BSTREAM_SINGLE_READ,
-		.ops = &mmap_bstream_ops,
+	*mbs = (struct apk_mmap_bstream) {
+		.bs.flags = APK_BSTREAM_SINGLE_READ,
+		.bs.ops = &mmap_bstream_ops,
+		.fd = fd,
+		.size = st.st_size,
+		.ptr = ptr,
+		.left = APK_BLOB_PTR_LEN(ptr, st.st_size),
 	};
-	mbs->fd = fd;
-	mbs->size = st.st_size;
-	mbs->ptr = ptr;
-	mbs->left = APK_BLOB_PTR_LEN(ptr, mbs->size);
 
 	return &mbs->bs;
 }
@@ -458,7 +450,7 @@ static apk_blob_t tee_read(struct apk_bstream *bs, apk_blob_t token)
 	return blob;
 }
 
-static void tee_close(struct apk_bstream *bs, size_t *size)
+static void tee_close(struct apk_bstream *bs)
 {
 	struct apk_file_meta meta;
 	struct apk_tee_bstream *tbs = container_of(bs, struct apk_tee_bstream, bs);
@@ -468,8 +460,7 @@ static void tee_close(struct apk_bstream *bs, size_t *size)
 		apk_file_meta_to_fd(tbs->fd, &meta);
 	}
 
-	apk_bstream_close(tbs->inner_bs, NULL);
-	if (size != NULL) *size = tbs->size;
+	apk_bstream_close(tbs->inner_bs);
 	close(tbs->fd);
 	free(tbs);
 }
@@ -491,7 +482,7 @@ struct apk_bstream *apk_bstream_tee(struct apk_bstream *from, int atfd, const ch
 		    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (fd < 0) {
 		r = errno;
-		apk_bstream_close(from, NULL);
+		apk_bstream_close(from);
 		return ERR_PTR(-r);
 	}
 
@@ -499,19 +490,18 @@ struct apk_bstream *apk_bstream_tee(struct apk_bstream *from, int atfd, const ch
 	if (!tbs) {
 		r = errno;
 		close(fd);
-		apk_bstream_close(from, NULL);
+		apk_bstream_close(from);
 		return ERR_PTR(-r);
 	}
 
-	tbs->bs = (struct apk_bstream) {
-		.ops = &tee_bstream_ops,
+	*tbs = (struct apk_tee_bstream) {
+		.bs.ops = &tee_bstream_ops,
+		.inner_bs = from,
+		.fd = fd,
+		.copy_meta = copy_meta,
+		.cb = cb,
+		.cb_ctx = cb_ctx,
 	};
-	tbs->inner_bs = from;
-	tbs->fd = fd;
-	tbs->copy_meta = copy_meta;
-	tbs->size = 0;
-	tbs->cb = cb;
-	tbs->cb_ctx = cb_ctx;
 
 	return &tbs->bs;
 }
@@ -728,7 +718,7 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 				EVP_DigestFinal_ex(mdctx, fi->csum.data, NULL);
 				EVP_MD_CTX_free(mdctx);
 			}
-			apk_bstream_close(bs, NULL);
+			apk_bstream_close(bs);
 		}
 	}
 
