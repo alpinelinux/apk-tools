@@ -59,8 +59,6 @@ void apk_file_meta_to_fd(int fd, struct apk_file_meta *meta)
 struct apk_fd_istream {
 	struct apk_istream is;
 	int fd;
-	pid_t pid;
-	int (*translate_status)(int status);
 };
 
 static void fdi_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
@@ -88,12 +86,6 @@ static ssize_t fdi_read(struct apk_istream *is, void *ptr, size_t size)
 			break;
 		i += r;
 	}
-	if (i == 0 && fis->pid != 0) {
-		int status;
-		if (waitpid(fis->pid, &status, 0) == fis->pid)
-			i = fis->translate_status(status);
-		fis->pid = 0;
-	}
 
 	return i;
 }
@@ -101,11 +93,8 @@ static ssize_t fdi_read(struct apk_istream *is, void *ptr, size_t size)
 static void fdi_close(struct apk_istream *is)
 {
 	struct apk_fd_istream *fis = container_of(is, struct apk_fd_istream, is);
-	int status;
 
 	close(fis->fd);
-	if (fis->pid != 0)
-		waitpid(fis->pid, &status, 0);
 	free(fis);
 }
 
@@ -115,7 +104,7 @@ static const struct apk_istream_ops fd_istream_ops = {
 	.close = fdi_close,
 };
 
-struct apk_istream *apk_istream_from_fd_pid(int fd, pid_t pid, int (*translate_status)(int))
+struct apk_istream *apk_istream_from_fd(int fd)
 {
 	struct apk_fd_istream *fis;
 
@@ -130,8 +119,6 @@ struct apk_istream *apk_istream_from_fd_pid(int fd, pid_t pid, int (*translate_s
 	*fis = (struct apk_fd_istream) {
 		.is.ops = &fd_istream_ops,
 		.fd = fd,
-		.pid = pid,
-		.translate_status = translate_status,
 	};
 
 	return &fis->is;
@@ -395,19 +382,17 @@ static struct apk_bstream *apk_mmap_bstream_from_fd(int fd)
 	return &mbs->bs;
 }
 
-struct apk_bstream *apk_bstream_from_fd_pid(int fd, pid_t pid, int (*translate_status)(int))
+struct apk_bstream *apk_bstream_from_fd(int fd)
 {
 	struct apk_bstream *bs;
 
 	if (fd < 0) return ERR_PTR(-EBADF);
 
-	if (pid == 0) {
-		bs = apk_mmap_bstream_from_fd(fd);
-		if (!IS_ERR_OR_NULL(bs))
-			return bs;
-	}
+	bs = apk_mmap_bstream_from_fd(fd);
+	if (!IS_ERR_OR_NULL(bs))
+		return bs;
 
-	return apk_bstream_from_istream(apk_istream_from_fd_pid(fd, pid, translate_status));
+	return apk_bstream_from_istream(apk_istream_from_fd(fd));
 }
 
 struct apk_bstream *apk_bstream_from_file(int atfd, const char *file)
