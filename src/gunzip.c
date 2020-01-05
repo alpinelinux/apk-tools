@@ -137,7 +137,7 @@ static void gzi_close(struct apk_istream *is)
 	struct apk_gzip_istream *gis = container_of(is, struct apk_gzip_istream, is);
 
 	inflateEnd(&gis->zs);
-	apk_bstream_close(gis->bs, NULL);
+	apk_bstream_close(gis->bs);
 	free(gis);
 }
 
@@ -171,7 +171,7 @@ struct apk_istream *apk_bstream_gunzip_mpart(struct apk_bstream *bs,
 
 	return &gis->is;
 err:
-	apk_bstream_close(bs, NULL);
+	apk_bstream_close(bs);
 	return ERR_PTR(-ENOMEM);
 }
 

@@ -1164,14 +1164,14 @@ static int apk_db_read_state(struct apk_database *db, int flags)
 		bs = apk_bstream_from_file(db->root_fd, apk_installed_file);
 		if (!IS_ERR_OR_NULL(bs)) {
 			r = apk_db_index_read(db, bs, -1);
-			apk_bstream_close(bs, NULL);
+			apk_bstream_close(bs);
 			if (r != 0) return -1;
 		}
 
 		bs = apk_bstream_from_file(db->root_fd, apk_triggers_file);
 		if (!IS_ERR_OR_NULL(bs)) {
 			apk_db_triggers_read(db, bs);
-			apk_bstream_close(bs, NULL);
+			apk_bstream_close(bs);
 		}
 	}
 
@@ -1685,7 +1685,7 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 			bs = apk_bstream_from_file(db->cache_fd, "installed");
 			if (!IS_ERR_OR_NULL(bs)) {
 				apk_db_index_read(db, bs, -2);
-				apk_bstream_close(bs, NULL);
+				apk_bstream_close(bs);
 			}
 		}
 	}
@@ -2182,7 +2182,7 @@ static int load_apkindex(void *sctx, const struct apk_file_info *fi,
 		bs = apk_bstream_from_istream(is);
 		if (!IS_ERR_OR_NULL(bs)) {
 			apk_db_index_read(ctx->db, bs, ctx->repo);
-			apk_bstream_close(bs, NULL);
+			apk_bstream_close(bs);
 		}
 	}
 
@@ -2215,7 +2215,7 @@ static int load_index(struct apk_database *db, struct apk_bstream *bs,
 		bs = apk_bstream_from_istream(apk_bstream_gunzip(bs));
 		if (!IS_ERR_OR_NULL(bs)) {
 			apk_db_index_read(db, bs, repo);
-			apk_bstream_close(bs, NULL);
+			apk_bstream_close(bs);
 		}
 	}
 	return r;
