@@ -12,4 +12,6 @@ libfetch/*err.h
 *.d
 *.cmd
 *.so
+*.5
+*.8
 config.mk
