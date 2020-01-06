@@ -67,6 +67,7 @@ CROSS_COMPILE	?=
 CC		:= $(CROSS_COMPILE)gcc
 AR		:= $(CROSS_COMPILE)ar
 LD		:= $(CROSS_COMPILE)ld
+SCDOC		:= scdoc
 INSTALL		:= install
 INSTALLDIR	:= $(INSTALL) -d
 
@@ -77,7 +78,7 @@ CFLAGS_ALL	+= $(CFLAGS)
 LDFLAGS		?= -g
 LDFLAGS_ALL	+= $(LDFLAGS)
 
-export CC AR LD INSTALL INSTALLDIR CFLAGS_ALL LDFLAGS_ALL
+export CC AR LD SCDOC INSTALL INSTALLDIR CFLAGS_ALL LDFLAGS_ALL
 
 build		:=
 
@@ -106,7 +107,7 @@ endif
 ##
 # Rules and helpers
 
-PHONY += all compile install clean FORCE
+PHONY += all compile install clean docs FORCE
 
 # Convinient variables
 comma   := ,

@@ -21,7 +21,7 @@ export DESTDIR SBINDIR LIBDIR CONFDIR MANDIR DOCDIR
 ##
 # Top-level rules and targets
 
-targets		:= libfetch/ src/
+targets		:= libfetch/ src/ doc/
 
 ##
 # Include all rules and stuff
