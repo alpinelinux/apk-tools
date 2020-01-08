@@ -8,6 +8,7 @@ docs: $(obj)/apk.8 \
 	$(obj)/apk-add.8 \
 	$(obj)/apk-cache.8 \
 	$(obj)/apk-del.8 \
+	$(obj)/apk-dot.8 \
 	$(obj)/apk-fix.8 \
 	$(obj)/apk-info.8 \
 	$(obj)/apk-list.8 \
