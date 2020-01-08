@@ -5,7 +5,7 @@
  * Copyright (C) 2017 William Pitcock <nenolod@dereferenced.org>
  * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it 
+ * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
  * by the Free Software Foundation. See http://www.gnu.org/ for details.
  */
@@ -21,6 +21,7 @@
 
 /* TODO: support package files as well as generating manifest from the installed DB. */
 static char *csum_types[APK_CHECKSUM_SHA1 + 1] = {
+	/* Note: if adding new algorithms, update apk-manifest(8) */
 	[APK_CHECKSUM_MD5] = "md5",
 	[APK_CHECKSUM_SHA1] = "sha1",
 };

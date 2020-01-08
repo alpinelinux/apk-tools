@@ -14,6 +14,7 @@ docs: $(obj)/apk.8 \
 	$(obj)/apk-index.8 \
 	$(obj)/apk-info.8 \
 	$(obj)/apk-list.8 \
+	$(obj)/apk-manifest.8 \
 	$(obj)/apk-policy.8 \
 	$(obj)/apk-update.8 \
 	$(obj)/apk-upgrade.8 \
