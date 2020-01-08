@@ -41,7 +41,7 @@ Each command is documented in detail on its manual page.
 |[ *apk-info*(8)
 :< Give detailed information about packages or repositories
 |  *apk-list*(8)
-:  List packages by patterns or other criteria
+:  List packages matching a pattern or other criteria
 |  *apk-dot*(8)
 :  Generate graphviz graphs
 |  *apk-policy*(8)
