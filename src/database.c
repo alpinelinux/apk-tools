@@ -2950,7 +2950,7 @@ static int match_names(apk_hash_item item, void *pctx)
 	}
 
 	foreach_array_item(pmatch, ctx->filter) {
-		if (fnmatch(*pmatch, name->name, FNM_CASEFOLD) == 0) {
+		if (fnmatch(*pmatch, name->name, 0) == 0) {
 			ctx->cb(ctx->db, *pmatch, name, ctx->cb_ctx);
 			if (genid)
 				break;
