@@ -10,6 +10,7 @@ docs: $(obj)/apk.8 \
 	$(obj)/apk-del.8 \
 	$(obj)/apk-dot.8 \
 	$(obj)/apk-fix.8 \
+	$(obj)/apk-index.8 \
 	$(obj)/apk-info.8 \
 	$(obj)/apk-list.8 \
 	$(obj)/apk-policy.8 \
