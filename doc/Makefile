@@ -6,6 +6,7 @@ $(obj)/%.8: $(src)/%.8.scd
 
 docs: $(obj)/apk.8 \
 	$(obj)/apk-add.8 \
+	$(obj)/apk-cache.8 \
 	$(obj)/apk-del.8 \
 	$(obj)/apk-fix.8 \
 	$(obj)/apk-update.8 \
