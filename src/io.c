@@ -35,6 +35,8 @@
 #define HAVE_FGETGRENT_R
 #endif
 
+size_t apk_io_bufsize = 2*1024;
+
 static void apk_file_meta_from_fd(int fd, struct apk_file_meta *meta)
 {
 	struct stat st;
@@ -56,6 +58,44 @@ void apk_file_meta_to_fd(int fd, struct apk_file_meta *meta)
 	futimens(fd, times);
 }
 
+ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size)
+{
+	ssize_t left = size, r = 0;
+
+	while (left) {
+		if (is->ptr != is->end) {
+			r = MIN(left, is->end - is->ptr);
+			if (ptr) {
+				memcpy(ptr, is->ptr, r);
+				ptr += r;
+			}
+			is->ptr += r;
+			left -= r;
+			continue;
+		}
+		if (is->err) break;
+
+		if (ptr && left > is->buf_size/4) {
+			r = is->ops->read(is, ptr, left);
+			if (r <= 0) break;
+			left -= r;
+			ptr += r;
+			continue;
+		}
+
+		r = is->ops->read(is, is->buf, is->buf_size);
+		if (r <= 0) break;
+
+		is->ptr = is->buf;
+		is->end = is->buf + r;
+	}
+
+	if (r < 0) return r;
+	if (size && left == size && !is->err) is->err = 1;
+	if (size == left) return is->err < 0 ? is->err : 0;
+	return size - left;
+}
+
 struct apk_fd_istream {
 	struct apk_istream is;
 	int fd;
@@ -70,24 +110,11 @@ static void fdi_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
 static ssize_t fdi_read(struct apk_istream *is, void *ptr, size_t size)
 {
 	struct apk_fd_istream *fis = container_of(is, struct apk_fd_istream, is);
-	ssize_t i = 0, r;
+	ssize_t r;
 
-	if (ptr == NULL) {
-		if (lseek(fis->fd, size, SEEK_CUR) < 0)
-			return -errno;
-		return size;
-	}
-
-	while (i < size) {
-		r = read(fis->fd, ptr + i, size - i);
-		if (r < 0)
-			return -errno;
-		if (r == 0)
-			break;
-		i += r;
-	}
-
-	return i;
+	r = read(fis->fd, ptr, size);
+	if (r < 0) return -errno;
+	return r;
 }
 
 static void fdi_close(struct apk_istream *is)
@@ -110,7 +137,7 @@ struct apk_istream *apk_istream_from_fd(int fd)
 
 	if (fd < 0) return ERR_PTR(-EBADF);
 
-	fis = malloc(sizeof(struct apk_fd_istream));
+	fis = malloc(sizeof(*fis) + apk_io_bufsize);
 	if (fis == NULL) {
 		close(fd);
 		return ERR_PTR(-ENOMEM);
@@ -118,6 +145,8 @@ struct apk_istream *apk_istream_from_fd(int fd)
 
 	*fis = (struct apk_fd_istream) {
 		.is.ops = &fd_istream_ops,
+		.is.buf = (uint8_t *)(fis + 1),
+		.is.buf_size = apk_io_bufsize,
 		.fd = fd,
 	};
 
@@ -132,21 +161,6 @@ struct apk_istream *apk_istream_from_file(int atfd, const char *file)
 	if (fd < 0) return ERR_PTR(-errno);
 
 	return apk_istream_from_fd(fd);
-}
-
-ssize_t apk_istream_skip(struct apk_istream *is, size_t size)
-{
-	unsigned char buf[2048];
-	size_t done = 0, togo;
-	ssize_t r;
-
-	while (done < size) {
-		togo = MIN(size - done, sizeof buf);
-		r = apk_istream_read(is, buf, togo);
-		if (r <= 0) return r ?: -EIO;
-		done += r;
-	}
-	return done;
 }
 
 ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,

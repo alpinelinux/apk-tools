@@ -303,8 +303,10 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 			toskip += 512 - ((offset + toskip) & 511);
 		offset += toskip;
 		if (toskip != 0) {
-			if ((r = apk_istream_read(is, NULL, toskip)) != toskip)
+			if ((r = apk_istream_read(is, NULL, toskip)) != toskip) {
+				r = -EIO;
 				goto err;
+			}
 		}
 	}
 

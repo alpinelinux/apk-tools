@@ -80,18 +80,11 @@ static void fetch_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
 static ssize_t fetch_read(struct apk_istream *is, void *ptr, size_t size)
 {
 	struct apk_fetch_istream *fis = container_of(is, struct apk_fetch_istream, is);
-	ssize_t i = 0, r;
+	ssize_t r;
 
-	if (ptr == NULL) return apk_istream_skip(&fis->is, size);
-
-	while (i < size) {
-		r = fetchIO_read(fis->fetchIO, ptr + i, size - i);
-		if (r < 0) return -EIO;
-		if (r == 0) break;
-		i += r;
-	}
-
-	return i;
+	r = fetchIO_read(fis->fetchIO, ptr, size);
+	if (r < 0) return -EIO;
+	return r;
 }
 
 static void fetch_close(struct apk_istream *is)
@@ -120,7 +113,7 @@ static struct apk_istream *apk_istream_fetch(const char *url, time_t since)
 		rc = -EAPKBADURL;
 		goto err;
 	}
-	fis = malloc(sizeof(*fis));
+	fis = malloc(sizeof *fis + apk_io_bufsize);
 	if (!fis) {
 		rc = -ENOMEM;
 		goto err;
@@ -135,6 +128,8 @@ static struct apk_istream *apk_istream_fetch(const char *url, time_t since)
 
 	*fis = (struct apk_fetch_istream) {
 		.is.ops = &fetch_istream_ops,
+		.is.buf = (uint8_t*)(fis+1),
+		.is.buf_size = apk_io_bufsize,
 		.fetchIO = io,
 		.urlstat = fis->urlstat,
 	};

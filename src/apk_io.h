@@ -53,6 +53,8 @@ struct apk_file_info {
 	struct apk_xattr_array *xattrs;
 };
 
+extern size_t apk_io_bufsize;
+
 struct apk_istream;
 struct apk_bstream;
 struct apk_ostream;
@@ -63,9 +65,47 @@ struct apk_istream_ops {
 	void (*close)(struct apk_istream *is);
 };
 
+#define APK_ISTREAM_SINGLE_READ			0x0001
+
 struct apk_istream {
+	uint8_t *ptr, *end, *buf;
+	size_t buf_size;
+	int err;
+	unsigned int flags;
 	const struct apk_istream_ops *ops;
 };
+
+struct apk_istream *apk_istream_from_file(int atfd, const char *file);
+struct apk_istream *apk_istream_from_file_gz(int atfd, const char *file);
+struct apk_istream *apk_istream_from_fd(int fd);
+struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *url, time_t since);
+struct apk_istream *apk_istream_from_url_gz(const char *url);
+ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size);
+
+#define APK_SPLICE_ALL 0xffffffff
+ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
+			   apk_progress_cb cb, void *cb_ctx);
+
+static inline struct apk_istream *apk_istream_from_url(const char *url)
+{
+	return apk_istream_from_fd_url_if_modified(AT_FDCWD, url, 0);
+}
+static inline struct apk_istream *apk_istream_from_fd_url(int atfd, const char *url)
+{
+	return apk_istream_from_fd_url_if_modified(atfd, url, 0);
+}
+static inline struct apk_istream *apk_istream_from_url_if_modified(const char *url, time_t since)
+{
+	return apk_istream_from_fd_url_if_modified(AT_FDCWD, url, since);
+}
+static inline void apk_istream_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
+{
+	is->ops->get_meta(is, meta);
+}
+static inline void apk_istream_close(struct apk_istream *is)
+{
+	is->ops->close(is);
+}
 
 #define APK_BSTREAM_SINGLE_READ			0x0001
 #define APK_BSTREAM_EOF				0x0002
@@ -106,41 +146,6 @@ static inline struct apk_istream *apk_bstream_gunzip(struct apk_bstream *bs)
 struct apk_ostream *apk_ostream_gzip(struct apk_ostream *);
 struct apk_ostream *apk_ostream_counter(off_t *);
 
-struct apk_istream *apk_istream_from_file(int atfd, const char *file);
-struct apk_istream *apk_istream_from_file_gz(int atfd, const char *file);
-struct apk_istream *apk_istream_from_fd(int fd);
-struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *url, time_t since);
-struct apk_istream *apk_istream_from_url_gz(const char *url);
-ssize_t apk_istream_skip(struct apk_istream *istream, size_t size);
-
-#define APK_SPLICE_ALL 0xffffffff
-ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
-			   apk_progress_cb cb, void *cb_ctx);
-
-static inline struct apk_istream *apk_istream_from_url(const char *url)
-{
-	return apk_istream_from_fd_url_if_modified(AT_FDCWD, url, 0);
-}
-static inline struct apk_istream *apk_istream_from_fd_url(int atfd, const char *url)
-{
-	return apk_istream_from_fd_url_if_modified(atfd, url, 0);
-}
-static inline struct apk_istream *apk_istream_from_url_if_modified(const char *url, time_t since)
-{
-	return apk_istream_from_fd_url_if_modified(AT_FDCWD, url, since);
-}
-static inline void apk_istream_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
-{
-	is->ops->get_meta(is, meta);
-}
-static inline ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size)
-{
-	return is->ops->read(is, ptr, size);
-}
-static inline void apk_istream_close(struct apk_istream *is)
-{
-	is->ops->close(is);
-}
 
 struct apk_bstream *apk_bstream_from_istream(struct apk_istream *istream);
 struct apk_bstream *apk_bstream_from_file(int atfd, const char *file);
