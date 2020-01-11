@@ -99,7 +99,7 @@ static void process_file(struct apk_database *db, const char *match)
 		return;
 	}
 
-	(void) apk_tar_parse(is, read_file_entry, &ctx, FALSE, &db->id_cache);
+	(void) apk_tar_parse(is, read_file_entry, &ctx, &db->id_cache);
 	apk_istream_close(is);
 }
 

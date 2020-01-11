@@ -654,7 +654,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		bs = apk_bstream_tee(bs, db->cache_fd, tmpcacheitem, !autoupdate, cb, cb_ctx);
 		is = apk_bstream_gunzip_mpart(bs, apk_sign_ctx_mpart_cb, &sctx);
 		if (!IS_ERR_OR_NULL(is))
-			r = apk_tar_parse(is, apk_sign_ctx_verify_tar, &sctx, FALSE, &db->id_cache);
+			r = apk_tar_parse(is, apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
 		else
 			r = PTR_ERR(is) ?: -EIO;
 		apk_sign_ctx_free(&sctx);
@@ -1179,7 +1179,7 @@ static int apk_db_read_state(struct apk_database *db, int flags)
 		is = apk_istream_from_file(db->root_fd, apk_scripts_file);
 		if (!IS_ERR_OR_NULL(is)) {
 			apk_tar_parse(is, apk_read_script_archive_entry, db,
-				      FALSE, &db->id_cache);
+				      &db->id_cache);
 			apk_istream_close(is);
 		}
 	}
@@ -2205,7 +2205,7 @@ static int load_index(struct apk_database *db, struct apk_bstream *bs,
 		ctx.found = 0;
 		apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY, NULL, db->keys_fd);
 		is = apk_bstream_gunzip_mpart(bs, apk_sign_ctx_mpart_cb, &ctx.sctx);
-		r = apk_tar_parse(is, load_apkindex, &ctx, FALSE, &db->id_cache);
+		r = apk_tar_parse(is, load_apkindex, &ctx, &db->id_cache);
 		apk_istream_close(is);
 		apk_sign_ctx_free(&ctx.sctx);
 
@@ -2590,6 +2590,11 @@ static int apk_db_install_archive_entry(void *_ctx,
 				memcpy(&file->csum, &link_target_file->csum, sizeof file->csum);
 			else
 				memcpy(&file->csum, &ae->csum, sizeof file->csum);
+			if (file->csum.type == APK_CHECKSUM_NONE) {
+				apk_warning(PKG_VER_FMT": no checksum for file %s",
+					    PKG_VER_PRINTF(pkg), ae->name);
+				ipkg->broken_files = 1;
+			}
 			break;
 		case -ENOTSUP:
 			ipkg->broken_xattr = 1;
@@ -2832,7 +2837,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	};
 	apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY_IDENTITY, &pkg->csum, db->keys_fd);
 	tar = apk_bstream_gunzip_mpart(bs, apk_sign_ctx_mpart_cb, &ctx.sctx);
-	r = apk_tar_parse(tar, apk_db_install_archive_entry, &ctx, TRUE, &db->id_cache);
+	r = apk_tar_parse(tar, apk_db_install_archive_entry, &ctx, &db->id_cache);
 	apk_sign_ctx_free(&ctx.sctx);
 	apk_istream_close(tar);
 

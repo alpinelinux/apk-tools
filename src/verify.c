@@ -37,7 +37,7 @@ static int verify_main(void *ctx, struct apk_database *db, struct apk_string_arr
 			rc++;
 			continue;
 		}
-		r = apk_tar_parse(is, apk_sign_ctx_verify_tar, &sctx, FALSE, &db->id_cache);
+		r = apk_tar_parse(is, apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
 		apk_istream_close(is);
 		ok = sctx.control_verified && sctx.data_verified;
 		if (apk_verbosity >= 1)
