@@ -635,14 +635,9 @@ int main(int argc, char **argv)
 		apk_blob_pull_deps(&b, &db, &db.world);
 	}
 	if (test_installed_db != NULL) {
-		struct apk_bstream *bs = apk_bstream_from_file(AT_FDCWD, test_installed_db);
-		if (!IS_ERR_OR_NULL(bs)) {
-			apk_db_index_read(&db, bs, -1);
-			apk_bstream_close(bs);
-		}
+		apk_db_index_read(&db, apk_istream_from_file(AT_FDCWD, test_installed_db), -1);
 	}
 	for (i = 0; i < test_repos->num; i++) {
-		struct apk_bstream *bs;
 		apk_blob_t spec = APK_BLOB_STR(test_repos->item[i]), name, tag;
 		int repo_tag = 0, repo = APK_REPOSITORY_FIRST_CONFIGURED + i;
 
@@ -659,14 +654,11 @@ int main(int argc, char **argv)
 			name = spec;
 		}
 
-		bs = apk_bstream_from_file(AT_FDCWD, name.ptr);
-		if (IS_ERR_OR_NULL(bs)) {
+		if (apk_db_index_read(&db, apk_istream_from_file(AT_FDCWD, name.ptr), repo) != 0) {
 			apk_error("Failed to open repository: " BLOB_FMT, BLOB_PRINTF(name));
 			goto err;
 		}
 
-		apk_db_index_read(&db, bs, repo);
-		apk_bstream_close(bs);
 		if (repo != -2) {
 			if (!(apk_flags & APK_NO_NETWORK))
 				db.available_repos |= BIT(repo);

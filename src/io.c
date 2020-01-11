@@ -35,7 +35,7 @@
 #define HAVE_FGETGRENT_R
 #endif
 
-size_t apk_io_bufsize = 2*1024;
+size_t apk_io_bufsize = 8*1024;
 
 static void apk_file_meta_from_fd(int fd, struct apk_file_meta *meta)
 {
@@ -94,6 +94,157 @@ ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size)
 	if (size && left == size && !is->err) is->err = 1;
 	if (size == left) return is->err < 0 ? is->err : 0;
 	return size - left;
+}
+
+static int __apk_istream_fill(struct apk_istream *is)
+{
+	ssize_t sz;
+
+	if (is->err) return is->err;
+
+	if (is->ptr != is->buf) {
+		sz = is->end - is->ptr;
+		memmove(is->buf, is->ptr, sz);
+		is->ptr = is->buf;
+		is->end = is->buf + sz;
+	}
+
+	sz = is->ops->read(is, is->end, is->buf + is->buf_size - is->end);
+	if (sz <= 0) {
+		is->err = sz ?: 1;
+		return is->err;
+	}
+	is->end += sz;
+	return 0;
+}
+
+apk_blob_t apk_istream_get(struct apk_istream *is, size_t len)
+{
+	apk_blob_t ret = APK_BLOB_NULL;
+
+	do {
+		if (is->end - is->ptr >= len) {
+			ret = APK_BLOB_PTR_LEN((char*)is->ptr, len);
+			break;
+		}
+		if (is->err>0 || is->end-is->ptr == is->buf_size) {
+			ret = APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr);
+			break;
+		}
+	} while (!__apk_istream_fill(is));
+
+	if (!APK_BLOB_IS_NULL(ret)) {
+		is->ptr = (uint8_t*)ret.ptr + ret.len;
+		return ret;
+	}
+
+	return (struct apk_blob) { .len = is->err < 0 ? is->err : 0 };
+}
+
+apk_blob_t apk_istream_get_all(struct apk_istream *is)
+{
+	if (is->ptr == is->end)
+		__apk_istream_fill(is);
+
+	if (is->ptr != is->end) {
+		apk_blob_t ret = APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr);
+		is->ptr = is->end = 0;
+		return ret;
+	}
+
+	return (struct apk_blob) { .len = is->err < 0 ? is->err : 0 };
+}
+
+apk_blob_t apk_istream_get_delim(struct apk_istream *is, apk_blob_t token)
+{
+	apk_blob_t ret = APK_BLOB_NULL, left = APK_BLOB_NULL;
+
+	do {
+		if (apk_blob_split(APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr), token, &ret, &left))
+			break;
+		if (is->end - is->ptr == is->buf_size) {
+			is->err = -ENOBUFS;
+			break;
+		}
+	} while (!__apk_istream_fill(is));
+
+	/* Last segment before end-of-file. Return also zero length non-null
+	 * blob if eof comes immediately after the delimiter. */
+	if (is->ptr && is->err > 0)
+		ret = APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr);
+
+	if (!APK_BLOB_IS_NULL(ret)) {
+		is->ptr = (uint8_t*)left.ptr;
+		is->end = (uint8_t*)left.ptr + left.len;
+		return ret;
+	}
+	return (struct apk_blob) { .len = is->err < 0 ? is->err : 0 };
+}
+
+static void segment_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
+{
+	struct apk_segment_istream *sis = container_of(is, struct apk_segment_istream, is);
+	*meta = (struct apk_file_meta) {
+		.atime = sis->mtime,
+		.mtime = sis->mtime,
+	};
+}
+
+static ssize_t segment_read(struct apk_istream *is, void *ptr, size_t size)
+{
+	struct apk_segment_istream *sis = container_of(is, struct apk_segment_istream, is);
+	ssize_t r;
+
+	if (size > sis->bytes_left) size = sis->bytes_left;
+	if (size == 0) return 0;
+
+	r = sis->pis->ops->read(sis->pis, ptr, size);
+	if (r <= 0) {
+		/* If inner stream returned zero (end-of-stream), we
+		 * are getting short read, because tar header indicated
+		 * more was to be expected. */
+		if (r == 0) r = -ECONNABORTED;
+	} else {
+		sis->bytes_left -= r;
+	}
+	return r;
+}
+
+static void segment_close(struct apk_istream *is)
+{
+	struct apk_segment_istream *sis = container_of(is, struct apk_segment_istream, is);
+
+	if (sis->bytes_left) {
+		apk_istream_read(sis->pis, NULL, sis->bytes_left);
+		sis->bytes_left = 0;
+	}
+}
+
+static const struct apk_istream_ops segment_istream_ops = {
+	.get_meta = segment_get_meta,
+	.read = segment_read,
+	.close = segment_close,
+};
+
+void apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, size_t len, time_t mtime)
+{
+	*sis = (struct apk_segment_istream) {
+		.is.ops = &segment_istream_ops,
+		.is.buf = is->buf,
+		.is.buf_size = is->buf_size,
+		.is.ptr = is->ptr,
+		.is.end = is->end,
+		.pis = is,
+		.bytes_left = len,
+		.mtime = mtime,
+	};
+	if (sis->is.end - sis->is.ptr > len) {
+		sis->is.end = sis->is.ptr + len;
+		is->ptr += len;
+	} else {
+		is->ptr = is->end = 0;
+	}
+	sis->bytes_left -= sis->is.end - sis->is.ptr;
 }
 
 struct apk_fd_istream {
@@ -630,7 +781,6 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		     struct apk_file_info *fi)
 {
 	struct stat64 st;
-	struct apk_bstream *bs;
 	unsigned int checksum = flags & 0xff;
 	unsigned int xattr_checksum = (flags >> 8) & 0xff;
 	int atflags = 0;
@@ -701,23 +851,23 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 			   apk_checksum_evp(checksum), NULL);
 		fi->csum.type = checksum;
 	} else {
-		bs = apk_bstream_from_file(atfd, filename);
-		if (!IS_ERR_OR_NULL(bs)) {
+		struct apk_istream *is = apk_istream_from_file(atfd, filename);
+		if (!IS_ERR_OR_NULL(is)) {
 			EVP_MD_CTX *mdctx;
 			apk_blob_t blob;
 
 			mdctx = EVP_MD_CTX_new();
 			if (mdctx) {
 				EVP_DigestInit_ex(mdctx, apk_checksum_evp(checksum), NULL);
-				if (bs->flags & APK_BSTREAM_SINGLE_READ)
+				if (is->flags & APK_ISTREAM_SINGLE_READ)
 					EVP_MD_CTX_set_flags(mdctx, EVP_MD_CTX_FLAG_ONESHOT);
-				while (!APK_BLOB_IS_NULL(blob = apk_bstream_read(bs, APK_BLOB_NULL)))
+				while (!APK_BLOB_IS_NULL(blob = apk_istream_get_all(is)))
 					EVP_DigestUpdate(mdctx, (void*) blob.ptr, blob.len);
 				fi->csum.type = EVP_MD_CTX_size(mdctx);
 				EVP_DigestFinal_ex(mdctx, fi->csum.data, NULL);
 				EVP_MD_CTX_free(mdctx);
 			}
-			apk_bstream_close(bs);
+			apk_istream_close(is);
 		}
 	}
 

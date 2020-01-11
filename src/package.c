@@ -637,11 +637,9 @@ int apk_sign_ctx_verify_tar(void *sctx, const struct apk_file_info *fi,
 		return r;
 
 	if (strcmp(fi->name, ".PKGINFO") == 0) {
-		apk_blob_t blob = apk_blob_from_istream(is, fi->size);
-		apk_blob_for_each_segment(
-			blob, "\n",
-			apk_sign_ctx_parse_pkginfo_line, ctx);
-		free(blob.ptr);
+		apk_blob_t l, token = APK_BLOB_STR("\n");
+		while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
+			apk_sign_ctx_parse_pkginfo_line(ctx, l);
 	}
 
 	return 0;
@@ -883,15 +881,14 @@ static int read_info_entry(void *ctx, const struct apk_file_info *ae,
 
 	/* Meta info and scripts */
 	r = apk_sign_ctx_process_file(ri->sctx, ae, is);
-	if (r <= 0)
-		return r;
+	if (r <= 0) return r;
 
 	if (ae->name[0] == '.') {
 		/* APK 2.0 format */
 		if (strcmp(ae->name, ".PKGINFO") == 0) {
-			apk_blob_t blob = apk_blob_from_istream(is, ae->size);
-			apk_blob_for_each_segment(blob, "\n", read_info_line, ctx);
-			free(blob.ptr);
+			apk_blob_t l, token = APK_BLOB_STR("\n");
+			while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
+				read_info_line(ctx, l);
 		} else if (strcmp(ae->name, ".INSTALL") == 0) {
 			apk_warning("Package '%s-%s' contains deprecated .INSTALL",
 				    pkg->name->name, pkg->version);

@@ -715,27 +715,26 @@ static struct apk_db_dir_instance *find_diri(struct apk_installed_package *ipkg,
 	return NULL;
 }
 
-int apk_db_read_overlay(struct apk_database *db, struct apk_bstream *bs)
+int apk_db_read_overlay(struct apk_database *db, struct apk_istream *is)
 {
 	struct apk_db_dir_instance *diri = NULL;
 	struct hlist_node **diri_node = NULL, **file_diri_node = NULL;
 	struct apk_package *pkg;
 	struct apk_installed_package *ipkg;
 	apk_blob_t token = APK_BLOB_STR("\n"), line, bdir, bfile;
+	int r = -1;
 
-	if (IS_ERR_OR_NULL(bs)) return -1;
+	if (IS_ERR_OR_NULL(is)) return -1;
 
 	pkg = apk_pkg_new();
-	if (pkg == NULL)
-		return -1;
+	if (pkg == NULL) goto err;
 
 	ipkg = apk_pkg_install(db, pkg);
-	if (ipkg == NULL)
-		return -1;
+	if (ipkg == NULL) goto err;
 
 	diri_node = hlist_tail_ptr(&ipkg->owned_dirs);
 
-	while (!APK_BLOB_IS_NULL(line = apk_bstream_read(bs, token))) {
+	while (!APK_BLOB_IS_NULL(line = apk_istream_get_delim(is, token))) {
 		if (!apk_blob_rsplit(line, '/', &bdir, &bfile))
 			break;
 
@@ -752,11 +751,13 @@ int apk_db_read_overlay(struct apk_database *db, struct apk_bstream *bs)
 			(void) apk_db_file_get(db, diri, bfile, &file_diri_node);
 		}
 	}
-
-	return 0;
+	r = 0;
+err:
+	apk_istream_close(is);
+	return r;
 }
 
-int apk_db_index_read(struct apk_database *db, struct apk_bstream *bs, int repo)
+int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 {
 	struct apk_package *pkg = NULL;
 	struct apk_installed_package *ipkg = NULL;
@@ -772,7 +773,9 @@ int apk_db_index_read(struct apk_database *db, struct apk_bstream *bs, int repo)
 	gid_t gid;
 	int field, r, lineno = 0;
 
-	while (!APK_BLOB_IS_NULL(l = apk_bstream_read(bs, token))) {
+	if (IS_ERR_OR_NULL(is)) return PTR_ERR(is);
+
+	while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token))) {
 		lineno++;
 
 		if (l.len < 2 || l.ptr[1] != ':') {
@@ -893,13 +896,16 @@ int apk_db_index_read(struct apk_database *db, struct apk_bstream *bs, int repo)
 		}
 		if (APK_BLOB_IS_NULL(l)) goto bad_entry;
 	}
+	apk_istream_close(is);
 	return 0;
 old_apk_tools:
 	/* Installed db should not have unsupported fields */
 	apk_error("This apk-tools is too old to handle installed packages");
-	return -1;
+	goto err;
 bad_entry:
 	apk_error("FDB format error (line %d, entry '%c')", lineno, field);
+err:
+	apk_istream_close(is);
 	return -1;
 }
 
@@ -1114,14 +1120,16 @@ static void apk_db_triggers_write(struct apk_database *db, struct apk_ostream *o
 	}
 }
 
-static void apk_db_triggers_read(struct apk_database *db, struct apk_bstream *bs)
+static void apk_db_triggers_read(struct apk_database *db, struct apk_istream *is)
 {
 	struct apk_checksum csum;
 	struct apk_package *pkg;
 	struct apk_installed_package *ipkg;
 	apk_blob_t l;
 
-	while (!APK_BLOB_IS_NULL(l = apk_bstream_read(bs, APK_BLOB_STR("\n")))) {
+	if (IS_ERR_OR_NULL(is)) return;
+
+	while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, APK_BLOB_STR("\n")))) {
 		apk_blob_pull_csum(&l, &csum);
 		apk_blob_pull_char(&l, ' ');
 
@@ -1136,12 +1144,12 @@ static void apk_db_triggers_read(struct apk_database *db, struct apk_bstream *bs
 			list_add_tail(&ipkg->trigger_pkgs_list,
 				      &db->installed.triggers);
 	}
+	apk_istream_close(is);
 }
 
 static int apk_db_read_state(struct apk_database *db, int flags)
 {
 	struct apk_istream *is;
-	struct apk_bstream *bs;
 	apk_blob_t blob, world;
 	int r;
 
@@ -1153,26 +1161,16 @@ static int apk_db_read_state(struct apk_database *db, int flags)
 	 */
 	if (!(flags & APK_OPENF_NO_WORLD)) {
 		blob = world = apk_blob_from_file(db->root_fd, apk_world_file);
-		if (APK_BLOB_IS_NULL(blob))
-			return -ENOENT;
+		if (APK_BLOB_IS_NULL(blob)) return -ENOENT;
 		blob = apk_blob_trim(blob);
 		apk_blob_pull_deps(&blob, db, &db->world);
 		free(world.ptr);
 	}
 
 	if (!(flags & APK_OPENF_NO_INSTALLED)) {
-		bs = apk_bstream_from_file(db->root_fd, apk_installed_file);
-		if (!IS_ERR_OR_NULL(bs)) {
-			r = apk_db_index_read(db, bs, -1);
-			apk_bstream_close(bs);
-			if (r != 0) return -1;
-		}
-
-		bs = apk_bstream_from_file(db->root_fd, apk_triggers_file);
-		if (!IS_ERR_OR_NULL(bs)) {
-			apk_db_triggers_read(db, bs);
-			apk_bstream_close(bs);
-		}
+		r = apk_db_index_read(db, apk_istream_from_file(db->root_fd, apk_installed_file), -1);
+		if (r != 0) return -1;
+		apk_db_triggers_read(db, apk_istream_from_file(db->root_fd, apk_triggers_file));
 	}
 
 	if (!(flags & APK_OPENF_NO_SCRIPTS)) {
@@ -1514,7 +1512,6 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 {
 	const char *msg = NULL;
 	struct apk_repository_list *repo = NULL;
-	struct apk_bstream *bs;
 	struct statfs stfs;
 	apk_blob_t blob;
 	int r, fd, write_arch = FALSE;
@@ -1662,8 +1659,7 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 
 	if (apk_flags & APK_OVERLAY_FROM_STDIN) {
 		apk_flags &= ~APK_OVERLAY_FROM_STDIN;
-		apk_db_read_overlay(db, apk_bstream_from_istream(
-				apk_istream_from_fd(STDIN_FILENO)));
+		apk_db_read_overlay(db, apk_istream_from_fd(STDIN_FILENO));
 	}
 
 	r = apk_db_read_state(db, dbopts->open_flags);
@@ -1682,11 +1678,7 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 
 	if (!(dbopts->open_flags & APK_OPENF_NO_INSTALLED_REPO)) {
 		if (apk_db_cache_active(db)) {
-			bs = apk_bstream_from_file(db->cache_fd, "installed");
-			if (!IS_ERR_OR_NULL(bs)) {
-				apk_db_index_read(db, bs, -2);
-				apk_bstream_close(bs);
-			}
+			apk_db_index_read(db, apk_istream_from_file(db->cache_fd, "installed"), -2);
 		}
 	}
 
@@ -2165,7 +2157,6 @@ static int load_apkindex(void *sctx, const struct apk_file_info *fi,
 			 struct apk_istream *is)
 {
 	struct apkindex_ctx *ctx = (struct apkindex_ctx *) sctx;
-	struct apk_bstream *bs;
 	struct apk_repository *repo;
 	int r;
 
@@ -2179,11 +2170,7 @@ static int load_apkindex(void *sctx, const struct apk_file_info *fi,
 		repo->description = apk_blob_from_istream(is, fi->size);
 	} else if (strcmp(fi->name, "APKINDEX") == 0) {
 		ctx->found = 1;
-		bs = apk_bstream_from_istream(is);
-		if (!IS_ERR_OR_NULL(bs)) {
-			apk_db_index_read(ctx->db, bs, ctx->repo);
-			apk_bstream_close(bs);
-		}
+		apk_db_index_read(ctx->db, is, ctx->repo);
 	}
 
 	return 0;
@@ -2212,11 +2199,7 @@ static int load_index(struct apk_database *db, struct apk_bstream *bs,
 		if (r >= 0 && ctx.found == 0)
 			r = -ENOMSG;
 	} else {
-		bs = apk_bstream_from_istream(apk_bstream_gunzip(bs));
-		if (!IS_ERR_OR_NULL(bs)) {
-			apk_db_index_read(db, bs, repo);
-			apk_bstream_close(bs);
-		}
+		apk_db_index_read(db, apk_bstream_gunzip(bs), repo);
 	}
 	return r;
 }
@@ -2440,9 +2423,9 @@ static int apk_db_install_archive_entry(void *_ctx,
 	if (ae->name[0] == '.') {
 		/* APK 2.0 format */
 		if (strcmp(ae->name, ".PKGINFO") == 0) {
-			apk_blob_t blob = apk_blob_from_istream(is, ae->size);
-			apk_blob_for_each_segment(blob, "\n", read_info_line, ctx);
-			free(blob.ptr);
+			apk_blob_t l, token = APK_BLOB_STR("\n");
+			while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
+				read_info_line(ctx, l);
 			return 0;
 		}
 		type = apk_script_type(&ae->name[1]);

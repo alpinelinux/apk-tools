@@ -73,55 +73,6 @@ static void put_octal(char *s, size_t l, size_t value)
 		*(ptr--) = '0';
 }
 
-struct apk_tar_entry_istream {
-	struct apk_istream is;
-	struct apk_istream *tar_is;
-	size_t bytes_left;
-	time_t mtime;
-};
-
-static void tar_entry_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
-{
-	struct apk_tar_entry_istream *teis = container_of(is, struct apk_tar_entry_istream, is);
-	*meta = (struct apk_file_meta) {
-		.atime = teis->mtime,
-		.mtime = teis->mtime,
-	};
-}
-
-static ssize_t tar_entry_read(struct apk_istream *is, void *ptr, size_t size)
-{
-	struct apk_tar_entry_istream *teis = container_of(is, struct apk_tar_entry_istream, is);
-	ssize_t r;
-
-	if (size > teis->bytes_left)
-		size = teis->bytes_left;
-	if (size == 0)
-		return 0;
-
-	r = apk_istream_read(teis->tar_is, ptr, size);
-	if (r <= 0) {
-		/* If inner stream returned zero (end-of-stream), we
-		 * are getting short read, because tar header indicated
-		 * more was to be expected. */
-		if (r == 0) return -ECONNABORTED;
-		return r;
-	}
-
-	teis->bytes_left -= r;
-	return r;
-}
-
-static void tar_entry_close(struct apk_istream *is)
-{
-}
-
-static const struct apk_istream_ops tar_istream_ops = {
-	.get_meta = tar_entry_get_meta,
-	.read = tar_entry_read,
-	.close = tar_entry_close,
-};
-
 static int blob_realloc(apk_blob_t *b, size_t newsize)
 {
 	char *tmp;
@@ -180,12 +131,8 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 		  void *ctx, struct apk_id_cache *idc)
 {
 	struct apk_file_info entry;
-	struct apk_tar_entry_istream teis = {
-		.is.ops = &tar_istream_ops,
-		.tar_is = is,
-	};
+	struct apk_segment_istream segment;
 	struct tar_header buf;
-	unsigned long offset = 0;
 	int end = 0, r;
 	size_t toskip, paxlen = 0;
 	apk_blob_t pax = APK_BLOB_NULL, longname = APK_BLOB_NULL;
@@ -194,7 +141,6 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 	memset(&entry, 0, sizeof(entry));
 	entry.name = buf.name;
 	while ((r = apk_istream_read(is, &buf, 512)) == 512) {
-		offset += 512;
 		if (buf.name[0] == '\0') {
 			if (end) break;
 			end++;
@@ -222,7 +168,6 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 		}
 		buf.mode[0] = 0; /* to nul terminate 100-byte buf.name */
 		buf.magic[0] = 0; /* to nul terminate 100-byte buf.linkname */
-		teis.mtime = entry.mtime;
 		apk_xattr_array_resize(&entry.xattrs, 0);
 
 		if (entry.size >= SSIZE_MAX-512) goto err;
@@ -232,6 +177,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 			apk_fileinfo_hash_xattr(&entry);
 		}
 
+		toskip = (entry.size + 511) & -512;
 		switch (buf.typeflag) {
 		case 'L': /* GNU long name extension */
 			if ((r = blob_realloc(&longname, entry.size+1)) != 0 ||
@@ -239,8 +185,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 				goto err;
 			entry.name = longname.ptr;
 			entry.name[entry.size] = 0;
-			offset += entry.size;
-			entry.size = 0;
+			toskip -= entry.size;
 			break;
 		case 'K': /* GNU long link target extension - ignored */
 			break;
@@ -272,11 +217,10 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 			break;
 		case 'x': /* file specific pax header */
 			paxlen = entry.size;
-			entry.size = 0;
 			if ((r = blob_realloc(&pax, (paxlen + 511) & -512)) != 0 ||
 			    (r = apk_istream_read(is, pax.ptr, paxlen)) != paxlen)
 				goto err;
-			offset += paxlen;
+			toskip -= entry.size;
 			break;
 		default:
 			break;
@@ -288,26 +232,19 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 			goto err;
 		}
 
-		teis.bytes_left = entry.size;
 		if (entry.mode & S_IFMT) {
-			r = parser(ctx, &entry, &teis.is);
+			apk_istream_segment(&segment, is, entry.size, entry.mtime);
+			r = parser(ctx, &entry, &segment.is);
 			if (r != 0) goto err;
+			apk_istream_close(&segment.is);
 
 			entry.name = buf.name;
+			toskip -= entry.size;
 			paxlen = 0;
 		}
 
-		offset += entry.size - teis.bytes_left;
-		toskip = teis.bytes_left;
-		if ((offset + toskip) & 511)
-			toskip += 512 - ((offset + toskip) & 511);
-		offset += toskip;
-		if (toskip != 0) {
-			if ((r = apk_istream_read(is, NULL, toskip)) != toskip) {
-				r = -EIO;
-				goto err;
-			}
-		}
+		if (toskip && (r = apk_istream_read(is, NULL, toskip)) != toskip)
+			goto err;
 	}
 
 	/* Read remaining end-of-archive records, to ensure we read all of

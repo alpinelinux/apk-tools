@@ -234,7 +234,7 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *
 struct apk_package *apk_db_get_pkg(struct apk_database *db, struct apk_checksum *csum);
 struct apk_package *apk_db_get_file_owner(struct apk_database *db, apk_blob_t filename);
 
-int apk_db_index_read(struct apk_database *db, struct apk_bstream *bs, int repo);
+int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo);
 int apk_db_index_read_file(struct apk_database *db, const char *file, int repo);
 int apk_db_index_write(struct apk_database *db, struct apk_ostream *os);
 

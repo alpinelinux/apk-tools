@@ -174,13 +174,11 @@ int apk_blob_split(apk_blob_t blob, apk_blob_t split, apk_blob_t *l, apk_blob_t 
 {
 	char *pos = blob.ptr, *end = blob.ptr + blob.len - split.len + 1;
 
-	if (end < pos)
-		return 0;
+	if (!pos || end < pos) return 0;
 
 	while (1) {
 		pos = memchr(pos, split.ptr[0], end - pos);
-		if (pos == NULL)
-			return 0;
+		if (!pos) return 0;
 
 		if (split.len > 1 && memcmp(pos, split.ptr, split.len) != 0) {
 			pos++;
