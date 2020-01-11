@@ -21,7 +21,6 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/xattr.h>
-#include <sys/param.h>
 #include <pwd.h>
 #include <grp.h>
 
@@ -64,7 +63,7 @@ ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size)
 
 	while (left) {
 		if (is->ptr != is->end) {
-			r = MIN(left, is->end - is->ptr);
+			r = min(left, is->end - is->ptr);
 			if (ptr) {
 				memcpy(ptr, is->ptr, r);
 				ptr += r;
@@ -505,20 +504,20 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 			else if (r == EBADF || r == EFBIG || r == ENOSPC || r == EIO)
 				return -r;
 		}
-		bufsz = MIN(bufsz, 2*1024*1024);
+		bufsz = min(bufsz, 2*1024*1024);
 		buf = mmapbase;
 	}
 	if (mmapbase == MAP_FAILED) {
 		if (!splice_buffer) splice_buffer = malloc(256*1024);
 		buf = splice_buffer;
 		if (!buf) return -ENOMEM;
-		bufsz = MIN(bufsz, 256*1024);
+		bufsz = min(bufsz, 256*1024);
 	}
 
 	while (done < size) {
 		if (cb != NULL) cb(cb_ctx, done);
 
-		togo = MIN(size - done, bufsz);
+		togo = min(size - done, bufsz);
 		r = apk_istream_read(is, buf, togo);
 		if (r <= 0) {
 			if (r) goto err;
