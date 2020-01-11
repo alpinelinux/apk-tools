@@ -652,10 +652,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		is = apk_istream_from_url_if_modified(url, st.st_mtime);
 		is = apk_istream_tee(is, db->cache_fd, tmpcacheitem, !autoupdate, cb, cb_ctx);
 		is = apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx);
-		if (!IS_ERR_OR_NULL(is))
-			r = apk_tar_parse(is, apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
-		else
-			r = PTR_ERR(is) ?: -EIO;
+		r = apk_tar_parse(is, apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
 		apk_sign_ctx_free(&sctx);
 	} else {
 		is = apk_istream_from_url_if_modified(url, st.st_mtime);
@@ -673,8 +670,8 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 			}
 			close(fd);
 		}
+		if (!IS_ERR_OR_NULL(is)) apk_istream_close(is);
 	}
-	if (!IS_ERR_OR_NULL(is)) apk_istream_close(is);
 	if (r == -EALREADY) {
 		if (autoupdate) utimensat(db->cache_fd, cacheitem, NULL, 0);
 		return r;
@@ -1148,7 +1145,6 @@ static void apk_db_triggers_read(struct apk_database *db, struct apk_istream *is
 
 static int apk_db_read_state(struct apk_database *db, int flags)
 {
-	struct apk_istream *is;
 	apk_blob_t blob, world;
 	int r;
 
@@ -1173,12 +1169,8 @@ static int apk_db_read_state(struct apk_database *db, int flags)
 	}
 
 	if (!(flags & APK_OPENF_NO_SCRIPTS)) {
-		is = apk_istream_from_file(db->root_fd, apk_scripts_file);
-		if (!IS_ERR_OR_NULL(is)) {
-			apk_tar_parse(is, apk_read_script_archive_entry, db,
-				      &db->id_cache);
-			apk_istream_close(is);
-		}
+		apk_tar_parse(apk_istream_from_file(db->root_fd, apk_scripts_file),
+			      apk_read_script_archive_entry, db, &db->id_cache);
 	}
 
 	return 0;
@@ -2189,9 +2181,7 @@ static int load_index(struct apk_database *db, struct apk_istream *is,
 		ctx.repo = repo;
 		ctx.found = 0;
 		apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY, NULL, db->keys_fd);
-		is = apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx);
-		r = apk_tar_parse(is, load_apkindex, &ctx, &db->id_cache);
-		apk_istream_close(is);
+		r = apk_tar_parse(apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx), load_apkindex, &ctx, &db->id_cache);
 		apk_sign_ctx_free(&ctx.sctx);
 
 		if (r >= 0 && ctx.found == 0)
@@ -2753,7 +2743,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 			     char **script_args)
 {
 	struct install_ctx ctx;
-	struct apk_istream *is = NULL, *cache_is, *tar;
+	struct apk_istream *is = NULL, *cache_is;
 	struct apk_repository *repo;
 	struct apk_package *pkg = ipkg->pkg;
 	char file[PATH_MAX];
@@ -2811,10 +2801,8 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 		.cb_ctx = cb_ctx,
 	};
 	apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY_IDENTITY, &pkg->csum, db->keys_fd);
-	tar = apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx);
-	r = apk_tar_parse(tar, apk_db_install_archive_entry, &ctx, &db->id_cache);
+	r = apk_tar_parse(apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx), apk_db_install_archive_entry, &ctx, &db->id_cache);
 	apk_sign_ctx_free(&ctx.sctx);
-	apk_istream_close(tar);
 
 	if (need_copy) {
 		if (r == 0) {

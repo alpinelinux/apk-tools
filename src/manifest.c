@@ -87,20 +87,15 @@ static int read_file_entry(void *ctx, const struct apk_file_info *ae,
 static void process_file(struct apk_database *db, const char *match)
 {
 	struct apk_sign_ctx sctx;
-	struct apk_istream *is;
 	struct manifest_file_ctx ctx = {match, &sctx};
+	int r;
 
 	apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd);
-	is = apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, match),
-				      apk_sign_ctx_mpart_cb, &sctx);
-
-	if (IS_ERR_OR_NULL(is)) {
-		apk_error("%s: %s", match, strerror(errno));
-		return;
-	}
-
-	(void) apk_tar_parse(is, read_file_entry, &ctx, &db->id_cache);
-	apk_istream_close(is);
+	r = apk_tar_parse(
+		apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, match), apk_sign_ctx_mpart_cb, &sctx),
+		read_file_entry, &ctx, &db->id_cache);
+	apk_sign_ctx_free(&sctx);
+	if (r < 0) apk_error("%s: %s", match, apk_error_str(r));
 }
 
 static void process_match(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
