@@ -355,6 +355,67 @@ err_is:
 	return ERR_PTR(r);
 }
 
+struct apk_mmap_istream {
+	struct apk_istream is;
+	int fd;
+};
+
+static void mmap_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
+{
+	struct apk_mmap_istream *mis = container_of(is, struct apk_mmap_istream, is);
+	return apk_file_meta_from_fd(mis->fd, meta);
+}
+
+static ssize_t mmap_read(struct apk_istream *is, void *ptr, size_t size)
+{
+	return 0;
+}
+
+static void mmap_close(struct apk_istream *is)
+{
+	struct apk_mmap_istream *mis = container_of(is, struct apk_mmap_istream, is);
+
+	munmap(mis->is.buf, mis->is.buf_size);
+	close(mis->fd);
+	free(mis);
+}
+
+static const struct apk_istream_ops mmap_istream_ops = {
+	.get_meta = mmap_get_meta,
+	.read = mmap_read,
+	.close = mmap_close,
+};
+
+static inline struct apk_istream *apk_mmap_istream_from_fd(int fd)
+{
+	struct apk_mmap_istream *mis;
+	struct stat st;
+	void *ptr;
+
+	if (fstat(fd, &st) < 0) return ERR_PTR(-errno);
+
+	ptr = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	if (ptr == MAP_FAILED) return ERR_PTR(-errno);
+
+	mis = malloc(sizeof *mis);
+	if (mis == NULL) {
+		munmap(ptr, st.st_size);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	*mis = (struct apk_mmap_istream) {
+		.is.flags = APK_ISTREAM_SINGLE_READ,
+		.is.err = 1,
+		.is.ops = &mmap_istream_ops,
+		.is.buf = ptr,
+		.is.buf_size = st.st_size,
+		.is.ptr = ptr,
+		.is.end = ptr + st.st_size,
+		.fd = fd,
+	};
+	return &mis->is;
+}
+
 struct apk_fd_istream {
 	struct apk_istream is;
 	int fd;
@@ -419,6 +480,10 @@ struct apk_istream *apk_istream_from_file(int atfd, const char *file)
 	fd = openat(atfd, file, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) return ERR_PTR(-errno);
 
+	if (0) {
+		struct apk_istream *is = apk_mmap_istream_from_fd(fd);
+		if (!IS_ERR_OR_NULL(is)) return is;
+	}
 	return apk_istream_from_fd(fd);
 }
 
@@ -481,203 +546,6 @@ err:
 		munmap(mmapbase, size);
 	return r;
 }
-
-struct apk_istream_bstream {
-	struct apk_bstream bs;
-	struct apk_istream *is;
-	apk_blob_t left;
-	char buffer[8*1024];
-};
-
-static void is_bs_get_meta(struct apk_bstream *bs, struct apk_file_meta *meta)
-{
-	struct apk_istream_bstream *isbs = container_of(bs, struct apk_istream_bstream, bs);
-	return apk_istream_get_meta(isbs->is, meta);
-}
-
-static apk_blob_t is_bs_read(struct apk_bstream *bs, apk_blob_t token)
-{
-	struct apk_istream_bstream *isbs = container_of(bs, struct apk_istream_bstream, bs);
-	ssize_t size;
-	apk_blob_t ret;
-
-	/* If we have cached stuff, first check if it full fills the request */
-	if (isbs->left.len != 0) {
-		if (!APK_BLOB_IS_NULL(token)) {
-			/* If we have tokenized thingy left, return it */
-			if (apk_blob_split(isbs->left, token, &ret, &isbs->left))
-				goto ret;
-		} else
-			goto ret_all;
-	}
-
-	/* If we've exchausted earlier, it's end of stream or error */
-	if (APK_BLOB_IS_NULL(isbs->left))
-		return isbs->left;
-
-	/* We need more data */
-	if (isbs->left.len != 0)
-		memmove(isbs->buffer, isbs->left.ptr, isbs->left.len);
-	isbs->left.ptr = isbs->buffer;
-	size = apk_istream_read(isbs->is, isbs->buffer + isbs->left.len,
-				sizeof(isbs->buffer) - isbs->left.len);
-	if (size > 0) {
-		isbs->left.len += size;
-	} else if (size == 0) {
-		if (isbs->left.len == 0)
-			isbs->left = APK_BLOB_NULL;
-		goto ret_all;
-	} else {
-		/* cache and return error */
-		isbs->left = ret = APK_BLOB_ERROR(size);
-		goto ret;
-	}
-
-	if (!APK_BLOB_IS_NULL(token)) {
-		/* If we have tokenized thingy left, return it */
-		if (apk_blob_split(isbs->left, token, &ret, &isbs->left))
-			goto ret;
-		/* No token found; just return the full buffer */
-	}
-
-ret_all:
-	/* Return all that is in cache */
-	ret = isbs->left;
-	isbs->left.len = 0;
-ret:
-	return ret;
-}
-
-static void is_bs_close(struct apk_bstream *bs)
-{
-	struct apk_istream_bstream *isbs = container_of(bs, struct apk_istream_bstream, bs);
-
-	apk_istream_close(isbs->is);
-	free(isbs);
-}
-
-static const struct apk_bstream_ops is_bstream_ops = {
-	.get_meta = is_bs_get_meta,
-	.read = is_bs_read,
-	.close = is_bs_close,
-};
-
-struct apk_bstream *apk_bstream_from_istream(struct apk_istream *istream)
-{
-	struct apk_istream_bstream *isbs;
-
-	if (IS_ERR_OR_NULL(istream)) return ERR_CAST(istream);
-
-	isbs = malloc(sizeof(struct apk_istream_bstream));
-	if (isbs == NULL) return ERR_PTR(-ENOMEM);
-
-	isbs->bs = (struct apk_bstream) {
-		.ops = &is_bstream_ops,
-	};
-	isbs->is = istream;
-	isbs->left = APK_BLOB_PTR_LEN(isbs->buffer, 0);
-
-	return &isbs->bs;
-}
-
-struct apk_mmap_bstream {
-	struct apk_bstream bs;
-	int fd;
-	size_t size;
-	unsigned char *ptr;
-	apk_blob_t left;
-};
-
-static void mmap_get_meta(struct apk_bstream *bs, struct apk_file_meta *meta)
-{
-	struct apk_mmap_bstream *mbs = container_of(bs, struct apk_mmap_bstream, bs);
-	return apk_file_meta_from_fd(mbs->fd, meta);
-}
-
-static apk_blob_t mmap_read(struct apk_bstream *bs, apk_blob_t token)
-{
-	struct apk_mmap_bstream *mbs = container_of(bs, struct apk_mmap_bstream, bs);
-	apk_blob_t ret;
-
-	if (!APK_BLOB_IS_NULL(token) && !APK_BLOB_IS_NULL(mbs->left)) {
-		if (apk_blob_split(mbs->left, token, &ret, &mbs->left))
-			return ret;
-	}
-
-	ret = mbs->left;
-	mbs->left = APK_BLOB_NULL;
-	mbs->bs.flags |= APK_BSTREAM_EOF;
-
-	return ret;
-}
-
-static void mmap_close(struct apk_bstream *bs)
-{
-	struct apk_mmap_bstream *mbs = container_of(bs, struct apk_mmap_bstream, bs);
-
-	munmap(mbs->ptr, mbs->size);
-	close(mbs->fd);
-	free(mbs);
-}
-
-static const struct apk_bstream_ops mmap_bstream_ops = {
-	.get_meta = mmap_get_meta,
-	.read = mmap_read,
-	.close = mmap_close,
-};
-
-static struct apk_bstream *apk_mmap_bstream_from_fd(int fd)
-{
-	struct apk_mmap_bstream *mbs;
-	struct stat st;
-	void *ptr;
-
-	if (fstat(fd, &st) < 0) return ERR_PTR(-errno);
-
-	ptr = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
-	if (ptr == MAP_FAILED) return ERR_PTR(-errno);
-
-	mbs = malloc(sizeof(struct apk_mmap_bstream));
-	if (mbs == NULL) {
-		munmap(ptr, st.st_size);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	*mbs = (struct apk_mmap_bstream) {
-		.bs.flags = APK_BSTREAM_SINGLE_READ,
-		.bs.ops = &mmap_bstream_ops,
-		.fd = fd,
-		.size = st.st_size,
-		.ptr = ptr,
-		.left = APK_BLOB_PTR_LEN(ptr, st.st_size),
-	};
-
-	return &mbs->bs;
-}
-
-struct apk_bstream *apk_bstream_from_fd(int fd)
-{
-	struct apk_bstream *bs;
-
-	if (fd < 0) return ERR_PTR(-EBADF);
-
-	bs = apk_mmap_bstream_from_fd(fd);
-	if (!IS_ERR_OR_NULL(bs))
-		return bs;
-
-	return apk_bstream_from_istream(apk_istream_from_fd(fd));
-}
-
-struct apk_bstream *apk_bstream_from_file(int atfd, const char *file)
-{
-	int fd;
-
-	fd = openat(atfd, file, O_RDONLY | O_CLOEXEC);
-	if (fd < 0) return ERR_PTR(-errno);
-
-	return apk_bstream_from_fd(fd);
-}
-
 
 apk_blob_t apk_blob_from_istream(struct apk_istream *is, size_t size)
 {
