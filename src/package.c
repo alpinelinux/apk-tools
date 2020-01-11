@@ -904,8 +904,7 @@ int apk_pkg_read(struct apk_database *db, const char *file,
 {
 	struct read_info_ctx ctx;
 	struct apk_file_info fi;
-	struct apk_bstream *bs;
-	struct apk_istream *tar;
+	struct apk_istream *is, *tar;
 	int r;
 
 	r = apk_fileinfo_get(AT_FDCWD, file, APK_CHECKSUM_NONE, &fi);
@@ -918,16 +917,16 @@ int apk_pkg_read(struct apk_database *db, const char *file,
 	r = -ENOMEM;
 	if (ctx.pkg == NULL)
 		goto err;
-	bs = apk_bstream_from_file(AT_FDCWD, file);
-	if (IS_ERR_OR_NULL(bs)) {
-		r = PTR_ERR(bs) ?: -EIO;
+	is = apk_istream_from_file(AT_FDCWD, file);
+	if (IS_ERR_OR_NULL(is)) {
+		r = PTR_ERR(is) ?: -EIO;
 		goto err;
 	}
 
 	ctx.db = db;
 	ctx.pkg->size = fi.size;
 
-	tar = apk_bstream_gunzip_mpart(bs, apk_sign_ctx_mpart_cb, sctx);
+	tar = apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, sctx);
 	r = apk_tar_parse(tar, read_info_entry, &ctx, &db->id_cache);
 	apk_istream_close(tar);
 	if (r < 0 && r != -ECANCELED)

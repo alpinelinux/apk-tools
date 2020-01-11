@@ -110,13 +110,28 @@ static inline void apk_istream_close(struct apk_istream *is)
 	is->ops->close(is);
 }
 
+#define APK_MPART_DATA		1 /* data processed so far */
+#define APK_MPART_BOUNDARY	2 /* final part of data, before boundary */
+#define APK_MPART_END		3 /* signals end of stream */
+
+typedef int (*apk_multipart_cb)(void *ctx, int part, apk_blob_t data);
+
+struct apk_istream *apk_istream_gunzip_mpart(struct apk_istream *,
+					     apk_multipart_cb cb, void *ctx);
+static inline struct apk_istream *apk_istream_gunzip(struct apk_istream *is)
+{
+	return apk_istream_gunzip_mpart(is, NULL, NULL);
+}
+
 struct apk_segment_istream {
 	struct apk_istream is;
 	struct apk_istream *pis;
 	size_t bytes_left;
 	time_t mtime;
 };
-void apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, size_t len, time_t mtime);
+struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, size_t len, time_t mtime);
+struct apk_istream *apk_istream_tee(struct apk_istream *from, int atfd, const char *to, int copy_meta,
+				    apk_progress_cb cb, void *cb_ctx);
 
 #define APK_BSTREAM_SINGLE_READ			0x0001
 #define APK_BSTREAM_EOF				0x0002
@@ -141,19 +156,6 @@ struct apk_ostream {
 	const struct apk_ostream_ops *ops;
 };
 
-#define APK_MPART_DATA		1 /* data processed so far */
-#define APK_MPART_BOUNDARY	2 /* final part of data, before boundary */
-#define APK_MPART_END		3 /* signals end of stream */
-
-typedef int (*apk_multipart_cb)(void *ctx, int part, apk_blob_t data);
-
-struct apk_istream *apk_bstream_gunzip_mpart(struct apk_bstream *,
-					     apk_multipart_cb cb, void *ctx);
-static inline struct apk_istream *apk_bstream_gunzip(struct apk_bstream *bs)
-{
-	return apk_bstream_gunzip_mpart(bs, NULL, NULL);
-}
-
 struct apk_ostream *apk_ostream_gzip(struct apk_ostream *);
 struct apk_ostream *apk_ostream_counter(off_t *);
 
@@ -162,8 +164,6 @@ struct apk_bstream *apk_bstream_from_istream(struct apk_istream *istream);
 struct apk_bstream *apk_bstream_from_file(int atfd, const char *file);
 struct apk_bstream *apk_bstream_from_fd(int fd);
 struct apk_bstream *apk_bstream_from_fd_url_if_modified(int atfd, const char *url, time_t since);
-struct apk_bstream *apk_bstream_tee(struct apk_bstream *from, int atfd, const char *to, int copy_meta,
-				    apk_progress_cb cb, void *cb_ctx);
 
 static inline struct apk_bstream *apk_bstream_from_url(const char *url)
 {

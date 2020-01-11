@@ -226,7 +226,7 @@ static const struct apk_istream_ops segment_istream_ops = {
 	.close = segment_close,
 };
 
-void apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, size_t len, time_t mtime)
+struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, size_t len, time_t mtime)
 {
 	*sis = (struct apk_segment_istream) {
 		.is.ops = &segment_istream_ops,
@@ -245,6 +245,114 @@ void apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is
 		is->ptr = is->end = 0;
 	}
 	sis->bytes_left -= sis->is.end - sis->is.ptr;
+	return &sis->is;
+}
+
+struct apk_tee_istream {
+	struct apk_istream is;
+	struct apk_istream *inner_is;
+	int fd, copy_meta;
+	size_t size;
+	apk_progress_cb cb;
+	void *cb_ctx;
+};
+
+static void tee_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
+{
+	struct apk_tee_istream *tee = container_of(is, struct apk_tee_istream, is);
+	apk_istream_get_meta(tee->inner_is, meta);
+}
+
+static ssize_t __tee_write(struct apk_tee_istream *tee, void *ptr, size_t size)
+{
+	ssize_t w = write(tee->fd, ptr, size);
+	if (size != w) {
+		if (w < 0) return w;
+		return -ENOSPC;
+	}
+	tee->size += size;
+	if (tee->cb) tee->cb(tee->cb_ctx, tee->size);
+	return size;
+}
+
+static ssize_t tee_read(struct apk_istream *is, void *ptr, size_t size)
+{
+	struct apk_tee_istream *tee = container_of(is, struct apk_tee_istream, is);
+	ssize_t r;
+
+	r = tee->inner_is->ops->read(tee->inner_is, ptr, size);
+	if (r <= 0) return r;
+
+	return __tee_write(tee, ptr, r);
+}
+
+static void tee_close(struct apk_istream *is)
+{
+	struct apk_tee_istream *tee = container_of(is, struct apk_tee_istream, is);
+	struct apk_file_meta meta;
+
+	if (tee->copy_meta) {
+		apk_istream_get_meta(tee->inner_is, &meta);
+		apk_file_meta_to_fd(tee->fd, &meta);
+	}
+
+	apk_istream_close(tee->inner_is);
+	close(tee->fd);
+	free(tee);
+}
+
+static const struct apk_istream_ops tee_istream_ops = {
+	.get_meta = tee_get_meta,
+	.read = tee_read,
+	.close = tee_close,
+};
+
+struct apk_istream *apk_istream_tee(struct apk_istream *from, int atfd, const char *to, int copy_meta, apk_progress_cb cb, void *cb_ctx)
+{
+	struct apk_tee_istream *tee;
+	int fd, r;
+
+	if (IS_ERR_OR_NULL(from)) return ERR_CAST(from);
+
+	fd = openat(atfd, to, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC,
+		    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	if (fd < 0) {
+		r = -errno;
+		goto err_is;
+	}
+
+	tee = malloc(sizeof *tee);
+	if (!tee) {
+		r = -ENOMEM;
+		goto err_fd;
+	}
+
+	*tee = (struct apk_tee_istream) {
+		.is.ops = &tee_istream_ops,
+		.is.buf = from->buf,
+		.is.buf_size = from->buf_size,
+		.is.ptr = from->ptr,
+		.is.end = from->end,
+		.inner_is = from,
+		.fd = fd,
+		.copy_meta = copy_meta,
+		.cb = cb,
+		.cb_ctx = cb_ctx,
+	};
+
+	if (from->ptr != from->end) {
+		r = __tee_write(tee, from->ptr, from->end - from->ptr);
+		if (r < 0) goto err_free;
+	}
+
+	return &tee->is;
+err_free:
+	free(tee);
+err_fd:
+	close(fd);
+err_is:
+	apk_istream_close(from);
+	return ERR_PTR(r);
 }
 
 struct apk_fd_istream {
@@ -571,91 +679,6 @@ struct apk_bstream *apk_bstream_from_file(int atfd, const char *file)
 }
 
 
-struct apk_tee_bstream {
-	struct apk_bstream bs;
-	struct apk_bstream *inner_bs;
-	int fd, copy_meta;
-	size_t size;
-	apk_progress_cb cb;
-	void *cb_ctx;
-};
-
-static void tee_get_meta(struct apk_bstream *bs, struct apk_file_meta *meta)
-{
-	struct apk_tee_bstream *tbs = container_of(bs, struct apk_tee_bstream, bs);
-	apk_bstream_get_meta(tbs->inner_bs, meta);
-}
-
-static apk_blob_t tee_read(struct apk_bstream *bs, apk_blob_t token)
-{
-	struct apk_tee_bstream *tbs = container_of(bs, struct apk_tee_bstream, bs);
-	apk_blob_t blob;
-
-	blob = apk_bstream_read(tbs->inner_bs, token);
-	if (!APK_BLOB_IS_NULL(blob)) {
-		tbs->size += write(tbs->fd, blob.ptr, blob.len);
-		if (tbs->cb) tbs->cb(tbs->cb_ctx, tbs->size);
-	}
-
-	return blob;
-}
-
-static void tee_close(struct apk_bstream *bs)
-{
-	struct apk_file_meta meta;
-	struct apk_tee_bstream *tbs = container_of(bs, struct apk_tee_bstream, bs);
-
-	if (tbs->copy_meta) {
-		apk_bstream_get_meta(tbs->inner_bs, &meta);
-		apk_file_meta_to_fd(tbs->fd, &meta);
-	}
-
-	apk_bstream_close(tbs->inner_bs);
-	close(tbs->fd);
-	free(tbs);
-}
-
-static const struct apk_bstream_ops tee_bstream_ops = {
-	.get_meta = tee_get_meta,
-	.read = tee_read,
-	.close = tee_close,
-};
-
-struct apk_bstream *apk_bstream_tee(struct apk_bstream *from, int atfd, const char *to, int copy_meta, apk_progress_cb cb, void *cb_ctx)
-{
-	struct apk_tee_bstream *tbs;
-	int fd, r;
-
-	if (IS_ERR_OR_NULL(from)) return ERR_CAST(from);
-
-	fd = openat(atfd, to, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC,
-		    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-	if (fd < 0) {
-		r = errno;
-		apk_bstream_close(from);
-		return ERR_PTR(-r);
-	}
-
-	tbs = malloc(sizeof(struct apk_tee_bstream));
-	if (!tbs) {
-		r = errno;
-		close(fd);
-		apk_bstream_close(from);
-		return ERR_PTR(-r);
-	}
-
-	*tbs = (struct apk_tee_bstream) {
-		.bs.ops = &tee_bstream_ops,
-		.inner_bs = from,
-		.fd = fd,
-		.copy_meta = copy_meta,
-		.cb = cb,
-		.cb_ctx = cb_ctx,
-	};
-
-	return &tbs->bs;
-}
-
 apk_blob_t apk_blob_from_istream(struct apk_istream *is, size_t size)
 {
 	void *ptr;
@@ -911,7 +934,7 @@ int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx)
 
 struct apk_istream *apk_istream_from_file_gz(int atfd, const char *file)
 {
-	return apk_bstream_gunzip(apk_bstream_from_file(atfd, file));
+	return apk_istream_gunzip(apk_istream_from_file(atfd, file));
 }
 
 struct apk_fd_ostream {

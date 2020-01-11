@@ -91,7 +91,7 @@ static void process_file(struct apk_database *db, const char *match)
 	struct manifest_file_ctx ctx = {match, &sctx};
 
 	apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd);
-	is = apk_bstream_gunzip_mpart(apk_bstream_from_file(AT_FDCWD, match),
+	is = apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, match),
 				      apk_sign_ctx_mpart_cb, &sctx);
 
 	if (IS_ERR_OR_NULL(is)) {

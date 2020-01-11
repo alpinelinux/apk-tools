@@ -20,7 +20,7 @@
 
 struct apk_gzip_istream {
 	struct apk_istream is;
-	struct apk_bstream *bs;
+	struct apk_istream *zis;
 	z_stream zs;
 
 	apk_multipart_cb cb;
@@ -32,7 +32,7 @@ struct apk_gzip_istream {
 static void gzi_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
 {
 	struct apk_gzip_istream *gis = container_of(is, struct apk_gzip_istream, is);
-	apk_bstream_get_meta(gis->bs, meta);
+	apk_istream_get_meta(gis->zis, meta);
 }
 
 static int gzi_boundary_change(struct apk_gzip_istream *gis)
@@ -68,7 +68,7 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 					APK_BLOB_PTR_LEN(gis->cbprev,
 					(void *)gis->zs.next_in - gis->cbprev));
 			}
-			blob = apk_bstream_read(gis->bs, APK_BLOB_NULL);
+			blob = apk_istream_get_all(gis->zis);
 			gis->cbprev = blob.ptr;
 			gis->zs.avail_in = blob.len;
 			gis->zs.next_in = (void *) gis->cbprev;
@@ -87,9 +87,8 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 		switch (r) {
 		case Z_STREAM_END:
 			/* Digest the inflated bytes */
-			if ((gis->bs->flags & APK_BSTREAM_EOF) &&
-			    gis->zs.avail_in == 0)
-				gis->is.err = 1;
+			if (gis->zis->err && gis->zs.avail_in == 0)
+				gis->is.err = gis->zis->err;
 			if (gis->cb != NULL) {
 				gis->cbarg = APK_BLOB_PTR_LEN(gis->cbprev, (void *) gis->zs.next_in - gis->cbprev); 
 				gis->cbprev = gis->zs.next_in;
@@ -125,7 +124,7 @@ static void gzi_close(struct apk_istream *is)
 	struct apk_gzip_istream *gis = container_of(is, struct apk_gzip_istream, is);
 
 	inflateEnd(&gis->zs);
-	apk_bstream_close(gis->bs);
+	apk_istream_close(gis->zis);
 	free(gis);
 }
 
@@ -135,12 +134,11 @@ static const struct apk_istream_ops gunzip_istream_ops = {
 	.close = gzi_close,
 };
 
-struct apk_istream *apk_bstream_gunzip_mpart(struct apk_bstream *bs,
-					     apk_multipart_cb cb, void *ctx)
+struct apk_istream *apk_istream_gunzip_mpart(struct apk_istream *is, apk_multipart_cb cb, void *ctx)
 {
 	struct apk_gzip_istream *gis;
 
-	if (IS_ERR_OR_NULL(bs)) return ERR_CAST(bs);
+	if (IS_ERR_OR_NULL(is)) return ERR_CAST(is);
 
 	gis = malloc(sizeof(*gis) + apk_io_bufsize);
 	if (!gis) goto err;
@@ -149,7 +147,7 @@ struct apk_istream *apk_bstream_gunzip_mpart(struct apk_bstream *bs,
 		.is.ops = &gunzip_istream_ops,
 		.is.buf = (uint8_t*)(gis + 1),
 		.is.buf_size = apk_io_bufsize,
-		.bs = bs,
+		.zis = is,
 		.cb = cb,
 		.cbctx = ctx,
 	};
@@ -161,7 +159,7 @@ struct apk_istream *apk_bstream_gunzip_mpart(struct apk_bstream *bs,
 
 	return &gis->is;
 err:
-	apk_bstream_close(bs);
+	apk_istream_close(is);
 	return ERR_PTR(-ENOMEM);
 }
 

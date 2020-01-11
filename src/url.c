@@ -152,12 +152,5 @@ struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *ur
 
 struct apk_istream *apk_istream_from_url_gz(const char *file)
 {
-	return apk_bstream_gunzip(apk_bstream_from_url(file));
-}
-
-struct apk_bstream *apk_bstream_from_fd_url_if_modified(int atfd, const char *url, time_t since)
-{
-	if (apk_url_local_file(url) != NULL)
-		return apk_bstream_from_file(atfd, apk_url_local_file(url));
-	return apk_bstream_from_istream(apk_istream_fetch(url, since));
+	return apk_istream_gunzip(apk_istream_from_url(file));
 }
