@@ -21,6 +21,7 @@ docs: $(obj)/apk.8 \
 	$(obj)/apk-update.8 \
 	$(obj)/apk-upgrade.8 \
 	$(obj)/apk-verify.8 \
+	$(obj)/apk-version.8 \
 	$(obj)/apk-repositories.5 \
 	$(obj)/apk-world.5
 targets += docs
