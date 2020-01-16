@@ -48,7 +48,6 @@ static int verify_main(void *ctx, struct apk_database *db, struct apk_string_arr
 
 static struct apk_applet apk_verify = {
 	.name = "verify",
-	.help = "Verify package integrity and signature",
 	.arguments = "FILE...",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
 	.command_groups = APK_COMMAND_GROUP_REPO,

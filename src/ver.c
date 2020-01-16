@@ -96,12 +96,11 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 }
 
 static const struct apk_option options_applet[] = {
-	{ 'I', "indexes",	"Print description and versions of indexes" },
-	{ 't', "test",		"Compare two given versions, output '<', '=' or '>'" },
-	{ 'c', "check", 	"Check the given version strings, output any that are invalid" },
-	{ 'a', "all",		"Consider packages from all repository tags" },
-	{ 'l', "limit",		"Limit output to packages with status matching one of LIMCHARs",
-	  required_argument, "LIMCHARs" },
+	{ 'I', "indexes" },
+	{ 't', "test" },
+	{ 'c', "check" },
+	{ 'a', "all" },
+	{ 'l', "limit", required_argument, "LIMCHARs" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -199,8 +198,6 @@ static int ver_main(void *pctx, struct apk_database *db, struct apk_string_array
 
 static struct apk_applet apk_ver = {
 	.name = "version",
-	.help = "Compare package versions (in installed database vs. available) "
-		"or do tests on literal version strings",
 	.open_flags = APK_OPENF_READ,
 	.context_size = sizeof(struct ver_ctx),
 	.optgroups = { &optgroup_global, &optgroup_applet },

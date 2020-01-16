@@ -55,7 +55,6 @@ static int stats_main(void *ctx, struct apk_database *db, struct apk_string_arra
 
 static struct apk_applet stats_applet = {
 	.name = "stats",
-	.help = "Show statistics about repositories and installations",
 	.open_flags = APK_OPENF_READ,
 	.main = stats_main,
 };

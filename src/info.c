@@ -450,21 +450,21 @@ static int info_main(void *ctx, struct apk_database *db, struct apk_string_array
 }
 
 static const struct apk_option options_applet[] = {
-	{ 'L', "contents",	"List contents of the PACKAGE" },
-	{ 'e', "installed",	"Check if PACKAGE is installed" },
-	{ 'W', "who-owns",	"Print the package owning the specified file" },
-	{ 'R', "depends",	"List packages that the PACKAGE depends on" },
-	{ 'P', "provides",	"List virtual packages provided by PACKAGE" },
-	{ 'r', "rdepends",	"List all packages depending on PACKAGE" },
-	{ 0x10000, "replaces",	"List packages whom files PACKAGE might replace" },
-	{ 0x10002, "install-if",	"List the PACKAGE's install_if rule" },
-	{ 0x10003, "rinstall-if",	"List all packages having install_if referencing PACKAGE" },
-	{ 'w', "webpage",	"Show URL for more information about PACKAGE" },
-	{ 's', "size",		"Show installed size of PACKAGE" },
-	{ 'd', "description",	"Print description for PACKAGE" },
-	{ 0x10001, "license",	"Print license for PACKAGE" },
-	{ 't', "triggers",	"Print active triggers of PACKAGE" },
-	{ 'a', "all",		"Print all information about PACKAGE" },
+	{ 'L', "contents" },
+	{ 'e', "installed" },
+	{ 'W', "who-owns" },
+	{ 'R', "depends" },
+	{ 'P', "provides" },
+	{ 'r', "rdepends" },
+	{ 0x10000, "replaces" },
+	{ 0x10002, "install-if" },
+	{ 0x10003, "rinstall-if" },
+	{ 'w', "webpage" },
+	{ 's', "size" },
+	{ 'd', "description" },
+	{ 0x10001, "license" },
+	{ 't', "triggers" },
+	{ 'a', "all" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -476,7 +476,6 @@ static const struct apk_option_group optgroup_applet = {
 
 static struct apk_applet apk_info = {
 	.name = "info",
-	.help = "Give detailed information about PACKAGEs or repositories",
 	.arguments = "PACKAGE...",
 	.open_flags = APK_OPENF_READ,
 	.command_groups = APK_COMMAND_GROUP_QUERY,

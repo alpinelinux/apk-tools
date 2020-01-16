@@ -56,16 +56,10 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 }
 
 static const struct apk_option options_applet[] = {
-	{ 'o', "output", "Write the generated index to FILE",
-	  required_argument, "FILE" },
-	{ 'x', "index", "Read INDEX to speed up new index creation by reusing "
-	  "the information from an old index",
-	  required_argument, "INDEX" },
-	{ 'd', "description", "Embed TEXT as description and version "
-	  "information of the repository index",
-	  required_argument, "TEXT" },
-	{ 0x10000, "rewrite-arch", "Use ARCH as architecture for all packages",
-	  required_argument, "ARCH" },
+	{ 'o', "output", required_argument, "FILE" },
+	{ 'x', "index", required_argument, "INDEX" },
+	{ 'd', "description", required_argument, "TEXT" },
+	{ 0x10000, "rewrite-arch", required_argument, "ARCH" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -259,7 +253,6 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 
 static struct apk_applet apk_index = {
 	.name = "index",
-	.help = "Create repository index file from FILEs",
 	.arguments = "FILE...",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS,
 	.command_groups = APK_COMMAND_GROUP_REPO,

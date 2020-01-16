@@ -109,13 +109,13 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 }
 
 static const struct apk_option options_applet[] = {
-	{ 'a', "all",		"Show all package versions (instead of latest only)" },
-	{ 'd', "description",	"Search package descriptions (implies -a)" },
-	{ 'x', "exact",		"Require exact match (instead of substring match)" },
-	{ 'e', NULL,	        "Synonym for -x (deprecated)" },
-	{ 'o', "origin",	"Print origin package name instead of the subpackage" },
-	{ 'r', "rdepends",	"Print reverse dependencies of package" },
-	{ 0x10000, "has-origin","List packages that have the given origin" },
+	{ 'a', "all" },
+	{ 'd', "description" },
+	{ 'x', "exact" },
+	{ 'e', NULL },
+	{ 'o', "origin" },
+	{ 'r', "rdepends" },
+	{ 0x10000, "has-origin" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -206,7 +206,6 @@ static int search_main(void *pctx, struct apk_database *db, struct apk_string_ar
 
 static struct apk_applet apk_search = {
 	.name = "search",
-	.help = "Search package by PATTERNs or by indexed dependencies",
 	.arguments = "PATTERN",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
 	.command_groups = APK_COMMAND_GROUP_QUERY,

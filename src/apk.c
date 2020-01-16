@@ -191,49 +191,39 @@ static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt
 }
 
 static const struct apk_option options_global[] = {
-	{ 'h', "help",		"Show generic help or applet specific help" },
-	{ 'p', "root",		"Install packages to DIR",
-				required_argument, "DIR" },
-	{ 'X', "repository",	"Use packages from REPO",
-				required_argument, "REPO" },
-	{ 'q', "quiet",		"Print less information" },
-	{ 'v', "verbose",	"Print more information (can be doubled)" },
-	{ 'i', "interactive",	"Ask confirmation for certain operations" },
-	{ 'V', "version",	"Print program version and exit" },
-	{ 'f', "force",		"Enable selected --force-* (deprecated)" },
-	{ 0x125, "force-binary-stdout", "Continue even if binary data is to be output" },
-	{ 0x122, "force-broken-world", "Continue even if 'world' cannot be satisfied" },
-	{ 0x124, "force-non-repository", "Continue even if packages may be lost on reboot" },
-	{ 0x121, "force-old-apk", "Continue even if packages use unsupported features" },
-	{ 0x120, "force-overwrite", "Overwrite files in other packages" },
-	{ 0x123, "force-refresh", "Do not use cached files (local or from proxy)" },
-	{ 'U', "update-cache",	"Alias for --cache-max-age 1" },
-	{ 0x101, "progress",	"Show a progress bar" },
-	{ 0x10f, "progress-fd",	"Write progress to fd", required_argument, "FD" },
-	{ 0x110, "no-progress",	"Disable progress bar even for TTYs" },
-	{ 0x106, "purge",	"Delete also modified configuration files (pkg removal) "
-				"and uninstalled packages from cache (cache clean)" },
-	{ 0x103, "allow-untrusted", "Install packages with untrusted signature or no signature" },
-	{ 0x105, "wait",	"Wait for TIME seconds to get an exclusive "
-				"repository lock before failing",
-				required_argument, "TIME" },
-	{ 0x107, "keys-dir",	"Override directory of trusted keys",
-				required_argument, "KEYSDIR" },
-	{ 0x108, "repositories-file", "Override repositories file",
-				required_argument, "REPOFILE" },
-	{ 0x109, "no-network",	"Do not use network (cache is still used)" },
-	{ 0x115, "no-cache",	"Do not use any local cache path" },
-	{ 0x116, "cache-dir",	"Override cache directory",
-				required_argument, "CACHEDIR" },
-	{ 0x119, "cache-max-age", "Maximum AGE (in minutes) for index in cache before refresh",
-				required_argument, "AGE" },
-	{ 0x112, "arch",	"Use architecture with --root",
-				required_argument, "ARCH" },
-	{ 0x114, "print-arch",	"Print default arch and exit" },
+	{ 'h', "help" },
+	{ 'p', "root", required_argument, "DIR" },
+	{ 'X', "repository", required_argument, "REPO" },
+	{ 'q', "quiet" },
+	{ 'v', "verbose" },
+	{ 'i', "interactive" },
+	{ 'V', "version" },
+	{ 'f', "force" },
+	{ 0x125, "force-binary-stdout" },
+	{ 0x122, "force-broken-world" },
+	{ 0x124, "force-non-repository" },
+	{ 0x121, "force-old-apk" },
+	{ 0x120, "force-overwrite" },
+	{ 0x123, "force-refresh" },
+	{ 'U', "update-cache" },
+	{ 0x101, "progress" },
+	{ 0x10f, "progress-fd", required_argument, "FD" },
+	{ 0x110, "no-progress" },
+	{ 0x106, "purge" },
+	{ 0x103, "allow-untrusted" },
+	{ 0x105, "wait", required_argument, "TIME" },
+	{ 0x107, "keys-dir", required_argument, "KEYSDIR" },
+	{ 0x108, "repositories-file", required_argument, "REPOFILE" },
+	{ 0x109, "no-network" },
+	{ 0x115, "no-cache" },
+	{ 0x116, "cache-dir", required_argument, "CACHEDIR" },
+	{ 0x119, "cache-max-age", required_argument, "AGE" },
+	{ 0x112, "arch", required_argument, "ARCH" },
+	{ 0x114, "print-arch" },
 #ifdef TEST_MODE
-	{ 0x200, "test-repo",	"Repository", required_argument, "REPO" },
-	{ 0x201, "test-instdb",	"Installed db", required_argument, "INSTALLED" },
-	{ 0x202, "test-world",	"World", required_argument, "WORLD DEPS" },
+	{ 0x200, "test-repo", required_argument, "REPO" },
+	{ 0x201, "test-instdb", required_argument, "INSTALLED" },
+	{ 0x202, "test-world", required_argument, "WORLD DEPS" },
 #endif
 };
 
@@ -275,13 +265,12 @@ static int option_parse_commit(void *ctx, struct apk_db_options *dbopts, int opt
 }
 
 static const struct apk_option options_commit[] = {
-	{ 's', "simulate",		"Show what would be done without actually doing it" },
-	{ 0x102, "clean-protected",	"Do not create .apk-new files in configuration dirs" },
-	{ 0x111, "overlay-from-stdin",	"Read list of overlay files from stdin" },
-	{ 0x113, "no-scripts",		"Do not execute any scripts" },
-	{ 0x117, "no-commit-hooks",	"Skip pre/post hook scripts (but not other scripts)" },
-	{ 0x118, "initramfs-diskless-boot",
-	  "Enables options for diskless initramfs boot (e.g. skip hooks)" },
+	{ 's', "simulate" },
+	{ 0x102, "clean-protected" },
+	{ 0x111, "overlay-from-stdin" },
+	{ 0x113, "no-scripts" },
+	{ 0x117, "no-commit-hooks" },
+	{ 0x118, "initramfs-diskless-boot" },
 };
 
 const struct apk_option_group optgroup_commit = {
@@ -333,71 +322,13 @@ static void print_usage(const char *cmd, const char *args, const struct apk_opti
 	printf("\n");
 }
 
-static void print_options(int num_opts, const struct apk_option *opts)
-{
-	struct apk_indent indent = { .indent = 26 };
-	char word[128];
-	int i;
-
-	for (i = 0; i < num_opts; i++) {
-		format_option(word, sizeof(word), &opts[i], ", ");
-		indent.x = printf("  %-*s", indent.indent - 3, word);
-		apk_print_indented_words(&indent, opts[i].help);
-		printf("\n");
-	}
-}
-
-static void print_applets(const char *desc, unsigned int group)
-{
-	struct apk_applet *a;
-
-	printf("\n%s\n", desc);
-
-	foreach_applet(a) {
-		if (group && (a->command_groups & group) != group)
-			continue;
-
-		struct apk_indent indent = { .indent = 12 };
-		indent.x = printf("  %-*s", indent.indent - 3, a->name);
-		apk_print_indented_words(&indent, a->help);
-		printf("\n");
-	}
-}
-
 static int usage(struct apk_applet *applet)
 {
-	const struct apk_option_group **optgroups = default_optgroups;
-	int i;
-
 	version();
 	if (applet == NULL) {
-		if (apk_verbosity > 1) {
-			print_usage("COMMAND", "[ARGS]...", default_optgroups);
-			print_applets("The following commands are available:", 0);
-		} else {
-			print_applets("Installing and removing packages:", APK_COMMAND_GROUP_INSTALL);
-			print_applets("System maintenance:", APK_COMMAND_GROUP_SYSTEM);
-			print_applets("Querying information about packages:", APK_COMMAND_GROUP_QUERY);
-			print_applets("Repository maintenance:", APK_COMMAND_GROUP_REPO);
-
-			printf("\nUse apk <command> --help for command-specific help.\n");
-			printf("Use apk --help --verbose for a full command listing.\n");
-		}
+		print_usage("<COMMAND>", "[<args>...]", default_optgroups);
 	} else {
-		struct apk_indent indent = { .indent = 2 };
-
-		if (applet->optgroups[0]) optgroups = applet->optgroups;
-		print_usage(applet->name, applet->arguments, applet->optgroups);
-		printf("\nDescription:\n");
-		apk_print_indented_words(&indent, applet->help);
-		printf("\n");
-	}
-
-	if (applet != NULL || apk_verbosity > 1) {
-		for (i = 0; optgroups[i]; i++) {
-			printf("\n%s options:\n", optgroups[i]->name);
-			print_options(optgroups[i]->num_options, optgroups[i]->options);
-		}
+		print_usage(applet->name, applet->arguments, &applet->optgroups[1]);
 	}
 
 	printf("\nThis apk has coffee making abilities.\n");

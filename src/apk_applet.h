@@ -25,7 +25,6 @@
 struct apk_option {
 	int val;
 	const char *name;
-	const char *help;
 	int has_arg;
 	const char *arg_name;
 };
@@ -44,7 +43,6 @@ struct apk_applet {
 
 	const char *name;
 	const char *arguments;
-	const char *help;
 	const struct apk_option_group *optgroups[4];
 
 	unsigned int open_flags, forced_flags, forced_force, command_groups;

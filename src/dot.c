@@ -43,9 +43,8 @@ static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int op
 }
 
 static const struct apk_option options_applet[] = {
-	{ 0x10000,	"errors",	"Output only parts of the graph which are considered "
-					"erroneous: e.g. cycles and missing packages" },
-	{ 0x10001,	"installed",	"Consider only installed packages" },
+	{ 0x10000, "errors" },
+	{ 0x10001, "installed" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -169,7 +168,6 @@ static int dot_main(void *pctx, struct apk_database *db, struct apk_string_array
 
 static struct apk_applet apk_dot = {
 	.name = "dot",
-	.help = "Generate graphviz graphs",
 	.arguments = "PKGMASK...",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
 	.command_groups = APK_COMMAND_GROUP_QUERY,

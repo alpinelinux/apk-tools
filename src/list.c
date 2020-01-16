@@ -227,13 +227,13 @@ static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int op
 }
 
 static const struct apk_option options_applet[] = {
-	{ 'I', "installed", "List installed packages only" },
-	{ 'O', "orphaned", "List orphaned packages only" },
-	{ 'a', "available", "List available packages only" },
-	{ 'u', "upgradable", "List upgradable packages only" },
-	{ 'o', "origin", "List packages by origin" },
-	{ 'd', "depends", "List packages by dependency" },
-	{ 'P', "providers", "List packages by provider" },
+	{ 'I', "installed" },
+	{ 'O', "orphaned" },
+	{ 'a', "available" },
+	{ 'u', "upgradable" },
+	{ 'o', "origin" },
+	{ 'd', "depends" },
+	{ 'P', "providers" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -261,7 +261,6 @@ static int list_main(void *pctx, struct apk_database *db, struct apk_string_arra
 
 static struct apk_applet apk_list = {
 	.name = "list",
-	.help = "List packages by PATTERN and other criteria",
 	.arguments = "PATTERN",
 	.open_flags = APK_OPENF_READ,
 	.command_groups = APK_COMMAND_GROUP_QUERY,

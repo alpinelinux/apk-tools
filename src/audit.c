@@ -64,12 +64,11 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 }
 
 static const struct apk_option options_applet[] = {
-	{ 0x10000, "backup", "List all modified configuration files (in "
-			     "protected_paths.d) that need to be backed up" },
-	{ 0x10001, "system", "Verify checksums of all installed non-configuration files " },
-	{ 0x10002, "check-permissions", "Check file and directory uid/gid/mode too" },
-	{ 'r', "recursive",  "List individually all entries in new directories" },
-	{ 0x10003, "packages", "List only the changed packages (or names only with -q)" },
+	{ 0x10000, "backup" },
+	{ 0x10001, "system" },
+	{ 0x10002, "check-permissions" },
+	{ 'r', "recursive" },
+	{ 0x10003, "packages" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -347,7 +346,6 @@ static int audit_main(void *ctx, struct apk_database *db, struct apk_string_arra
 
 static struct apk_applet apk_audit = {
 	.name = "audit",
-	.help = "Audit the directories for changes",
 	.arguments = "[directory to audit]...",
 	.open_flags = APK_OPENF_READ|APK_OPENF_NO_SCRIPTS|APK_OPENF_NO_REPOS,
 	.context_size = sizeof(struct audit_ctx),

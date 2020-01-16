@@ -52,19 +52,11 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 }
 
 static const struct apk_option options_applet[] = {
-	{ 'a', "available",
-	  "Resets versioned world dependencies, and changes to prefer "
-	  "replacing or downgrading packages (instead of holding them) "
-	  "if the currently installed package is no longer available "
-	  "from any repository" },
-	{ 'l', "latest",
-	  "Select latest version of package (if it is not pinned), and "
-	  "print error if it cannot be installed due to other dependencies" },
-	{ 0x10000, "no-self-upgrade",
-	  "Do not do early upgrade of 'apk-tools' package" },
-	{ 0x10001, "self-upgrade-only", "Only do self-upgrade" },
-	{ 0x10002, "ignore", "Ignore the upgrade of PACKAGE.  Partial "
-	  "upgrades not supported, this might break your system."},
+	{ 'a', "available" },
+	{ 'l', "latest" },
+	{ 0x10000, "no-self-upgrade" },
+	{ 0x10001, "self-upgrade-only" },
+	{ 0x10002, "ignore" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -195,7 +187,6 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 
 static struct apk_applet apk_upgrade = {
 	.name = "upgrade",
-	.help = "Upgrade currently installed packages to match repositories",
 	.open_flags = APK_OPENF_WRITE,
 	.command_groups = APK_COMMAND_GROUP_SYSTEM,
 	.context_size = sizeof(struct upgrade_ctx),

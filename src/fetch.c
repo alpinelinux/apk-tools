@@ -92,13 +92,11 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 }
 
 static const struct apk_option options_applet[] = {
-	{ 'L', "link",		"Create hard links if possible" },
-	{ 'R', "recursive",	"Fetch the PACKAGE and all its dependencies" },
-	{ 0x104, "simulate",	"Show what would be done without actually doing it" },
-	{ 's', "stdout",	"Dump the .apk to stdout (incompatible "
-				"with -o, -R, --progress)" },
-	{ 'o', "output",	"Directory to place the PACKAGEs to",
-	  required_argument, "DIR" },
+	{ 'L', "link" },
+	{ 'R', "recursive" },
+	{ 0x104, "simulate" },
+	{ 's', "stdout" },
+	{ 'o', "output", required_argument, "DIR" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -345,7 +343,6 @@ static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_arr
 
 static struct apk_applet apk_fetch = {
 	.name = "fetch",
-	.help = "Download PACKAGEs from global repositories to a local directory",
 	.arguments = "PACKAGE...",
 	.open_flags =	APK_OPENF_READ | APK_OPENF_NO_STATE,
 	.command_groups = APK_COMMAND_GROUP_REPO,

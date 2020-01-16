@@ -46,16 +46,10 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 }
 
 static const struct apk_option options_applet[] = {
-	{ 0x10000,	"initdb",	"Initialize database" },
-	{ 'u',		"upgrade",	"Prefer to upgrade package" },
-        { 'l',		"latest",
-	  "Select latest version of package (if it is not pinned), and "
-	  "print error if it cannot be installed due to other dependencies" },
-	{ 't',		"virtual",
-	  "Instead of adding all the packages to 'world', create a new virtual "
-	  "package with the listed dependencies and add that to 'world'; the "
-	  "actions of the command are easily reverted by deleting the virtual "
-	  "package", required_argument, "NAME" },
+	{ 0x10000,	"initdb" },
+	{ 'u',		"upgrade" },
+	{ 'l',		"latest" },
+	{ 't',		"virtual", required_argument, "NAME" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -202,8 +196,6 @@ static int add_main(void *ctx, struct apk_database *db, struct apk_string_array 
 
 static struct apk_applet apk_add = {
 	.name = "add",
-	.help = "Add PACKAGEs to 'world' and install (or upgrade) "
-		"them, while ensuring that all dependencies are met",
 	.arguments = "PACKAGE...",
 	.open_flags = APK_OPENF_WRITE,
 	.command_groups = APK_COMMAND_GROUP_INSTALL,

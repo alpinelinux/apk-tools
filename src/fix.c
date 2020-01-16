@@ -50,11 +50,11 @@ static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int op
 }
 
 static const struct apk_option options_applet[] = {
-	{ 'd',		"depends",	"Fix all dependencies too" },
-	{ 'r',		"reinstall",	"Reinstall the package (default)" },
-	{ 'u',		"upgrade",	"Prefer to upgrade package" },
-	{ 'x',		"xattr",	"Fix packages with broken xattrs" },
-	{ 0x10000,	"directory-permissions", "Reset all directory permissions" },
+	{ 'd', "depends" },
+	{ 'r', "reinstall" },
+	{ 'u', "upgrade" },
+	{ 'x', "xattr" },
+	{ 0x10000, "directory-permissions" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -115,8 +115,6 @@ static int fix_main(void *pctx, struct apk_database *db, struct apk_string_array
 
 static struct apk_applet apk_fix = {
 	.name = "fix",
-	.help = "Repair package or upgrade it without modifying main "
-		"dependencies",
 	.arguments = "PACKAGE...",
 	.open_flags = APK_OPENF_WRITE,
 	.command_groups = APK_COMMAND_GROUP_SYSTEM,

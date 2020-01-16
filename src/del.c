@@ -36,8 +36,7 @@ static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int op
 }
 
 static const struct apk_option options_applet[] = {
-	{ 'r', "rdepends",	"Recursively delete all top-level reverse "
-				"dependencies too" },
+	{ 'r', "rdepends" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -168,7 +167,6 @@ static int del_main(void *pctx, struct apk_database *db, struct apk_string_array
 
 static struct apk_applet apk_del = {
 	.name = "del",
-	.help = "Remove PACKAGEs from 'world' and uninstall them",
 	.arguments = "PACKAGE...",
 	.open_flags = APK_OPENF_WRITE | APK_OPENF_NO_AUTOUPDATE,
 	.command_groups = APK_COMMAND_GROUP_INSTALL,

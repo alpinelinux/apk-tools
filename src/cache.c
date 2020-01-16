@@ -48,10 +48,8 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 }
 
 static const struct apk_option options_applet[] = {
-	{ 'u',		"upgrade",	"Prefer to upgrade package" },
-	{ 'l',		"latest",
-	  "Select latest version of package (if it is not pinned), and "
-	  "print error if it cannot be installed due to other dependencies" },
+	{ 'u', "upgrade" },
+	{ 'l', "latest" },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -184,8 +182,6 @@ err:
 
 static struct apk_applet apk_cache = {
 	.name = "cache",
-	.help = "Download missing PACKAGEs to cache and/or delete "
-		"unneeded files from cache",
 	.arguments = "sync | clean | download",
 	.open_flags = APK_OPENF_READ|APK_OPENF_NO_SCRIPTS|APK_OPENF_CACHE_WRITE,
 	.command_groups = APK_COMMAND_GROUP_SYSTEM,
