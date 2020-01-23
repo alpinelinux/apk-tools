@@ -64,11 +64,14 @@ static int read_file_entry(void *ctx, const struct apk_file_info *ae,
 	struct manifest_file_ctx *mctx = ctx;
 	char csum_buf[(APK_CHECKSUM_SHA1 * 2) + 1];
 	apk_blob_t csum_blob = APK_BLOB_BUF(csum_buf);
+	int r;
 
-	if (ae->name[0] == '.') {
-		if (!strncmp(ae->name, ".PKGINFO", 8) || !strncmp(ae->name, ".SIGN.", 6))
-			return 0;
-	}
+	r = apk_sign_ctx_verify_tar(mctx->sctx, ae, is);
+	if (r != 0)
+		return r;
+
+	if (!mctx->sctx->data_started)
+		return 0;
 
 	if ((ae->mode & S_IFMT) != S_IFREG)
 		return 0;
