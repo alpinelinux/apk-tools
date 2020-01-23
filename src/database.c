@@ -2388,7 +2388,19 @@ static int apk_db_install_archive_entry(void *_ctx,
 	if (r <= 0)
 		return r;
 
-	r = 0;
+	/* Package metainfo and script processing */
+	if (ctx->sctx.control_started && !ctx->sctx.data_started) {
+		if (strcmp(ae->name, ".PKGINFO") == 0) {
+			apk_blob_t l, token = APK_BLOB_STR("\n");
+			while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
+				read_info_line(ctx, l);
+			return 0;
+		}
+		if (ae->name[0] == '.')
+			type = apk_script_type(&ae->name[1]);
+		if (type == APK_SCRIPT_INVALID)
+			return 0;
+	}
 
 	/* Sanity check the file name */
 	if (ae->name[0] == '/' ||
@@ -2400,20 +2412,6 @@ static int apk_db_install_archive_entry(void *_ctx,
 			    PKG_VER_PRINTF(pkg), ae->name);
 		ipkg->broken_files = 1;
 		return 0;
-	}
-
-	/* Package metainfo and script processing */
-	if (ae->name[0] == '.') {
-		/* APK 2.0 format */
-		if (strcmp(ae->name, ".PKGINFO") == 0) {
-			apk_blob_t l, token = APK_BLOB_STR("\n");
-			while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
-				read_info_line(ctx, l);
-			return 0;
-		}
-		type = apk_script_type(&ae->name[1]);
-		if (type == APK_SCRIPT_INVALID)
-			return 0;
 	}
 
 	/* Handle script */

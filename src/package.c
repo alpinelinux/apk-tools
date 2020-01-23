@@ -613,14 +613,16 @@ int apk_sign_ctx_parse_pkginfo_line(void *ctx, apk_blob_t line)
 	struct apk_sign_ctx *sctx = (struct apk_sign_ctx *) ctx;
 	apk_blob_t l, r;
 
+	if (!sctx->control_started || sctx->data_started)
+		return 0;
+
 	if (line.ptr == NULL || line.len < 1 || line.ptr[0] == '#')
 		return 0;
 
 	if (!apk_blob_split(line, APK_BLOB_STR(" = "), &l, &r))
 		return 0;
 
-	if (sctx->data_started == 0 &&
-	    apk_blob_compare(APK_BLOB_STR("datahash"), l) == 0) {
+	if (apk_blob_compare(APK_BLOB_STR("datahash"), l) == 0) {
 		sctx->has_data_checksum = 1;
 		sctx->md = EVP_sha256();
 		apk_blob_pull_hexdump(
@@ -640,6 +642,9 @@ int apk_sign_ctx_verify_tar(void *sctx, const struct apk_file_info *fi,
 	r = apk_sign_ctx_process_file(ctx, fi, is);
 	if (r <= 0)
 		return r;
+
+	if (!ctx->control_started || ctx->data_started)
+		return 0;
 
 	if (strcmp(fi->name, ".PKGINFO") == 0) {
 		apk_blob_t l, token = APK_BLOB_STR("\n");
@@ -891,21 +896,21 @@ static int read_info_entry(void *ctx, const struct apk_file_info *ae,
 	struct apk_package *pkg = ri->pkg;
 	int r;
 
-	/* Meta info and scripts */
 	r = apk_sign_ctx_process_file(ri->sctx, ae, is);
-	if (r <= 0) return r;
+	if (r <= 0)
+		return r;
 
-	if (ae->name[0] == '.') {
-		/* APK 2.0 format */
-		if (strcmp(ae->name, ".PKGINFO") == 0) {
-			apk_blob_t l, token = APK_BLOB_STR("\n");
-			while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
-				read_info_line(ctx, l);
-		} else if (strcmp(ae->name, ".INSTALL") == 0) {
-			apk_warning("Package '%s-%s' contains deprecated .INSTALL",
-				    pkg->name->name, pkg->version);
-		}
+	if (!ri->sctx->control_started || ri->sctx->data_started)
 		return 0;
+
+	if (strcmp(ae->name, ".PKGINFO") == 0) {
+		/* APK 2.0 format */
+		apk_blob_t l, token = APK_BLOB_STR("\n");
+		while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
+			read_info_line(ctx, l);
+	} else if (strcmp(ae->name, ".INSTALL") == 0) {
+		apk_warning("Package '%s-%s' contains deprecated .INSTALL",
+				pkg->name->name, pkg->version);
 	}
 
 	return 0;
