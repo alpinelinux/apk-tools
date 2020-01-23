@@ -474,9 +474,14 @@ void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action,
 	ctx->action = action;
 	switch (action) {
 	case APK_SIGN_VERIFY:
+		/* If we're only verifing, we're going to start with a
+		 * signature section, which we don't need a hash of */
 		ctx->md = EVP_md_null();
 		break;
 	case APK_SIGN_VERIFY_IDENTITY:
+		/* If we're checking the package against a particular hash,
+		 * we need to start with that hash, because there may not
+		 * be a signature section to deduce it from */
 		ctx->md = EVP_sha1();
 		memcpy(&ctx->identity, identity, sizeof(ctx->identity));
 		break;
@@ -566,10 +571,10 @@ int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
 		return 1;
 	}
 
-	/* A signature file */
+	/* By this point, we must be handling a signature file */
 	ctx->num_signatures++;
 
-	/* Found already a trusted key */
+	/* Already found a signature by a trusted key; no need to keep searching */
 	if ((ctx->action != APK_SIGN_VERIFY &&
 	     ctx->action != APK_SIGN_VERIFY_AND_GENERATE) ||
 	    ctx->signature.pkey != NULL)
@@ -645,6 +650,12 @@ int apk_sign_ctx_verify_tar(void *sctx, const struct apk_file_info *fi,
 	return 0;
 }
 
+/*	apk_sign_ctx_mpart_cb() handles hashing archives and checking signatures, but
+	it can't do it alone. apk_sign_ctx_process_file() must be in the loop to
+	actually select which signature is to be verified and load the corresponding
+	public key into the context object, and	apk_sign_ctx_parse_pkginfo_line()
+	needs to be called when handling the .PKGINFO file to find any applicable
+	datahash and load it into the context for this function to check against. */
 int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 {
 	struct apk_sign_ctx *sctx = (struct apk_sign_ctx *) ctx;
@@ -671,14 +682,12 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 	    part != APK_MPART_END)
 		goto update_digest;
 
-	/* Drool in the remaining of the digest block now, we will finish
-	 * it on all cases */
+	/* Drool in the remainder of the digest block now, we will finish
+	 * hashing it in all cases */
 	EVP_DigestUpdate(sctx->mdctx, data.ptr, data.len);
 
-	/* End of control-block and checking control hash/signature or
-	 * end of data-block and checking its hash/signature */
 	if (sctx->has_data_checksum && !end_of_control) {
-		/* End of control-block and check it's hash */
+		/* End of data-block with a checksum read from the control block */
 		EVP_DigestFinal_ex(sctx->mdctx, calculated, NULL);
 		if (EVP_MD_CTX_size(sctx->mdctx) == 0 ||
 		    memcmp(calculated, sctx->data_checksum,
@@ -691,6 +700,9 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 		return 0;
 	}
 
+	/* Either end of control block with a data checksum or end
+	 * of the data block following a control block without a data
+	 * checksum. In either case, we're checking a signature. */
 	r = check_signing_key_trust(sctx);
 	if (r < 0)
 		return r;
