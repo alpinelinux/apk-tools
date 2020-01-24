@@ -2381,7 +2381,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 	apk_blob_t name = APK_BLOB_STR(ae->name), bdir, bfile;
 	struct apk_db_dir_instance *diri = ctx->diri;
 	struct apk_db_file *file, *link_target_file = NULL;
-	int ret = 0, r, type = APK_SCRIPT_INVALID;
+	int ret = 0, r;
 	char tmpname_file[TMPNAME_MAX], tmpname_link_target[TMPNAME_MAX];
 
 	r = apk_sign_ctx_process_file(&ctx->sctx, ae, is);
@@ -2390,17 +2390,28 @@ static int apk_db_install_archive_entry(void *_ctx,
 
 	/* Package metainfo and script processing */
 	if (ctx->sctx.control_started && !ctx->sctx.data_started) {
+		if (ae->name[0] != '.') return 0;
 		if (strcmp(ae->name, ".PKGINFO") == 0) {
 			apk_blob_t l, token = APK_BLOB_STR("\n");
 			while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
 				read_info_line(ctx, l);
 			return 0;
 		}
-		if (ae->name[0] == '.')
-			type = apk_script_type(&ae->name[1]);
-		if (type == APK_SCRIPT_INVALID)
-			return 0;
+		r = apk_script_type(&ae->name[1]);
+		if (r != APK_SCRIPT_INVALID) {
+			apk_ipkg_add_script(ipkg, is, r, ae->size);
+			ctx->script_pending |= (r == ctx->script);
+			apk_db_run_pending_script(ctx);
+		}
+		return 0;
 	}
+
+	/* Handle script */
+	apk_db_run_pending_script(ctx);
+
+	/* Rest of files need to be inside data portion */
+	if (!ctx->sctx.data_started || ae->name[0] == '.')
+		return 0;
 
 	/* Sanity check the file name */
 	if (ae->name[0] == '/' ||
@@ -2413,16 +2424,6 @@ static int apk_db_install_archive_entry(void *_ctx,
 		ipkg->broken_files = 1;
 		return 0;
 	}
-
-	/* Handle script */
-	if (type != APK_SCRIPT_INVALID) {
-		apk_ipkg_add_script(ipkg, is, type, ae->size);
-		if (type == ctx->script)
-			ctx->script_pending = TRUE;
-		apk_db_run_pending_script(ctx);
-		return 0;
-	}
-	apk_db_run_pending_script(ctx);
 
 	/* Installable entry */
 	ctx->current_file_size = apk_calc_installed_size(ae->size);
