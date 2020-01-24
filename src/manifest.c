@@ -36,7 +36,7 @@ static void process_package(struct apk_database *db, struct apk_package *pkg)
 	struct apk_db_dir_instance *diri;
 	struct apk_db_file *file;
 	struct hlist_node *dc, *dn, *fc, *fn;
-	char csum_buf[(APK_CHECKSUM_SHA1 * 2) + 1];
+	char csum_buf[APK_BLOB_CHECKSUM_BUF];
 
 	if (ipkg == NULL)
 		return;
@@ -62,7 +62,7 @@ static int read_file_entry(void *ctx, const struct apk_file_info *ae,
                            struct apk_istream *is)
 {
 	struct manifest_file_ctx *mctx = ctx;
-	char csum_buf[(APK_CHECKSUM_SHA1 * 2) + 1];
+	char csum_buf[APK_BLOB_CHECKSUM_BUF];
 	apk_blob_t csum_blob = APK_BLOB_BUF(csum_buf);
 	int r;
 

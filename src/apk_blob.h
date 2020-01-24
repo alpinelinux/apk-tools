@@ -36,12 +36,15 @@ extern apk_blob_t apk_null_blob;
 #define APK_CHECKSUM_MD5	16
 #define APK_CHECKSUM_SHA1	20
 #define APK_CHECKSUM_DEFAULT	APK_CHECKSUM_SHA1
+#define APK_CHECKSUM_MAX	APK_CHECKSUM_SHA1
 
-#define APK_BLOB_CHECKSUM_BUF	34
+/* Enough space for a hexdump of the longest checksum possible plus
+ * a two-character type prefix */
+#define APK_BLOB_CHECKSUM_BUF	(2 + (2 * APK_CHECKSUM_MAX))
 
-/* Internal cointainer for MD5 or SHA1 */
+/* Internal container for checksums */
 struct apk_checksum {
-	unsigned char data[20];
+	unsigned char data[APK_CHECKSUM_MAX];
 	unsigned char type;
 };
 
