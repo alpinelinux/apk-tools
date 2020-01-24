@@ -1409,6 +1409,8 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 
 static void apk_db_setup_repositories(struct apk_database *db, const char *cache_dir)
 {
+	/* This is the SHA-1 of the string 'cache'. Repo hashes like this
+	 * are truncated to APK_CACHE_CSUM_BYTES and always use SHA-1. */
 	db->repos[APK_REPOSITORY_CACHED] = (struct apk_repository) {
 		.url = cache_dir,
 		.csum.data = {
