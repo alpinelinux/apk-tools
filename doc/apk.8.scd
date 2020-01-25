@@ -157,6 +157,28 @@ The following options are available for all commands.
 	Wait for TIME seconds to get an exclusive repository lock before
 	failing.
 
+# COMMIT OPTIONS
+
+The following options are available for all commands which commit the database.
+
+*-s, --simulate*
+	Simulate the requested operation without making any changes.
+
+*--clean-protected*
+	Do not create .apk-new files in configuration directories.
+
+*--overlay-from-stdin*
+	Read list of overlay files from stdin.
+
+*--no-scripts*
+	Do not execute any scripts.
+
+*--no-commit-hooks*
+	Skip pre/post hook scripts (but not other scripts).
+
+*--initramfs-diskless-boot*
+	Enables options for diskless initramfs boot (e.g. skip hooks).
+
 # NOTES
 
 This apk has coffee making abilities.
