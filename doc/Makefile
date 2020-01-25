@@ -1,7 +1,4 @@
-$(obj)/%.5: $(src)/%.5.scd
-	$(SCDOC) < $< > $@
-
-$(obj)/%.8: $(src)/%.8.scd
+$(obj)/%: $(src)/%.scd
 	$(SCDOC) < $< > $@
 
 MAN_5=$(obj)/apk-cache.5 \
