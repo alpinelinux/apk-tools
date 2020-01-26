@@ -89,6 +89,9 @@ endif
 ifneq ($(origin targets),file)
 targets		:=
 endif
+ifneq ($(origin docs),file)
+docs		:=
+endif
 
 src		:=
 obj		:=
@@ -259,6 +262,18 @@ $(__progs): $(obj)/%: $(cobjs) FORCE
 
 targets += $(__progs) $(cobjs)
 
+#####
+# Man pages
+
+quiet_cmd_scdoc = SCDOC   $@
+      cmd_scdoc = $(SCDOC) < $< > $@
+
+__scdocs	:= $(addprefix $(obj)/,$(sort $(scdocs-y)))
+docs		+= $(__scdocs)
+
+$(__scdocs): $(obj)/%: $(src)/%.scd FORCE
+	$(call if_changed,scdoc)
+
 ###
 # why - tell why a a target got build
 ifeq ($(VERBOSE),2)
@@ -268,9 +283,9 @@ why =                                                                        \
             $(if $(strip $(any-prereq)),- due to: $(any-prereq),             \
                 $(if $(arg-check),                                           \
                     $(if $(cmd_$@),- due to command line change: $(arg-check),             \
-                        $(if $(filter $@, $(targets)),                       \
+                        $(if $(filter $@, $(targets) $(docs)),               \
                             - due to missing .cmd file,                      \
-                            - due to $(notdir $@) not in $$(targets)         \
+                            - due to $(notdir $@) not in $$(targets) or $$(docs) \
                          )                                                   \
                      )                                                       \
                  )                                                           \
@@ -291,7 +306,10 @@ endif
 compile: generate $(targets)
 	@:
 
-install: $(targets) FORCE
+docs: $(docs) $(targets)
+	@:
+
+install: docs $(targets) FORCE
 
 generate:
 
@@ -305,7 +323,8 @@ endif
 		$(sort	$(progs-y) $(progs-n) $(progs-) \
 			$(shlibs-y) $(shlibs-n) $(shlibs-) \
 			$(libs-y) $(libs-n) $(libs-) \
-			$(generate-y) $(generate-n) $(generate-)))
+			$(generate-y) $(generate-n) $(generate-) \
+			$(scdocs-y) $(scdocs-n) $(scdocs-)))
 
 ifeq ($(origin VERSION),command line)
 DIST_VERSION=$(VERSION)
@@ -326,7 +345,8 @@ FORCE:
 # exist, we will rebuild anyway in that case.
 
 targets := $(wildcard $(sort $(targets)))
-cmd_files := $(wildcard $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
+docs := $(wildcard $(sort $(docs)))
+cmd_files := $(wildcard $(foreach f,$(targets) $(docs),$(dir $(f)).$(notdir $(f)).cmd))
 
 ifneq ($(cmd_files),)
   include $(cmd_files)
