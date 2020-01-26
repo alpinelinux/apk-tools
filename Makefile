@@ -19,9 +19,9 @@ DOCDIR		:= /usr/share/doc/apk
 export DESTDIR SBINDIR LIBDIR CONFDIR MANDIR DOCDIR
 
 ##
-# Top-level rules and targets
+# Top-level subdirs
 
-targets		:= libfetch/ src/ doc/
+subdirs		:= libfetch/ src/ doc/
 
 ##
 # Include all rules and stuff

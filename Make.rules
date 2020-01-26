@@ -1,7 +1,9 @@
 ##
 # A set of makefile rules loosely based on kbuild.
 
-all: compile
+default: compile
+
+all: compile docs
 
 ifndef build
 
@@ -86,6 +88,9 @@ endif
 
 ##
 # Reset all variables.
+ifneq ($(origin subdirs),file)
+subdirs		:=
+endif
 ifneq ($(origin targets),file)
 targets		:=
 endif
@@ -303,17 +308,17 @@ endif
 %/: FORCE
 	$(Q)$(MAKE) -f Make.rules build=$(build-dir) $(MAKECMDGOALS)
 
-compile: generate $(targets)
+compile: generate $(targets) $(subdirs)
 	@:
 
-docs: $(docs) $(targets)
+docs: $(docs) $(subdirs)
 	@:
 
-install: docs $(targets) FORCE
+install: compile docs $(subdirs) FORCE
 
 generate:
 
-clean: $(filter %/,$(targets))
+clean: $(subdirs)
 ifeq ($(toplevelrun),yes)
 	$(Q)find . $(RCS_FIND_IGNORE) \
 		\( -name '*.[oas]' -o -name '.*.cmd' -o -name '.*.d' \) \
