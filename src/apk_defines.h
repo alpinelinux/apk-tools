@@ -54,6 +54,10 @@ static inline int IS_ERR_OR_NULL(const void *ptr) { return IS_ERR(ptr) || !ptr; 
 #define unlikely(x) __builtin_expect((!!(x)),0)
 #endif
 
+#ifndef typeof
+#define typeof(x) __typeof__(x)
+#endif
+
 #ifndef container_of
 #define container_of(ptr, type, member) ({                      \
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
