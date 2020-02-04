@@ -625,7 +625,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 	char tmpcacheitem[128], *cacheitem = &tmpcacheitem[tmpprefix.len];
 	apk_blob_t b = APK_BLOB_BUF(tmpcacheitem);
 	int r, fd;
-	time_t now = apk_time();
+	time_t now = time(NULL);
 
 	apk_blob_push_blob(&b, tmpprefix);
 	if (pkg != NULL)
@@ -1006,7 +1006,7 @@ static int apk_db_scriptdb_write(struct apk_database *db, struct apk_ostream *os
 	char filename[256];
 	apk_blob_t bfn;
 	int r, i;
-	time_t now = apk_time();
+	time_t now = time(NULL);
 
 	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
 		pkg = ipkg->pkg;

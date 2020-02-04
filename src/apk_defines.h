@@ -122,8 +122,6 @@ extern char **apk_argv;
 #define APK_MAX_TAGS		16	/* see solver; unsigned short */
 #define APK_CACHE_CSUM_BYTES	4
 
-time_t apk_time(void);
-
 static inline size_t apk_calc_installed_size(size_t size)
 {
 	const size_t bsize = 4 * 1024;

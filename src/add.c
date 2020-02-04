@@ -87,7 +87,7 @@ static struct apk_package *create_virtual_package(struct apk_database *db, struc
 	struct apk_package *virtpkg;
 	struct tm tm;
 	EVP_MD_CTX *mdctx;
-	time_t now = apk_time();
+	time_t now = time(NULL);
 	pid_t pid = getpid();
 
 	gmtime_r(&now, &tm);
