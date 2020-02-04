@@ -47,14 +47,14 @@ static struct apk_string_array *test_repos;
 
 char **apk_argv;
 
-time_t apk_time(void)
-{
 #ifdef TEST_MODE
-	return 1559567666;
-#else
-	return time(NULL);
-#endif
+time_t time(time_t *tloc)
+{
+	const time_t val = 1559567666;
+	if (tloc) *tloc = val;
+	return val;
 }
+#endif
 
 static void version(void)
 {

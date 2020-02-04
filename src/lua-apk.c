@@ -46,11 +46,6 @@ static int typerror (lua_State *L, int narg, const char *tname) {
 	return luaL_argerror(L, narg, msg);
 }
 
-time_t apk_time(void)
-{
-	return time(NULL);
-}
-
 static apk_blob_t check_blob(lua_State *L, int index)
 {
 	apk_blob_t blob;
