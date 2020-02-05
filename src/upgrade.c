@@ -37,7 +37,7 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 		uctx->self_upgrade_only = 1;
 		break;
 	case 0x10002:
-		uctx->ignore = 1;
+		uctx->solver_flags |= APK_SOLVERF_IGNORE_UPGRADE;
 		break;
 	case 'a':
 		uctx->solver_flags |= APK_SOLVERF_AVAILABLE;
@@ -141,6 +141,12 @@ ret:
 	return r;
 }
 
+static void set_solver_flags(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+{
+	struct upgrade_ctx *uctx = pctx;
+	apk_solver_set_name_flags(name, uctx->solver_flags | APK_SOLVERF_UPGRADE ,0);
+}
+
 static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) ctx;
@@ -165,20 +171,13 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 		return 0;
 
 	if (args->num) {
-		unsigned int flags = solver_flags, in_flags;
-		if (uctx->ignore) {
-			flags |= APK_SOLVERF_IGNORE_UPGRADE;
-			in_flags = 0;
-		} else {
-			solver_flags &= ~APK_SOLVERF_UPGRADE;
-			in_flags = flags;
+		if (!(solver_flags & APK_SOLVERF_IGNORE_UPGRADE)) {
+			solver_flags = 0;
 		}
-		char **pkg_name;
-		struct apk_name *name;
-		foreach_array_item(pkg_name, args) {
-			name = apk_db_get_name(db, APK_BLOB_STR(*pkg_name));
-			apk_solver_set_name_flags(name, flags, in_flags);
-		}
+
+		apk_name_foreach_matching(db, args, apk_foreach_genid(), set_solver_flags, ctx);
+
+		solver_flags &= ~APK_SOLVERF_IGNORE_UPGRADE;
 	}
 
 	if (solver_flags & APK_SOLVERF_AVAILABLE) {
