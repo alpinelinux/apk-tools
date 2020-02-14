@@ -1,4 +1,4 @@
-/* manifest.c - Alpine Package Keeper (APK)
+/* app_manifest.c - Alpine Package Keeper (APK)
  *
  * Copyright (C) 2005-2017 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2017 Timo Teräs <timo.teras@iki.fi>

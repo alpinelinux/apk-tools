@@ -1,4 +1,4 @@
-/* list.c - Alpine Package Keeper (APK)
+/* app_list.c - Alpine Package Keeper (APK)
  *
  * Copyright (C) 2005-2009 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>

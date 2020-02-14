@@ -23,9 +23,13 @@ install-LUA_LIB-y	:= $(INSTALLDIR) $(DESTDIR)$(LUA_LIBDIR) && \
 endif
 
 progs-y			+= apk
-apk-objs		:= apk.o add.o del.o fix.o update.o info.o list.o \
-			   search.o upgrade.o cache.o ver.o index.o fetch.o \
-			   audit.o verify.o dot.o policy.o stats.o manifest.o
+apk-objs		:= apk.o \
+			   app_add.o app_del.o app_fix.o app_update.o app_upgrade.o \
+			   app_info.o app_list.o app_search.o app_manifest.o \
+			   app_policy.o app_stats.o \
+			   app_cache.o app_version.o \
+			   app_index.o app_fetch.o app_verify.o app_dot.o \
+			   app_audit.o
 
 libapk.so-objs		:= common.o database.o package.o archive.o \
 			   version.o io.o url.o gunzip.o blob.o hash.o print.o \

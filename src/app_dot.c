@@ -1,4 +1,4 @@
-/* dot.c - Alpine Package Keeper (APK)
+/* app_dot.c - Alpine Package Keeper (APK)
  *
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
  * All rights reserved.

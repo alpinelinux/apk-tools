@@ -1,4 +1,4 @@
-/* stats.c - Alpine Package Keeper (APK)
+/* app_stats.c - Alpine Package Keeper (APK)
  *
  * Copyright (C) 2013 Timo Teräs <timo.teras@iki.fi>
  * All rights reserved.
