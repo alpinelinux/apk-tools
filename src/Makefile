@@ -31,9 +31,10 @@ apk-objs		:= apk.o \
 			   app_index.o app_fetch.o app_verify.o app_dot.o \
 			   app_audit.o
 
-libapk.so-objs		:= common.o database.o package.o archive.o \
-			   version.o io.o url.o gunzip.o blob.o hash.o print.o \
-			   commit.o solver.o
+libapk.so-objs		:= common.o database.o package.o commit.o solver.o \
+			   version.o blob.o hash.o print.o \
+			   io.o io_url.o io_gunzip.o io_archive.o
+
 libapk.so-libs		:= libfetch/libfetch.a
 
 ifeq ($(TEST),y)
