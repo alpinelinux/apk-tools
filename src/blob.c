@@ -201,49 +201,59 @@ apk_blob_t apk_blob_pushed(apk_blob_t buffer, apk_blob_t left)
 	return APK_BLOB_PTR_LEN(buffer.ptr, left.ptr - buffer.ptr);
 }
 
-static uint32_t murmur3_32(const char *key, uint32_t len, uint32_t seed)
+static inline uint32_t rotl32(uint32_t x, int8_t r)
+{
+	return (x << r) | (x >> (32 - r));
+}
+
+static inline uint32_t get_unaligned32(const void *ptr)
+{
+#if defined(__x86_64__) || defined(__i386__)
+	return *(const uint32_t *)ptr;
+#else
+	const uint8_t *p = ptr;
+	return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
+#endif
+}
+
+static uint32_t murmur3_32(const void *pkey, uint32_t len, uint32_t seed)
 {
 	static const uint32_t c1 = 0xcc9e2d51;
 	static const uint32_t c2 = 0x1b873593;
-	static const uint32_t r1 = 15;
-	static const uint32_t r2 = 13;
-	static const uint32_t m = 5;
-	static const uint32_t n = 0xe6546b64;
-	uint32_t hash = seed;
+	const uint8_t *key = pkey;
 	const int nblocks = len / 4;
-	const uint32_t *blocks = (const uint32_t *) key;
+	uint32_t k, h = seed;
 	int i;
-	for (i = 0; i < nblocks; i++) {
-		uint32_t k = blocks[i];
+
+	for (i = 0; i < nblocks; i++, key += 4) {
+		k  = get_unaligned32(key);
 		k *= c1;
-		k = (k << r1) | (k >> (32 - r1));
+		k  = rotl32(k, 15);
 		k *= c2;
-		hash ^= k;
-		hash = ((hash << r2) | (hash >> (32 - r2))) * m + n;
+		h ^= k;
+		h  = rotl32(h, 13) * 5 + 0xe6546b64;
 	}
 
-	const uint8_t *tail = (const uint8_t *) (key + nblocks * 4);
-	uint32_t k1 = 0;
-
+	k = 0;
 	switch (len & 3) {
 	case 3:
-		k1 ^= tail[2] << 16;
+		k ^= key[2] << 16;
 	case 2:
-		k1 ^= tail[1] << 8;
+		k ^= key[1] << 8;
 	case 1:
-		k1 ^= tail[0];
-		k1 *= c1;
-		k1 = (k1 << r1) | (k1 >> (32 - r1));
-		k1 *= c2;
-		hash ^= k1;
+		k ^= key[0];
+		k *= c1;
+		k  = rotl32(k, 15);
+		k *= c2;
+		h ^= k;
 	}
-	hash ^= len;
-	hash ^= (hash >> 16);
-	hash *= 0x85ebca6b;
-	hash ^= (hash >> 13);
-	hash *= 0xc2b2ae35;
-	hash ^= (hash >> 16);
-	return hash;
+	h ^= len;
+	h ^= (h >> 16);
+	h *= 0x85ebca6b;
+	h ^= (h >> 13);
+	h *= 0xc2b2ae35;
+	h ^= (h >> 16);
+	return h;
 }
 
 unsigned long apk_blob_hash_seed(apk_blob_t blob, unsigned long seed)
