@@ -107,6 +107,8 @@
 
 #define HTTP_ERROR(xyz) ((xyz) > 400 && (xyz) < 599)
 
+static int val_yes = 1, val_no = 0;
+
 static int http_cmd(conn_t *, const char *, ...) LIBFETCH_PRINTFLIKE(2, 3);
 
 /*****************************************************************************
@@ -294,21 +296,20 @@ static void
 http_closefn(void *v)
 {
 	struct httpio *io = (struct httpio *)v;
+	conn_t *conn = io->conn;
 
 	if (io->keep_alive) {
-		int val;
-
-		val = 0;
-		setsockopt(io->conn->sd, IPPROTO_TCP, TCP_NODELAY, &val,
-			   sizeof(val));
-			  fetch_cache_put(io->conn, fetch_close);
+#if defined(TCP_CORK)
+		setsockopt(conn->sd, IPPROTO_TCP, TCP_CORK, &val_yes, sizeof val_yes);
+#else
+		setsockopt(conn->sd, IPPROTO_TCP, TCP_NODELAY, &val_no, sizeof val_no);
 #if defined(TCP_NOPUSH) && !defined(__APPLE__)
-		val = 1;
-		setsockopt(io->conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val,
-		    sizeof(val));
+		setsockopt(conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val_yes, sizeof val_yes);
 #endif
+#endif
+		fetch_cache_put(conn, fetch_close);
 	} else {
-		fetch_close(io->conn);
+		fetch_close(conn);
 	}
 
 	free(io->buf);
@@ -688,9 +689,6 @@ http_connect(struct url *URL, struct url *purl, const char *flags, int *cached)
 	hdr_t h;
 	const char *p;
 	int af, verbose;
-#if defined(TCP_NOPUSH) && !defined(__APPLE__)
-	int val;
-#endif
 
 	*cached = 0;
 
@@ -752,9 +750,10 @@ http_connect(struct url *URL, struct url *purl, const char *flags, int *cached)
 		goto ouch;
 	}
 
-#if defined(TCP_NOPUSH) && !defined(__APPLE__)
-	val = 1;
-	setsockopt(conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val, sizeof(val));
+#if defined(TCP_CORK)
+	setsockopt(conn->sd, IPPROTO_TCP, TCP_CORK, &val_yes, sizeof val_yes);
+#elif defined(TCP_NOPUSH) && !defined(__APPLE__)
+	setsockopt(conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val_yes, sizeof val_yes);
 #endif
 
 	return (conn);
@@ -838,7 +837,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 	struct url *url, *new;
 	int chunked, direct, if_modified_since, need_auth, noredirect, nocache;
 	int keep_alive, verbose, cached;
-	int e, i, n, val;
+	int e, i, n;
 	off_t offset, clength, length, size;
 	time_t mtime;
 	const char *p;
@@ -972,14 +971,14 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		 * be compatible with such configurations, fiddle with socket
 		 * options to force the pending data to be written.
 		 */
+#if defined(TCP_CORK)
+		setsockopt(conn->sd, IPPROTO_TCP, TCP_CORK, &val_no, sizeof val_no);
+#else
 #if defined(TCP_NOPUSH) && !defined(__APPLE__)
-		val = 0;
-		setsockopt(conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val,
-			   sizeof(val));
+		setsockopt(conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val_no, sizeof val_no);
 #endif
-		val = 1;
-		setsockopt(conn->sd, IPPROTO_TCP, TCP_NODELAY, &val,
-			   sizeof(val));
+		setsockopt(conn->sd, IPPROTO_TCP, TCP_NODELAY, &val_yes, sizeof val_yes);
+#endif
 
 		/* get reply */
 		switch (http_get_reply(conn)) {
