@@ -204,16 +204,6 @@ static inline uint32_t rotl32(uint32_t x, int8_t r)
 	return (x << r) | (x >> (32 - r));
 }
 
-static inline uint32_t get_unaligned32(const void *ptr)
-{
-#if defined(__x86_64__) || defined(__i386__)
-	return *(const uint32_t *)ptr;
-#else
-	const uint8_t *p = ptr;
-	return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
-#endif
-}
-
 static uint32_t murmur3_32(const void *pkey, uint32_t len, uint32_t seed)
 {
 	static const uint32_t c1 = 0xcc9e2d51;
