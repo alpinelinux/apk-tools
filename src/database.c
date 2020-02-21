@@ -128,7 +128,9 @@ static unsigned long csum_hash(apk_blob_t csum)
 {
 	/* Checksum's highest bits have the most "randomness", use that
 	 * directly as hash */
-	return *(unsigned long *) csum.ptr;
+	if (csum.len >= sizeof(uint32_t))
+		return get_unaligned32(csum.ptr);
+	return 0;
 }
 
 static const struct apk_hash_ops pkg_info_hash_ops = {

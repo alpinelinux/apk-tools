@@ -149,6 +149,16 @@ static inline size_t mulmod(size_t a, size_t b, size_t c)
 	return (size_t) tmp;
 }
 
+static inline uint32_t get_unaligned32(const void *ptr)
+{
+#if defined(__x86_64__) || defined(__i386__)
+	return *(const uint32_t *)ptr;
+#else
+	const uint8_t *p = ptr;
+	return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
+#endif
+}
+
 typedef void (*apk_progress_cb)(void *cb_ctx, size_t);
 
 void *apk_array_resize(void *array, size_t new_size, size_t elem_size);
