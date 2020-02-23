@@ -12,8 +12,8 @@ env:
     - ARCH=ppc64le
 
 before_install:
-  - "wget 'https://raw.githubusercontent.com/alpinelinux/alpine-chroot-install/v0.11.0/alpine-chroot-install' \
-        && echo 'df472cbd2dc93eb0b3126d06209363c4fc328ea3  alpine-chroot-install' | sha1sum -c || exit 1"
+  - "wget 'https://raw.githubusercontent.com/alpinelinux/alpine-chroot-install/v0.12.1/alpine-chroot-install' \
+        && echo '5571ad4d17d14bb09ad23a75060f05553786e564  alpine-chroot-install' | sha1sum -c || exit 1"
   - alpine() { /alpine/enter-chroot -u "$USER" "$@"; }
 install:
   - sudo sh alpine-chroot-install -a "$ARCH" -b v3.10
