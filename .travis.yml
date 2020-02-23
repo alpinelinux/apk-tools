@@ -2,6 +2,8 @@ sudo: required
 dist: bionic
 language: minimal
 env:
+  global:
+    - SYSREPO=http://nl.alpinelinux.org/alpine/v3.11/main
   matrix:
     - ARCH=x86_64
     - ARCH=x86
@@ -24,8 +26,8 @@ script:
   - alpine src/apk --version
   - alpine make static
   - alpine src/apk.static --version
-  - alpine make check
-  - alpine make -C test root-tests
+  - alpine make check SYSREPO=$SYSREPO
+  - alpine make -C test root-tests SYSREPO=$SYSREPO
 
 # If building a tagged commit, create and deploy tarball with statically linked
 # apk to GitHub Releases.
