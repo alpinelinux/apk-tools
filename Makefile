@@ -6,6 +6,8 @@
 PACKAGE := apk-tools
 VERSION := 2.10.4
 
+export VERSION
+
 ##
 # Default directories
 
@@ -15,8 +17,10 @@ LIBDIR		:= /lib
 CONFDIR		:= /etc/apk
 MANDIR		:= /usr/share/man
 DOCDIR		:= /usr/share/doc/apk
+INCLUDEDIR	:= /usr/include/apk
+PKGCONFIGDIR	:= /usr/lib/pkgconfig
 
-export DESTDIR SBINDIR LIBDIR CONFDIR MANDIR DOCDIR
+export DESTDIR SBINDIR LIBDIR CONFDIR MANDIR DOCDIR INCLUDEDIR PKGCONFIGDIR
 
 ##
 # Top-level subdirs
@@ -33,9 +37,9 @@ include Make.rules
 
 install:
 	$(INSTALLDIR) $(DESTDIR)$(DOCDIR)
-	$(INSTALL) README $(DESTDIR)$(DOCDIR)
+	$(INSTALL) README.md $(DESTDIR)$(DOCDIR)
 
-check test: FORCE
+check test: FORCE src/
 	$(Q)$(MAKE) TEST=y
 	$(Q)$(MAKE) -C test
 

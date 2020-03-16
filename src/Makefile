@@ -7,21 +7,50 @@ OPENSSL_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
 ZLIB_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags zlib)
 ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 
-# lua module
+# Dynamic library
+libapk.so.$(VERSION)-objs := \
+	common.o database.o package.o commit.o solver.o \
+	version.o blob.o hash.o print.o \
+	io.o io_url.o io_gunzip.o io_archive.o
+
+libapk.so.$(VERSION)-libs := libfetch/libfetch.a
+
+libapk_soname		:= $(VERSION)
+shlibs-y		+= libapk.so.$(VERSION)
+LDFLAGS_libapk.so.$(VERSION) += -Wl,-soname,libapk.so.$(libapk_soname)
+
+libapk_so		:= $(obj)/libapk.so.$(VERSION)
+install-libapk_so	:= $(INSTALLDIR) $(DESTDIR)$(LIBDIR) && \
+			   $(INSTALL) $(libapk_so) $(DESTDIR)$(LIBDIR)/libapk.so.$(VERSION) && \
+			   $(INSTALL) $(obj)/libapk.so.$(libapk_soname) $(DESTDIR)$(LIBDIR) && \
+			   $(INSTALL) $(obj)/libapk.so $(DESTDIR)$(LIBDIR)
+
+# Static library
+libapk.a-objs		:= $(libapk.so.$(VERSION)-objs)
+libapk.a-libs		:= $(libapk.so.$(VERSION)-libs)
+
+libs-y			+= libapk.a
+libapk_a		:= $(obj)/libapk.a
+
+install-libapk_a	:= $(INSTALLDIR) $(DESTDIR)$(LIBDIR) && \
+			   $(INSTALL) $(libapk_a) $(DESTDIR)$(LIBDIR)
+apk-static-libs		:= $(libapk.a-libs) $(obj)/libapk.a
+
+# Lua module
 ifneq ($(LUAAPK),)
 LUA_VERSION		?= 5.3
 LUA_PC			?= lua$(LUA_VERSION)
 LUA_LIBDIR		?= /usr/lib/lua/$(LUA_VERSION)
-LIBAPK			:= YesPlease
 shlibs-y		+= apk.so
 apk.so-objs		:= lua-apk.o
 CFLAGS_lua-apk.o	:= -DAPK_VERSION=\"$(FULL_VERSION)\" \
 			   $(shell $(PKG_CONFIG) $(LUA_PC) --cflags)
-LUA_LIB-y		:= $(obj)/apk.so
-install-LUA_LIB-y	:= $(INSTALLDIR) $(DESTDIR)$(LUA_LIBDIR) && \
-			   $(INSTALL) $(LUA_LIB-y) $(DESTDIR)$(LUA_LIBDIR)
+apklua_so		:= $(obj)/apk.so
+install-apklua_so	:= $(INSTALLDIR) $(DESTDIR)$(LUA_LIBDIR) && \
+			   $(INSTALL) $(apklua_so) $(DESTDIR)$(LUA_LIBDIR)
 endif
 
+# Apk utility
 progs-y			+= apk
 apk-objs		:= apk.o \
 			   app_add.o app_del.o app_fix.o app_update.o app_upgrade.o \
@@ -31,37 +60,9 @@ apk-objs		:= apk.o \
 			   app_index.o app_fetch.o app_verify.o app_dot.o \
 			   app_audit.o
 
-libapk.so-objs		:= common.o database.o package.o commit.o solver.o \
-			   version.o blob.o hash.o print.o \
-			   io.o io_url.o io_gunzip.o io_archive.o
-
-libapk.so-libs		:= libfetch/libfetch.a
-
-ifeq ($(TEST),y)
-progs-y			+= apk-test
-apk-test-objs		:= apk-test.o $(filter-out apk.o, $(apk-objs))
-endif
-
-ifeq ($(SHARED_LIBAPK),)
-apk-objs		+= $(libapk.so-objs)
-apk-test-objs		+= $(libapk.so-objs)
-apk.so-objs		+= $(libapk.so-objs)
-apk-libs		+= $(libapk.so-libs)
-apk-test-libs		+= $(libapk.so-libs)
-apk.so-libs		+= $(libapk.so-libs)
-else
-LIBAPK			:= YesPlease
 LIBS_apk		:= -lapk
 LIBS_apk-test		:= -lapk
 LIBS_apk.so		:= -L$(obj) -lapk
-endif
-
-ifneq ($(SHARED_LIBAPK),)
-shlibs-y		+= libapk.so
-LIBAPK-y		:= $(obj)/libapk.so
-install-LIBAPK-y	:= $(INSTALLDIR) $(DESTDIR)$(LIBDIR) && \
-			   $(INSTALL) $(LIBAPK-y) $(DESTDIR)$(LIBDIR)
-endif
 
 CFLAGS_ALL		+= -D_ATFILE_SOURCE -Ilibfetch
 CFLAGS_apk.o		:= -DAPK_VERSION=\"$(FULL_VERSION)\"
@@ -70,7 +71,7 @@ CFLAGS_apk-test.o	:= -DAPK_VERSION=\"$(FULL_VERSION)\" -DOPENSSL_NO_ENGINE -DTES
 
 progs-$(STATIC)		+= apk.static
 apk.static-objs		:= $(filter-out apk.o,$(apk-objs)) apk-static.o
-apk.static-libs		:= $(apk-libs)
+apk.static-libs		:= $(apk-static-libs)
 LDFLAGS_apk.static	:= -static
 LIBS_apk.static		:= -Wl,--as-needed -ldl -Wl,--no-as-needed
 LDFLAGS_apk		+= -L$(obj)
@@ -81,13 +82,40 @@ LIBS			:= -Wl,--as-needed \
 				$(OPENSSL_LIBS) $(ZLIB_LIBS) \
 			   -Wl,--no-as-needed
 
-$(obj)/apk: $(LIBAPK-y)
+# Test build
+ifeq ($(TEST),y)
+progs-y			+= apk-test
+apk-test-objs		:= apk-test.o $(filter-out apk.o, $(apk-objs))
+endif
 
-$(obj)/apk.so: $(LIBAPK-y)
+$(obj)/apk: $(libapk_so)
 
-install: $(obj)/apk $(LIBAPK-y) $(LUA_LIB-y)
+$(obj)/apk-test: $(libapk_so)
+
+$(obj)/apk.so: $(libapk_so)
+
+ifneq ($(libapk_soname), $(VERSION))
+generate-y += libapk.so.$(libapk_soname)
+
+$(obj)/libapk.so.$(libapk_soname):
+	$(LN) libapk.so.$(VERSION) $(obj)/libapk.so.$(libapk_soname)
+endif
+
+generate-y	+= libapk.so
+
+$(obj)/libapk.so:
+	$(LN) libapk.so.$(libapk_soname) $(obj)/libapk.so
+
+generate-y	+= apk.pc
+
+install: $(obj)/apk $(libapk_so) $(libapk_a) $(apklua_so)
 	$(INSTALLDIR) $(DESTDIR)$(SBINDIR)
 	$(INSTALL) $(obj)/apk $(DESTDIR)$(SBINDIR)
-	$(install-LIBAPK-y)
-	$(install-LUA_LIB-y)
+	$(install-libapk_so)
+	$(install-libapk_a)
+	$(install-apklua_so)
+	$(INSTALLDIR) $(DESTDIR)$(INCLUDEDIR)
+	$(INSTALL) -m644 src/*.h $(DESTDIR)$(INCLUDEDIR)
+	$(INSTALLDIR) $(DESTDIR)$(PKGCONFIGDIR)
+	$(INSTALL) -m644 $(obj)/apk.pc $(DESTDIR)$(PKGCONFIGDIR)
 
