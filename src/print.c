@@ -39,7 +39,7 @@ int apk_get_screen_width(void)
 	if (apk_screen_width == 0) {
 		apk_screen_width = 50;
 		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 &&
-		    w.ws_col > 50)
+		    w.ws_col > 25)
 			apk_screen_width = w.ws_col;
 	}
 
