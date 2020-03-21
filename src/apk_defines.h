@@ -13,6 +13,7 @@
 #define APK_DEFINES_H
 
 #include <endian.h>
+#include <stdint.h>
 #include <string.h>
 #include <time.h>
 
