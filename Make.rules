@@ -3,6 +3,8 @@
 
 all: compile
 
+test check:
+
 ifndef build
 
 toplevelrun:=yes
