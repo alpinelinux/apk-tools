@@ -5,6 +5,8 @@ default: compile
 
 all: compile docs
 
+test check:
+
 ifndef build
 
 toplevelrun:=yes
