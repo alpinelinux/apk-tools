@@ -53,9 +53,15 @@ export srctree objtree
 
 TAGPREFIX	?= v
 
-GIT_REV := $(shell test -d .git && git describe || echo exported)
-ifneq ($(GIT_REV), exported)
-FULL_VERSION	:= $(patsubst $(TAGPREFIX)%,%,$(GIT_REV))
+ifneq ($(CI_COMMIT_TAG),)
+FULL_VERSION	:= $(CI_COMMIT_TAG)
+else ifneq ($(CI_COMMIT_REF_NAME),)
+# GitLab but no tag info, use the 'git describe' from environment variable
+# once https://gitlab.com/gitlab-org/gitlab-runner/-/merge_requests/1633
+# gets completed and merged upstream.
+FULL_VERSION	:= $(VERSION)
+else ifneq ($(wildcard .git),)
+FULL_VERSION	:= $(patsubst $(TAGPREFIX)%,%,$(shell git describe))
 else
 FULL_VERSION	:= $(VERSION)
 endif
