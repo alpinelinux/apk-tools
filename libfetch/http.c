@@ -107,8 +107,6 @@
 
 #define HTTP_ERROR(xyz) ((xyz) > 400 && (xyz) < 599)
 
-static int val_yes = 1, val_no = 0;
-
 static int http_cmd(conn_t *, const char *, ...) LIBFETCH_PRINTFLIKE(2, 3);
 
 /*****************************************************************************
@@ -299,14 +297,6 @@ http_closefn(void *v)
 	conn_t *conn = io->conn;
 
 	if (io->keep_alive) {
-#if defined(TCP_CORK)
-		setsockopt(conn->sd, IPPROTO_TCP, TCP_CORK, &val_yes, sizeof val_yes);
-#else
-		setsockopt(conn->sd, IPPROTO_TCP, TCP_NODELAY, &val_no, sizeof val_no);
-#if defined(TCP_NOPUSH) && !defined(__APPLE__)
-		setsockopt(conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val_yes, sizeof val_yes);
-#endif
-#endif
 		fetch_cache_put(conn, fetch_close);
 	} else {
 		fetch_close(conn);
@@ -673,10 +663,26 @@ http_authorize(conn_t *conn, const char *hdr, const char *p)
 	return (-1);
 }
 
-
 /*****************************************************************************
  * Helper functions for connecting to a server or proxy
  */
+
+/*
+ * Helper for setting socket options regarding packetization
+ */
+static void
+http_cork(conn_t *conn, int val)
+{
+#if defined(TCP_CORK)
+	setsockopt(conn->sd, IPPROTO_TCP, TCP_CORK, &val, sizeof val);
+#else
+#if defined(TCP_NOPUSH) && !defined(__APPLE__)
+	setsockopt(conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val, sizeof val);
+#endif
+	val = !val;
+	setsockopt(conn->sd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof val);
+#endif
+}
 
 /*
  * Connect to the correct HTTP server or proxy.
@@ -711,8 +717,10 @@ http_connect(struct url *URL, struct url *purl, const char *flags, int *cached)
 		/* fetch_connect() has already set an error code */
 		return (NULL);
 	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 && purl) {
+		http_cork(conn, 1);
 		http_cmd(conn, "CONNECT %s:%d HTTP/1.1\r\nHost: %s:%d\r\n\r\n",
 			 URL->host, URL->port, URL->host, URL->port);
+		http_cork(conn, 0);
 		if (http_get_reply(conn) != HTTP_OK) {
 			http_seterr(conn->err);
 			goto ouch;
@@ -746,13 +754,6 @@ http_connect(struct url *URL, struct url *purl, const char *flags, int *cached)
 		fetch_syserr();
 		goto ouch;
 	}
-
-#if defined(TCP_CORK)
-	setsockopt(conn->sd, IPPROTO_TCP, TCP_CORK, &val_yes, sizeof val_yes);
-#elif defined(TCP_NOPUSH) && !defined(__APPLE__)
-	setsockopt(conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val_yes, sizeof val_yes);
-#endif
-
 	return (conn);
 ouch:
 	fetch_close(conn);
@@ -906,6 +907,8 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		if (verbose)
 			fetch_info("requesting %s://%s%s",
 			    url->scheme, host, url->doc);
+
+		http_cork(conn, 1);
 		if (purl && strcasecmp(URL->scheme, SCHEME_HTTPS) != 0) {
 			http_cmd(conn, "%s %s://%s%s HTTP/1.1\r\n",
 			    op, url->scheme, host, url->doc);
@@ -968,14 +971,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		 * be compatible with such configurations, fiddle with socket
 		 * options to force the pending data to be written.
 		 */
-#if defined(TCP_CORK)
-		setsockopt(conn->sd, IPPROTO_TCP, TCP_CORK, &val_no, sizeof val_no);
-#else
-#if defined(TCP_NOPUSH) && !defined(__APPLE__)
-		setsockopt(conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val_no, sizeof val_no);
-#endif
-		setsockopt(conn->sd, IPPROTO_TCP, TCP_NODELAY, &val_yes, sizeof val_yes);
-#endif
+		http_cork(conn, 0);
 
 		/* get reply */
 		switch (http_get_reply(conn)) {
