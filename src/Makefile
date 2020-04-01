@@ -114,8 +114,8 @@ install: $(obj)/apk $(libapk_so) $(libapk_a) $(apklua_so)
 	$(install-libapk_so)
 	$(install-libapk_a)
 	$(install-apklua_so)
-	$(INSTALLDIR) $(DESTDIR)$(INCLUDEDIR)
-	$(INSTALL) -m644 src/*.h $(DESTDIR)$(INCLUDEDIR)
+	$(INSTALLDIR) $(DESTDIR)$(INCLUDEDIR)/apk
+	$(INSTALL) -m644 src/*.h $(DESTDIR)$(INCLUDEDIR)/apk
 	$(INSTALLDIR) $(DESTDIR)$(PKGCONFIGDIR)
 	$(INSTALL) -m644 $(obj)/apk.pc $(DESTDIR)$(PKGCONFIGDIR)
 

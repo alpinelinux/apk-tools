@@ -17,7 +17,7 @@ LIBDIR		:= /lib
 CONFDIR		:= /etc/apk
 MANDIR		:= /usr/share/man
 DOCDIR		:= /usr/share/doc/apk
-INCLUDEDIR	:= /usr/include/apk
+INCLUDEDIR	:= /usr/include
 PKGCONFIGDIR	:= /usr/lib/pkgconfig
 
 export DESTDIR SBINDIR LIBDIR CONFDIR MANDIR DOCDIR INCLUDEDIR PKGCONFIGDIR

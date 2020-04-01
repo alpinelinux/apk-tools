@@ -7,4 +7,4 @@ Description: Alpine Package Manager
 Version: @VERSION@
 Requires: zlib openssl
 Libs: -L${libdir} -lapk
-Cflags: -I${includedir}/apk
+Cflags: -I${includedir}
