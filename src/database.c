@@ -1118,14 +1118,14 @@ static void apk_db_triggers_write(struct apk_database *db, struct apk_ostream *o
 	}
 }
 
-static void apk_db_triggers_read(struct apk_database *db, struct apk_istream *is)
+static int apk_db_triggers_read(struct apk_database *db, struct apk_istream *is)
 {
 	struct apk_checksum csum;
 	struct apk_package *pkg;
 	struct apk_installed_package *ipkg;
 	apk_blob_t l;
 
-	if (IS_ERR_OR_NULL(is)) return;
+	if (IS_ERR(is)) return PTR_ERR(is);
 
 	while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, APK_BLOB_STR("\n")))) {
 		apk_blob_pull_csum(&l, &csum);
@@ -1143,6 +1143,8 @@ static void apk_db_triggers_read(struct apk_database *db, struct apk_istream *is
 				      &db->installed.triggers);
 	}
 	apk_istream_close(is);
+
+	return 0;
 }
 
 static int apk_db_read_state(struct apk_database *db, int flags)
@@ -1166,13 +1168,15 @@ static int apk_db_read_state(struct apk_database *db, int flags)
 
 	if (!(flags & APK_OPENF_NO_INSTALLED)) {
 		r = apk_db_index_read(db, apk_istream_from_file(db->root_fd, apk_installed_file), -1);
-		if (r != 0) return -1;
-		apk_db_triggers_read(db, apk_istream_from_file(db->root_fd, apk_triggers_file));
+		if (r && r != -ENOENT) return r;
+		r = apk_db_triggers_read(db, apk_istream_from_file(db->root_fd, apk_triggers_file));
+		if (r && r != -ENOENT) return r;
 	}
 
 	if (!(flags & APK_OPENF_NO_SCRIPTS)) {
-		apk_tar_parse(apk_istream_from_file(db->root_fd, apk_scripts_file),
-			      apk_read_script_archive_entry, db, &db->id_cache);
+		r = apk_tar_parse(apk_istream_from_file(db->root_fd, apk_scripts_file),
+				  apk_read_script_archive_entry, db, &db->id_cache);
+		if (r && r != -ENOENT) return r;
 	}
 
 	return 0;
