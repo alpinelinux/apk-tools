@@ -1,0 +1,3 @@
+option('docs', description: 'Build manpages with scdoc', type: 'feature', value: 'auto')
+option('lua', description: 'Build luaapk (lua bindings)', type: 'feature', value: 'auto')
+option('lua_version', description: 'Lua version to build against', type: 'string', value: '5.3')
