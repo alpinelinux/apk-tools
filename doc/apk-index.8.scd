@@ -33,4 +33,4 @@ will accept it. See *abuild-sign*(1) for details.
 # AUTHORS
 
 Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <_timo.teras@iki.fi_>
+Timo Teräs <timo.teras@iki.fi>

@@ -21,4 +21,4 @@ options.
 # AUTHORS
 
 Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <_timo.teras@iki.fi_>
+Timo Teräs <timo.teras@iki.fi>

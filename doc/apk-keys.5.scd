@@ -15,4 +15,4 @@ sign files, and *apk-verify*(8) for verifying keys against the apk trust store.
 # AUTHORS
 
 Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <_timo.teras@iki.fi_>
+Timo Teräs <timo.teras@iki.fi>

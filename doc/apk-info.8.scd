@@ -73,4 +73,4 @@ display the appropriate information, then an empty line terminates that field.
 # AUTHORS
 
 Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <_timo.teras@iki.fi_>
+Timo Teräs <timo.teras@iki.fi>
