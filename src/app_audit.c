@@ -346,7 +346,6 @@ static int audit_main(void *ctx, struct apk_database *db, struct apk_string_arra
 
 static struct apk_applet apk_audit = {
 	.name = "audit",
-	.arguments = "[directory to audit]...",
 	.open_flags = APK_OPENF_READ|APK_OPENF_NO_SCRIPTS|APK_OPENF_NO_REPOS,
 	.context_size = sizeof(struct audit_ctx),
 	.optgroups = { &optgroup_global, &optgroup_applet },

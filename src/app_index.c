@@ -56,10 +56,10 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 }
 
 static const struct apk_option options_applet[] = {
-	{ 'o', "output", required_argument, "FILE" },
-	{ 'x', "index", required_argument, "INDEX" },
-	{ 'd', "description", required_argument, "TEXT" },
-	{ 0x10000, "rewrite-arch", required_argument, "ARCH" },
+	{ 'o', "output", required_argument },
+	{ 'x', "index", required_argument },
+	{ 'd', "description", required_argument },
+	{ 0x10000, "rewrite-arch", required_argument },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -253,9 +253,7 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 
 static struct apk_applet apk_index = {
 	.name = "index",
-	.arguments = "FILE...",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS,
-	.command_groups = APK_COMMAND_GROUP_REPO,
 	.context_size = sizeof(struct index_ctx),
 	.optgroups = { &optgroup_global, &optgroup_applet },
 	.main = index_main,

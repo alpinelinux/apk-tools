@@ -261,9 +261,7 @@ static int list_main(void *pctx, struct apk_database *db, struct apk_string_arra
 
 static struct apk_applet apk_list = {
 	.name = "list",
-	.arguments = "PATTERN",
 	.open_flags = APK_OPENF_READ,
-	.command_groups = APK_COMMAND_GROUP_QUERY,
 	.context_size = sizeof(struct list_ctx),
 	.optgroups = { &optgroup_global, &optgroup_applet },
 	.main = list_main,

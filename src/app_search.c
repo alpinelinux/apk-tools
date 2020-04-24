@@ -206,9 +206,7 @@ static int search_main(void *pctx, struct apk_database *db, struct apk_string_ar
 
 static struct apk_applet apk_search = {
 	.name = "search",
-	.arguments = "PATTERN",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
-	.command_groups = APK_COMMAND_GROUP_QUERY,
 	.context_size = sizeof(struct search_ctx),
 	.optgroups = { &optgroup_global, &optgroup_applet },
 	.main = search_main,

@@ -192,8 +192,8 @@ static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt
 
 static const struct apk_option options_global[] = {
 	{ 'h', "help" },
-	{ 'p', "root", required_argument, "DIR" },
-	{ 'X', "repository", required_argument, "REPO" },
+	{ 'p', "root", required_argument },
+	{ 'X', "repository", required_argument },
 	{ 'q', "quiet" },
 	{ 'v', "verbose" },
 	{ 'i', "interactive" },
@@ -207,23 +207,23 @@ static const struct apk_option options_global[] = {
 	{ 0x123, "force-refresh" },
 	{ 'U', "update-cache" },
 	{ 0x101, "progress" },
-	{ 0x10f, "progress-fd", required_argument, "FD" },
+	{ 0x10f, "progress-fd", required_argument },
 	{ 0x110, "no-progress" },
 	{ 0x106, "purge" },
 	{ 0x103, "allow-untrusted" },
-	{ 0x105, "wait", required_argument, "TIME" },
-	{ 0x107, "keys-dir", required_argument, "KEYSDIR" },
-	{ 0x108, "repositories-file", required_argument, "REPOFILE" },
+	{ 0x105, "wait", required_argument },
+	{ 0x107, "keys-dir", required_argument },
+	{ 0x108, "repositories-file", required_argument },
 	{ 0x109, "no-network" },
 	{ 0x115, "no-cache" },
-	{ 0x116, "cache-dir", required_argument, "CACHEDIR" },
-	{ 0x119, "cache-max-age", required_argument, "AGE" },
-	{ 0x112, "arch", required_argument, "ARCH" },
+	{ 0x116, "cache-dir", required_argument },
+	{ 0x119, "cache-max-age", required_argument },
+	{ 0x112, "arch", required_argument },
 	{ 0x114, "print-arch" },
 #ifdef TEST_MODE
-	{ 0x200, "test-repo", required_argument, "REPO" },
-	{ 0x201, "test-instdb", required_argument, "INSTALLED" },
-	{ 0x202, "test-world", required_argument, "WORLD DEPS" },
+	{ 0x200, "test-repo", required_argument },
+	{ 0x201, "test-instdb", required_argument },
+	{ 0x202, "test-world", required_argument },
 #endif
 };
 
@@ -280,59 +280,10 @@ const struct apk_option_group optgroup_commit = {
 	.parse = option_parse_commit,
 };
 
-static int format_option(char *buf, size_t len, const struct apk_option *o,
-			 const char *separator)
-{
-	int i = 0;
-
-	if (o->val <= 0xff && isalnum(o->val)) {
-		i += snprintf(&buf[i], len - i, "-%c", o->val);
-		if (o->name != NULL)
-			i += snprintf(&buf[i], len - i, "%s", separator);
-	}
-	if (o->name != NULL)
-		i += snprintf(&buf[i], len - i, "--%s", o->name);
-	if (o->arg_name != NULL)
-		i += snprintf(&buf[i], len - i, " %s", o->arg_name);
-
-	return i;
-}
-
-static void print_usage(const char *cmd, const char *args, const struct apk_option_group **optgroups)
-{
-	struct apk_indent indent = { .indent = 11 };
-	const struct apk_option *opts;
-	char word[128];
-	int g, i, j;
-
-	indent.x = printf("\nusage: apk %s", cmd) - 1;
-	for (g = 0; optgroups[g]; g++) {
-		opts = optgroups[g]->options;
-		for (i = 0; i < optgroups[g]->num_options; i++) {
-			if (!opts[i].name) continue;
-			j = 0;
-			word[j++] = '[';
-			j += format_option(&word[j], sizeof(word) - j, &opts[i], "|");
-			word[j++] = ']';
-			apk_print_indented(&indent, APK_BLOB_PTR_LEN(word, j));
-		}
-	}
-	if (args != NULL)
-		apk_print_indented(&indent, APK_BLOB_STR(args));
-	printf("\n");
-}
-
 static int usage(struct apk_applet *applet)
 {
 	version();
-	if (applet == NULL) {
-		print_usage("<COMMAND>", "[<args>...]", default_optgroups);
-	} else {
-		print_usage(applet->name, applet->arguments, &applet->optgroups[1]);
-	}
-
-	printf("\nThis apk has coffee making abilities.\n");
-
+	apk_help(applet);
 	return 1;
 }
 

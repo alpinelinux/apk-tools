@@ -6,17 +6,18 @@ test:alpine:
     stage: test
     script:
         - apk update
-        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev
+        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib
         - make -j$(nproc) check
     tags:
         - docker-alpine
+        - x86_64
 
 test:debian:
     image: debian
     stage: test
     script:
         - apt-get update
-        - apt-get install -y make gcc git libssl-dev zlib1g-dev lua5.3-dev sudo
+        - apt-get install -y make gcc git libssl-dev zlib1g-dev lua5.3-dev lua5.2 lua-zlib-dev sudo
         - unlink /bin/sh
         - ln -s /bin/bash /bin/sh
         - make -j$(nproc) check

@@ -182,9 +182,7 @@ err:
 
 static struct apk_applet apk_cache = {
 	.name = "cache",
-	.arguments = "sync | clean | download",
 	.open_flags = APK_OPENF_READ|APK_OPENF_NO_SCRIPTS|APK_OPENF_CACHE_WRITE,
-	.command_groups = APK_COMMAND_GROUP_SYSTEM,
 	.context_size = sizeof(struct cache_ctx),
 	.optgroups = { &optgroup_global, &optgroup_applet },
 	.main = cache_main,

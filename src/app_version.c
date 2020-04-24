@@ -100,7 +100,7 @@ static const struct apk_option options_applet[] = {
 	{ 't', "test" },
 	{ 'c', "check" },
 	{ 'a', "all" },
-	{ 'l', "limit", required_argument, "LIMCHARs" },
+	{ 'l', "limit", required_argument },
 };
 
 static const struct apk_option_group optgroup_applet = {

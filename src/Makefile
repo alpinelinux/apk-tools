@@ -1,6 +1,8 @@
 PKG_CONFIG ?= pkg-config
 LUAAPK ?= yes
 
+LUA			?= $(firstword $(wildcard /usr/bin/lua5.3 /usr/bin/lua5.2))
+
 OPENSSL_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags openssl)
 OPENSSL_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
 
@@ -52,7 +54,7 @@ endif
 
 # Apk utility
 progs-y			+= apk
-apk-objs		:= apk.o \
+apk-objs		:= apk.o help.o \
 			   app_add.o app_del.o app_fix.o app_update.o app_upgrade.o \
 			   app_info.o app_list.o app_search.o app_manifest.o \
 			   app_policy.o app_stats.o \
@@ -81,6 +83,17 @@ CFLAGS_ALL		+= $(OPENSSL_CFLAGS) $(ZLIB_CFLAGS)
 LIBS			:= -Wl,--as-needed \
 				$(OPENSSL_LIBS) $(ZLIB_LIBS) \
 			   -Wl,--no-as-needed
+
+# Help generation
+quiet_cmd_genhelp = GENHELP $@
+      cmd_genhelp = $(LUA) $(src)/genhelp.lua $(filter %.scd, $^) > $@
+
+$(obj)/help.h: $(src)/genhelp.lua $(wildcard doc/apk*.8.scd)
+	@$(call echo-cmd,genhelp) $(cmd_genhelp)
+
+CFLAGS_help.o		:= -I$(obj)
+
+generate-y		+= help.h
 
 # Test build
 ifeq ($(TEST),y)

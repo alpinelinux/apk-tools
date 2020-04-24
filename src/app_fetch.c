@@ -96,7 +96,7 @@ static const struct apk_option options_applet[] = {
 	{ 'R', "recursive" },
 	{ 0x104, "simulate" },
 	{ 's', "stdout" },
-	{ 'o', "output", required_argument, "DIR" },
+	{ 'o', "output", required_argument },
 };
 
 static const struct apk_option_group optgroup_applet = {
@@ -343,9 +343,7 @@ static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_arr
 
 static struct apk_applet apk_fetch = {
 	.name = "fetch",
-	.arguments = "PACKAGE...",
 	.open_flags =	APK_OPENF_READ | APK_OPENF_NO_STATE,
-	.command_groups = APK_COMMAND_GROUP_REPO,
 	.context_size = sizeof(struct fetch_ctx),
 	.optgroups = { &optgroup_global, &optgroup_applet },
 	.main = fetch_main,

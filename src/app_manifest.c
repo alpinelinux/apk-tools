@@ -124,9 +124,7 @@ static int manifest_main(void *ctx, struct apk_database *db, struct apk_string_a
 
 static struct apk_applet apk_manifest = {
 	.name = "manifest",
-	.arguments = "PACKAGE...",
 	.open_flags = APK_OPENF_READ,
-	.command_groups = APK_COMMAND_GROUP_REPO,
 	.main = manifest_main,
 };
 

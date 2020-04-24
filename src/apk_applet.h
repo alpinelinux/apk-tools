@@ -17,16 +17,10 @@
 #include "apk_defines.h"
 #include "apk_database.h"
 
-#define APK_COMMAND_GROUP_INSTALL		0x0001
-#define APK_COMMAND_GROUP_SYSTEM		0x0002
-#define APK_COMMAND_GROUP_QUERY			0x0004
-#define APK_COMMAND_GROUP_REPO			0x0008
-
 struct apk_option {
 	int val;
 	const char *name;
 	int has_arg;
-	const char *arg_name;
 };
 
 struct apk_option_group {
@@ -42,10 +36,9 @@ struct apk_applet {
 	struct list_head node;
 
 	const char *name;
-	const char *arguments;
 	const struct apk_option_group *optgroups[4];
 
-	unsigned int open_flags, forced_flags, forced_force, command_groups;
+	unsigned int open_flags, forced_flags, forced_force;
 	int context_size;
 
 	int (*main)(void *ctx, struct apk_database *db, struct apk_string_array *args);
@@ -53,6 +46,7 @@ struct apk_applet {
 
 extern const struct apk_option_group optgroup_global, optgroup_commit;
 
+void apk_help(struct apk_applet *applet);
 void apk_applet_register(struct apk_applet *);
 typedef void (*apk_init_func_t)(void);
 

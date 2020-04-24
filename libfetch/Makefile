@@ -5,7 +5,7 @@ CFLAGS_common.o		+= -DCA_CERT_FILE=\"$(CONFDIR)/ca.pem\" -DCA_CRL_FILE=\"$(CONFD
 CFLAGS_common.o		+= -DCLIENT_CERT_FILE=\"$(CONFDIR)/cert.pem\" -DCLIENT_KEY_FILE=\"$(CONFDIR)/cert.key\"
 
 quiet_cmd_generr = GENERR  $@
-      cmd_generr = $(obj)/errlist.sh $(basename $(<F))_errlist $(shell echo $(basename $(<F)) | tr a-z A-Z) $< > $@
+      cmd_generr = $(src)/errlist.sh $(basename $(<F))_errlist $(shell echo $(basename $(<F)) | tr a-z A-Z) $< > $@
 
-$(obj)/%err.h: $(obj)/%.errors
-	@$(call echo-cmd,generr) $(cmd_generr); $(cmd_generr)
+$(obj)/%err.h: $(src)/%.errors
+	@$(call echo-cmd,generr) $(cmd_generr)
