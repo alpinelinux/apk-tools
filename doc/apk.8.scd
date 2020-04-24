@@ -22,7 +22,7 @@ Each command is documented in detail on its manual page.
 
 |[ *apk-add*(8)
 :< Add packages to _world_ and commit changes
-|  *apk-del*(1)
+|  *apk-del*(8)
 :  Remove packages from _world_ and commit changes
 
 ## SYSTEM MAINTENANCE
