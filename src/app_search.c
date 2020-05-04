@@ -74,30 +74,47 @@ static void print_rdepends(struct search_ctx *ctx, struct apk_package *pkg)
 	apk_pkg_foreach_reverse_dependency(pkg, ctx->matches, print_rdep_pkg, ctx);
 }
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_SEARCH_all,
+	OPT_SEARCH_description,
+	OPT_SEARCH_exact,
+	OPT_SEARCH_has_origin,
+	OPT_SEARCH_origin,
+	OPT_SEARCH_rdepends,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT2n("all", "a")
+	APK_OPT2n("description", "d")
+	APK_OPT2n("exact", "\xf2""ex")
+	APK_OPT1n("has-origin")
+	APK_OPT2n("origin", "o")
+	APK_OPT2n("rdepends", "r");
+
+static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct search_ctx *ictx = (struct search_ctx *) ctx;
 
-	switch (optch) {
-	case 'a':
+	switch (opt) {
+	case OPT_SEARCH_all:
 		ictx->show_all = 1;
 		break;
-	case 'd':
+	case OPT_SEARCH_description:
 		ictx->search_description = 1;
 		ictx->search_exact = 1;
 		ictx->show_all = 1;
 		break;
-	case 'e':
-	case 'x':
+	case OPT_SEARCH_exact:
 		ictx->search_exact = 1;
 		break;
-	case 'o':
+	case OPT_SEARCH_origin:
 		ictx->print_package = print_origin_name;
 		break;
-	case 'r':
+	case OPT_SEARCH_rdepends:
 		ictx->print_result = print_rdepends;
 		break;
-	case 0x10000:
+	case OPT_SEARCH_has_origin:
 		ictx->search_origin = 1;
 		ictx->search_exact = 1;
 		ictx->show_all = 1;
@@ -108,20 +125,8 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	return 0;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 'a', "all" },
-	{ 'd', "description" },
-	{ 'x', "exact" },
-	{ 'e', NULL },
-	{ 'o', "origin" },
-	{ 'r', "rdepends" },
-	{ 0x10000, "has-origin" },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Search",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 

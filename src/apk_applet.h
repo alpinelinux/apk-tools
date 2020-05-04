@@ -17,19 +17,17 @@
 #include "apk_defines.h"
 #include "apk_database.h"
 
-struct apk_option {
-	int val;
-	const char *name;
-	int has_arg;
-};
+#define APK_OPTAPPLET		"\x00"
+#define APK_OPTGROUP(_name)	_name "\x00"
+#define APK_OPT1n(_opt)		       "\xf0" _opt "\x00"
+#define APK_OPT1R(_opt)		"\xaf" "\xf0" _opt "\x00"
+#define APK_OPT2n(_opt, _short)	       _short _opt "\x00"
+#define APK_OPT2R(_opt, _short)	"\xaf" _short _opt "\x00"
 
 struct apk_option_group {
-	const char *name;
-	int num_options;
-	const struct apk_option *options;
-
+	const char *desc;
 	int (*parse)(void *ctx, struct apk_db_options *dbopts,
-		     int optch, const char *optarg);
+		     int opt, const char *optarg);
 };
 
 struct apk_applet {

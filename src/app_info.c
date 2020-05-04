@@ -366,57 +366,93 @@ static void print_name_info(struct apk_database *db, const char *match, struct a
 		info_subaction(ctx, p->pkg);
 }
 
-static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_INFO_all,
+	OPT_INFO_contents,
+	OPT_INFO_depends,
+	OPT_INFO_description,
+	OPT_INFO_install_if,
+	OPT_INFO_installed,
+	OPT_INFO_license,
+	OPT_INFO_provides,
+	OPT_INFO_rdepends,
+	OPT_INFO_replaces,
+	OPT_INFO_rinstall_if,
+	OPT_INFO_size,
+	OPT_INFO_triggers,
+	OPT_INFO_webpage,
+	OPT_INFO_who_owns,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT2n("all", "a")
+	APK_OPT2n("contents", "L")
+	APK_OPT2n("depends", "R")
+	APK_OPT2n("description", "d")
+	APK_OPT1n("install-if")
+	APK_OPT2n("installed", "e")
+	APK_OPT1n("license")
+	APK_OPT2n("provides", "P")
+	APK_OPT2n("rdepends", "r")
+	APK_OPT1n("replaces")
+	APK_OPT1n("rinstall-if")
+	APK_OPT2n("size", "s")
+	APK_OPT2n("triggers", "t")
+	APK_OPT2n("webpage", "w")
+	APK_OPT2n("who-owns", "W");
+
+static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct info_ctx *ctx = (struct info_ctx *) pctx;
 
 	ctx->action = NULL;
-	switch (optch) {
-	case 'e':
+	switch (opt) {
+	case OPT_INFO_installed:
 		ctx->action = info_exists;
 		dbopts->open_flags |= APK_OPENF_NO_REPOS;
 		break;
-	case 'W':
+	case OPT_INFO_who_owns:
 		ctx->action = info_who_owns;
 		dbopts->open_flags |= APK_OPENF_NO_REPOS;
 		break;
-	case 'w':
+	case OPT_INFO_webpage:
 		ctx->subaction_mask |= APK_INFO_URL;
 		break;
-	case 'R':
+	case OPT_INFO_depends:
 		ctx->subaction_mask |= APK_INFO_DEPENDS;
 		break;
-	case 'P':
+	case OPT_INFO_provides:
 		ctx->subaction_mask |= APK_INFO_PROVIDES;
 		break;
-	case 'r':
+	case OPT_INFO_rdepends:
 		ctx->subaction_mask |= APK_INFO_RDEPENDS;
 		break;
-	case 0x10002:
+	case OPT_INFO_install_if:
 		ctx->subaction_mask |= APK_INFO_INSTALL_IF;
 		break;
-	case 0x10003:
+	case OPT_INFO_rinstall_if:
 		ctx->subaction_mask |= APK_INFO_RINSTALL_IF;
 		break;
-	case 's':
+	case OPT_INFO_size:
 		ctx->subaction_mask |= APK_INFO_SIZE;
 		break;
-	case 'd':
+	case OPT_INFO_description:
 		ctx->subaction_mask |= APK_INFO_DESC;
 		break;
-	case 'L':
+	case OPT_INFO_contents:
 		ctx->subaction_mask |= APK_INFO_CONTENTS;
 		break;
-	case 't':
+	case OPT_INFO_triggers:
 		ctx->subaction_mask |= APK_INFO_TRIGGERS;
 		break;
-	case 0x10000:
+	case OPT_INFO_replaces:
 		ctx->subaction_mask |= APK_INFO_REPLACES;
 		break;
-	case 0x10001:
+	case OPT_INFO_license:
 		ctx->subaction_mask |= APK_INFO_LICENSE;
 		break;
-	case 'a':
+	case OPT_INFO_all:
 		ctx->subaction_mask = 0xffffffff;
 		break;
 	default:
@@ -449,28 +485,8 @@ static int info_main(void *ctx, struct apk_database *db, struct apk_string_array
 	return ictx->errors;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 'L', "contents" },
-	{ 'e', "installed" },
-	{ 'W', "who-owns" },
-	{ 'R', "depends" },
-	{ 'P', "provides" },
-	{ 'r', "rdepends" },
-	{ 0x10000, "replaces" },
-	{ 0x10002, "install-if" },
-	{ 0x10003, "rinstall-if" },
-	{ 'w', "webpage" },
-	{ 's', "size" },
-	{ 'd', "description" },
-	{ 0x10001, "license" },
-	{ 't', "triggers" },
-	{ 'a', "all" },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Info",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 

@@ -68,21 +68,40 @@ static int cup(void)
 	return write(STDOUT_FILENO, buf, len) != len;
 }
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_FETCH_link,
+	OPT_FETCH_recursive,
+	OPT_FETCH_output,
+	OPT_FETCH_simulate,
+	OPT_FETCH_stdout,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT2n("link", "l")
+	APK_OPT2n("recursive", "R")
+	APK_OPT2R("output", "o")
+	APK_OPT1n("simulate")
+	APK_OPT2n("stdout", "s");
+
+static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct fetch_ctx *fctx = (struct fetch_ctx *) ctx;
 
-	switch (optch) {
-	case 'R':
+	switch (opt) {
+	case OPT_FETCH_simulate:
+		apk_flags |= APK_SIMULATE;
+		break;
+	case OPT_FETCH_recursive:
 		fctx->flags |= FETCH_RECURSIVE;
 		break;
-	case 's':
+	case OPT_FETCH_stdout:
 		fctx->flags |= FETCH_STDOUT;
 		break;
-	case 'L':
+	case OPT_FETCH_link:
 		fctx->flags |= FETCH_LINK;
 		break;
-	case 'o':
+	case OPT_FETCH_output:
 		fctx->outdir_fd = openat(AT_FDCWD, optarg, O_RDONLY | O_CLOEXEC);
 		break;
 	default:
@@ -91,18 +110,8 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	return 0;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 'L', "link" },
-	{ 'R', "recursive" },
-	{ 0x104, "simulate" },
-	{ 's', "stdout" },
-	{ 'o', "output", required_argument },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Fetch",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 

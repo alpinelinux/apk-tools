@@ -68,26 +68,42 @@ static int ver_validate(struct apk_database *db, struct apk_string_array *args)
 	return errors;
 }
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_VERSION_all,
+	OPT_VERSION_check,
+	OPT_VERSION_indexes,
+	OPT_VERSION_limit,
+	OPT_VERSION_test,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT2n("all", "a")
+	APK_OPT2n("check", "c")
+	APK_OPT2n("indexes", "I")
+	APK_OPT2R("limit", "l")
+	APK_OPT2n("test", "t");
+
+static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct ver_ctx *ictx = (struct ver_ctx *) ctx;
-	switch (optch) {
-	case 'I':
-		ictx->action = ver_indexes;
+	switch (opt) {
+	case OPT_VERSION_all:
+		ictx->all_tags = 1;
 		break;
-	case 't':
-		ictx->action = ver_test;
-		dbopts->open_flags |= APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
-		break;
-	case 'c':
+	case OPT_VERSION_check:
 		ictx->action = ver_validate;
 		dbopts->open_flags |= APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
 		break;
-	case 'l':
+	case OPT_VERSION_indexes:
+		ictx->action = ver_indexes;
+		break;
+	case OPT_VERSION_limit:
 		ictx->limchars = optarg;
 		break;
-	case 'a':
-		ictx->all_tags = 1;
+	case OPT_VERSION_test:
+		ictx->action = ver_test;
+		dbopts->open_flags |= APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
 		break;
 	default:
 		return -ENOTSUP;
@@ -95,18 +111,8 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	return 0;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 'I', "indexes" },
-	{ 't', "test" },
-	{ 'c', "check" },
-	{ 'a', "all" },
-	{ 'l', "limit", required_argument },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Version",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 

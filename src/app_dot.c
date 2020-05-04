@@ -24,15 +24,25 @@ struct dot_ctx {
 	int installed_only : 1;
 };
 
-static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_DOT_errors,
+	OPT_DOT_installed,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT1n("errors")
+	APK_OPT1n("installed");
+
+static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct dot_ctx *ctx = (struct dot_ctx *) pctx;
 
-	switch (optch) {
-	case 0x10000:
+	switch (opt) {
+	case OPT_DOT_errors:
 		ctx->errors_only = 1;
 		break;
-	case 0x10001:
+	case OPT_DOT_installed:
 		ctx->installed_only = 1;
 		dbopts->open_flags &= ~APK_OPENF_NO_INSTALLED;
 		break;
@@ -42,15 +52,8 @@ static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int op
 	return 0;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 0x10000, "errors" },
-	{ 0x10001, "installed" },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Dot",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 

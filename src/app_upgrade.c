@@ -25,24 +25,40 @@ struct upgrade_ctx {
 	int ignore : 1;
 };
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_UPGRADE_available,
+	OPT_UPGRADE_ignore,
+	OPT_UPGRADE_latest,
+	OPT_UPGRADE_no_self_upgrade,
+	OPT_UPGRADE_self_upgrade_only,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT2n("available", "a")
+	APK_OPT1n("ignore")
+	APK_OPT2n("latest", "l")
+	APK_OPT1n("no-self-upgrade")
+	APK_OPT1n("self-upgrade-only");
+
+static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) ctx;
 
-	switch (optch) {
-	case 0x10000:
+	switch (opt) {
+	case OPT_UPGRADE_no_self_upgrade:
 		uctx->no_self_upgrade = 1;
 		break;
-	case 0x10001:
+	case OPT_UPGRADE_self_upgrade_only:
 		uctx->self_upgrade_only = 1;
 		break;
-	case 0x10002:
+	case OPT_UPGRADE_ignore:
 		uctx->ignore = 1;
 		break;
-	case 'a':
+	case OPT_UPGRADE_available:
 		uctx->solver_flags |= APK_SOLVERF_AVAILABLE;
 		break;
-	case 'l':
+	case OPT_UPGRADE_latest:
 		uctx->solver_flags |= APK_SOLVERF_LATEST;
 		break;
 	default:
@@ -51,18 +67,8 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	return 0;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 'a', "available" },
-	{ 'l', "latest" },
-	{ 0x10000, "no-self-upgrade" },
-	{ 0x10001, "self-upgrade-only" },
-	{ 0x10002, "ignore" },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Upgrade",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 

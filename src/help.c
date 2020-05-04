@@ -17,7 +17,7 @@ static int is_group(struct apk_applet *applet, const char *topic)
 	if (!applet) return strcasecmp(topic, "apk") == 0;
 	if (strcasecmp(topic, applet->name) == 0) return 1;
 	for (int i = 0; applet->optgroups[i] && i < ARRAY_SIZE(applet->optgroups); i++)
-		if (strcasecmp(applet->optgroups[i]->name, topic) == 0) return 1;
+		if (strcasecmp(applet->optgroups[i]->desc, topic) == 0) return 1;
 	return 0;
 }
 

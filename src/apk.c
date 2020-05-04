@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <errno.h>
+#include <assert.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -35,7 +36,6 @@
 #include "apk_print.h"
 #include "apk_io.h"
 
-static const struct apk_option_group *default_optgroups[] = { &optgroup_global, NULL };
 static struct list_head apk_applet_list;
 #define foreach_applet(iter) list_for_each_entry(iter, &apk_applet_list, node)
 
@@ -75,112 +75,185 @@ static struct apk_repository_list *apk_repository_new(const char *url)
 	return r;
 }
 
-static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_GLOBAL_allow_untrusted,
+	OPT_GLOBAL_arch,
+	OPT_GLOBAL_cache_dir,
+	OPT_GLOBAL_cache_max_age,
+	OPT_GLOBAL_force,
+	OPT_GLOBAL_force_binary_stdout,
+	OPT_GLOBAL_force_broken_world,
+	OPT_GLOBAL_force_non_repository,
+	OPT_GLOBAL_force_old_apk,
+	OPT_GLOBAL_force_overwrite,
+	OPT_GLOBAL_force_refresh,
+	OPT_GLOBAL_help,
+	OPT_GLOBAL_interactive,
+	OPT_GLOBAL_keys_dir,
+	OPT_GLOBAL_no_cache,
+	OPT_GLOBAL_no_network,
+	OPT_GLOBAL_no_progress,
+	OPT_GLOBAL_print_arch,
+	OPT_GLOBAL_progress,
+	OPT_GLOBAL_progress_fd,
+	OPT_GLOBAL_purge,
+	OPT_GLOBAL_quiet,
+	OPT_GLOBAL_repositories_file,
+	OPT_GLOBAL_repository,
+	OPT_GLOBAL_root,
+	OPT_GLOBAL_update_cache,
+	OPT_GLOBAL_verbose,
+	OPT_GLOBAL_version,
+	OPT_GLOBAL_wait,
+#ifdef TEST_MODE
+	OPT_GLOBAL_test_instdb,
+	OPT_GLOBAL_test_repo,
+	OPT_GLOBAL_test_world,
+#endif
+};
+
+static const char optiondesc_global[] =
+	APK_OPTGROUP("Global")
+	APK_OPT1n("allow-untrusted")
+	APK_OPT1R("arch")
+	APK_OPT1R("cache-dir")
+	APK_OPT1R("cache-max-age")
+	APK_OPT2n("force", "f")
+	APK_OPT1n("force-binary-stdout")
+	APK_OPT1n("force-broken-world")
+	APK_OPT1n("force-non-repository")
+	APK_OPT1n("force-old-apk")
+	APK_OPT1n("force-overwrite")
+	APK_OPT1n("force-refresh")
+	APK_OPT2n("help", "h")
+	APK_OPT2n("interactive", "i")
+	APK_OPT1R("keys-dir")
+	APK_OPT1n("no-cache")
+	APK_OPT1n("no-network")
+	APK_OPT1n("no-progress")
+	APK_OPT1n("print-arch")
+	APK_OPT1n("progress")
+	APK_OPT1R("progress-fd")
+	APK_OPT1n("purge")
+	APK_OPT2n("quiet", "q")
+	APK_OPT1R("repositories-file")
+	APK_OPT2R("repository", "X")
+	APK_OPT2R("root", "p")
+	APK_OPT2n("update-cache", "U")
+	APK_OPT2n("verbose", "v")
+	APK_OPT2n("version", "V")
+	APK_OPT1R("wait")
+#ifdef TEST_MODE
+	APK_OPT1R("test-instdb")
+	APK_OPT1R("test-repo")
+	APK_OPT1R("test-world")
+#endif
+	;
+
+static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct apk_repository_list *repo;
 
-	switch (optch) {
-	case 'h': return -EINVAL;
-	case 'p':
+	switch (opt) {
+	case OPT_GLOBAL_help:
+		return -EINVAL;
+	case OPT_GLOBAL_root:
 		dbopts->root = optarg;
 		break;
-	case 0x107:
+	case OPT_GLOBAL_keys_dir:
 		dbopts->keys_dir = optarg;
 		break;
-	case 0x108:
+	case OPT_GLOBAL_repositories_file:
 		dbopts->repositories_file = optarg;
 		break;
-	case 'X':
+	case OPT_GLOBAL_repository:
 		repo = apk_repository_new(optarg);
 		if (repo) list_add(&repo->list, &dbopts->repository_list);
 		break;
-	case 'q':
+	case OPT_GLOBAL_quiet:
 		apk_verbosity--;
 		break;
-	case 'v':
+	case OPT_GLOBAL_verbose:
 		apk_verbosity++;
 		break;
-	case 'V':
+	case OPT_GLOBAL_version:
 		version();
 		return -ESHUTDOWN;
-	case 'f':
+	case OPT_GLOBAL_force:
 		apk_force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
 			  |  APK_FORCE_BROKEN_WORLD | APK_FORCE_NON_REPOSITORY
 			  |  APK_FORCE_BINARY_STDOUT;
 		break;
-	case 0x120:
+	case OPT_GLOBAL_force_overwrite:
 		apk_force |= APK_FORCE_OVERWRITE;
 		break;
-	case 0x121:
+	case OPT_GLOBAL_force_old_apk:
 		apk_force |= APK_FORCE_OLD_APK;
 		break;
-	case 0x122:
+	case OPT_GLOBAL_force_broken_world:
 		apk_force |= APK_FORCE_BROKEN_WORLD;
 		break;
-	case 0x123:
+	case OPT_GLOBAL_force_refresh:
 		apk_force |= APK_FORCE_REFRESH;
 		break;
-	case 0x124:
+	case OPT_GLOBAL_force_non_repository:
 		apk_force |= APK_FORCE_NON_REPOSITORY;
 		break;
-	case 0x125:
+	case OPT_GLOBAL_force_binary_stdout:
 		apk_force |= APK_FORCE_BINARY_STDOUT;
 		break;
-	case 'i':
+	case OPT_GLOBAL_interactive:
 		apk_flags |= APK_INTERACTIVE;
 		break;
-	case 0x101:
+	case OPT_GLOBAL_progress:
 		apk_flags |= APK_PROGRESS;
 		break;
-	case 0x104:
-		apk_flags |= APK_SIMULATE;
-		break;
-	case 0x110:
+	case OPT_GLOBAL_no_progress:
 		apk_flags &= ~APK_PROGRESS;
 		break;
-	case 0x10f:
+	case OPT_GLOBAL_progress_fd:
 		apk_progress_fd = atoi(optarg);
 		break;
-	case 0x103:
+	case OPT_GLOBAL_allow_untrusted:
 		apk_flags |= APK_ALLOW_UNTRUSTED;
 		break;
-	case 0x106:
+	case OPT_GLOBAL_purge:
 		apk_flags |= APK_PURGE;
 		break;
-	case 0x105:
+	case OPT_GLOBAL_wait:
 		dbopts->lock_wait = atoi(optarg);
 		break;
-	case 0x109:
+	case OPT_GLOBAL_no_network:
 		apk_flags |= APK_NO_NETWORK;
 		break;
-	case 0x115:
+	case OPT_GLOBAL_no_cache:
 		apk_flags |= APK_NO_CACHE;
 		break;
-	case 0x116:
+	case OPT_GLOBAL_cache_dir:
 		dbopts->cache_dir = optarg;
 		break;
-	case 'U':
+	case OPT_GLOBAL_update_cache:
 		/* Make it one minute, to avoid updating indexes twice
 		 * when doing self-upgrade's re-exec */
 		dbopts->cache_max_age = 60;
 		break;
-	case 0x119:
+	case OPT_GLOBAL_cache_max_age:
 		dbopts->cache_max_age = atoi(optarg) * 60;
 		break;
-	case 0x112:
+	case OPT_GLOBAL_arch:
 		dbopts->arch = optarg;
 		break;
-	case 0x114:
+	case OPT_GLOBAL_print_arch:
 		puts(APK_DEFAULT_ARCH);
 		return -ESHUTDOWN;
 #ifdef TEST_MODE
-	case 0x200:
+	case OPT_GLOBAL_test_repo:
 		*apk_string_array_add(&test_repos) = (char*) optarg;
 		break;
-	case 0x201:
+	case OPT_GLOBAL_test_instdb:
 		test_installed_db = optarg;
 		break;
-	case 0x202:
+	case OPT_GLOBAL_test_world:
 		test_world = optarg;
 		break;
 #endif
@@ -190,69 +263,48 @@ static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt
 	return 0;
 }
 
-static const struct apk_option options_global[] = {
-	{ 'h', "help" },
-	{ 'p', "root", required_argument },
-	{ 'X', "repository", required_argument },
-	{ 'q', "quiet" },
-	{ 'v', "verbose" },
-	{ 'i', "interactive" },
-	{ 'V', "version" },
-	{ 'f', "force" },
-	{ 0x125, "force-binary-stdout" },
-	{ 0x122, "force-broken-world" },
-	{ 0x124, "force-non-repository" },
-	{ 0x121, "force-old-apk" },
-	{ 0x120, "force-overwrite" },
-	{ 0x123, "force-refresh" },
-	{ 'U', "update-cache" },
-	{ 0x101, "progress" },
-	{ 0x10f, "progress-fd", required_argument },
-	{ 0x110, "no-progress" },
-	{ 0x106, "purge" },
-	{ 0x103, "allow-untrusted" },
-	{ 0x105, "wait", required_argument },
-	{ 0x107, "keys-dir", required_argument },
-	{ 0x108, "repositories-file", required_argument },
-	{ 0x109, "no-network" },
-	{ 0x115, "no-cache" },
-	{ 0x116, "cache-dir", required_argument },
-	{ 0x119, "cache-max-age", required_argument },
-	{ 0x112, "arch", required_argument },
-	{ 0x114, "print-arch" },
-#ifdef TEST_MODE
-	{ 0x200, "test-repo", required_argument },
-	{ 0x201, "test-instdb", required_argument },
-	{ 0x202, "test-world", required_argument },
-#endif
-};
-
 const struct apk_option_group optgroup_global = {
-	.name = "Global",
-	.options = options_global,
-	.num_options = ARRAY_SIZE(options_global),
+	.desc = optiondesc_global,
 	.parse = option_parse_global,
 };
 
-static int option_parse_commit(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_COMMIT_clean_protected,
+	OPT_COMMIT_initramfs_diskless_boot,
+	OPT_COMMIT_no_commit_hooks,
+	OPT_COMMIT_no_scripts,
+	OPT_COMMIT_overlay_from_stdin,
+	OPT_COMMIT_simulate,
+};
+
+static const char optiondesc_commit[] =
+	APK_OPTGROUP("commit")
+	APK_OPT1n("clean-protected")
+	APK_OPT1n("initramfs-diskless-boot")
+	APK_OPT1n("no-commit-hooks")
+	APK_OPT1n("no-scripts")
+	APK_OPT1n("overlay-from-stdin")
+	APK_OPT2n("simulate", "s");
+
+static int option_parse_commit(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
-	switch (optch) {
-	case 's':
+	switch (opt) {
+	case OPT_COMMIT_simulate:
 		apk_flags |= APK_SIMULATE;
 		break;
-	case 0x102:
+	case OPT_COMMIT_clean_protected:
 		apk_flags |= APK_CLEAN_PROTECTED;
 		break;
-	case 0x111:
+	case OPT_COMMIT_overlay_from_stdin:
 		apk_flags |= APK_OVERLAY_FROM_STDIN;
 		break;
-	case 0x113:
+	case OPT_COMMIT_no_scripts:
 		apk_flags |= APK_NO_SCRIPTS;
 		break;
-	case 0x117:
+	case OPT_COMMIT_no_commit_hooks:
 		apk_flags |= APK_NO_COMMIT_HOOKS;
 		break;
-	case 0x118:
+	case OPT_COMMIT_initramfs_diskless_boot:
 		dbopts->open_flags |= APK_OPENF_CREATE;
 		apk_flags |= APK_NO_COMMIT_HOOKS;
 		apk_force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
@@ -264,19 +316,8 @@ static int option_parse_commit(void *ctx, struct apk_db_options *dbopts, int opt
 	return 0;
 }
 
-static const struct apk_option options_commit[] = {
-	{ 's', "simulate" },
-	{ 0x102, "clean-protected" },
-	{ 0x111, "overlay-from-stdin" },
-	{ 0x113, "no-scripts" },
-	{ 0x117, "no-commit-hooks" },
-	{ 0x118, "initramfs-diskless-boot" },
-};
-
 const struct apk_option_group optgroup_commit = {
-	.name = "Commit",
-	.options = options_commit,
-	.num_options = ARRAY_SIZE(options_commit),
+	.desc = optiondesc_commit,
 	.parse = option_parse_commit,
 };
 
@@ -315,28 +356,81 @@ static struct apk_applet *deduce_applet(int argc, char **argv)
 		return find_applet(prog + 4);
 
 	for (i = 1; i < argc; i++) {
-		if (argv[i][0] == '-')
-			continue;
-
+		if (argv[i][0] == '-') continue;
 		a = find_applet(argv[i]);
-		if (a != NULL)
-			return a;
+		if (a) return a;
 	}
 
 	return NULL;
 }
 
-static void merge_options(struct option *opts, const struct apk_option *ao, int num)
+static int parse_options(int argc, char **argv, struct apk_applet *applet, void *ctx, struct apk_db_options *dbopts)
 {
-	int i;
+	const struct apk_option_group *default_optgroups[] = { &optgroup_global, NULL };
+	const struct apk_option_group *og, **optgroups = default_optgroups;
+	struct option all_options[80], *opt;
+	char short_options[256], *sopt;
+	unsigned short short_option_val[64];
+	int r, p, help_requested = 0, num_short;
 
-	for (i = 0; i < num; i++, opts++, ao++) {
-		opts->name = ao->name ?: "";
-		opts->has_arg = ao->has_arg;
-		opts->flag = NULL;
-		opts->val = ao->val;
+	memset(short_option_val, 0, sizeof short_option_val);
+
+	if (applet && applet->optgroups[0]) optgroups = applet->optgroups;
+
+	for (p = 0, opt = &all_options[0], sopt = short_options; (og = optgroups[p]) != 0; p++) {
+		assert(opt < &all_options[ARRAY_SIZE(all_options)]);
+		assert(sopt < &short_options[sizeof short_options]);
+		const char *d = og->desc + strlen(og->desc) + 1;
+		for (r = 0; *d; r++) {
+			opt->val = (p << 10) + r;
+			opt->flag = 0;
+			opt->has_arg = no_argument;
+			if ((unsigned char)*d == 0xaf) {
+				opt->has_arg = required_argument;
+				d++;
+			}
+			num_short = 1;
+			if ((unsigned char)*d >= 0xf0)
+				num_short = *d++ & 0x0f;
+			for (; num_short > 0; num_short--) {
+				assert(*d >= 64 && *d < 128);
+				short_option_val[*d - 64] = opt->val;
+				*sopt++ = *d++;
+				if (opt->has_arg != no_argument)
+					*sopt++ = ':';
+			}
+			opt->name = d;
+			opt++;
+			d += strlen(d) + 1;
+		}
 	}
-	opts->name = NULL;
+	opt->name = 0;
+	*sopt = 0;
+
+	r = 0;
+	while ((p = getopt_long(argc, argv, short_options, all_options, NULL)) != -1) {
+		if (p >= 64 && p < 128) p = short_option_val[p - 64];
+		og = optgroups[p >> 10];
+		r = og->parse(ctx, dbopts, p & 0x3ff, optarg);
+		if (r == 0) continue;
+		if (r == -EINVAL) {
+			help_requested = 1;
+			continue;
+		}
+		if (r != -ENOTSUP) return r;
+	}
+
+	if (help_requested || r == -ENOTSUP)
+		return usage(applet);
+
+	if (applet == NULL) {
+		if (argc > 1) {
+			apk_error("'%s' is not an apk command. See 'apk --help'.", argv[1]);
+			return 1;
+		}
+		return usage(NULL);
+	}
+	return 0;
 }
 
 static void fini_openssl(void)
@@ -407,14 +501,11 @@ static void on_sigint(int s)
 
 int main(int argc, char **argv)
 {
-	struct apk_applet *applet;
-	char short_options[256], *sopt;
-	struct option *opt, *all_options;
-	int i, p, r, num_options, help_requested = 0;
 	void *ctx = NULL;
 	struct apk_db_options dbopts;
-	const struct apk_option_group **optgroups = default_optgroups;
 	struct apk_string_array *args;
+	struct apk_applet *applet;
+	int r;
 
 	apk_string_array_init(&args);
 #ifdef TEST_MODE
@@ -434,13 +525,6 @@ int main(int argc, char **argv)
 	setup_terminal();
 
 	applet = deduce_applet(argc, argv);
-	if (applet && applet->optgroups[0]) optgroups = applet->optgroups;
-
-	for (i = 0, num_options = 1; optgroups[i]; i++)
-		num_options += optgroups[i]->num_options;
-	all_options = alloca(sizeof(struct option) * num_options);
-	for (i = r = 0; optgroups[i]; r += optgroups[i]->num_options, i++)
-		merge_options(&all_options[r], optgroups[i]->options, optgroups[i]->num_options);
 	if (applet != NULL) {
 		if (applet->context_size != 0)
 			ctx = calloc(1, applet->context_size);
@@ -448,45 +532,13 @@ int main(int argc, char **argv)
 		apk_flags |= applet->forced_flags;
 		apk_force |= applet->forced_force;
 	}
-	for (opt = all_options, sopt = short_options; opt->name != NULL; opt++) {
-		if (opt->flag == NULL &&
-		    opt->val <= 0xff && isalnum(opt->val)) {
-			*(sopt++) = opt->val;
-			if (opt->has_arg != no_argument)
-				*(sopt++) = ':';
-		}
-	}
-	*(sopt++) = 0;
 
 	init_openssl();
 	setup_automatic_flags();
 	fetchConnectionCacheInit(32, 4);
 
-	while ((p = getopt_long(argc, argv, short_options, all_options, NULL)) != -1) {
-		for (i = 0; optgroups[i]; i++) {
-			r = optgroups[i]->parse(ctx, &dbopts, p, optarg);
-			if (r == 0) break;
-			if (r == -EINVAL) {
-				help_requested = 1;
-				break;
-			}
-			if (r != -ENOTSUP) goto err;
-		}
-	}
-
-	if (help_requested || r == -ENOTSUP) {
-		r = usage(applet);
-		goto err;
-	}
-
-	if (applet == NULL) {
-		if (argc > 1) {
-			r = 1;
-			apk_error("'%s' is not an apk command. See 'apk --help'.", argv[1]);
-		} else
-			r = usage(NULL);
-		goto err;
-	}
+	r = parse_options(argc, argv, applet, ctx, &dbopts);
+	if (r != 0) goto err;
 
 	argc -= optind;
 	argv += optind;
@@ -519,7 +571,7 @@ int main(int argc, char **argv)
 	if (test_installed_db != NULL) {
 		apk_db_index_read(&db, apk_istream_from_file(AT_FDCWD, test_installed_db), -1);
 	}
-	for (i = 0; i < test_repos->num; i++) {
+	for (int i = 0; i < test_repos->num; i++) {
 		apk_blob_t spec = APK_BLOB_STR(test_repos->item[i]), name, tag;
 		int repo_tag = 0, repo = APK_REPOSITORY_FIRST_CONFIGURED + i;
 
@@ -561,10 +613,8 @@ int main(int argc, char **argv)
 #endif
 
 err:
-	if (r == -ESHUTDOWN)
-		r = 0;
-	if (ctx)
-		free(ctx);
+	if (r == -ESHUTDOWN) r = 0;
+	if (ctx) free(ctx);
 
 	fetchConnectionCacheClose();
 	apk_string_array_free(&args);

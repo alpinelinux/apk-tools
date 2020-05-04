@@ -23,24 +23,40 @@ struct add_ctx {
 	unsigned short extract_flags;
 };
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_ADD_initdb,
+	OPT_ADD_latest,
+	OPT_ADD_no_chown,
+	OPT_ADD_upgrade,
+	OPT_ADD_virtual,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT1n("initdb")
+	APK_OPT2n("latest", "l")
+	APK_OPT1n("no-chown")
+	APK_OPT2n("upgrade", "u")
+	APK_OPT2R("virtual", "t");
+
+static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct add_ctx *actx = (struct add_ctx *) ctx;
 
-	switch (optch) {
-	case 0x10000:
+	switch (opt) {
+	case OPT_ADD_initdb:
 		dbopts->open_flags |= APK_OPENF_CREATE;
 		break;
-	case 0x10001:
-		actx->extract_flags |= APK_EXTRACTF_NO_CHOWN;
-		break;
-	case 'u':
-		actx->solver_flags |= APK_SOLVERF_UPGRADE;
-		break;
-	case 'l':
+	case OPT_ADD_latest:
 		actx->solver_flags |= APK_SOLVERF_LATEST;
 		break;
-	case 't':
+	case OPT_ADD_no_chown:
+		actx->extract_flags |= APK_EXTRACTF_NO_CHOWN;
+		break;
+	case OPT_ADD_upgrade:
+		actx->solver_flags |= APK_SOLVERF_UPGRADE;
+		break;
+	case OPT_ADD_virtual:
 		actx->virtpkg = optarg;
 		break;
 	default:
@@ -49,18 +65,8 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	return 0;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 0x10000,	"initdb" },
-	{ 0x10001,	"no-chown" },
-	{ 'u',		"upgrade" },
-	{ 'l',		"latest" },
-	{ 't',		"virtual", required_argument },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Add",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 

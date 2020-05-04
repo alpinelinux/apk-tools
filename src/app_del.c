@@ -21,12 +21,20 @@ struct del_ctx {
 	int errors;
 };
 
-static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_DEL_redepends,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT2n("rdepends", "r");
+
+static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct del_ctx *ctx = (struct del_ctx *) pctx;
 
-	switch (optch) {
-	case 'r':
+	switch (opt) {
+	case OPT_DEL_redepends:
 		ctx->recursive_delete = 1;
 		break;
 	default:
@@ -35,14 +43,8 @@ static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int op
 	return 0;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 'r', "rdepends" },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Delete",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 

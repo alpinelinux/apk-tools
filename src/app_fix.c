@@ -24,24 +24,40 @@ struct fix_ctx {
 	int errors;
 };
 
-static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_FIX_depends,
+	OPT_FIX_directory_permissions,
+	OPT_FIX_reinstall,
+	OPT_FIX_upgrade,
+	OPT_FIX_xattr,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT2n("depends", "d")
+	APK_OPT1n("directory-permissions")
+	APK_OPT2n("reinstall", "r")
+	APK_OPT2n("upgrade", "u")
+	APK_OPT2n("xattr", "x");
+
+static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct fix_ctx *ctx = (struct fix_ctx *) pctx;
-	switch (optch) {
-	case 'd':
+	switch (opt) {
+	case OPT_FIX_depends:
 		ctx->fix_depends = 1;
 		break;
-	case 'x':
-		ctx->fix_xattrs = 1;
+	case OPT_FIX_directory_permissions:
+		ctx->fix_directory_permissions = 1;
 		break;
-	case 'u':
-		ctx->solver_flags |= APK_SOLVERF_UPGRADE;
-		break;
-	case 'r':
+	case OPT_FIX_reinstall:
 		ctx->solver_flags |= APK_SOLVERF_REINSTALL;
 		break;
-	case 0x10000:
-		ctx->fix_directory_permissions = 1;
+	case OPT_FIX_upgrade:
+		ctx->solver_flags |= APK_SOLVERF_UPGRADE;
+		break;
+	case OPT_FIX_xattr:
+		ctx->fix_xattrs = 1;
 		break;
 	default:
 		return -ENOTSUP;
@@ -49,18 +65,8 @@ static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int op
 	return 0;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 'd', "depends" },
-	{ 'r', "reinstall" },
-	{ 'u', "upgrade" },
-	{ 'x', "xattr" },
-	{ 0x10000, "directory-permissions" },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Fix",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 

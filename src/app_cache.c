@@ -30,15 +30,25 @@ struct cache_ctx {
 	unsigned short solver_flags;
 };
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_CACHE_latest,
+	OPT_CACHE_upgrade,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT2n("latest", "l")
+	APK_OPT2n("upgrade", "u");
+
+static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct cache_ctx *cctx = (struct cache_ctx *) ctx;
 
-	switch (optch) {
-	case 'u':
+	switch (opt) {
+	case OPT_CACHE_upgrade:
 		cctx->solver_flags |= APK_SOLVERF_UPGRADE;
 		break;
-	case 'l':
+	case OPT_CACHE_latest:
 		cctx->solver_flags |= APK_SOLVERF_LATEST;
 		break;
 	default:
@@ -47,15 +57,8 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	return 0;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 'u', "upgrade" },
-	{ 'l', "latest" },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Cache",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 

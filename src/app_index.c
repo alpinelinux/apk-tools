@@ -32,21 +32,35 @@ struct index_ctx {
 	int method;
 };
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_INDEX_description,
+	OPT_INDEX_index,
+	OPT_INDEX_output,
+	OPT_INDEX_rewrite_arch,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT2R("description", "d")
+	APK_OPT2R("index", "x")
+	APK_OPT2R("output", "o")
+	APK_OPT1R("rewrite-arch");
+
+static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct index_ctx *ictx = (struct index_ctx *) ctx;
 
-	switch (optch) {
-	case 'x':
-		ictx->index = optarg;
-		break;
-	case 'o':
-		ictx->output = optarg;
-		break;
-	case 'd':
+	switch (opt) {
+	case OPT_INDEX_description:
 		ictx->description = optarg;
 		break;
-	case 0x10000:
+	case OPT_INDEX_index:
+		ictx->index = optarg;
+		break;
+	case OPT_INDEX_output:
+		ictx->output = optarg;
+		break;
+	case OPT_INDEX_rewrite_arch:
 		ictx->rewrite_arch = apk_blob_atomize(APK_BLOB_STR(optarg));
 		break;
 	default:
@@ -55,17 +69,8 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	return 0;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 'o', "output", required_argument },
-	{ 'x', "index", required_argument },
-	{ 'd', "description", required_argument },
-	{ 0x10000, "rewrite-arch", required_argument },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Index",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 

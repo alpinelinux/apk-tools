@@ -37,24 +37,40 @@ struct audit_ctx {
 	unsigned packages_only : 1;
 };
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+enum {
+	OPT_AUDIT_backup,
+	OPT_AUDIT_check_permissions,
+	OPT_AUDIT_packages,
+	OPT_AUDIT_recursive,
+	OPT_AUDIT_system,
+};
+
+static const char option_desc[] =
+	APK_OPTAPPLET
+	APK_OPT1n("backup")
+	APK_OPT1n("check-permissions")
+	APK_OPT1n("packages")
+	APK_OPT2n("recursive", "r")
+	APK_OPT1n("system");
+
+static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct audit_ctx *actx = (struct audit_ctx *) ctx;
 
-	switch (optch) {
-	case 0x10000:
+	switch (opt) {
+	case OPT_AUDIT_backup:
 		actx->mode = MODE_BACKUP;
 		break;
-	case 0x10001:
+	case OPT_AUDIT_system:
 		actx->mode = MODE_SYSTEM;
 		break;
-	case 0x10002:
+	case OPT_AUDIT_check_permissions:
 		actx->check_permissions = 1;
 		break;
-	case 0x10003:
+	case OPT_AUDIT_packages:
 		actx->packages_only = 1;
 		break;
-	case 'r':
+	case OPT_AUDIT_recursive:
 		actx->recursive = 1;
 		break;
 	default:
@@ -63,18 +79,8 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	return 0;
 }
 
-static const struct apk_option options_applet[] = {
-	{ 0x10000, "backup" },
-	{ 0x10001, "system" },
-	{ 0x10002, "check-permissions" },
-	{ 'r', "recursive" },
-	{ 0x10003, "packages" },
-};
-
 static const struct apk_option_group optgroup_applet = {
-	.name = "Audit",
-	.options = options_applet,
-	.num_options = ARRAY_SIZE(options_applet),
+	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 
