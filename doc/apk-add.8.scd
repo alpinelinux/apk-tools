@@ -13,6 +13,12 @@ apk add - add packages to _world_ and commit changes
 *apk add* adds the requested packages to _world_ and installs (or upgrades)
 them if not already present, ensuring all dependencies are met.
 
+To upgrade individual packages without modifying _world_ use *apk-fix*(8).
+
+By default *apk* tries to select a set of packages so that all dependencies
+are satisfied. This means that some packages can be held back in an older
+version if there is direct or implicit dependencies to the older version.
+
 # OPTIONS
 
 *apk add* supports the commit options described in *apk*(8), as well as the
@@ -22,22 +28,25 @@ following options:
 	Initialize a new package database.
 
 *-l, --latest*
-	Disables normal heuristics for choosing which repository to install a
-	package from, preferring only repositories from which the latest
-	version is available. This has no effect on pinned packages.
+	Always choose the latest package by version. However, the versions
+	considered are based on the package pinning. Primarily this overrides
+	the default heuristic and will cause an error to displayed if all
+	dependencies cannot be satisfied.
 
 *-u, --upgrade*
-	When adding packages which are already installed, upgrade them rather
-	than considering the requirement fulfilled by the current installation.
+	Upgrade _packages_ and it's dependencies. Normally *apk add* will
+	avoid changing installed package unless it is required by the newly
+	added _packages_ or their dependencies. This changes the default
+	preference to upgrading the package to the latest installable version.
 
 *-t, --virtual* _NAME_
-	Instead of adding the specified packages to _world_, create a new
-	virtual package with the listed packages as its dependencies, then add
-	that package to _world_.
+	Create virtual package _NAME_ with given dependencies. This new package
+	will get the _packages_ as dependencies instead of _world_. Finally the
+	_NAME_ is added to _world_.
 
-	The packages requested are added as transitive dependencies of the
-	virtual package, and by deleting that package the *apk add* operation
-	may be easily reverted later.
+	One can use this to ensure that selected set of packages are installed,
+	and later the temporary modification be undone with *apk-del*(8) _NAME_
+	without removing packages that were installed earlier.
 
 *--no-chown*
 	Do not change file owner or group. By default apk will manage the file

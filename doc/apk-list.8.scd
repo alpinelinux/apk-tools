@@ -11,8 +11,10 @@ apk list - list packages matching a pattern or other criteria
 # DESCRIPTION
 
 *apk list* searches package indicies for packages matching the given patterns
-and prints any matching packages. The patterns are matched with *fnmatch*(3),
-which behaves similarly to shell globbing.
+and prints any matching packages.
+
+The patterns are matched with *fnmatch*(3), which behaves similarly to shell
+globbing.
 
 # OPTIONS
 

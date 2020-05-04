@@ -10,15 +10,16 @@ apk dot - generate graphviz graphs
 
 # DESCRIPTION
 
-*apk dot* generates graphviz dependency graphs for packages matching the masks
-specified, or for every known package if unspecified (this will generate a
-large and unwieldy graph).
+*apk dot* renders package dependencies as graphviz graphs.
+
+The graph is generated for the packages matching the masks given, or for every
+known package if unspecified (this will generate a large and unwieldy graph).
 
 # OPTIONS
 
 *--errors*
-	Graph only relationships considered erroneous, e.g. cycles and missing
-	packages.
+	Consider only packages with errors. This is useful for visually reporting
+	e.g. cyclic dependencies and missing packages.
 
 *--installed*
 	Consider only installed packages.

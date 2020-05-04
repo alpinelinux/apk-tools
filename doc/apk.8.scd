@@ -10,9 +10,10 @@ apk - Alpine Package Keeper
 
 # DESCRIPTION
 
-*apk* manages packages installed on the system. The set of installed packages
-is called the _world_ (see *apk-world*(5)). *apk* supports various sub-commands
-to query and manipulate _world_ and local & remote package repositories.
+*apk* manages packages installed on the system. The set of top level packages
+to install is called the _world_ (see *apk-world*(5)). *apk* supports various
+sub-commands to query and manipulate _world_ and local & remote package
+repositories.
 
 # COMMANDS
 
@@ -28,13 +29,13 @@ Each command is documented in detail on its manual page.
 ## SYSTEM MAINTENANCE
 
 |[ *apk-fix*(8)
-:< Check _world_ against the system and ensure consistency
+:< Fix, reinstall or upgrade packages without modifying _world_
 |  *apk-update*(8)
 :  Update repository indexes
 |  *apk-upgrade*(8)
 :  Install upgrades available from repositories
 |  *apk-cache*(8)
-:  Commands related to the management of an offline package cache
+:  Manage the local package cache
 
 ## QUERYING PACKAGE INFORMATION
 
@@ -43,7 +44,7 @@ Each command is documented in detail on its manual page.
 |  *apk-list*(8)
 :  List packages matching a pattern or other criteria
 |  *apk-dot*(8)
-:  Generate graphviz graphs
+:  Render dependencies as graphviz graphs
 |  *apk-policy*(8)
 :  Show repository policy for packages
 
@@ -61,7 +62,7 @@ Each command is documented in detail on its manual page.
 ## MISCELLANEOUS
 
 |[ *apk-audit*(8)
-:< Audit directories for changes
+:< Audit system for changes
 |  *apk-stats*(8)
 :  Show statistics about repositories and installations
 |  *apk-version*(8)
@@ -77,8 +78,8 @@ The following options are available for all commands.
 *-i, --interactive*
 	Ask confirmation before performing certain operations.
 
-*-p, --root* <_DIR_>
-	Install packages to _DIR_.
+*-p, --root* <_ROOT_>
+	Manage file system at _ROOT_.
 
 *-q, --quiet*
 	Print less information.
@@ -93,7 +94,8 @@ The following options are available for all commands.
 	Print program version and exit.
 
 *-X, --repository* <_REPO_>
-	Use packages only from the specified repository.
+	Specify additional package repository. This option can be specified
+	multiple times.
 
 *--allow-untrusted*
 	Install packages with untrusted signature or no signature.
@@ -102,10 +104,11 @@ The following options are available for all commands.
 	Temporarily override architecture, to be combined with --root.
 
 *--cache-dir* _CACHEDIR_
-	Temporarily override the cache directory.
+	Temporarily override the cache directory. _CACHEDIR_ is treated relative
+	to the _ROOT_.
 
 *--cache-max-age* _AGE_
-	Maximum AGE (in minutes) for index in cache before it's refresh.
+	Maximum AGE (in minutes) for index in cache before it's refreshed.
 
 *--force-binary-stdout*
 	Continue even if binary data will be printed to the terminal.
@@ -114,7 +117,8 @@ The following options are available for all commands.
 	Continue even if _world_ cannot be satisfied.
 
 *--force-non-repository*
-	Continue even if packages may be lost on reboot.
+	Continue even if packages may be lost on reboot. This can happen when
+	running in run-from-tmpfs mode, and installing non-repository package.
 
 *--force-old-apk*
 	Continue even if packages use unsupported features.
@@ -126,7 +130,7 @@ The following options are available for all commands.
 	Do not use cached files (local or from proxy).
 
 *--keys-dir* _KEYSDIR_
-	Override directory of trusted keys.
+	Override directory of trusted keys. This is treated relative to _ROOT_.
 
 *--no-cache*
 	Do not use any local cache path.
@@ -151,7 +155,9 @@ The following options are available for all commands.
 	packages from cache on cache clean.
 
 *--repositories-file* _REPOFILE_
-	Override repositories file, see *apk-repositories*(8).
+	Override repositories file, see *apk-repositories*(8). This directory
+	is relative to _ROOT_. This can be used to override normal system
+	repositories.
 
 *--wait* _TIME_
 	Wait for TIME seconds to get an exclusive repository lock before
@@ -168,16 +174,20 @@ The following options are available for all commands which commit the database.
 	Do not create .apk-new files in configuration directories.
 
 *--overlay-from-stdin*
-	Read list of overlay files from stdin.
+	Read list of overlay files from stdin. Normally this is used only during
+	initramfs when booting run-from-tmpfs installation.
 
 *--no-scripts*
-	Do not execute any scripts.
+	Do not execute any scripts. Useful for extracting a system image for
+	different architecture on alternative _ROOT_.
 
 *--no-commit-hooks*
 	Skip pre/post hook scripts (but not other scripts).
 
 *--initramfs-diskless-boot*
-	Enables options for diskless initramfs boot (e.g. skip hooks).
+	Used by initramfs when it's recreating root tmpfs. This enables selected
+	force options to minimize failure, and disables commit hooks, among
+	other features.
 
 # NOTES
 

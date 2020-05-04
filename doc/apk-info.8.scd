@@ -31,15 +31,16 @@ display the appropriate information, then an empty line terminates that field.
 	Print the package description.
 
 *-e, --installed*
-	Check if the package is installed, printing its name and exiting with
-	status code zero if so, or exiting with a nonzero status code otherwise.
+	Check package installed status. For each installed package, print it's
+	name. The exit status is the number of given packages not installed.
+	Thus, zero (or success) is returned if all named packages are installed.
 
 *-L, --contents*
 	List files included in the package.
 
 *-i, --install-if*
-	List the package's install_if rule, if configured (i.e. the conditions
-	under which this package will be installed automatically).
+	List the package's install_if rule. When the dependencies in this list
+	are satisfied, the package will be installed automatically.
 
 *-I, --rinstall-if*
 	List other packages whose install_if rules refer to this package.

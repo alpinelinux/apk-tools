@@ -25,8 +25,8 @@ following options:
 	Reinstall packages (default).
 
 *-u, --upgrade*
-	When fixing packages which are already installed, upgrade them rather
-	than considering the requirement fulfilled by the current installation.
+	Upgrade name _PACKAGE_ if an upgrade exists and does not break
+	dependencies.
 
 *-x, --xattr*
 	Fix packages with broken xattrs.

@@ -19,14 +19,19 @@ configured package repositories (see *apk-repositories*(5)).
 following options:
 
 *-a, --available*
-	Resets version constraints in _world_ (see *apk-world*(5)) and prefers
-	replacing or downgrading packages if the currently installed package is
-	no longer available from any repository (instead of holding them).
+	Reset all packages to versions available from current repositories.
+	This resets all versioned dependencies in _world_ (see *apk-world*(5)).
+	Additionally, packages are selected from active repositories if possible
+	even if it means replacing or downgrading the package.
+
+	This is useful to reset system against new set of packages after updating
+	repositories.
 
 *-l, --latest*
-	Disables normal heuristics for choosing which repository to install a
-	package from, preferring only repositories from which the latest
-	version is available. This has no effect on pinned packages.
+	Always choose the latest package by version. However, the versions
+	considered are based on the package pinning. Primarily this overrides
+	the default heuristic and will cause an error to displayed if all
+	dependencies cannot be satisfied.
 
 *--no-self-upgrade*
 	Do not do an early upgrade of the 'apk-tools' package.

@@ -10,8 +10,12 @@ apk update - update repository indexes
 
 # DESCRIPTION
 
-*apk update* fetches the index from all configured package repositories. See
-*apk-repositories*(5) for more information on configuring package repositories.
+*apk update* forces updating of the indexes from all configured package
+repositories. This command is not needed in normal operation as all applets
+requiring indexes will automatically refresh them after caching time expires.
+
+See *apk-repositories*(5) for more information on configuring package
+repositories.
 
 # OPTIONS
 

@@ -35,6 +35,9 @@ specified.
 *--simulate*
 	Simulate the requested operation without making any changes.
 
+	*Note*: this option is unreliable if needed indexes are not up-to-date
+	as this omits refresing or downloading of missing indexes.
+
 # AUTHORS
 
 Natanael Copa <ncopa@alpinelinux.org>++

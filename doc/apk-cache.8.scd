@@ -14,6 +14,9 @@ apk cache - manage a local cache of package files
 
 # DESCRIPTION
 
+Manage local package cache by removing obsolete packages, or downloading
+missing or newer packages from the repositories.
+
 *apk cache download* will fetch package files from the repositories and store
 them in the cache, which must be enabled upfront (see *apk-cache*(5)).
 
@@ -26,14 +29,16 @@ depended on by packages in _world_.
 # OPTIONS
 
 *-l, --latest*
-	Disables normal heuristics for choosing which repository to install a
-	package from, preferring only repositories from which the latest
-	version is available. This has no effect on pinned packages.
+	Always choose the latest package by version. However, the versions
+	considered are based on the package pinning. Primarily this overrides
+	the default heuristic and will cause an error to displayed if all
+	dependencies cannot be satisfied.
 
 *-u, --upgrade*
-	When caching packages which are already installed, prefer their upgrades
-	rather than considering the requirement fulfilled by the current
-	installation.
+	Upgrade _packages_ and it's dependencies. Normally *apk add* will
+	avoid changing installed package unless it is required by the newly
+	added _packages_ or their dependencies. This changes the default
+	preference to upgrading the package to the latest installable version.
 
 # AUTHORS
 
