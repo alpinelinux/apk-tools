@@ -468,18 +468,14 @@ void apk_blob_pull_csum(apk_blob_t *b, struct apk_checksum *csum)
 {
 	int encoding;
 
-	if (unlikely(APK_BLOB_IS_NULL(*b)))
-		return;
-
-	if (unlikely(b->len < 2)) {
-		*b = APK_BLOB_NULL;
-		return;
-	}
+	if (unlikely(APK_BLOB_IS_NULL(*b))) goto fail;
+	if (unlikely(b->len < 2)) goto fail;
 
 	if (dx(b->ptr[0]) != 0xff) {
 		/* Assume MD5 for backwards compatibility */
 		csum->type = APK_CHECKSUM_MD5;
 		apk_blob_pull_hexdump(b, APK_BLOB_CSUM(*csum));
+		if (unlikely(APK_BLOB_IS_NULL(*b))) goto fail;
 		return;
 	}
 
@@ -489,8 +485,7 @@ void apk_blob_pull_csum(apk_blob_t *b, struct apk_checksum *csum)
 		csum->type = APK_CHECKSUM_SHA1;
 		break;
 	default:
-		*b = APK_BLOB_NULL;
-		return;
+		goto fail;
 	}
 	b->ptr += 2;
 	b->len -= 2;
@@ -503,7 +498,9 @@ void apk_blob_pull_csum(apk_blob_t *b, struct apk_checksum *csum)
 		apk_blob_pull_base64(b, APK_BLOB_CSUM(*csum));
 		break;
 	default:
+	fail:
 		*b = APK_BLOB_NULL;
+		csum->type = APK_CHECKSUM_NONE;
 		break;
 	}
 }
