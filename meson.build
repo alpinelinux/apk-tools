@@ -13,7 +13,7 @@ apk_libdir = get_option('libdir')
 zlib_dep = dependency('zlib')
 openssl_dep = dependency('openssl')
 lua_dep = dependency('lua' + get_option('lua_version'), required: get_option('lua'))
-scdoc = dependency('scdoc', version: '>=1.10', required: get_option('docs'))
+scdoc_dep = dependency('scdoc', version: '>=1.10', required: get_option('docs'))
 
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
 
@@ -23,9 +23,6 @@ if get_option('default_library') == 'static'
     add_project_arguments('-DOPENSSL_NO_ENGINE', language: 'c')
 endif
 
+subdir('doc')
 subdir('libfetch')
 subdir('src')
-
-if scdoc.found()
-    subdir('doc')
-endif

@@ -51,7 +51,20 @@ apk_src = [
     'app_stats.c',
     'app_verify.c',
     'app_version.c',
+    'help.c',
 ]
+
+genhelp_script = find_program('genhelp.lua')
+
+generated_help = custom_target(
+    'help.h',
+    capture: true,
+    output: 'help.h',
+    input: man_files,
+    command: [genhelp_script, '@INPUT@'],
+)
+
+apk_src += [ generated_help ]
 
 apk_cargs = [
     '-DAPK_VERSION="' + meson.project_version() + '"',
