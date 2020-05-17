@@ -117,6 +117,10 @@ extern char **apk_argv;
 #define APK_DEFAULT_ARCH	"mips"
 #elif defined(__mips__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define APK_DEFAULT_ARCH	"mipsel"
+#elif defined(__riscv) && __riscv_xlen == 32
+#define APK_DEFAULT_ARCH	"riscv32"
+#elif defined(__riscv) && __riscv_xlen == 64
+#define APK_DEFAULT_ARCH	"riscv64"
 #else
 #error APK_DEFAULT_ARCH not detected for this architecture
 #endif
