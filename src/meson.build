@@ -54,15 +54,24 @@ apk_src = [
     'help.c',
 ]
 
-genhelp_script = find_program('genhelp.lua')
+if lua_bin.found()
+    genhelp_script = find_program('genhelp.lua')
 
-generated_help = custom_target(
-    'help.h',
-    capture: true,
-    output: 'help.h',
-    input: man_files,
-    command: [genhelp_script, '@INPUT@'],
-)
+    generated_help = custom_target(
+        'help.h',
+        capture: true,
+        output: 'help.h',
+        input: man_files,
+        command: [genhelp_script, '@INPUT@'],
+    )
+else
+    generated_help = custom_target(
+        'help.h',
+        capture: true,
+        output: 'help.h',
+        command: ['echo', '#define NO_HELP'],
+    )
+endif
 
 apk_src += [ generated_help ]
 
