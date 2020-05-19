@@ -45,7 +45,7 @@ install-libapk_a	:= $(INSTALLDIR) $(DESTDIR)$(LIBDIR) && \
 apk-static-libs		:= $(libapk.a-libs) $(obj)/libapk.a
 
 # Lua module
-ifneq ($(LUAAPK),)
+ifeq ($(LUAAPK),yes)
 LUA_VERSION		?= 5.3
 LUA_PC			?= lua$(LUA_VERSION)
 LUA_LIBDIR		?= /usr/lib/lua/$(LUA_VERSION)
