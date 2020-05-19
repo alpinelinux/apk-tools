@@ -1,4 +1,5 @@
 libapk_src = [
+    'atom.c',
     'blob.c',
     'commit.c',
     'common.c',
@@ -16,6 +17,7 @@ libapk_src = [
 
 libapk_headers = [
     'apk_applet.h',
+    'apk_atom.h',
     'apk_archive.h',
     'apk_blob.h',
     'apk_database.h',
