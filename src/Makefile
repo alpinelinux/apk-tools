@@ -18,7 +18,7 @@ ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 # Dynamic library
 libapk.so.$(VERSION)-objs := \
 	common.o database.o package.o commit.o solver.o \
-	version.o blob.o hash.o print.o \
+	version.o atom.o blob.o hash.o print.o \
 	io.o io_url.o io_gunzip.o io_archive.o
 
 libapk.so.$(VERSION)-libs := libfetch/libfetch.a

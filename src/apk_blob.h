@@ -25,7 +25,6 @@ struct apk_blob {
 };
 typedef struct apk_blob apk_blob_t;
 typedef int (*apk_blob_cb)(void *ctx, apk_blob_t blob);
-extern apk_blob_t apk_null_blob;
 
 #define BLOB_FMT		"%.*s"
 #define BLOB_PRINTF(b)		(int)(b).len, (b).ptr
@@ -129,10 +128,6 @@ void apk_blob_pull_csum(apk_blob_t *b, struct apk_checksum *csum);
 void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to);
 void apk_blob_pull_hexdump(apk_blob_t *b, apk_blob_t to);
 int apk_blob_pull_blob_match(apk_blob_t *b, apk_blob_t match);
-
-void apk_atom_init(void);
-apk_blob_t *apk_blob_atomize(apk_blob_t blob);
-apk_blob_t *apk_blob_atomize_dup(apk_blob_t blob);
 
 #if defined(__GLIBC__) && !defined(__UCLIBC__)
 extern size_t strlcpy(char *dest, const char *src, size_t size);

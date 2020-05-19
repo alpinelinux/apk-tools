@@ -100,9 +100,9 @@ static struct apk_package *create_virtual_package(struct apk_database *db, struc
 	if (virtpkg == NULL) return 0;
 
 	virtpkg->name = name;
-	virtpkg->version = apk_blob_atomize_dup(APK_BLOB_STR(ver));
+	virtpkg->version = apk_atomize_dup(&db->atoms, APK_BLOB_STR(ver));
 	virtpkg->description = strdup("virtual meta package");
-	virtpkg->arch = apk_blob_atomize(APK_BLOB_STR("noarch"));
+	virtpkg->arch = apk_atomize(&db->atoms, APK_BLOB_STR("noarch"));
 
 	mdctx = EVP_MD_CTX_new();
 	EVP_DigestInit_ex(mdctx, apk_checksum_default(), NULL);
@@ -135,7 +135,7 @@ static int add_main(void *ctx, struct apk_database *db, struct apk_string_array 
 		apk_blob_pull_dep(&b, db, &virtdep);
 		if (APK_BLOB_IS_NULL(b) || virtdep.conflict ||
 		    virtdep.result_mask != APK_DEPMASK_ANY ||
-		    virtdep.version != &apk_null_blob) {
+		    virtdep.version != &apk_atom_null) {
 			apk_error("%s: bad package specifier");
 			return -1;
 		}

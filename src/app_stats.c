@@ -24,8 +24,6 @@ static int list_count(struct list_head *h)
 
 static int stats_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
-	extern struct apk_hash atom_hash;
-
 	printf(
 		"installed:\n"
 		"  packages: %d\n"
@@ -46,7 +44,7 @@ static int stats_main(void *ctx, struct apk_database *db, struct apk_string_arra
 		list_count(&db->installed.triggers),
 		db->available.names.num_items,
 		db->available.packages.num_items,
-		atom_hash.num_items
+		db->atoms.hash.num_items
 		);
 	return 0;
 }

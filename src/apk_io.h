@@ -16,6 +16,7 @@
 #include "apk_defines.h"
 #include "apk_blob.h"
 #include "apk_hash.h"
+#include "apk_atom.h"
 
 struct apk_id_cache {
 	int root_fd;
@@ -167,7 +168,7 @@ int apk_blob_to_file(int atfd, const char *file, apk_blob_t b, unsigned int flag
 #define APK_FI_XATTR_CSUM(x)	(((x) & 0xff) << 8)
 #define APK_FI_CSUM(x)		(((x) & 0xff))
 int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
-		     struct apk_file_info *fi);
+		     struct apk_file_info *fi, struct apk_atom_pool *atoms);
 void apk_fileinfo_hash_xattr(struct apk_file_info *fi);
 void apk_fileinfo_free(struct apk_file_info *fi);
 

@@ -518,7 +518,6 @@ int main(int argc, char **argv)
 
 	memset(&dbopts, 0, sizeof(dbopts));
 	list_init(&dbopts.repository_list);
-	apk_atom_init();
 	umask(0);
 	setup_terminal();
 

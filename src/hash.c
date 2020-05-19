@@ -93,6 +93,7 @@ void apk_hash_delete_hashed(struct apk_hash *h, apk_blob_t key, unsigned long ha
 			if (h->ops->compare_item(item, key) == 0) {
 				hlist_del(pos, &h->buckets->item[hash]);
 				h->ops->delete_item(item);
+				h->num_items--;
 				break;
 			}
 		}
@@ -103,9 +104,9 @@ void apk_hash_delete_hashed(struct apk_hash *h, apk_blob_t key, unsigned long ha
 			if (h->ops->compare(key, itemkey) == 0) {
 				hlist_del(pos, &h->buckets->item[hash]);
 				h->ops->delete_item(item);
+				h->num_items--;
 				break;
 			}
 		}
 	}
 }
-

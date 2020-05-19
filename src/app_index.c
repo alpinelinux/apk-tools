@@ -27,7 +27,7 @@ struct index_ctx {
 	const char *index;
 	const char *output;
 	const char *description;
-	apk_blob_t *rewrite_arch;
+	const char *rewrite_arch;
 	time_t index_mtime;
 	int method;
 	unsigned short index_flags;
@@ -64,7 +64,7 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 		ictx->output = optarg;
 		break;
 	case OPT_INDEX_rewrite_arch:
-		ictx->rewrite_arch = apk_blob_atomize(APK_BLOB_STR(optarg));
+		ictx->rewrite_arch = optarg;
 		break;
 	case OPT_INDEX_no_warnings:
 		ictx->index_flags |= APK_INDEXF_NO_WARNINGS;
@@ -86,7 +86,7 @@ static int index_read_file(struct apk_database *db, struct index_ctx *ictx)
 
 	if (ictx->index == NULL)
 		return 0;
-	if (apk_fileinfo_get(AT_FDCWD, ictx->index, APK_CHECKSUM_NONE, &fi) < 0)
+	if (apk_fileinfo_get(AT_FDCWD, ictx->index, APK_CHECKSUM_NONE, &fi, &db->atoms) < 0)
 		return 0;
 
 	ictx->index_mtime = fi.mtime;
@@ -121,6 +121,7 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 	struct index_ctx *ictx = (struct index_ctx *) ctx;
 	struct apk_package *pkg;
 	char **parg;
+	apk_blob_t *rewrite_arch = NULL;
 
 	if (isatty(STDOUT_FILENO) && ictx->output == NULL &&
 	    !(apk_force & APK_FORCE_BINARY_STDOUT)) {
@@ -137,8 +138,11 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 		return r;
 	}
 
+	if (ictx->rewrite_arch)
+		rewrite_arch = apk_atomize(&db->atoms, APK_BLOB_STR(ictx->rewrite_arch));
+
 	foreach_array_item(parg, args) {
-		if (apk_fileinfo_get(AT_FDCWD, *parg, APK_CHECKSUM_NONE, &fi) < 0) {
+		if (apk_fileinfo_get(AT_FDCWD, *parg, APK_CHECKSUM_NONE, &fi, &db->atoms) < 0) {
 			apk_warning("File '%s' is unaccessible", *parg);
 			continue;
 		}
@@ -174,15 +178,11 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 
 			foreach_array_item(p, name->providers) {
 				pkg = p->pkg;
-				if (pkg->name != name)
-					continue;
-				if (apk_blob_compare(bver, *pkg->version) != 0)
-					continue;
-				if (pkg->size != fi.size)
-					continue;
+				if (pkg->name != name) continue;
+				if (apk_blob_compare(bver, *pkg->version) != 0) continue;
+				if (pkg->size != fi.size) continue;
 				pkg->filename = strdup(*parg);
-				if (ictx->rewrite_arch != NULL)
-					pkg->arch = ictx->rewrite_arch;
+				if (rewrite_arch) pkg->arch = rewrite_arch;
 				found = TRUE;
 				break;
 			}
@@ -197,8 +197,7 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 				errors++;
 			} else {
 				newpkgs++;
-				if (ictx->rewrite_arch != NULL)
-					pkg->arch = ictx->rewrite_arch;
+				if (rewrite_arch) pkg->arch = rewrite_arch;
 			}
 			apk_sign_ctx_free(&sctx);
 		}

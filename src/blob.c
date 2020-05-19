@@ -15,11 +15,6 @@
 #include "apk_blob.h"
 #include "apk_hash.h"
 
-struct apk_blob_atom {
-	struct hlist_node hash_node;
-	apk_blob_t blob;
-};
-
 char *apk_blob_cstr(apk_blob_t blob)
 {
 	char *cstr;
@@ -638,77 +633,6 @@ void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to)
 	return;
 err:
 	*b = APK_BLOB_NULL;
-}
-
-static apk_blob_t atom_hash_get_key(apk_hash_item item)
-{
-	return ((struct apk_blob_atom *) item)->blob;
-}
-
-struct apk_hash atom_hash;
-static struct apk_hash_ops atom_ops = {
-	.node_offset = offsetof(struct apk_blob_atom, hash_node),
-	.get_key = atom_hash_get_key,
-	.hash_key = apk_blob_hash,
-	.compare = apk_blob_compare,
-	.delete_item = (apk_hash_delete_f) free,
-};
-
-apk_blob_t apk_null_blob = {0,0};
-
-#ifdef VALGRIND
-static void apk_atom_fini(void)
-{
-	apk_hash_free(&atom_hash);
-}
-#endif
-
-void apk_atom_init(void)
-{
-#ifdef VALGRIND
-	atexit(apk_atom_fini);
-#endif
-	apk_hash_init(&atom_hash, &atom_ops, 10000);
-}
-
-apk_blob_t *apk_blob_atomize(apk_blob_t blob)
-{
-	struct apk_blob_atom *atom;
-	unsigned long hash = apk_hash_from_key(&atom_hash, blob);
-
-	if (blob.len < 0 || blob.ptr == NULL)
-		return &apk_null_blob;
-
-	atom = (struct apk_blob_atom *) apk_hash_get_hashed(&atom_hash, blob, hash);
-	if (atom != NULL)
-		return &atom->blob;
-
-	atom = malloc(sizeof(*atom));
-	atom->blob = blob;
-	apk_hash_insert_hashed(&atom_hash, atom, hash);
-
-	return &atom->blob;
-}
-
-apk_blob_t *apk_blob_atomize_dup(apk_blob_t blob)
-{
-	struct apk_blob_atom *atom;
-	unsigned long hash = apk_hash_from_key(&atom_hash, blob);
-	char *ptr;
-
-	if (blob.len < 0 || blob.ptr == NULL)
-		return &apk_null_blob;
-	atom = (struct apk_blob_atom *) apk_hash_get_hashed(&atom_hash, blob, hash);
-	if (atom != NULL)
-		return &atom->blob;
-
-	atom = malloc(sizeof(*atom) + blob.len);
-	ptr = (char*) (atom + 1);
-	memcpy(ptr, blob.ptr, blob.len);
-	atom->blob = APK_BLOB_PTR_LEN(ptr, blob.len);
-	apk_hash_insert_hashed(&atom_hash, atom, hash);
-
-	return &atom->blob;
 }
 
 #if defined(__GLIBC__) && !defined(__UCLIBC__)

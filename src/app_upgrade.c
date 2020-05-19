@@ -174,7 +174,7 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 		foreach_array_item(dep, world) {
 			if (dep->result_mask == APK_DEPMASK_CHECKSUM) {
 				dep->result_mask = APK_DEPMASK_ANY;
-				dep->version = apk_blob_atomize(APK_BLOB_NULL);
+				dep->version = &apk_atom_null;
 			}
 		}
 	} else {

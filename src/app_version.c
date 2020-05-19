@@ -121,7 +121,7 @@ static void ver_print_package_status(struct apk_database *db, const char *match,
 	struct apk_provider *p0;
 	char pkgname[41];
 	const char *opstr;
-	apk_blob_t *latest = apk_blob_atomize(APK_BLOB_STR(""));
+	apk_blob_t *latest = apk_atomize(&db->atoms, APK_BLOB_STR(""));
 	unsigned int latest_repos = 0;
 	int i, r = -1;
 	unsigned short tag, allowed_repos;

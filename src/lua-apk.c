@@ -171,7 +171,6 @@ static int Papk_db_open(lua_State *L)
 
 	memset(&opts, 0, sizeof(opts));
 	list_init(&opts.repository_list);
-	apk_atom_init();
 	if (lua_istable(L, 1))
 		get_dbopts(L, 1, &opts);
 	else

@@ -107,7 +107,7 @@ static int audit_file(struct audit_ctx *actx,
 				APK_FI_NOFOLLOW |
 				APK_FI_XATTR_CSUM(dbf->acl->xattr_csum.type ?: APK_CHECKSUM_DEFAULT) |
 				APK_FI_CSUM(dbf->csum.type),
-				&fi) != 0)
+				&fi, &db->atoms) != 0)
 		return -EPERM;
 
 	if (dbf->csum.type != APK_CHECKSUM_NONE &&
@@ -183,7 +183,7 @@ static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
 	int reason = 0;
 
 	if (bdir.len + bent.len + 1 >= sizeof(atctx->path)) return 0;
-	if (apk_fileinfo_get(dirfd, name, APK_FI_NOFOLLOW, &fi) < 0) return 0;
+	if (apk_fileinfo_get(dirfd, name, APK_FI_NOFOLLOW, &fi, &db->atoms) < 0) return 0;
 
 	memcpy(&atctx->path[atctx->pathlen], bent.ptr, bent.len);
 	atctx->pathlen += bent.len;

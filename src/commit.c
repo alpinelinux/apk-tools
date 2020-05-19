@@ -453,8 +453,8 @@ static void print_conflicts(struct print_state *ps, struct apk_package *pkg)
 		foreach_array_item(p, d->name->providers) {
 			if (!p->pkg->marked)
 				continue;
-			if (d->version == &apk_null_blob &&
-			    p->version == &apk_null_blob)
+			if (d->version == &apk_atom_null &&
+			    p->version == &apk_atom_null)
 				continue;
 			if (once && p->pkg == pkg &&
 			    p->version == d->version) {

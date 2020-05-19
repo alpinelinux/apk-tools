@@ -145,7 +145,7 @@ static int fetch_package(apk_hash_item item, void *pctx)
 	}
 
 	if (!(ctx->flags & FETCH_STDOUT)) {
-		if (apk_fileinfo_get(ctx->outdir_fd, filename, APK_CHECKSUM_NONE, &fi) == 0 &&
+		if (apk_fileinfo_get(ctx->outdir_fd, filename, APK_CHECKSUM_NONE, &fi, &db->atoms) == 0 &&
 		    fi.size == pkg->size)
 			return 0;
 	}
@@ -227,7 +227,7 @@ static void mark_name_flags(struct apk_database *db, const char *match, struct a
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
 	struct apk_dependency dep = (struct apk_dependency) {
 		.name = name,
-		.version = &apk_null_blob,
+		.version = &apk_atom_null,
 		.result_mask = APK_DEPMASK_ANY,
 	};
 

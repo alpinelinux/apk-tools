@@ -42,7 +42,7 @@ struct apk_solver_state {
 
 static struct apk_provider provider_none = {
 	.pkg = NULL,
-	.version = &apk_null_blob
+	.version = &apk_atom_null
 };
 
 void apk_solver_set_name_flags(struct apk_name *name,
@@ -321,10 +321,10 @@ static void exclude_non_providers(struct apk_solver_state *ss, struct apk_name *
 
 	foreach_array_item(p, name->providers) {
 		if (p->pkg->name == must_provide || !p->pkg->ss.pkg_selectable ||
-		    (skip_virtuals && p->version == &apk_null_blob))
+		    (skip_virtuals && p->version == &apk_atom_null))
 			goto next;
 		foreach_array_item(d, p->pkg->provides)
-			if (d->name == must_provide || (skip_virtuals && d->version == &apk_null_blob))
+			if (d->name == must_provide || (skip_virtuals && d->version == &apk_atom_null))
 				goto next;
 		disqualify_package(ss, p->pkg, "provides transitivity");
 	next: ;
@@ -425,10 +425,10 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 				merge_index(&dep->name->ss.merge_depends, num_options);
 
 		if (merge_index(&pkg->name->ss.merge_provides, num_options))
-			pkg->name->ss.has_virtual_provides |= (p->version == &apk_null_blob);
+			pkg->name->ss.has_virtual_provides |= (p->version == &apk_atom_null);
 		foreach_array_item(dep, pkg->provides)
 			if (merge_index(&dep->name->ss.merge_provides, num_options))
-				dep->name->ss.has_virtual_provides |= (dep->version == &apk_null_blob);
+				dep->name->ss.has_virtual_provides |= (dep->version == &apk_atom_null);
 
 		num_tag_not_ok += !pkg->ss.tag_ok;
 		num_options++;
@@ -630,8 +630,8 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 
 	if (name->ss.locked) {
 		/* If both are providing this name without version, it's ok */
-		if (p.version == &apk_null_blob &&
-		    name->ss.chosen.version == &apk_null_blob)
+		if (p.version == &apk_atom_null &&
+		    name->ss.chosen.version == &apk_atom_null)
 			return;
 		if (ss->ignore_conflict)
 			return;
@@ -656,8 +656,8 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 		foreach_array_item(p0, name->providers) {
 			if (p0->pkg == p.pkg)
 				continue;
-			if (p.version == &apk_null_blob &&
-			    p0->version == &apk_null_blob)
+			if (p.version == &apk_atom_null &&
+			    p0->version == &apk_atom_null)
 				continue;
 			disqualify_package(ss, p0->pkg, "conflicting provides");
 		}
@@ -668,7 +668,7 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 
 static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 {
-	struct apk_provider chosen = { NULL, &apk_null_blob }, *p;
+	struct apk_provider chosen = { NULL, &apk_atom_null }, *p;
 	struct apk_package *pkg = NULL;
 	struct apk_dependency *d;
 
@@ -689,7 +689,7 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 				continue;
 			/* Virtual packages without provider_priority cannot be autoselected,
 			 * unless there is only one provider */
-			if (p->version == &apk_null_blob &&
+			if (p->version == &apk_atom_null &&
 			    p->pkg->name->auto_select_virtual == 0 &&
 			    p->pkg->name->ss.requirers == 0 &&
 			    (p->pkg->provider_priority == 0 && name->providers->num > 1))
@@ -934,7 +934,7 @@ static void generate_changeset(struct apk_solver_state *ss, struct apk_dependenc
 		pkg->name->ss.installed_pkg = pkg;
 		pkg->name->ss.installed_name = pkg->name;
 		foreach_array_item(d, pkg->provides)
-			if (d->version != &apk_null_blob)
+			if (d->version != &apk_atom_null)
 				d->name->ss.installed_name = pkg->name;
 	}
 	list_for_each_entry(ipkg, &ss->db->installed.packages, installed_pkgs_list)

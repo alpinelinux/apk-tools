@@ -67,33 +67,25 @@ static const struct apk_package *is_upgradable(struct apk_name *name, const stru
 {
 	struct apk_provider *p;
 	struct apk_package *ipkg;
-	apk_blob_t *latest = apk_blob_atomize(APK_BLOB_STR(""));
+	apk_blob_t no_version = APK_BLOB_STR("");
+	apk_blob_t *latest = &no_version;
+	int r;
 
-	if (name == NULL)
-		return NULL;
+	if (!name) return NULL;
 
 	ipkg = apk_pkg_get_installed(name);
-	if (ipkg == NULL)
-		return NULL;
+	if (!ipkg) return NULL;
 
-	if (pkg0 == NULL)
-	{
-		foreach_array_item(p, name->providers)
-		{
+	if (!pkg0) {
+		foreach_array_item(p, name->providers) {
 			pkg0 = p->pkg;
-			int r;
-
-			if (pkg0 == ipkg)
-				continue;
-
+			if (pkg0 == ipkg) continue;
 			r = apk_version_compare_blob(*pkg0->version, *latest);
-			if (r == APK_VERSION_GREATER)
-				latest = pkg0->version;
+			if (r == APK_VERSION_GREATER) latest = pkg0->version;
 		}
-	}
-	else
+	} else {
 		latest = pkg0->version;
-
+	}
 	return apk_version_compare_blob(*ipkg->version, *latest) == APK_VERSION_LESS ? ipkg : NULL;
 }
 

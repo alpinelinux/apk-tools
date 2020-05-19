@@ -259,7 +259,7 @@ void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_depend
 
 	*dep = (struct apk_dependency){
 		.name = name,
-		.version = apk_blob_atomize_dup(bver),
+		.version = apk_atomize_dup(&db->atoms, bver),
 		.repository_tag = tag,
 		.result_mask = mask,
 		.conflict = conflict,
@@ -295,7 +295,7 @@ void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
 
 	*dep = (struct apk_dependency) {
 		.name = pkg->name,
-		.version = apk_blob_atomize_dup(b),
+		.version = apk_atomize_dup(&db->atoms, b),
 		.result_mask = APK_DEPMASK_CHECKSUM,
 	};
 }
@@ -323,7 +323,7 @@ int apk_dep_is_provided(struct apk_dependency *dep, struct apk_provider *p)
 	case APK_DEPMASK_ANY:
 		return !dep->conflict;
 	default:
-		if (p->version == &apk_null_blob)
+		if (p->version == &apk_atom_null)
 			return dep->conflict;
 		if (apk_version_compare_blob_fuzzy(*p->version, *dep->version, dep->fuzzy)
 		    & dep->result_mask)
@@ -779,7 +779,7 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		pkg->name = apk_db_get_name(db, value);
 		break;
 	case 'V':
-		pkg->version = apk_blob_atomize_dup(value);
+		pkg->version = apk_atomize_dup(&db->atoms, value);
 		break;
 	case 'T':
 		pkg->description = apk_blob_cstr(value);
@@ -788,10 +788,10 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		pkg->url = apk_blob_cstr(value);
 		break;
 	case 'L':
-		pkg->license = apk_blob_atomize_dup(value);
+		pkg->license = apk_atomize_dup(&db->atoms, value);
 		break;
 	case 'A':
-		pkg->arch = apk_blob_atomize_dup(value);
+		pkg->arch = apk_atomize_dup(&db->atoms, value);
 		break;
 	case 'D':
 		apk_blob_pull_deps(&value, db, &pkg->depends);
@@ -812,10 +812,10 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		apk_blob_pull_deps(&value, db, &pkg->install_if);
 		break;
 	case 'o':
-		pkg->origin = apk_blob_atomize_dup(value);
+		pkg->origin = apk_atomize_dup(&db->atoms, value);
 		break;
 	case 'm':
-		pkg->maintainer = apk_blob_atomize_dup(value);
+		pkg->maintainer = apk_atomize_dup(&db->atoms, value);
 		break;
 	case 't':
 		pkg->build_time = apk_blob_pull_uint(&value, 10);
@@ -921,7 +921,7 @@ int apk_pkg_read(struct apk_database *db, const char *file,
 	struct apk_file_info fi;
 	int r;
 
-	r = apk_fileinfo_get(AT_FDCWD, file, APK_CHECKSUM_NONE, &fi);
+	r = apk_fileinfo_get(AT_FDCWD, file, APK_CHECKSUM_NONE, &fi, &db->atoms);
 	if (r != 0)
 		return r;
 

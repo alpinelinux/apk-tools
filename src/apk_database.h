@@ -12,6 +12,7 @@
 
 #include "apk_version.h"
 #include "apk_hash.h"
+#include "apk_atom.h"
 #include "apk_archive.h"
 #include "apk_package.h"
 #include "apk_io.h"
@@ -166,6 +167,7 @@ struct apk_database {
 	struct apk_repository repos[APK_MAX_REPOS];
 	struct apk_repository_tag repo_tags[APK_MAX_TAGS];
 	struct apk_id_cache id_cache;
+	struct apk_atom_pool atoms;
 
 	struct {
 		struct apk_hash names;

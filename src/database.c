@@ -225,7 +225,7 @@ struct apk_name *apk_db_get_name(struct apk_database *db, apk_blob_t name)
 	return pn;
 }
 
-static struct apk_db_acl *apk_db_acl_atomize(mode_t mode, uid_t uid, gid_t gid, const struct apk_checksum *xattr_csum)
+static struct apk_db_acl *apk_db_acl_atomize(struct apk_database *db, mode_t mode, uid_t uid, gid_t gid, const struct apk_checksum *xattr_csum)
 {
 	struct apk_db_acl acl = { .mode = mode & 07777, .uid = uid, .gid = gid };
 	apk_blob_t *b;
@@ -233,7 +233,7 @@ static struct apk_db_acl *apk_db_acl_atomize(mode_t mode, uid_t uid, gid_t gid, 
 	if (xattr_csum && xattr_csum->type != APK_CHECKSUM_NONE)
 		acl.xattr_csum = *xattr_csum;
 
-	b = apk_blob_atomize_dup(APK_BLOB_STRUCT(acl));
+	b = apk_atomize_dup(&db->atoms, APK_BLOB_STRUCT(acl));
 	return (struct apk_db_acl *) b->ptr;
 }
 
@@ -518,8 +518,7 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *
 	struct apk_package *idb;
 	struct apk_dependency *dep;
 
-	if (pkg->license == NULL)
-		pkg->license = apk_blob_atomize(APK_BLOB_NULL);
+	if (!pkg->license) pkg->license = &apk_atom_null;
 
 	/* Set as "cached" if installing from specified file, and
 	 * for virtual packages */
@@ -848,7 +847,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 			else
 				xattr_csum.type = APK_CHECKSUM_NONE;
 
-			acl = apk_db_acl_atomize(mode, uid, gid, &xattr_csum);
+			acl = apk_db_acl_atomize(db, mode, uid, gid, &xattr_csum);
 			if (field == 'M')
 				diri->acl = acl;
 			else
@@ -1501,6 +1500,7 @@ void apk_db_init(struct apk_database *db)
 	apk_hash_init(&db->available.packages, &pkg_info_hash_ops, 10000);
 	apk_hash_init(&db->installed.dirs, &dir_hash_ops, 20000);
 	apk_hash_init(&db->installed.files, &file_hash_ops, 200000);
+	apk_atom_init(&db->atoms);
 	list_init(&db->installed.packages);
 	list_init(&db->installed.triggers);
 	apk_dependency_array_init(&db->world);
@@ -1517,8 +1517,8 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 	apk_blob_t blob;
 	int r, fd, write_arch = FALSE;
 
-	apk_default_acl_dir = apk_db_acl_atomize(0755, 0, 0, NULL);
-	apk_default_acl_file = apk_db_acl_atomize(0644, 0, 0, NULL);
+	apk_default_acl_dir = apk_db_acl_atomize(db, 0755, 0, 0, NULL);
+	apk_default_acl_file = apk_db_acl_atomize(db, 0644, 0, 0, NULL);
 
 	if (apk_flags & APK_SIMULATE) {
 		dbopts->open_flags &= ~(APK_OPENF_CREATE | APK_OPENF_WRITE);
@@ -1553,16 +1553,16 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 		db->permanent = 0;
 
 	if (dbopts->root && dbopts->arch) {
-		db->arch = apk_blob_atomize(APK_BLOB_STR(dbopts->arch));
+		db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(dbopts->arch));
 		write_arch = TRUE;
 	} else {
 		apk_blob_t arch;
 		arch = apk_blob_from_file(db->root_fd, apk_arch_file);
 		if (!APK_BLOB_IS_NULL(arch)) {
-			db->arch = apk_blob_atomize_dup(apk_blob_trim(arch));
+			db->arch = apk_atomize_dup(&db->atoms, apk_blob_trim(arch));
 			free(arch.ptr);
 		} else {
-			db->arch = apk_blob_atomize(APK_BLOB_STR(APK_DEFAULT_ARCH));
+			db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(APK_DEFAULT_ARCH));
 			write_arch = TRUE;
 		}
 	}
@@ -1820,6 +1820,7 @@ void apk_db_close(struct apk_database *db)
 	apk_hash_free(&db->available.names);
 	apk_hash_free(&db->installed.files);
 	apk_hash_free(&db->installed.dirs);
+	apk_atom_free(&db->atoms);
 
 	if (db->root_proc_dir) {
 		umount2(db->root_proc_dir, MNT_DETACH|UMOUNT_NOFOLLOW);
@@ -1867,12 +1868,12 @@ int apk_db_get_tag_id(struct apk_database *db, apk_blob_t tag)
 	db->num_repo_tags++;
 
 	if (tag.ptr[0] == '@') {
-		db->repo_tags[i].tag = *apk_blob_atomize_dup(tag);
+		db->repo_tags[i].tag = *apk_atomize_dup(&db->atoms, tag);
 	} else {
 		char *tmp = alloca(tag.len + 1);
 		tmp[0] = '@';
 		memcpy(&tmp[1], tag.ptr, tag.len);
-		db->repo_tags[i].tag = *apk_blob_atomize_dup(APK_BLOB_PTR_LEN(tmp, tag.len+1));
+		db->repo_tags[i].tag = *apk_atomize_dup(&db->atoms, APK_BLOB_PTR_LEN(tmp, tag.len+1));
 	}
 
 	db->repo_tags[i].plain_name = db->repo_tags[i].tag;
@@ -2551,7 +2552,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 			apk_message("%s", ae->name);
 
 		/* Extract the file with temporary name */
-		file->acl = apk_db_acl_atomize(ae->mode, ae->uid, ae->gid, &ae->xattr_csum);
+		file->acl = apk_db_acl_atomize(db, ae->mode, ae->uid, ae->gid, &ae->xattr_csum);
 		r = apk_archive_entry_extract(
 				db->root_fd, ae,
 				format_tmpname(pkg, file, tmpname_file),
@@ -2592,7 +2593,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 			diri = apk_db_install_directory_entry(ctx, name);
 			apk_db_dir_prepare(db, diri->dir, ae->mode);
 		}
-		apk_db_diri_set(diri, apk_db_acl_atomize(ae->mode, ae->uid, ae->gid, &ae->xattr_csum));
+		apk_db_diri_set(diri, apk_db_acl_atomize(db, ae->mode, ae->uid, ae->gid, &ae->xattr_csum));
 	}
 	ctx->installed_size += ctx->current_file_size;
 
@@ -2628,7 +2629,7 @@ static void apk_db_purge_pkg(struct apk_database *db,
 			if ((diri->dir->protect_mode == APK_PROTECT_NONE) ||
 			    (apk_flags & APK_PURGE) ||
 			    (file->csum.type != APK_CHECKSUM_NONE &&
-			     apk_fileinfo_get(db->root_fd, name, APK_FI_NOFOLLOW | file->csum.type, &fi) == 0 &&
+			     apk_fileinfo_get(db->root_fd, name, APK_FI_NOFOLLOW | file->csum.type, &fi, &db->atoms) == 0 &&
 			     apk_checksum_compare(&file->csum, &fi.csum) == 0))
 				unlinkat(db->root_fd, name, 0);
 			if (apk_verbosity >= 3)
@@ -2684,7 +2685,7 @@ static void apk_db_migrate_files(struct apk_database *db,
 				cstype = ofile->csum.type;
 			cstype |= APK_FI_NOFOLLOW;
 
-			r = apk_fileinfo_get(db->root_fd, name, cstype, &fi);
+			r = apk_fileinfo_get(db->root_fd, name, cstype, &fi, &db->atoms);
 			if (ofile && ofile->diri->pkg->name == NULL) {
 				/* File was from overlay, delete the
 				 * packages version */
@@ -2702,7 +2703,8 @@ static void apk_db_migrate_files(struct apk_database *db,
 				if (ofile == NULL ||
 				    ofile->csum.type != file->csum.type)
 					apk_fileinfo_get(db->root_fd, name,
-						APK_FI_NOFOLLOW | file->csum.type, &fi);
+						APK_FI_NOFOLLOW | file->csum.type,
+						&fi, &db->atoms);
 				if ((apk_flags & APK_CLEAN_PROTECTED) ||
 				    (file->csum.type != APK_CHECKSUM_NONE &&
 				     apk_checksum_compare(&file->csum, &fi.csum) == 0)) {

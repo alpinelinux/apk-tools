@@ -692,7 +692,7 @@ void apk_fileinfo_hash_xattr(struct apk_file_info *fi)
 }
 
 int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
-		     struct apk_file_info *fi)
+		     struct apk_file_info *fi, struct apk_atom_pool *atoms)
 {
 	struct stat64 st;
 	unsigned int checksum = flags & 0xff;
@@ -735,7 +735,7 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 					}
 					*apk_xattr_array_add(&xattrs) = (struct apk_xattr) {
 						.name = &buf[i],
-						.value = *apk_blob_atomize_dup(APK_BLOB_PTR_LEN(val, vlen)),
+						.value = *apk_atomize_dup(atoms, APK_BLOB_PTR_LEN(val, vlen)),
 					};
 				}
 				apk_fileinfo_hash_xattr_array(xattrs, apk_checksum_evp(xattr_checksum), &fi->xattr_csum);
@@ -747,11 +747,8 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		if (r && r != ENOTSUP) return -r;
 	}
 
-	if (checksum == APK_CHECKSUM_NONE)
-		return 0;
-
-	if (S_ISDIR(st.st_mode))
-		return 0;
+	if (checksum == APK_CHECKSUM_NONE) return 0;
+	if (S_ISDIR(st.st_mode)) return 0;
 
 	/* Checksum file content */
 	if ((flags & APK_FI_NOFOLLOW) && S_ISLNK(st.st_mode)) {
