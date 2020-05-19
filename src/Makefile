@@ -1,7 +1,13 @@
-PKG_CONFIG ?= pkg-config
-LUAAPK ?= yes
-
+PKG_CONFIG		?= pkg-config
 LUA			?= $(firstword $(wildcard /usr/bin/lua5.3 /usr/bin/lua5.2))
+
+ifeq ($(LUA),no)
+LUAAPK			?= no
+else ifneq ($(LUA),)
+LUAAPK			?= yes
+else
+$(error Lua interpreter not found. Please specify LUA interpreter, or use LUA=no to build without help.)
+endif
 
 OPENSSL_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags openssl)
 OPENSSL_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
@@ -86,10 +92,14 @@ LIBS			:= -Wl,--as-needed \
 
 # Help generation
 quiet_cmd_genhelp = GENHELP $@
+ifneq ($(LUA),no)
       cmd_genhelp = $(LUA) $(src)/genhelp.lua $(filter %.scd, $^) > $@
+else
+      cmd_genhelp = echo \\\#define NO_HELP > $@
+endif
 
-$(obj)/help.h: $(src)/genhelp.lua $(wildcard doc/apk*.8.scd)
-	@$(call echo-cmd,genhelp) $(cmd_genhelp)
+$(obj)/help.h: $(src)/genhelp.lua $(wildcard doc/apk*.8.scd) FORCE
+	$(call if_changed,genhelp)
 
 CFLAGS_help.o		:= -I$(obj)
 

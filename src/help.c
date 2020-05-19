@@ -10,7 +10,7 @@
 #include "apk_applet.h"
 #include "apk_print.h"
 
-static int is_group(struct apk_applet *applet, const char *topic)
+static inline int is_group(struct apk_applet *applet, const char *topic)
 {
 	if (!applet) return strcasecmp(topic, "apk") == 0;
 	if (strcasecmp(topic, applet->name) == 0) return 1;
@@ -23,6 +23,7 @@ void apk_help(struct apk_applet *applet)
 {
 #include "help.h"
 
+#ifndef NO_HELP
 	char buf[uncompressed_help_size], *ptr, *msg;
 	unsigned long len = sizeof buf;
 	int num = 0;
@@ -38,4 +39,8 @@ void apk_help(struct apk_applet *applet)
 		}
 	}
 	if (num == 0) apk_error("Help not found");
+#else
+	fputc('\n', stdout);
+	apk_error("This apk-tools has been built without help");
+#endif
 }
