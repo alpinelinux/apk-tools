@@ -1330,6 +1330,10 @@ static int apk_db_create(struct apk_database *db)
 	mkdirat(db->root_fd, "tmp", 01777);
 	mkdirat(db->root_fd, "dev", 0755);
 	mknodat(db->root_fd, "dev/null", S_IFCHR | 0666, makedev(1, 3));
+	mknodat(db->root_fd, "dev/zero", S_IFCHR | 0666, makedev(1, 5));
+	mknodat(db->root_fd, "dev/random", S_IFCHR | 0666, makedev(1, 8));
+	mknodat(db->root_fd, "dev/urandom", S_IFCHR | 0666, makedev(1, 9));
+	mknodat(db->root_fd, "dev/console", S_IFCHR | 0600, makedev(5, 1));
 	mkdirat(db->root_fd, "etc", 0755);
 	mkdirat(db->root_fd, "etc/apk", 0755);
 	mkdirat(db->root_fd, "lib", 0755);
