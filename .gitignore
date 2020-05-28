@@ -1,6 +1,7 @@
 src/apk
 src/apk-test
 src/apk.static
+src/help.h
 test/*.got
 test/repos.out
 test/repos.stamp
