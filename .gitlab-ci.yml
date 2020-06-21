@@ -12,6 +12,18 @@ test:alpine:
         - docker-alpine
         - x86_64
 
+test-meson:alpine:
+    image: alpine
+    stage: test
+    script:
+        - apk update
+        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib meson
+        - meson build
+        - ninja -C build
+    tags:
+        - docker-alpine
+        - x86_64
+
 test:debian:
     image: debian
     stage: test
