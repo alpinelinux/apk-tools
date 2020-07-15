@@ -6,7 +6,7 @@ apk upgrade - upgrade installed packages
 
 # SYNOPSIS
 
-*apk upgrade* [<_options_>...]
+*apk upgrade* [<_options_>...] [<_packages_>...]
 
 # DESCRIPTION
 

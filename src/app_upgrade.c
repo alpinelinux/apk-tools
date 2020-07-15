@@ -21,6 +21,7 @@ struct upgrade_ctx {
 	int no_self_upgrade : 1;
 	int self_upgrade_only : 1;
 	int ignore : 1;
+	int errors;
 };
 
 enum {
@@ -137,6 +138,17 @@ ret:
 	return r;
 }
 
+static void set_upgrade_for_name(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+{
+	struct upgrade_ctx *uctx = (struct upgrade_ctx *) pctx;
+
+	if (!name) {
+		apk_error("Package '%s' not found", match);
+		uctx->errors++;
+	} else
+		apk_solver_set_name_flags(name, APK_SOLVERF_UPGRADE, 0);
+}
+
 static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) ctx;
@@ -179,6 +191,16 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 		}
 	} else {
 		world = db->world;
+	}
+
+	if (args->num > 0) {
+		/* if specific packages are listed, we don't want to upgrade world. */
+		solver_flags &= ~APK_SOLVERF_UPGRADE;
+
+		apk_name_foreach_matching(db, args, apk_foreach_genid(), set_upgrade_for_name, &uctx);
+
+		if (uctx->errors)
+			return uctx->errors;
 	}
 
 	r = apk_solver_commit(db, solver_flags, world);
