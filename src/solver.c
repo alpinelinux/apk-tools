@@ -511,8 +511,10 @@ static int compare_providers(struct apk_solver_state *ss,
 	int r;
 
 	/* Prefer existing package */
-	if (pkgA == NULL || pkgB == NULL)
+	if (pkgA == NULL || pkgB == NULL) {
+		dbg_printf("   prefer existing package\n");
 		return (pkgA != NULL) - (pkgB != NULL);
+	}
 
 	/* Latest version required? */
 	solver_flags = pkgA->ss.solver_flags | pkgB->ss.solver_flags;
@@ -521,77 +523,103 @@ static int compare_providers(struct apk_solver_state *ss,
 	    (pkgB->ss.pinning_allowed == APK_DEFAULT_PINNING_MASK)) {
 		/* Prefer allowed pinning */
 		r = (int)pkgA->ss.tag_ok - (int)pkgB->ss.tag_ok;
-		if (r)
+		if (r) {
+			dbg_printf("    prefer allowed pinning\n");
 			return r;
+		}
 
 		/* Prefer available */
 		if (solver_flags & APK_SOLVERF_AVAILABLE) {
 			r = (int)pkgA->ss.pkg_available - (int)pkgB->ss.pkg_available;
-			if (r)
+			if (r) {
+				dbg_printf("    prefer available\n");
 				return r;
+			}
 		} else if (solver_flags & APK_SOLVERF_REINSTALL) {
 			r = (int)pkgA->ss.pkg_selectable - (int)pkgB->ss.pkg_selectable;
-			if (r)
+			if (r) {
+				dbg_printf("    prefer available (reinstall)\n");
 				return r;
+			}
 		}
 	} else {
 		/* Prefer without errors */
 		r = (int)pkgA->ss.pkg_selectable - (int)pkgB->ss.pkg_selectable;
-		if (r)
+		if (r) {
+			dbg_printf("    prefer without errors\n");
 			return r;
+		}
 
 		/* Prefer those that were in last dependency merging group */
 		r = (int)pkgA->ss.dependencies_used - (int)pkgB->ss.dependencies_used;
-		if (r)
+		if (r) {
+			dbg_printf("    prefer those that were in last dependency merging group\n");
 			return r;
+		}
 		r = pkgB->ss.conflicts - pkgA->ss.conflicts;
-		if (r)
+		if (r) {
+			dbg_printf("    prefer those that were in last dependency merging group (#2)\n");
 			return r;
+		}
 
 		/* Prefer installed on self-upgrade */
 		if ((db->performing_self_upgrade && !(solver_flags & APK_SOLVERF_UPGRADE)) ||
 		    (solver_flags & APK_SOLVERF_IGNORE_UPGRADE)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
-			if (r)
+			if (r) {
+				dbg_printf("    prefer installed on self-upgrade\n");
 				return r;
+			}
 		}
 
 		/* Prefer allowed pinning */
 		r = (int)pkgA->ss.tag_ok - (int)pkgB->ss.tag_ok;
-		if (r)
+		if (r) {
+			dbg_printf("    prefer allowed pinning\n");
 			return r;
+		}
 
 		/* Prefer available */
 		if (solver_flags & APK_SOLVERF_AVAILABLE) {
 			r = (int)pkgA->ss.pkg_available - (int)pkgB->ss.pkg_available;
-			if (r)
+			if (r) {
+				dbg_printf("    prefer available\n");
 				return r;
+			}
 		}
 
 		/* Prefer preferred pinning */
 		r = (int)pkgA->ss.tag_preferred - (int)pkgB->ss.tag_preferred;
-		if (r)
+		if (r) {
+			dbg_printf("    prefer preferred pinning\n");
 			return r;
+		}
 
 		/* Prefer highest requirer count. */
 		r = count_requirers(pkgA) - count_requirers(pkgB);
-		if (r)
+		if (r) {
+			dbg_printf("    prefer highest requirer count\n");
 			return r;
+		}
 
 		/* Prefer installed */
 		if (!(solver_flags & APK_SOLVERF_UPGRADE) ||
 		    (solver_flags & APK_SOLVERF_IGNORE_UPGRADE)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
-			if (r)
+			if (r) {
+				dbg_printf("    prefer installed\n");
 				return r;
+			}
 		}
 	}
 
 	/* Select latest by requested name */
 	switch (apk_version_compare_blob(*pA->version, *pB->version)) {
 	case APK_VERSION_LESS:
+		dbg_printf("    select latest by requested name (less)\n");
 		return -1;
 	case APK_VERSION_GREATER:
+		dbg_printf("    select latest by requested name (greater)\n");
 		return 1;
 	}
 
@@ -599,28 +627,37 @@ static int compare_providers(struct apk_solver_state *ss,
 	if (pkgA->name == pkgB->name) {
 		switch (apk_version_compare_blob(*pkgA->version, *pkgB->version)) {
 		case APK_VERSION_LESS:
+			dbg_printf("    select latest by principal name (less)\n");
 			return -1;
 		case APK_VERSION_GREATER:
+			dbg_printf("    select latest by principal name (greater)\n");
 			return 1;
 		}
 	}
 
 	/* Prefer installed (matches here if upgrading) */
 	r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
-	if (r)
+	if (r) {
+		dbg_printf("    prefer installed (upgrading)\n");
 		return r;
+	}
 
 	/* Prefer highest declared provider priority. */
 	r = pkgA->provider_priority - pkgB->provider_priority;
-	if (r)
+	if (r) {
+		dbg_printf("    prefer highest declared provider priority\n");
 		return r;
+	}
 
 	/* Prefer without errors (mostly if --latest used, and different provider) */
 	r = (int)pkgA->ss.pkg_selectable - (int)pkgB->ss.pkg_selectable;
-	if (r)
+	if (r) {
+		dbg_printf("    prefer without errors (#2)\n");
 		return r;
+	}
 
 	/* Prefer lowest available repository */
+	dbg_printf("    prefer lowest available repository\n");
 	return ffs(pkgB->repos) - ffs(pkgA->repos);
 }
 
@@ -685,17 +722,23 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 			/* Ensure valid pinning and install-if trigger */
 			if (name->ss.requirers == 0 &&
 			    (!p->pkg->ss.iif_triggered ||
-			     !p->pkg->ss.tag_ok))
+			     !p->pkg->ss.tag_ok)) {
+				dbg_printf("    ignore: invalid install-if trigger or invalid pinning\n");
 				continue;
+			}
 			/* Virtual packages without provider_priority cannot be autoselected,
 			 * unless there is only one provider */
 			if (p->version == &apk_atom_null &&
 			    p->pkg->name->auto_select_virtual == 0 &&
 			    p->pkg->name->ss.requirers == 0 &&
-			    (p->pkg->provider_priority == 0 && name->providers->num > 1))
+			    (p->pkg->provider_priority == 0 && name->providers->num > 1)) {
+				dbg_printf("    ignore: virtual package without provider_priority with >1 provider\n");
 				continue;
-			if (compare_providers(ss, p, &chosen) > 0)
+			}
+			if (compare_providers(ss, p, &chosen) > 0) {
+				dbg_printf("    choose as new provider\n");
 				chosen = *p;
+			}
 		}
 	}
 
