@@ -177,25 +177,16 @@ static void print_result(struct apk_database *db, const char *match, struct apk_
 		iterate_providers(name, ctx);
 }
 
-enum {
-	OPT_LIST_available,
-	OPT_LIST_installed,
-	OPT_LIST_depends,
-	OPT_LIST_origin,
-	OPT_LIST_orphaned,
-	OPT_LIST_providers,
-	OPT_LIST_upgradeable,
-};
+#define LIST_OPTIONS(OPT) \
+	OPT(OPT_LIST_available,		APK_OPT_SH("a") "available") \
+	OPT(OPT_LIST_installed,		APK_OPT_SH("I") "installed") \
+	OPT(OPT_LIST_depends,		APK_OPT_SH("d") "depends") \
+	OPT(OPT_LIST_origin,		APK_OPT_SH("o") "origin") \
+	OPT(OPT_LIST_orphaned,		APK_OPT_SH("O") "orphaned") \
+	OPT(OPT_LIST_providers,		APK_OPT_SH("P") "providers") \
+	OPT(OPT_LIST_upgradeable,	APK_OPT_SH("u") "upgradeable")
 
-static const char option_desc[] =
-	APK_OPTAPPLET
-	APK_OPT2n("available", "a")
-	APK_OPT2n("installed", "I")
-	APK_OPT2n("depends", "d")
-	APK_OPT2n("origin", "o")
-	APK_OPT2n("orphaned", "O")
-	APK_OPT2n("providers", "P")
-	APK_OPT2n("upgradeable", "u");
+APK_OPT_APPLET(option_desc, LIST_OPTIONS);
 
 static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {

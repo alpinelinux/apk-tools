@@ -28,15 +28,11 @@ struct cache_ctx {
 	unsigned short solver_flags;
 };
 
-enum {
-	OPT_CACHE_latest,
-	OPT_CACHE_upgrade,
-};
+#define CACHE_OPTIONS(OPT) \
+	OPT(OPT_CACHE_latest,		APK_OPT_SH("l") "latest") \
+	OPT(OPT_CACHE_upgrade,		APK_OPT_SH("u") "upgrade")
 
-static const char option_desc[] =
-	APK_OPTAPPLET
-	APK_OPT2n("latest", "l")
-	APK_OPT2n("upgrade", "u");
+APK_OPT_APPLET(option_desc, CACHE_OPTIONS);
 
 static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {

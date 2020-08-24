@@ -33,21 +33,14 @@ struct index_ctx {
 	unsigned short index_flags;
 };
 
-enum {
-	OPT_INDEX_description,
-	OPT_INDEX_index,
-	OPT_INDEX_no_warnings,
-	OPT_INDEX_output,
-	OPT_INDEX_rewrite_arch,
-};
+#define INDEX_OPTIONS(OPT) \
+	OPT(OPT_INDEX_description,	APK_OPT_ARG APK_OPT_SH("d") "description") \
+	OPT(OPT_INDEX_index,		APK_OPT_ARG APK_OPT_SH("x") "index") \
+	OPT(OPT_INDEX_no_warnings,	"no-warnings") \
+	OPT(OPT_INDEX_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
+	OPT(OPT_INDEX_rewrite_arch,	APK_OPT_ARG "rewrite-arch")
 
-static const char option_desc[] =
-	APK_OPTAPPLET
-	APK_OPT2R("description", "d")
-	APK_OPT2R("index", "x")
-	APK_OPT1n("no-warnings")
-	APK_OPT2R("output", "o")
-	APK_OPT1R("rewrite-arch");
+APK_OPT_APPLET(option_desc, INDEX_OPTIONS);
 
 static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {

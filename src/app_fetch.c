@@ -66,21 +66,14 @@ static int cup(void)
 	return write(STDOUT_FILENO, buf, len) != len;
 }
 
-enum {
-	OPT_FETCH_link,
-	OPT_FETCH_recursive,
-	OPT_FETCH_output,
-	OPT_FETCH_simulate,
-	OPT_FETCH_stdout,
-};
+#define FETCH_OPTIONS(OPT) \
+	OPT(OPT_FETCH_link,		APK_OPT_SH("l") "link") \
+	OPT(OPT_FETCH_recursive,	APK_OPT_SH("R") "recursive") \
+	OPT(OPT_FETCH_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
+	OPT(OPT_FETCH_simulate,		"simulate") \
+	OPT(OPT_FETCH_stdout,		APK_OPT_SH("s") "stdout")
 
-static const char option_desc[] =
-	APK_OPTAPPLET
-	APK_OPT2n("link", "l")
-	APK_OPT2n("recursive", "R")
-	APK_OPT2R("output", "o")
-	APK_OPT1n("simulate")
-	APK_OPT2n("stdout", "s");
+APK_OPT_APPLET(option_desc, FETCH_OPTIONS);
 
 static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {

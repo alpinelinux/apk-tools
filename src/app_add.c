@@ -21,21 +21,14 @@ struct add_ctx {
 	unsigned short extract_flags;
 };
 
-enum {
-	OPT_ADD_initdb,
-	OPT_ADD_latest,
-	OPT_ADD_no_chown,
-	OPT_ADD_upgrade,
-	OPT_ADD_virtual,
-};
+#define ADD_OPTIONS(OPT) \
+	OPT(OPT_ADD_initdb,	"initdb") \
+	OPT(OPT_ADD_latest,	APK_OPT_SH("l") "latest") \
+	OPT(OPT_ADD_no_chown,	"no-chown") \
+	OPT(OPT_ADD_upgrade,	APK_OPT_SH("u") "upgrade") \
+	OPT(OPT_ADD_virtual,	APK_OPT_ARG APK_OPT_SH("t") "virtual")
 
-static const char option_desc[] =
-	APK_OPTAPPLET
-	APK_OPT1n("initdb")
-	APK_OPT2n("latest", "l")
-	APK_OPT1n("no-chown")
-	APK_OPT2n("upgrade", "u")
-	APK_OPT2R("virtual", "t");
+APK_OPT_APPLET(option_desc, ADD_OPTIONS);
 
 static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {

@@ -72,23 +72,15 @@ static void print_rdepends(struct search_ctx *ctx, struct apk_package *pkg)
 	apk_pkg_foreach_reverse_dependency(pkg, ctx->matches, print_rdep_pkg, ctx);
 }
 
-enum {
-	OPT_SEARCH_all,
-	OPT_SEARCH_description,
-	OPT_SEARCH_exact,
-	OPT_SEARCH_has_origin,
-	OPT_SEARCH_origin,
-	OPT_SEARCH_rdepends,
-};
+#define SEARCH_OPTIONS(OPT) \
+	OPT(OPT_SEARCH_all,		APK_OPT_SH("a") "all") \
+	OPT(OPT_SEARCH_description,	APK_OPT_SH("d") "description") \
+	OPT(OPT_SEARCH_exact,		APK_OPT_S2("ex") "exact") \
+	OPT(OPT_SEARCH_has_origin,	"has-origin") \
+	OPT(OPT_SEARCH_origin,		APK_OPT_SH("o") "origin") \
+	OPT(OPT_SEARCH_rdepends,	APK_OPT_SH("r") "rdepends") \
 
-static const char option_desc[] =
-	APK_OPTAPPLET
-	APK_OPT2n("all", "a")
-	APK_OPT2n("description", "d")
-	APK_OPT2n("exact", "\xf2""ex")
-	APK_OPT1n("has-origin")
-	APK_OPT2n("origin", "o")
-	APK_OPT2n("rdepends", "r");
+APK_OPT_APPLET(option_desc, SEARCH_OPTIONS);
 
 static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {

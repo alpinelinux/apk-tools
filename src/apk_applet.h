@@ -15,12 +15,33 @@
 #include "apk_defines.h"
 #include "apk_database.h"
 
-#define APK_OPTAPPLET		"\x00"
-#define APK_OPTGROUP(_name)	_name "\x00"
+#if 0
 #define APK_OPT1n(_opt)		       "\xf0" _opt "\x00"
 #define APK_OPT1R(_opt)		"\xaf" "\xf0" _opt "\x00"
 #define APK_OPT2n(_opt, _short)	       _short _opt "\x00"
 #define APK_OPT2R(_opt, _short)	"\xaf" _short _opt "\x00"
+#endif
+
+#define __APK_OPTAPPLET		"\x00"
+#define __APK_OPTGROUP(_name)	_name "\x00"
+#define __APK_OPT_ENUM(_enum,__desc) _enum,
+#define __APK_OPT_DESC(_enum,__desc) __desc "\x00"
+
+#define APK_OPT_ARG		"\xaf"
+#define APK_OPT_SH(x)		"\xf1" x
+#define APK_OPT_S2(x)		"\xf2" x
+
+#define APK_OPT_APPLET(var_name, init_macro) \
+	enum { init_macro(__APK_OPT_ENUM) }; \
+	static const char var_name[] = __APK_OPTAPPLET init_macro(__APK_OPT_DESC);
+
+#define APK_OPT_GROUP(var_name, group_name, init_macro) \
+	enum { init_macro(__APK_OPT_ENUM) }; \
+	static const char var_name[] = __APK_OPTGROUP(group_name) init_macro(__APK_OPT_DESC);
+
+#define APK_OPT_GROUP2(var_name, group_name, init_macro, init_macro2) \
+	enum { init_macro(__APK_OPT_ENUM) init_macro2(__APK_OPT_ENUM) }; \
+	static const char var_name[] = __APK_OPTGROUP(group_name) init_macro(__APK_OPT_DESC) init_macro2(__APK_OPT_DESC);
 
 struct apk_option_group {
 	const char *desc;

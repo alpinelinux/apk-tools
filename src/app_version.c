@@ -66,21 +66,14 @@ static int ver_validate(struct apk_database *db, struct apk_string_array *args)
 	return errors;
 }
 
-enum {
-	OPT_VERSION_all,
-	OPT_VERSION_check,
-	OPT_VERSION_indexes,
-	OPT_VERSION_limit,
-	OPT_VERSION_test,
-};
+#define VERSION_OPTIONS(OPT) \
+	OPT(OPT_VERSION_all,		APK_OPT_SH("a") "all") \
+	OPT(OPT_VERSION_check,		APK_OPT_SH("c") "check") \
+	OPT(OPT_VERSION_indexes,	APK_OPT_SH("I") "indexes") \
+	OPT(OPT_VERSION_limit,		APK_OPT_ARG APK_OPT_SH("l") "limit") \
+	OPT(OPT_VERSION_test,		APK_OPT_SH("t") "test")
 
-static const char option_desc[] =
-	APK_OPTAPPLET
-	APK_OPT2n("all", "a")
-	APK_OPT2n("check", "c")
-	APK_OPT2n("indexes", "I")
-	APK_OPT2R("limit", "l")
-	APK_OPT2n("test", "t");
+APK_OPT_APPLET(option_desc, VERSION_OPTIONS);
 
 static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {

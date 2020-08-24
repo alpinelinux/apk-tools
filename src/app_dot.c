@@ -22,15 +22,11 @@ struct dot_ctx {
 	int installed_only : 1;
 };
 
-enum {
-	OPT_DOT_errors,
-	OPT_DOT_installed,
-};
+#define DOT_OPTIONS(OPT) \
+	OPT(OPT_DOT_errors,	"errors") \
+	OPT(OPT_DOT_installed,	"installed")
 
-static const char option_desc[] =
-	APK_OPTAPPLET
-	APK_OPT1n("errors")
-	APK_OPT1n("installed");
+APK_OPT_APPLET(option_desc, DOT_OPTIONS);
 
 static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {

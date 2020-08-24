@@ -364,41 +364,24 @@ static void print_name_info(struct apk_database *db, const char *match, struct a
 		info_subaction(ctx, p->pkg);
 }
 
-enum {
-	OPT_INFO_all,
-	OPT_INFO_contents,
-	OPT_INFO_depends,
-	OPT_INFO_description,
-	OPT_INFO_install_if,
-	OPT_INFO_installed,
-	OPT_INFO_license,
-	OPT_INFO_provides,
-	OPT_INFO_rdepends,
-	OPT_INFO_replaces,
-	OPT_INFO_rinstall_if,
-	OPT_INFO_size,
-	OPT_INFO_triggers,
-	OPT_INFO_webpage,
-	OPT_INFO_who_owns,
-};
+#define INFO_OPTIONS(OPT) \
+	OPT(OPT_INFO_all,		APK_OPT_SH("a") "all") \
+	OPT(OPT_INFO_contents,		APK_OPT_SH("L") "contents") \
+	OPT(OPT_INFO_depends,		APK_OPT_SH("R") "depends") \
+	OPT(OPT_INFO_description,	APK_OPT_SH("d") "description") \
+	OPT(OPT_INFO_install_if,	"install-if") \
+	OPT(OPT_INFO_installed,		APK_OPT_SH("e") "installed") \
+	OPT(OPT_INFO_license,		"license") \
+	OPT(OPT_INFO_provides,		APK_OPT_SH("P") "provides") \
+	OPT(OPT_INFO_rdepends,		APK_OPT_SH("r") "rdepends") \
+	OPT(OPT_INFO_replaces,		"replaces") \
+	OPT(OPT_INFO_rinstall_if,	"rinstall-if") \
+	OPT(OPT_INFO_size,		APK_OPT_SH("s") "size") \
+	OPT(OPT_INFO_triggers,		APK_OPT_SH("t") "triggers") \
+	OPT(OPT_INFO_webpage,		APK_OPT_SH("w") "webpage") \
+	OPT(OPT_INFO_who_owns,		APK_OPT_SH("W") "who-owns")
 
-static const char option_desc[] =
-	APK_OPTAPPLET
-	APK_OPT2n("all", "a")
-	APK_OPT2n("contents", "L")
-	APK_OPT2n("depends", "R")
-	APK_OPT2n("description", "d")
-	APK_OPT1n("install-if")
-	APK_OPT2n("installed", "e")
-	APK_OPT1n("license")
-	APK_OPT2n("provides", "P")
-	APK_OPT2n("rdepends", "r")
-	APK_OPT1n("replaces")
-	APK_OPT1n("rinstall-if")
-	APK_OPT2n("size", "s")
-	APK_OPT2n("triggers", "t")
-	APK_OPT2n("webpage", "w")
-	APK_OPT2n("who-owns", "W");
+APK_OPT_APPLET(option_desc, INFO_OPTIONS);
 
 static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {

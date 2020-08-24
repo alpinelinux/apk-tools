@@ -73,80 +73,48 @@ static struct apk_repository_list *apk_repository_new(const char *url)
 	return r;
 }
 
-enum {
-	OPT_GLOBAL_allow_untrusted,
-	OPT_GLOBAL_arch,
-	OPT_GLOBAL_cache_dir,
-	OPT_GLOBAL_cache_max_age,
-	OPT_GLOBAL_force,
-	OPT_GLOBAL_force_binary_stdout,
-	OPT_GLOBAL_force_broken_world,
-	OPT_GLOBAL_force_non_repository,
-	OPT_GLOBAL_force_old_apk,
-	OPT_GLOBAL_force_overwrite,
-	OPT_GLOBAL_force_refresh,
-	OPT_GLOBAL_help,
-	OPT_GLOBAL_interactive,
-	OPT_GLOBAL_keys_dir,
-	OPT_GLOBAL_no_cache,
-	OPT_GLOBAL_no_network,
-	OPT_GLOBAL_no_progress,
-	OPT_GLOBAL_print_arch,
-	OPT_GLOBAL_progress,
-	OPT_GLOBAL_progress_fd,
-	OPT_GLOBAL_purge,
-	OPT_GLOBAL_quiet,
-	OPT_GLOBAL_repositories_file,
-	OPT_GLOBAL_repository,
-	OPT_GLOBAL_root,
-	OPT_GLOBAL_update_cache,
-	OPT_GLOBAL_verbose,
-	OPT_GLOBAL_version,
-	OPT_GLOBAL_wait,
-#ifdef TEST_MODE
-	OPT_GLOBAL_test_instdb,
-	OPT_GLOBAL_test_repo,
-	OPT_GLOBAL_test_world,
-#endif
-};
+#define GLOBAL_OPTIONS(OPT) \
+	OPT(OPT_GLOBAL_allow_untrusted,		"allow-untrusted") \
+	OPT(OPT_GLOBAL_arch,			APK_OPT_ARG "arch") \
+	OPT(OPT_GLOBAL_cache_dir,		APK_OPT_ARG "cache-dir") \
+	OPT(OPT_GLOBAL_cache_max_age,		APK_OPT_ARG "cache-max-age") \
+	OPT(OPT_GLOBAL_force,			APK_OPT_SH("f") "force") \
+	OPT(OPT_GLOBAL_force_binary_stdout,	"force-binary-stdout") \
+	OPT(OPT_GLOBAL_force_broken_world,	"force-broken-world") \
+	OPT(OPT_GLOBAL_force_non_repository,	"force-non-repository") \
+	OPT(OPT_GLOBAL_force_old_apk,		"force-old-apk") \
+	OPT(OPT_GLOBAL_force_overwrite,		"force-overwrite") \
+	OPT(OPT_GLOBAL_force_refresh,		"force-refresh") \
+	OPT(OPT_GLOBAL_help,			APK_OPT_SH("h") "help") \
+	OPT(OPT_GLOBAL_interactive,		APK_OPT_SH("i") "interactive") \
+	OPT(OPT_GLOBAL_keys_dir,		APK_OPT_ARG "keys-dir") \
+	OPT(OPT_GLOBAL_no_cache,		"no-cache") \
+	OPT(OPT_GLOBAL_no_network,		"no-network") \
+	OPT(OPT_GLOBAL_no_progress,		"no-progress") \
+	OPT(OPT_GLOBAL_print_arch,		"print-arch") \
+	OPT(OPT_GLOBAL_progress,		"progress") \
+	OPT(OPT_GLOBAL_progress_fd,		APK_OPT_ARG "progress-fd") \
+	OPT(OPT_GLOBAL_purge,			"purge") \
+	OPT(OPT_GLOBAL_quiet,			APK_OPT_SH("q") "quiet") \
+	OPT(OPT_GLOBAL_repositories_file,	APK_OPT_ARG "repositories-file") \
+	OPT(OPT_GLOBAL_repository,		APK_OPT_ARG APK_OPT_SH("x") "repository") \
+	OPT(OPT_GLOBAL_root,			APK_OPT_ARG APK_OPT_SH("p") "root") \
+	OPT(OPT_GLOBAL_update_cache,		APK_OPT_SH("U") "update-cache") \
+	OPT(OPT_GLOBAL_verbose,			APK_OPT_SH("v") "verbose") \
+	OPT(OPT_GLOBAL_version,			APK_OPT_SH("V") "version") \
+	OPT(OPT_GLOBAL_wait,			APK_OPT_ARG "wait") \
 
-static const char optiondesc_global[] =
-	APK_OPTGROUP("Global")
-	APK_OPT1n("allow-untrusted")
-	APK_OPT1R("arch")
-	APK_OPT1R("cache-dir")
-	APK_OPT1R("cache-max-age")
-	APK_OPT2n("force", "f")
-	APK_OPT1n("force-binary-stdout")
-	APK_OPT1n("force-broken-world")
-	APK_OPT1n("force-non-repository")
-	APK_OPT1n("force-old-apk")
-	APK_OPT1n("force-overwrite")
-	APK_OPT1n("force-refresh")
-	APK_OPT2n("help", "h")
-	APK_OPT2n("interactive", "i")
-	APK_OPT1R("keys-dir")
-	APK_OPT1n("no-cache")
-	APK_OPT1n("no-network")
-	APK_OPT1n("no-progress")
-	APK_OPT1n("print-arch")
-	APK_OPT1n("progress")
-	APK_OPT1R("progress-fd")
-	APK_OPT1n("purge")
-	APK_OPT2n("quiet", "q")
-	APK_OPT1R("repositories-file")
-	APK_OPT2R("repository", "X")
-	APK_OPT2R("root", "p")
-	APK_OPT2n("update-cache", "U")
-	APK_OPT2n("verbose", "v")
-	APK_OPT2n("version", "V")
-	APK_OPT1R("wait")
+#define TEST_OPTIONS(OPT) \
+	OPT(OPT_GLOBAL_test_instdb,		APK_OPT_ARG "test-instdb") \
+	OPT(OPT_GLOBAL_test_repo,		APK_OPT_ARG "test-repo") \
+	OPT(OPT_GLOBAL_test_world,		APK_OPT_ARG "test-world")
+
+
 #ifdef TEST_MODE
-	APK_OPT1R("test-instdb")
-	APK_OPT1R("test-repo")
-	APK_OPT1R("test-world")
+APK_OPT_GROUP2(optiondesc_global, "Global", GLOBAL_OPTIONS, TEST_OPTIONS);
+#else
+APK_OPT_GROUP(optiondesc_global, "Global", GLOBAL_OPTIONS);
 #endif
-	;
 
 static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
@@ -266,23 +234,15 @@ const struct apk_option_group optgroup_global = {
 	.parse = option_parse_global,
 };
 
-enum {
-	OPT_COMMIT_clean_protected,
-	OPT_COMMIT_initramfs_diskless_boot,
-	OPT_COMMIT_no_commit_hooks,
-	OPT_COMMIT_no_scripts,
-	OPT_COMMIT_overlay_from_stdin,
-	OPT_COMMIT_simulate,
-};
+#define COMMIT_OPTIONS(OPT) \
+	OPT(OPT_COMMIT_clean_protected,		"clean-protected") \
+	OPT(OPT_COMMIT_initramfs_diskless_boot,	"initramfs-diskless-boot") \
+	OPT(OPT_COMMIT_no_commit_hooks,		"no-commit-hooks") \
+	OPT(OPT_COMMIT_no_scripts,		"no-scripts") \
+	OPT(OPT_COMMIT_overlay_from_stdin,	"overlay-from-stdin") \
+	OPT(OPT_COMMIT_simulate,		APK_OPT_SH("s") "simulate")
 
-static const char optiondesc_commit[] =
-	APK_OPTGROUP("commit")
-	APK_OPT1n("clean-protected")
-	APK_OPT1n("initramfs-diskless-boot")
-	APK_OPT1n("no-commit-hooks")
-	APK_OPT1n("no-scripts")
-	APK_OPT1n("overlay-from-stdin")
-	APK_OPT2n("simulate", "s");
+APK_OPT_GROUP(optiondesc_commit, "Commit", COMMIT_OPTIONS);
 
 static int option_parse_commit(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
@@ -387,7 +347,7 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 				opt->has_arg = required_argument;
 				d++;
 			}
-			num_short = 1;
+			num_short = 0;
 			if ((unsigned char)*d >= 0xf0)
 				num_short = *d++ & 0x0f;
 			for (; num_short > 0; num_short--) {

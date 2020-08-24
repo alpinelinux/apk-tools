@@ -22,21 +22,14 @@ struct fix_ctx {
 	int errors;
 };
 
-enum {
-	OPT_FIX_depends,
-	OPT_FIX_directory_permissions,
-	OPT_FIX_reinstall,
-	OPT_FIX_upgrade,
-	OPT_FIX_xattr,
-};
+#define FIX_OPTIONS(OPT) \
+	OPT(OPT_FIX_depends,			APK_OPT_SH("d") "depends") \
+	OPT(OPT_FIX_directory_permissions,	"directory-permissions") \
+	OPT(OPT_FIX_reinstall,			APK_OPT_SH("r") "reinstall") \
+	OPT(OPT_FIX_upgrade,			APK_OPT_SH("u") "upgrade") \
+	OPT(OPT_FIX_xattr,			APK_OPT_SH("x") "xattr")
 
-static const char option_desc[] =
-	APK_OPTAPPLET
-	APK_OPT2n("depends", "d")
-	APK_OPT1n("directory-permissions")
-	APK_OPT2n("reinstall", "r")
-	APK_OPT2n("upgrade", "u")
-	APK_OPT2n("xattr", "x");
+APK_OPT_APPLET(option_desc, FIX_OPTIONS);
 
 static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {

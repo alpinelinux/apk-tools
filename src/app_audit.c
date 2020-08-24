@@ -35,21 +35,14 @@ struct audit_ctx {
 	unsigned packages_only : 1;
 };
 
-enum {
-	OPT_AUDIT_backup,
-	OPT_AUDIT_check_permissions,
-	OPT_AUDIT_packages,
-	OPT_AUDIT_recursive,
-	OPT_AUDIT_system,
-};
+#define AUDIT_OPTIONS(OPT) \
+	OPT(OPT_AUDIT_backup,			"backup") \
+	OPT(OPT_AUDIT_check_permissions,	"check-permissions") \
+	OPT(OPT_AUDIT_packages,			"packages") \
+	OPT(OPT_AUDIT_recursive,		APK_OPT_SH("r") "recursive") \
+	OPT(OPT_AUDIT_system,			"system")
 
-static const char option_desc[] =
-	APK_OPTAPPLET
-	APK_OPT1n("backup")
-	APK_OPT1n("check-permissions")
-	APK_OPT1n("packages")
-	APK_OPT2n("recursive", "r")
-	APK_OPT1n("system");
+APK_OPT_APPLET(option_desc, AUDIT_OPTIONS);
 
 static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
