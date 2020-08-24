@@ -138,8 +138,10 @@ static void set_upgrade_for_name(struct apk_database *db, const char *match, str
 	if (!name) {
 		apk_error("Package '%s' not found", match);
 		uctx->errors++;
-	} else
-		apk_solver_set_name_flags(name, APK_SOLVERF_UPGRADE, 0);
+		return;
+	}
+
+	apk_solver_set_name_flags(name, uctx->ignore ? APK_SOLVERF_INSTALLED : APK_SOLVERF_UPGRADE, 0);
 }
 
 static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
@@ -157,22 +159,13 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 	}
 
 	solver_flags = APK_SOLVERF_UPGRADE | uctx->solver_flags;
-	if (!uctx->no_self_upgrade) {
+	if (!uctx->no_self_upgrade && !args->num) {
 		r = apk_do_self_upgrade(db, solver_flags, uctx->self_upgrade_only);
 		if (r != 0)
 			return r;
 	}
 	if (uctx->self_upgrade_only)
 		return 0;
-
-	if (uctx->ignore) {
-		char **pkg_name;
-		struct apk_name *name;
-		foreach_array_item(pkg_name, args) {
-			name = apk_db_get_name(db, APK_BLOB_STR(*pkg_name));
-			apk_solver_set_name_flags(name, solver_flags | APK_SOLVERF_IGNORE_UPGRADE, 0);
-		}
-	}
 
 	if (solver_flags & APK_SOLVERF_AVAILABLE) {
 		apk_dependency_array_copy(&world, db->world);
@@ -188,12 +181,9 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 
 	if (args->num > 0) {
 		/* if specific packages are listed, we don't want to upgrade world. */
-		solver_flags &= ~APK_SOLVERF_UPGRADE;
-
-		apk_name_foreach_matching(db, args, apk_foreach_genid(), set_upgrade_for_name, &uctx);
-
-		if (uctx->errors)
-			return uctx->errors;
+		if (!uctx->ignore) solver_flags &= ~APK_SOLVERF_UPGRADE;
+		apk_name_foreach_matching(db, args, apk_foreach_genid(), set_upgrade_for_name, uctx);
+		if (uctx->errors) return uctx->errors;
 	}
 
 	r = apk_solver_commit(db, solver_flags, world);

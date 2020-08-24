@@ -96,15 +96,11 @@ struct apk_installed_package {
 
 struct apk_package {
 	apk_hash_node hash_node;
+	unsigned int foreach_genid;
 	union {
 		struct apk_solver_package_state ss;
-		struct {
-			unsigned int foreach_genid;
-			union {
-				int state_int;
-				void *state_ptr;
-			};
-		};
+		int state_int;
+		void *state_ptr;
 	};
 	struct apk_name *name;
 	struct apk_installed_package *ipkg;

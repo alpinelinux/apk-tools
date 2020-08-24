@@ -11,7 +11,9 @@ apk upgrade - upgrade installed packages
 # DESCRIPTION
 
 *apk upgrade* upgrades installed packages to the latest version available from
-configured package repositories (see *apk-repositories*(5)).
+configured package repositories (see *apk-repositories*(5)). When no packages
+are specified, all packages are upgraded if possible. If list of packages is
+provided, only those packages are upgraded along with needed dependencies.
 
 # OPTIONS
 
@@ -26,6 +28,10 @@ following options:
 
 	This is useful to reset system against new set of packages after updating
 	repositories.
+
+*--ignore*
+	Upgrade all other packages than the ones listed. This inverts the given
+	package name list to mean packages that should not be upgraded.
 
 *-l, --latest*
 	Always choose the latest package by version. However, the versions

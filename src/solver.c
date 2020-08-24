@@ -53,6 +53,8 @@ void apk_solver_set_name_flags(struct apk_name *name,
 
 	foreach_array_item(p, name->providers) {
 		struct apk_package *pkg = p->pkg;
+		dbg_printf("marking '" PKG_VER_FMT "' = 0x%04x / 0x%04x\n",
+			PKG_VER_PRINTF(pkg), solver_flags, solver_flags_inheritable);
 		pkg->ss.solver_flags |= solver_flags;
 		pkg->ss.solver_flags_inheritable |= solver_flags_inheritable;
 	}
@@ -564,10 +566,10 @@ static int compare_providers(struct apk_solver_state *ss,
 
 		/* Prefer installed on self-upgrade */
 		if ((db->performing_self_upgrade && !(solver_flags & APK_SOLVERF_UPGRADE)) ||
-		    (solver_flags & APK_SOLVERF_IGNORE_UPGRADE)) {
+		    (solver_flags & APK_SOLVERF_INSTALLED)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r) {
-				dbg_printf("    prefer installed on self-upgrade\n");
+				dbg_printf("    prefer installed\n");
 				return r;
 			}
 		}
@@ -603,8 +605,7 @@ static int compare_providers(struct apk_solver_state *ss,
 		}
 
 		/* Prefer installed */
-		if (!(solver_flags & APK_SOLVERF_UPGRADE) ||
-		    (solver_flags & APK_SOLVERF_IGNORE_UPGRADE)) {
+		if (!(solver_flags & APK_SOLVERF_UPGRADE)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r) {
 				dbg_printf("    prefer installed\n");
