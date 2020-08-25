@@ -344,6 +344,8 @@ docs: $(docs) $(subdirs)
 
 install: compile docs $(subdirs) FORCE
 
+tag:
+
 generate:
 
 clean: $(subdirs)
