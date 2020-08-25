@@ -16,26 +16,25 @@ ZLIB_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags zlib)
 ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 
 # Dynamic library
-libapk.so.$(VERSION)-objs := \
+libapk_soname		:= 3.12.0
+libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
+libapk.so.$(libapk_soname)-objs := \
 	common.o database.o package.o commit.o solver.o \
 	version.o atom.o blob.o hash.o print.o \
 	io.o io_url.o io_gunzip.o io_archive.o
 
-libapk.so.$(VERSION)-libs := libfetch/libfetch.a
+libapk.so.$(libapk_soname)-libs := libfetch/libfetch.a
 
-libapk_soname		:= $(VERSION)
-shlibs-y		+= libapk.so.$(VERSION)
-LDFLAGS_libapk.so.$(VERSION) += -Wl,-soname,libapk.so.$(libapk_soname)
+shlibs-y		+= libapk.so.$(libapk_soname)
+LDFLAGS_libapk.so.$(libapk_soname) += -Wl,-soname,libapk.so.$(libapk_soname)
 
-libapk_so		:= $(obj)/libapk.so.$(VERSION)
 install-libapk_so	:= $(INSTALLDIR) $(DESTDIR)$(LIBDIR) && \
-			   $(INSTALL) $(libapk_so) $(DESTDIR)$(LIBDIR)/libapk.so.$(VERSION) && \
-			   $(INSTALL) $(obj)/libapk.so.$(libapk_soname) $(DESTDIR)$(LIBDIR) && \
-			   $(INSTALL) $(obj)/libapk.so $(DESTDIR)$(LIBDIR)
+			   $(INSTALL) $(libapk_so) $(DESTDIR)$(LIBDIR) && \
+			   $(LN) libapk.so.$(libapk_soname) $(DESTDIR)$(LIBDIR)/libapk.so
 
 # Static library
-libapk.a-objs		:= $(libapk.so.$(VERSION)-objs)
-libapk.a-libs		:= $(libapk.so.$(VERSION)-libs)
+libapk.a-objs		:= $(libapk.so.$(libapk_soname)-objs)
+libapk.a-libs		:= $(libapk.so.$(libapk_soname)-libs)
 
 libs-y			+= libapk.a
 libapk_a		:= $(obj)/libapk.a
@@ -116,13 +115,6 @@ $(obj)/apk: $(libapk_so)
 $(obj)/apk-test: $(libapk_so)
 
 $(obj)/apk.so: $(libapk_so)
-
-ifneq ($(libapk_soname), $(VERSION))
-generate-y += libapk.so.$(libapk_soname)
-
-$(obj)/libapk.so.$(libapk_soname):
-	$(LN) libapk.so.$(VERSION) $(obj)/libapk.so.$(libapk_soname)
-endif
 
 generate-y	+= libapk.so
 
