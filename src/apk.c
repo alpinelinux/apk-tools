@@ -97,7 +97,7 @@ static struct apk_repository_list *apk_repository_new(const char *url)
 	OPT(OPT_GLOBAL_purge,			"purge") \
 	OPT(OPT_GLOBAL_quiet,			APK_OPT_SH("q") "quiet") \
 	OPT(OPT_GLOBAL_repositories_file,	APK_OPT_ARG "repositories-file") \
-	OPT(OPT_GLOBAL_repository,		APK_OPT_ARG APK_OPT_SH("x") "repository") \
+	OPT(OPT_GLOBAL_repository,		APK_OPT_ARG APK_OPT_SH("X") "repository") \
 	OPT(OPT_GLOBAL_root,			APK_OPT_ARG APK_OPT_SH("p") "root") \
 	OPT(OPT_GLOBAL_update_cache,		APK_OPT_SH("U") "update-cache") \
 	OPT(OPT_GLOBAL_verbose,			APK_OPT_SH("v") "verbose") \
