@@ -81,6 +81,7 @@ struct install_ctx {
 	int script;
 	char **script_args;
 	int script_pending : 1;
+	int missing_checksum : 1;
 
 	struct apk_db_dir_instance *diri;
 	struct apk_checksum data_csum;
@@ -2570,10 +2571,13 @@ static int apk_db_install_archive_entry(void *_ctx,
 				memcpy(&file->csum, &link_target_file->csum, sizeof file->csum);
 			else
 				memcpy(&file->csum, &ae->csum, sizeof file->csum);
-			if (file->csum.type == APK_CHECKSUM_NONE) {
-				apk_warning(PKG_VER_FMT": no checksum for file %s",
-					    PKG_VER_PRINTF(pkg), ae->name);
+			/* only warn once per package */
+			if (file->csum.type == APK_CHECKSUM_NONE && !ctx->missing_checksum) {
+				apk_warning(PKG_VER_FMT": support for packages without embedded "
+					    "checksums will be dropped in apk-tools 3.",
+					    PKG_VER_PRINTF(pkg));
 				ipkg->broken_files = 1;
+				ctx->missing_checksum = 1;
 			}
 			break;
 		case -ENOTSUP:
