@@ -21,6 +21,7 @@ struct upgrade_ctx {
 	int no_self_upgrade : 1;
 	int self_upgrade_only : 1;
 	int ignore : 1;
+	int prune : 1;
 	int errors;
 };
 
@@ -29,6 +30,7 @@ struct upgrade_ctx {
 	OPT(OPT_UPGRADE_ignore,			"ignore") \
 	OPT(OPT_UPGRADE_latest,			APK_OPT_SH("l") "latest") \
 	OPT(OPT_UPGRADE_no_self_upgrade,	"no-self-upgrade") \
+	OPT(OPT_UPGRADE_prune,			"prune") \
 	OPT(OPT_UPGRADE_self_upgrade_only,	"self-upgrade-only")
 
 APK_OPT_APPLET(option_desc, UPGRADE_OPTIONS);
@@ -46,6 +48,9 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 		break;
 	case OPT_UPGRADE_ignore:
 		uctx->ignore = 1;
+		break;
+	case OPT_UPGRADE_prune:
+		uctx->prune = 1;
 		break;
 	case OPT_UPGRADE_available:
 		uctx->solver_flags |= APK_SOLVERF_AVAILABLE;
@@ -149,6 +154,7 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) ctx;
 	unsigned short solver_flags;
 	struct apk_dependency *dep;
+	struct apk_provider *p;
 	struct apk_dependency_array *world = NULL;
 	int r = 0;
 
@@ -167,13 +173,27 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 	if (uctx->self_upgrade_only)
 		return 0;
 
-	if (solver_flags & APK_SOLVERF_AVAILABLE) {
+	if (uctx->prune || (solver_flags & APK_SOLVERF_AVAILABLE)) {
 		apk_dependency_array_copy(&world, db->world);
-		foreach_array_item(dep, world) {
-			if (dep->result_mask == APK_DEPMASK_CHECKSUM) {
-				dep->result_mask = APK_DEPMASK_ANY;
-				dep->version = &apk_atom_null;
+		if (solver_flags & APK_SOLVERF_AVAILABLE) {
+			foreach_array_item(dep, world) {
+				if (dep->result_mask == APK_DEPMASK_CHECKSUM) {
+					dep->result_mask = APK_DEPMASK_ANY;
+					dep->version = &apk_atom_null;
+				}
 			}
+		}
+		if (uctx->prune) {
+			int i, j;
+			for (i = j = 0; i < world->num; i++) {
+				foreach_array_item(p, world->item[i].name->providers) {
+					if (p->pkg->repos & ~APK_REPOSITORY_CACHED) {
+						world->item[j++] = world->item[i];
+						break;
+					}
+				}
+			}
+			apk_dependency_array_resize(&world, j);
 		}
 	} else {
 		world = db->world;
@@ -188,7 +208,7 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 
 	r = apk_solver_commit(db, solver_flags, world);
 
-	if (solver_flags & APK_SOLVERF_AVAILABLE)
+	if (world != db->world)
 		apk_dependency_array_free(&world);
 
 	return r;

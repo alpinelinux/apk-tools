@@ -42,6 +42,10 @@ following options:
 *--no-self-upgrade*
 	Do not do an early upgrade of the 'apk-tools' package.
 
+*--prune*
+	Prune the _world_ by removing packages which are no longer available
+	from any configured repository.
+
 *--self-upgrade-only*
 	Only perform a self-upgrade of the 'apk-tools' package.
 
