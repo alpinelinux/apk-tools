@@ -19,6 +19,7 @@ ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 libapk_soname		:= 3.12.0
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
+	adb.o adb_trust.o \
 	common.o database.o package.o commit.o solver.o \
 	version.o atom.o blob.o hash.o print.o \
 	io.o io_url.o io_gunzip.o io_archive.o
@@ -66,6 +67,12 @@ apk-objs		:= apk.o help.o \
 			   app_cache.o app_version.o \
 			   app_index.o app_fetch.o app_verify.o app_dot.o \
 			   app_audit.o
+
+ifeq ($(ADB),y)
+libapk.so.$(libapk_soname)-objs += apk_adb.o
+apk-objs		+= app_adbdump.o app_adbsign.o app_mkndx.o \
+			   app_convdb.o app_convndx.o
+endif
 
 LIBS_apk		:= -lapk
 LIBS_apk-test		:= -lapk

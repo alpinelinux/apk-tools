@@ -28,17 +28,17 @@
 #include "apk_database.h"
 #include "apk_print.h"
 
-static const apk_spn_match_def apk_spn_dependency_comparer = {
+const apk_spn_match_def apk_spn_dependency_comparer = {
 	[7] = (1<<4) /*<*/ | (1<<5) /*=*/ | (1<<6) /*<*/,
 	[15] = (1<<6) /*~*/
 };
 
-static const apk_spn_match_def apk_spn_dependency_separator = {
+const apk_spn_match_def apk_spn_dependency_separator = {
 	[1] = (1<<2) /*\n*/,
 	[4] = (1<<0) /* */,
 };
 
-static const apk_spn_match_def apk_spn_repotag_separator = {
+const apk_spn_match_def apk_spn_repotag_separator = {
 	[8] = (1<<0) /*@*/
 };
 

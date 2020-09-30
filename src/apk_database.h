@@ -20,6 +20,8 @@
 #include "apk_provider_data.h"
 #include "apk_solver_data.h"
 
+#include "adb.h"
+
 struct apk_name;
 APK_ARRAY(apk_name_array, struct apk_name *);
 
@@ -130,6 +132,7 @@ struct apk_db_options {
 	const char *cache_dir;
 	const char *repositories_file;
 	struct list_head repository_list;
+	struct apk_string_array *private_keys;
 };
 
 #define APK_REPOSITORY_CACHED		0
@@ -161,6 +164,8 @@ struct apk_database {
 	int open_complete : 1;
 	int compat_newfeatures : 1;
 	int compat_notinstallable : 1;
+
+	struct adb_trust trust;
 
 	struct apk_dependency_array *world;
 	struct apk_protected_path_array *protected_paths;

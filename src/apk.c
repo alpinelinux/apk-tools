@@ -472,6 +472,7 @@ int main(int argc, char **argv)
 
 	memset(&dbopts, 0, sizeof(dbopts));
 	list_init(&dbopts.repository_list);
+	apk_string_array_init(&dbopts.private_keys);
 	umask(0);
 	setup_terminal();
 
@@ -577,6 +578,7 @@ err:
 
 	fetchConnectionCacheClose();
 	apk_string_array_free(&args);
+	apk_string_array_free(&dbopts.private_keys);
 	free(apk_argv);
 
 	if (r < 0) r = 250;
