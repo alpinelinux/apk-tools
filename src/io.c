@@ -827,7 +827,7 @@ struct apk_istream *apk_istream_from_file_gz(int atfd, const char *file)
 
 struct apk_fd_ostream {
 	struct apk_ostream os;
-	int fd, rc;
+	int fd;
 
 	const char *file, *tmpfile;
 	int atfd;
@@ -860,7 +860,7 @@ static ssize_t fdo_flush(struct apk_fd_ostream *fos)
 		return 0;
 
 	if ((r = safe_write(fos->fd, fos->buffer, fos->bytes)) != fos->bytes) {
-		fos->rc = r < 0 ? r : -EIO;
+		apk_ostream_cancel(&fos->os, r < 0 ? r : -EIO);
 		return r;
 	}
 
@@ -879,8 +879,7 @@ static ssize_t fdo_write(struct apk_ostream *os, const void *ptr, size_t size)
 			return r;
 		if (size >= sizeof(fos->buffer) / 2) {
 			r = safe_write(fos->fd, ptr, size);
-			if (r != size)
-				fos->rc = r < 0 ? r : -EIO;
+			if (r != size) apk_ostream_cancel(&fos->os, r < 0 ? r : -EIO);
 			return r;
 		}
 	}
@@ -897,7 +896,7 @@ static int fdo_close(struct apk_ostream *os)
 	int rc;
 
 	fdo_flush(fos);
-	rc = fos->rc;
+	rc = fos->os.rc;
 
 	if (fos->fd > STDERR_FILENO &&
 	    close(fos->fd) < 0)

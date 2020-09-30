@@ -1663,6 +1663,12 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 			     dbopts->keys_dir ?: "etc/apk/keys",
 			     O_RDONLY | O_CLOEXEC);
 
+	r = adb_trust_init(&db->trust, dup(db->keys_fd), dbopts->private_keys);
+	if (r) {
+		msg = "Unable to read trusted keys";
+		goto ret_r;
+	}
+
 	if (apk_flags & APK_OVERLAY_FROM_STDIN) {
 		apk_flags &= ~APK_OVERLAY_FROM_STDIN;
 		apk_db_read_overlay(db, apk_istream_from_fd(STDIN_FILENO));
@@ -1838,6 +1844,8 @@ void apk_db_close(struct apk_database *db)
 		free(db->cache_remount_dir);
 		db->cache_remount_dir = NULL;
 	}
+
+	adb_trust_free(&db->trust);
 
 	if (db->keys_fd)
 		close(db->keys_fd);

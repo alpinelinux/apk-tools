@@ -154,6 +154,8 @@ const char *apk_version_op_string(int mask)
 		return ">";
 	case APK_DEPMASK_CHECKSUM:
 		return "><";
+	case APK_DEPMASK_ANY:
+		return "";
 	default:
 		return "?";
 	}

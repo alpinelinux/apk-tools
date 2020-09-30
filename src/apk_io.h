@@ -141,6 +141,7 @@ struct apk_ostream_ops {
 
 struct apk_ostream {
 	const struct apk_ostream_ops *ops;
+	int rc;
 };
 
 struct apk_ostream *apk_ostream_gzip(struct apk_ostream *);
@@ -149,13 +150,15 @@ struct apk_ostream *apk_ostream_to_fd(int fd);
 struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, const char *tmpfile, mode_t mode);
 struct apk_ostream *apk_ostream_to_file_gz(int atfd, const char *file, const char *tmpfile, mode_t mode);
 size_t apk_ostream_write_string(struct apk_ostream *ostream, const char *string);
+static inline void apk_ostream_cancel(struct apk_ostream *os, int rc) { if (!os->rc) os->rc = rc; }
 static inline ssize_t apk_ostream_write(struct apk_ostream *os, const void *buf, size_t size)
 {
 	return os->ops->write(os, buf, size);
 }
 static inline int apk_ostream_close(struct apk_ostream *os)
 {
-	return os->ops->close(os);
+	int rc = os->rc;
+	return os->ops->close(os) ?: rc;
 }
 
 apk_blob_t apk_blob_from_istream(struct apk_istream *istream, size_t size);

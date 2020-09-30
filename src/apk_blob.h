@@ -68,6 +68,7 @@ static inline const EVP_MD *apk_checksum_default(void)
 #define APK_BLOB_BUF(buf)		((apk_blob_t){sizeof(buf), (char *)(buf)})
 #define APK_BLOB_CSUM(csum)		((apk_blob_t){(csum).type, (char *)(csum).data})
 #define APK_BLOB_STRUCT(s)		((apk_blob_t){sizeof(s), (char*)&(s)})
+#define APK_BLOB_STRLIT(s)		((apk_blob_t){sizeof(s)-1, (char *)(s)})
 #define APK_BLOB_PTR_LEN(beg,len)	((apk_blob_t){(len), (beg)})
 #define APK_BLOB_PTR_PTR(beg,end)	APK_BLOB_PTR_LEN((beg),(end)-(beg)+1)
 
@@ -95,6 +96,7 @@ apk_blob_t apk_blob_pushed(apk_blob_t buffer, apk_blob_t left);
 unsigned long apk_blob_hash_seed(apk_blob_t, unsigned long seed);
 unsigned long apk_blob_hash(apk_blob_t str);
 int apk_blob_compare(apk_blob_t a, apk_blob_t b);
+int apk_blob_sort(apk_blob_t a, apk_blob_t b);
 int apk_blob_ends_with(apk_blob_t str, apk_blob_t suffix);
 int apk_blob_for_each_segment(apk_blob_t blob, const char *split,
 			      apk_blob_cb cb, void *ctx);
