@@ -7,7 +7,7 @@ libfetch_src = [
 	'openssl-compat.c'
 ]
 
-errlist_generator = find_program('errlist.sh')
+errlist_generator = find_program('./errlist.sh')
 
 ftperr_h = custom_target(
 	'ftperr.h',
