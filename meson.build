@@ -10,19 +10,24 @@ pkgc = import('pkgconfig')
 apk_confdir = get_option('sysconfdir') / 'apk'
 apk_libdir = get_option('libdir')
 
-zlib_dep = dependency('zlib')
-openssl_dep = dependency('openssl')
 lua_bin = find_program('lua' + get_option('lua_version'), required: get_option('help'))
 lua_dep = dependency('lua' + get_option('lua_version'), required: get_option('lua'))
 scdoc_dep = dependency('scdoc', version: '>=1.10', required: get_option('docs'))
+
+shared_deps = [
+    dependency('zlib'),
+    dependency('openssl'),
+]
+
+static_deps = [
+    dependency('openssl', static: true),
+    dependency('zlib', static: true),
+]
 
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
 
 # If we're a subproject we only want the static lib and not files
 subproject = meson.is_subproject()
-if get_option('default_library') == 'static'
-    add_project_arguments('-DOPENSSL_NO_ENGINE', language: 'c')
-endif
 
 subdir('doc')
 subdir('libfetch')

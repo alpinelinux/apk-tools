@@ -82,26 +82,36 @@ apk_cargs = [
     '-D_ATFILE_SOURCE',
 ]
 
-libapk = library(
+libapk_shared = shared_library(
     'apk',
     libapk_src,
     version: meson.project_version(),
-    install: true,
+    install: not subproject,
     dependencies: [
         libfetch_dep,
-        zlib_dep,
-        openssl_dep,
+        shared_deps,
     ],
     c_args: apk_cargs,
 )
 
+libapk_static = static_library(
+    'apk',
+    libapk_src,
+    install: not subproject,
+    dependencies: [
+        libfetch_dep,
+        static_deps,
+    ],
+    c_args: [apk_cargs, '-DOPENSSL_NO_ENGINE'],
+)
+
 libapk_dep = declare_dependency(
-    link_with: libapk,
+    link_with: libapk_shared,
 )
 
 if not subproject
     pkgc.generate(
-        libapk,
+        libapk_shared,
         name: 'apk',
         version: meson.project_version(),
     )
@@ -133,9 +143,23 @@ apk_exe = executable(
     install: not subproject,
     dependencies: [
         libapk_dep,
-        zlib_dep,
-        openssl_dep,
+        shared_deps,
         libfetch_dep.partial_dependency(includes: true),
     ],
     c_args: apk_cargs,
 )
+
+if get_option('static_apk')
+    apk_static_exe = executable(
+        'apk.static',
+        apk_src,
+        install: not subproject,
+        dependencies: [
+            static_deps,
+            libfetch_dep.partial_dependency(includes: true),
+        ],
+        link_with: libapk_static,
+        c_args: [apk_cargs, '-DOPENSSL_NO_ENGINE'],
+        link_args: '-static',
+    )
+endif
