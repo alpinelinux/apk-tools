@@ -1,9 +1,9 @@
 project(
-    'apk-tools',
-    ['c'],
-    default_options : ['c_std=gnu99'],
-    version: '2.10.5',
-    meson_version: '>=0.51'
+	'apk-tools',
+	['c'],
+	default_options : ['c_std=gnu99'],
+	version: '2.10.5',
+	meson_version: '>=0.51'
 )
 pkgc = import('pkgconfig')
 
@@ -15,13 +15,13 @@ lua_dep = dependency('lua' + get_option('lua_version'), required: get_option('lu
 scdoc_dep = dependency('scdoc', version: '>=1.10', required: get_option('docs'))
 
 shared_deps = [
-    dependency('zlib'),
-    dependency('openssl'),
+	dependency('zlib'),
+	dependency('openssl'),
 ]
 
 static_deps = [
-    dependency('openssl', static: true),
-    dependency('zlib', static: true),
+	dependency('openssl', static: true),
+	dependency('zlib', static: true),
 ]
 
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
