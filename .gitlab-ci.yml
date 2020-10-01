@@ -17,7 +17,7 @@ test-meson:alpine:
     stage: test
     script:
         - apk update
-        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib meson
+        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib meson zlib-static openssl-libs-static
         - meson build
         - ninja -C build
     tags:
