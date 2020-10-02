@@ -216,7 +216,7 @@ static int conv_main(void *pctx, struct apk_database *db, struct apk_string_arra
 
 	r = adb_c_create(
 		//apk_ostream_to_file(db->root_fd, "lib/apk/db/installed.adb", 0644),
-		apk_ostream_to_file(AT_FDCWD, "installed.adb", 0, 0644),
+		apk_ostream_to_file(AT_FDCWD, "installed.adb", 0644),
 		&ctx->dbi, &db->trust);
 	if (r == 0) {
 		// unlink old files

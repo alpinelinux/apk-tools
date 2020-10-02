@@ -829,7 +829,7 @@ struct apk_fd_ostream {
 	struct apk_ostream os;
 	int fd;
 
-	const char *file, *tmpfile;
+	const char *file;
 	int atfd;
 
 	size_t bytes;
@@ -902,12 +902,17 @@ static int fdo_close(struct apk_ostream *os)
 	    close(fos->fd) < 0)
 		rc = -errno;
 
-	if (fos->tmpfile != NULL) {
-		if (rc == 0)
-			renameat(fos->atfd, fos->tmpfile,
-				 fos->atfd, fos->file);
-		else
-			unlinkat(fos->atfd, fos->tmpfile, 0);
+	if (fos->file) {
+		char tmpname[PATH_MAX];
+
+		snprintf(tmpname, sizeof tmpname, "%s.tmp", fos->file);
+		if (rc == 0) {
+			if (renameat(fos->atfd, tmpname,
+				     fos->atfd, fos->file) < 0)
+				rc = -errno;
+		} else {
+			unlinkat(fos->atfd, tmpname, 0);
+		}
 	}
 
 	free(fos);
@@ -940,15 +945,16 @@ struct apk_ostream *apk_ostream_to_fd(int fd)
 	return &fos->os;
 }
 
-struct apk_ostream *apk_ostream_to_file(int atfd,
-					const char *file,
-					const char *tmpfile,
-					mode_t mode)
+struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode)
 {
+	char tmpname[PATH_MAX];
 	struct apk_ostream *os;
 	int fd;
 
-	fd = openat(atfd, tmpfile ?: file, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, mode);
+	if (snprintf(tmpname, sizeof tmpname, "%s.tmp", file) >= sizeof tmpname)
+		return ERR_PTR(-ENAMETOOLONG);
+
+	fd = openat(atfd, tmpname, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, mode);
 	if (fd < 0) return ERR_PTR(-errno);
 
 	fcntl(fd, F_SETFD, FD_CLOEXEC);
@@ -956,13 +962,10 @@ struct apk_ostream *apk_ostream_to_file(int atfd,
 	os = apk_ostream_to_fd(fd);
 	if (IS_ERR_OR_NULL(os)) return ERR_CAST(os);
 
-	if (tmpfile != NULL) {
-		struct apk_fd_ostream *fos =
-			container_of(os, struct apk_fd_ostream, os);
-		fos->file = file;
-		fos->tmpfile = tmpfile;
-		fos->atfd = atfd;
-	}
+	struct apk_fd_ostream *fos = container_of(os, struct apk_fd_ostream, os);
+	fos->file = file;
+	fos->atfd = atfd;
+
 	return os;
 }
 
