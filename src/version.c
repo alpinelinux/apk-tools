@@ -161,22 +161,30 @@ const char *apk_version_op_string(int mask)
 	}
 }
 
-int apk_version_result_mask(const char *str)
+int apk_version_result_mask_blob(apk_blob_t op)
 {
-	int r = 0;
-	switch (*str) {
-	case '<':
-		r = APK_VERSION_LESS;
-		str++;
-		break;
-	case '>':
-		r = APK_VERSION_GREATER;
-		str++;
-		break;
+	int i, r = 0;
+	for (i = 0; i < op.len; i++) {
+		switch (op.ptr[i]) {
+		case '<':
+			r |= APK_VERSION_LESS;
+			break;
+		case '>':
+			r |= APK_VERSION_GREATER;
+			break;
+		case '=':
+			r |= APK_VERSION_EQUAL;
+			break;
+		default:
+			return 0;
+		}
 	}
-	if (*str ==  '=')
-		r |= APK_VERSION_EQUAL;
 	return r;
+}
+
+int apk_version_result_mask(const char *op)
+{
+	return apk_version_result_mask_blob(APK_BLOB_STR(op));
 }
 
 int apk_version_validate(apk_blob_t ver)

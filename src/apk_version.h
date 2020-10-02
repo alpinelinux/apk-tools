@@ -23,7 +23,8 @@
 #define APK_DEPMASK_CHECKSUM	(APK_VERSION_LESS|APK_VERSION_GREATER)
 
 const char *apk_version_op_string(int result_mask);
-int apk_version_result_mask(const char *str);
+int apk_version_result_mask(const char *op);
+int apk_version_result_mask_blob(apk_blob_t op);
 int apk_version_validate(apk_blob_t ver);
 int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy);
 int apk_version_compare_blob(apk_blob_t a, apk_blob_t b);

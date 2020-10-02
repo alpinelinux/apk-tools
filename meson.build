@@ -3,7 +3,7 @@ project(
 	['c'],
 	default_options : ['c_std=gnu99', 'optimization=2'],
 	version: '3.0.0_pre0',
-	meson_version: '>=0.51'
+	meson_version: '>=0.52'
 )
 pkgc = import('pkgconfig')
 
@@ -32,3 +32,4 @@ subproject = meson.is_subproject()
 subdir('doc')
 subdir('libfetch')
 subdir('src')
+subdir('tests')
