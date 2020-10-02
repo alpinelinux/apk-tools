@@ -192,7 +192,7 @@ apk_blob_t apk_blob_pushed(apk_blob_t buffer, apk_blob_t left)
 	return APK_BLOB_PTR_LEN(buffer.ptr, left.ptr - buffer.ptr);
 }
 
-static inline uint32_t rotl32(uint32_t x, int8_t r)
+static inline __attribute__((always_inline)) uint32_t rotl32(uint32_t x, int8_t r)
 {
 	return (x << r) | (x >> (32 - r));
 }

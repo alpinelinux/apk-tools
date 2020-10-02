@@ -1,7 +1,7 @@
 project(
 	'apk-tools',
 	['c'],
-	default_options : ['c_std=gnu99'],
+	default_options : ['c_std=gnu99', 'optimization=2'],
 	version: '3.0.0_pre0',
 	meson_version: '>=0.51'
 )
