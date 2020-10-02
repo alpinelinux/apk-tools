@@ -102,6 +102,14 @@ static struct adb_scalar_schema scalar_string = {
 	.compare = string_compare,
 };
 
+static struct adb_scalar_schema scalar_mstring = {
+	.kind = ADB_KIND_BLOB,
+	.multiline = 1,
+	.tostring = string_tostring,
+	.fromstring = string_fromstring,
+	.compare = string_compare,
+};
+
 const struct adb_object_schema schema_string_array = {
 	.kind = ADB_KIND_ARRAY,
 	.num_fields = APK_MAX_PKG_TRIGGERS,
@@ -452,13 +460,13 @@ const struct adb_object_schema schema_scripts = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_SCRPT_MAX,
 	.fields = {
-		ADB_FIELD(ADBI_SCRPT_TRIGGER,	"trigger",	scalar_string),
-		ADB_FIELD(ADBI_SCRPT_PREINST,	"pre-install",	scalar_string),
-		ADB_FIELD(ADBI_SCRPT_POSTINST,	"post-install",	scalar_string),
-		ADB_FIELD(ADBI_SCRPT_PREDEINST,	"pre-deinstall",scalar_string),
-		ADB_FIELD(ADBI_SCRPT_POSTDEINST,"post-deinstall",scalar_string),
-		ADB_FIELD(ADBI_SCRPT_PREUPGRADE,"pre-upgrade",	scalar_string),
-		ADB_FIELD(ADBI_SCRPT_POSTUPGRADE,"post-upgrade",scalar_string),
+		ADB_FIELD(ADBI_SCRPT_TRIGGER,	"trigger",	scalar_mstring),
+		ADB_FIELD(ADBI_SCRPT_PREINST,	"pre-install",	scalar_mstring),
+		ADB_FIELD(ADBI_SCRPT_POSTINST,	"post-install",	scalar_mstring),
+		ADB_FIELD(ADBI_SCRPT_PREDEINST,	"pre-deinstall",scalar_mstring),
+		ADB_FIELD(ADBI_SCRPT_POSTDEINST,"post-deinstall",scalar_mstring),
+		ADB_FIELD(ADBI_SCRPT_PREUPGRADE,"pre-upgrade",	scalar_mstring),
+		ADB_FIELD(ADBI_SCRPT_POSTUPGRADE,"post-upgrade",scalar_mstring),
 	},
 };
 

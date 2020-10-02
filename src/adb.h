@@ -113,6 +113,7 @@ struct adb_object_schema {
 
 struct adb_scalar_schema {
 	uint8_t kind;
+	uint8_t multiline : 1;
 
 	apk_blob_t (*tostring)(struct adb*, adb_val_t, char *, size_t);
 	adb_val_t (*fromstring)(struct adb*, apk_blob_t);

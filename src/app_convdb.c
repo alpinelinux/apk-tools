@@ -199,7 +199,7 @@ static int conv_main(void *pctx, struct apk_database *db, struct apk_string_arra
 	list_init(&ctx->script_head);
 
 	adb_w_init_alloca(&ctx->dbi, ADB_SCHEMA_INSTALLED_DB, 10);
-	adb_w_init_alloca(&ctx->dbp, ADB_SCHEMA_PACKAGE, 100);
+	adb_w_init_alloca(&ctx->dbp, ADB_SCHEMA_PACKAGE, 1000);
 	adb_wo_alloca(&idb, &schema_idb, &ctx->dbi);
 	adb_wo_alloca(&ctx->pkgs, &schema_package_adb_array, &ctx->dbi);
 

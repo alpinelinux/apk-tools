@@ -93,7 +93,7 @@ static void dump_item(struct adb_dump_ctx *ctx, const char *name, const uint8_t 
 		if (!APK_BLOB_IS_NULL(b)) {
 			fputs(ctx->prefix, stdout);
 			if (name) fprintf(stdout, "%s: ", name);
-			if (b.len >= 60 || apk_blob_chr(b, '\n')) {
+			if (b.len >= 60 || scalar->multiline) {
 				/* long or multiline */
 				apk_blob_t l;
 				fprintf(stdout, "|\n");
