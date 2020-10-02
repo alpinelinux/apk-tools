@@ -199,7 +199,7 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 		return -1;
 
 	if (ictx->output != NULL)
-		os = apk_ostream_to_file(AT_FDCWD, ictx->output, NULL, 0644);
+		os = apk_ostream_to_file(AT_FDCWD, ictx->output, 0644);
 	else
 		os = apk_ostream_to_fd(STDOUT_FILENO);
 	if (IS_ERR_OR_NULL(os)) return -1;

@@ -293,7 +293,7 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 	adb_w_rootobj(&ndx);
 
 	r = adb_c_create(
-		apk_ostream_to_file(AT_FDCWD, ctx->output, NULL, 0644),
+		apk_ostream_to_file(AT_FDCWD, ctx->output, 0644),
 		&ctx->db, &db->trust);
 
 	adb_free(&ctx->db);

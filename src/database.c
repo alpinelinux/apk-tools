@@ -53,23 +53,13 @@ unsigned int apk_flags = 0, apk_force = 0;
 static apk_blob_t tmpprefix = { .len=8, .ptr = ".apknew." };
 
 static const char * const apkindex_tar_gz = "APKINDEX.tar.gz";
-
 static const char * const apk_static_cache_dir = "var/cache/apk";
-
 static const char * const apk_world_file = "etc/apk/world";
-static const char * const apk_world_file_tmp = "etc/apk/world.new";
 static const char * const apk_arch_file = "etc/apk/arch";
-
 static const char * const apk_lock_file = "lib/apk/db/lock";
-
 static const char * const apk_scripts_file = "lib/apk/db/scripts.tar";
-static const char * const apk_scripts_file_tmp = "lib/apk/db/scripts.tar.new";
-
 static const char * const apk_triggers_file = "lib/apk/db/triggers";
-static const char * const apk_triggers_file_tmp = "lib/apk/db/triggers.new";
-
 const char * const apk_installed_file = "lib/apk/db/installed";
-static const char * const apk_installed_file_tmp = "lib/apk/db/installed.new";
 
 static struct apk_db_acl *apk_default_acl_dir, *apk_default_acl_file;
 
@@ -1218,10 +1208,7 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 
 	/* Write list of installed non-repository packages to
 	 * cached index file */
-	os = apk_ostream_to_file(db->cache_fd,
-				 "installed",
-				 "installed.new",
-				 0644);
+	os = apk_ostream_to_file(db->cache_fd, "installed", 0644);
 	if (IS_ERR_OR_NULL(os)) return PTR_ERR(os);
 
 	ctx.os = os;
@@ -1754,29 +1741,20 @@ int apk_db_write_config(struct apk_database *db)
 		return -1;
 	}
 
-	os = apk_ostream_to_file(db->root_fd,
-				 apk_world_file,
-				 apk_world_file_tmp,
-				 0644);
+	os = apk_ostream_to_file(db->root_fd, apk_world_file, 0644);
 	if (IS_ERR_OR_NULL(os)) return PTR_ERR(os);
 	apk_deps_write(db, db->world, os, APK_BLOB_PTR_LEN("\n", 1));
 	apk_ostream_write(os, "\n", 1);
 	r = apk_ostream_close(os);
 	if (r < 0) return r;
 
-	os = apk_ostream_to_file(db->root_fd,
-				 apk_installed_file,
-				 apk_installed_file_tmp,
-				 0644);
+	os = apk_ostream_to_file(db->root_fd, apk_installed_file, 0644);
 	if (IS_ERR_OR_NULL(os)) return PTR_ERR(os);
 	apk_db_write_fdb(db, os);
 	r = apk_ostream_close(os);
 	if (r < 0) return r;
 
-	os = apk_ostream_to_file(db->root_fd,
-				 apk_scripts_file,
-				 apk_scripts_file_tmp,
-				 0644);
+	os = apk_ostream_to_file(db->root_fd, apk_scripts_file, 0644);
 	if (IS_ERR_OR_NULL(os)) return PTR_ERR(os);
 	apk_db_scriptdb_write(db, os);
 	r = apk_ostream_close(os);
@@ -1784,10 +1762,7 @@ int apk_db_write_config(struct apk_database *db)
 
 	apk_db_index_write_nr_cache(db);
 
-	os = apk_ostream_to_file(db->root_fd,
-				 apk_triggers_file,
-				 apk_triggers_file_tmp,
-				 0644);
+	os = apk_ostream_to_file(db->root_fd, apk_triggers_file, 0644);
 	if (IS_ERR_OR_NULL(os)) return PTR_ERR(os);
 	apk_db_triggers_write(db, os);
 	r = apk_ostream_close(os);

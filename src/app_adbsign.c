@@ -64,22 +64,17 @@ static int update_signatures(struct adb_xfrm *xfrm, struct adb_block *blk, struc
 
 static int adbsign_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
 {
-	char tmpname[PATH_MAX];
 	struct sign_ctx *ctx = pctx;
 	char **arg;
 	int r;
 
 	ctx->db = db;
 	foreach_array_item(arg, args) {
-		if (snprintf(tmpname, sizeof tmpname, "%s.tmp", *arg) >= sizeof tmpname) {
-			r = ENAMETOOLONG;
-		} else {
-			ctx->xfrm.is = apk_istream_from_file(AT_FDCWD, *arg);
-			ctx->xfrm.os = apk_ostream_to_file(AT_FDCWD, *arg, tmpname, 0644);
-			adb_c_xfrm(&ctx->xfrm, update_signatures);
-			apk_istream_close(ctx->xfrm.is);
-			r = apk_ostream_close(ctx->xfrm.os);
-		}
+		ctx->xfrm.is = apk_istream_from_file(AT_FDCWD, *arg);
+		ctx->xfrm.os = apk_ostream_to_file(AT_FDCWD, *arg, 0644);
+		adb_c_xfrm(&ctx->xfrm, update_signatures);
+		apk_istream_close(ctx->xfrm.is);
+		r = apk_ostream_close(ctx->xfrm.os);
 		if (r) apk_error("%s: %s", *arg, apk_error_str(r));
 	}
 
