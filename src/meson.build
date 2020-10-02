@@ -1,4 +1,8 @@
+libapk_so_version = '2.99.0'
 libapk_src = [
+	'adb.c',
+	'adb_trust.c',
+	'apk_adb.c',
 	'atom.c',
 	'blob.c',
 	'commit.c',
@@ -35,9 +39,13 @@ libapk_headers = [
 
 apk_src = [
 	'apk.c',
+	'app_adbdump.c',
+	'app_adbsign.c',
 	'app_add.c',
 	'app_audit.c',
 	'app_cache.c',
+	'app_convdb.c',
+	'app_convndx.c',
 	'app_del.c',
 	'app_dot.c',
 	'app_fetch.c',
@@ -46,6 +54,7 @@ apk_src = [
 	'app_info.c',
 	'app_list.c',
 	'app_manifest.c',
+	'app_mkndx.c',
 	'app_policy.c',
 	'app_update.c',
 	'app_upgrade.c',
@@ -85,7 +94,7 @@ apk_cargs = [
 libapk_shared = shared_library(
 	'apk',
 	libapk_src,
-	version: meson.project_version(),
+	version: libapk_so_version,
 	install: not subproject,
 	dependencies: [
 		libfetch_dep,
@@ -113,7 +122,7 @@ if not subproject
 	pkgc.generate(
 		libapk_shared,
 		name: 'apk',
-		version: meson.project_version(),
+		version: libapk_so_version,
 	)
 
 	install_headers(
