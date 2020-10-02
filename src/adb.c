@@ -60,13 +60,52 @@ void adb_reset(struct adb *db)
 	db->adb.len = 0;
 }
 
+static int __adb_m_parse(struct adb *db, struct adb_trust *t)
+{
+	struct adb_verify_ctx vfy = {};
+	struct adb_block *blk;
+	int r = -EBADMSG;
+	int trusted = t ? 0 : 1;
+
+	adb_foreach_block(blk, db->data) {
+		apk_blob_t b = APK_BLOB_PTR_LEN((char*)(blk+1), ADB_BLOCK_SIZE(blk));
+		switch (ADB_BLOCK_TYPE(blk)) {
+		case ADB_BLOCK_ADB:
+			if (!APK_BLOB_IS_NULL(db->adb)) break;
+			db->adb = b;
+			break;
+		case ADB_BLOCK_SIG:
+			if (APK_BLOB_IS_NULL(db->adb)) break;
+			if (!trusted &&
+			    adb_trust_verify_signature(t, db, &vfy, b) == 0)
+				trusted = 1;
+			break;
+		default:
+			if (APK_BLOB_IS_NULL(db->adb)) break;
+			break;
+		}
+	}
+	if (IS_ERR(blk)) r = PTR_ERR(blk);
+	else if (!trusted) r = -ENOKEY;
+	else if (db->adb.ptr) r = 0;
+
+	if (r != 0) {
+		db->adb = APK_BLOB_NULL;
+	}
+	return r;
+}
+
+int adb_m_blob(struct adb *db, apk_blob_t blob, struct adb_trust *t)
+{
+	*db = (struct adb) { .data = blob };
+	return __adb_m_parse(db, t);
+}
+
 int adb_m_map(struct adb *db, int fd, uint32_t expected_schema, struct adb_trust *t)
 {
 	struct stat st;
 	struct adb_header *hdr;
-	struct adb_block *blk;
-	struct adb_verify_ctx vfy = {};
-	int trusted = t ? 0 : 1;
+	int r = -EBADMSG;
 
 	if (fstat(fd, &st) != 0) return -errno;
 	if (st.st_size < sizeof *hdr) return -EIO;
@@ -77,38 +116,17 @@ int adb_m_map(struct adb *db, int fd, uint32_t expected_schema, struct adb_trust
 	if (db->mmap.ptr == MAP_FAILED) return -errno;
 
 	hdr = (struct adb_header *) db->mmap.ptr;
-	if (hdr->magic != htole32(ADB_FORMAT_MAGIC)) goto bad_msg;
-	if (expected_schema && expected_schema != le32toh(hdr->schema)) goto bad_msg;
+	if (hdr->magic != htole32(ADB_FORMAT_MAGIC)) goto err;
+	if (expected_schema && expected_schema != le32toh(hdr->schema)) goto err;
 
 	db->hdr = *hdr;
 	db->data = APK_BLOB_PTR_LEN(db->mmap.ptr + sizeof *hdr, db->mmap.len - sizeof *hdr);
-	adb_foreach_block(blk, db->data) {
-		apk_blob_t b = APK_BLOB_PTR_LEN((char*)(blk+1), ADB_BLOCK_SIZE(blk));
-		switch (ADB_BLOCK_TYPE(blk)) {
-		case ADB_BLOCK_ADB:
-			if (!APK_BLOB_IS_NULL(db->adb)) goto bad_msg;
-			db->adb = b;
-			break;
-		case ADB_BLOCK_SIG:
-			if (APK_BLOB_IS_NULL(db->adb)) goto bad_msg;
-			if (!trusted &&
-			    adb_trust_verify_signature(t, db, &vfy, b) == 0)
-				trusted = 1;
-			break;
-		default:
-			if (APK_BLOB_IS_NULL(db->adb)) goto bad_msg;
-			break;
-		}
-	}
-	if (!trusted) blk = ERR_PTR(-ENOKEY);
-	if (IS_ERR(blk)) goto err;
+	r = __adb_m_parse(db, t);
+	if (r) goto err;
 	return 0;
-
-bad_msg:
-	blk = ERR_PTR(-EBADMSG);
 err:
 	adb_free(db);
-	return PTR_ERR(blk);
+	return r;
 }
 
 int adb_w_init_dynamic(struct adb *db, uint32_t schema, void *buckets, size_t num_buckets)
@@ -265,6 +283,28 @@ struct adb_obj *adb_ro_obj(const struct adb_obj *o, unsigned i, struct adb_obj *
 	return adb_r_obj(o->db, adb_ro_val(o, i), no, schema);
 }
 
+int adb_ro_cmp(const struct adb_obj *o1, const struct adb_obj *o2, unsigned i)
+{
+	assert(o1->schema->kind == ADB_KIND_OBJECT);
+	assert(o1->schema == o2->schema);
+	assert(i > 0 && i < o1->schema->num_fields);
+
+	switch (*o1->schema->fields[i-1].kind) {
+	case ADB_KIND_BLOB:
+	case ADB_KIND_INT:
+		return container_of(o1->schema->fields[i-1].kind, struct adb_scalar_schema, kind)->compare(
+			o1->db, adb_ro_val(o1, i),
+			o2->db, adb_ro_val(o2, i));
+	case ADB_KIND_OBJECT: {
+		struct adb_obj so1, so2;
+		adb_ro_obj(o1, i, &so1);
+		adb_ro_obj(o2, i, &so2);
+		return so1.schema->compare(&so1, &so2);
+		}
+	}
+	assert(0);
+}
+
 static struct adb *__db1, *__db2;
 static const struct adb_object_schema *__schema;
 
@@ -274,6 +314,17 @@ static int wacmp(const void *p1, const void *p2)
 	adb_r_obj(__db1, *(adb_val_t *)p1, &o1, __schema);
 	adb_r_obj(__db2, *(adb_val_t *)p2, &o2, __schema);
 	return o1.schema->compare(&o1, &o2);
+}
+
+static int wadbcmp(const void *p1, const void *p2)
+{
+	struct adb a1, a2;
+	struct adb_obj o1, o2;
+	adb_m_blob(&a1, adb_r_blob(__db1, *(adb_val_t *)p1), 0);
+	adb_m_blob(&a2, adb_r_blob(__db2, *(adb_val_t *)p2), 0);
+	adb_r_rootobj(&a1, &o1, __schema);
+	adb_r_rootobj(&a2, &o2, __schema);
+	return __schema->compare(&o1, &o2);
 }
 
 int adb_ra_find(struct adb_obj *arr, int cur, struct adb *db, adb_val_t val)
@@ -635,23 +686,27 @@ adb_val_t adb_wo_int(struct adb_obj *o, unsigned i, uint32_t v)
 
 adb_val_t adb_wo_blob(struct adb_obj *o, unsigned i, apk_blob_t b)
 {
+	assert(o->schema->kind == ADB_KIND_OBJECT);
 	return adb_wo_val(o, i, adb_w_blob(o->db, b));
 }
 
 adb_val_t adb_wo_obj(struct adb_obj *o, unsigned i, struct adb_obj *no)
 {
+	assert(o->schema->kind == ADB_KIND_OBJECT);
 	assert(o->db == no->db);
 	return adb_wo_val(o, i, adb_w_obj(no));
 }
 
 adb_val_t adb_wo_arr(struct adb_obj *o, unsigned i, struct adb_obj *no)
 {
+	assert(o->schema->kind == ADB_KIND_OBJECT || o->schema->kind == ADB_KIND_ARRAY);
 	assert(o->db == no->db);
 	return adb_wo_val(o, i, adb_w_arr(no));
 }
 
 adb_val_t adb_wa_append(struct adb_obj *o, adb_val_t v)
 {
+	assert(o->schema->kind == ADB_KIND_ARRAY);
 	if (o->num >= o->obj[ADBI_NUM_ENTRIES]) return adb_w_error(o->db, E2BIG);
 	if (ADB_IS_ERROR(v)) return adb_w_error(o->db, ADB_VAL_VALUE(v));
 	o->obj[o->num++] = v;
@@ -660,20 +715,33 @@ adb_val_t adb_wa_append(struct adb_obj *o, adb_val_t v)
 
 adb_val_t adb_wa_append_obj(struct adb_obj *o, struct adb_obj *no)
 {
+	assert(o->schema->kind == ADB_KIND_ARRAY);
 	assert(o->db == no->db);
 	return adb_wa_append(o, adb_w_obj(no));
 }
 
 adb_val_t adb_wa_append_fromstring(struct adb_obj *o, apk_blob_t b)
 {
+	assert(o->schema->kind == ADB_KIND_ARRAY);
 	return adb_wa_append(o, adb_w_fromstring(o->db, o->schema->fields[0].kind, b));
 }
 
 void adb_wa_sort(struct adb_obj *arr)
 {
+	assert(arr->schema->kind == ADB_KIND_ARRAY);
 	__db1 = __db2 = arr->db;
-	__schema = container_of(arr->schema->fields[0].kind, struct adb_object_schema, kind);
-	qsort(&arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wacmp);
+	switch (*arr->schema->fields[0].kind) {
+	case ADB_KIND_OBJECT:
+		__schema = container_of(arr->schema->fields[0].kind, struct adb_object_schema, kind);
+		qsort(&arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wacmp);
+		break;
+	case ADB_KIND_ADB:
+		__schema = container_of(arr->schema->fields[0].kind, struct adb_adb_schema, kind)->schema;
+		qsort(&arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wadbcmp);
+		break;
+	default:
+		assert(1);
+	}
 }
 
 void adb_wa_sort_unique(struct adb_obj *arr)

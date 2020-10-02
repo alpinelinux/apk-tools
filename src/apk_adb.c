@@ -90,10 +90,16 @@ static adb_val_t string_fromstring(struct adb *db, apk_blob_t val)
 	return adb_w_blob(db, val);
 }
 
+static int string_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2)
+{
+	return apk_blob_sort(adb_r_blob(db1, v1), adb_r_blob(db2, v2));
+}
+
 static struct adb_scalar_schema scalar_string = {
 	.kind = ADB_KIND_BLOB,
 	.tostring = string_tostring,
 	.fromstring = string_fromstring,
+	.compare = string_compare,
 };
 
 const struct adb_object_schema schema_string_array = {
@@ -101,6 +107,23 @@ const struct adb_object_schema schema_string_array = {
 	.num_fields = APK_MAX_PKG_TRIGGERS,
 	.fields = ADB_ARRAY_ITEM(scalar_string),
 };
+
+static int version_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2)
+{
+	switch (apk_version_compare_blob(adb_r_blob(db1, v1), adb_r_blob(db2, v2))) {
+	case APK_VERSION_LESS: return -1;
+	case APK_VERSION_GREATER: return 1;
+	default: return 0;
+	}
+}
+
+static struct adb_scalar_schema scalar_version = {
+	.kind = ADB_KIND_BLOB,
+	.tostring = string_tostring,
+	.fromstring = string_fromstring,
+	.compare = version_compare,
+};
+
 
 static apk_blob_t hexblob_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
@@ -132,10 +155,20 @@ static adb_val_t int_fromstring(struct adb *db, apk_blob_t val)
 	return adb_w_int(db, n);
 }
 
+static int int_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2)
+{
+	uint32_t r1 = adb_r_int(db1, v1);
+	uint32_t r2 = adb_r_int(db1, v2);
+	if (r1 < r2) return -1;
+	if (r1 > r2) return 1;
+	return 0;
+}
+
 static struct adb_scalar_schema scalar_int = {
 	.kind = ADB_KIND_INT,
 	.tostring = int_tostring,
 	.fromstring = int_fromstring,
+	.compare = int_compare,
 };
 
 static apk_blob_t oct_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
@@ -160,6 +193,7 @@ static struct adb_scalar_schema scalar_hsize = {
 	.kind = ADB_KIND_INT,
 	.tostring = hsize_tostring,
 	.fromstring = int_fromstring,
+	.compare = int_compare,
 };
 
 static apk_blob_t dependency_tostring(struct adb_obj *obj, char *buf, size_t bufsz)
@@ -247,11 +281,9 @@ fail:
 	return -EAPKDEPFORMAT;
 }
 
-static int dependency_cmp(struct adb_obj *o1, struct adb_obj *o2)
+static int dependency_cmp(const struct adb_obj *o1, const struct adb_obj *o2)
 {
-	return apk_blob_sort(
-		adb_ro_blob(o1, ADBI_DEP_NAME),
-		adb_ro_blob(o2, ADBI_DEP_NAME));
+	return adb_ro_cmp(o1, o2, ADBI_DEP_NAME);
 }
 
 const struct adb_object_schema schema_dependency = {
@@ -262,7 +294,7 @@ const struct adb_object_schema schema_dependency = {
 	.compare = dependency_cmp,
 	.fields = {
 		ADB_FIELD(ADBI_DEP_NAME,	"name",		scalar_string),
-		ADB_FIELD(ADBI_DEP_VERSION,	"version",	scalar_string),
+		ADB_FIELD(ADBI_DEP_VERSION,	"version",	scalar_version),
 		ADB_FIELD(ADBI_DEP_MATCH,	"match",	scalar_int),
 	},
 };
@@ -290,22 +322,14 @@ const struct adb_object_schema schema_dependency_array = {
 	.fields = ADB_ARRAY_ITEM(schema_dependency),
 };
 
-static int pkginfo_cmp(struct adb_obj *o1, struct adb_obj *o2)
+static int pkginfo_cmp(const struct adb_obj *o1, const struct adb_obj *o2)
 {
 	int r;
-	r = apk_blob_sort(
-		adb_ro_blob(o1, ADBI_PI_NAME),
-		adb_ro_blob(o2, ADBI_PI_NAME));
+	r = adb_ro_cmp(o1, o2, ADBI_PI_NAME);
 	if (r) return r;
-
-	r = apk_version_compare_blob(
-		adb_ro_blob(o1, ADBI_PI_VERSION),
-		adb_ro_blob(o2, ADBI_PI_VERSION));
-	switch (r) {
-	case APK_VERSION_LESS: return -1;
-	case APK_VERSION_GREATER: return 1;
-	}
-	return 0;
+	r = adb_ro_cmp(o1, o2, ADBI_PI_VERSION);
+	if (r) return r;
+	return adb_ro_cmp(o1, o2, ADBI_PI_UNIQUE_ID);
 }
 
 const struct adb_object_schema schema_pkginfo = {
@@ -314,7 +338,7 @@ const struct adb_object_schema schema_pkginfo = {
 	.compare = pkginfo_cmp,
 	.fields = {
 		ADB_FIELD(ADBI_PI_NAME,		"name",		scalar_string),
-		ADB_FIELD(ADBI_PI_VERSION,	"version",	scalar_string),
+		ADB_FIELD(ADBI_PI_VERSION,	"version",	scalar_version),
 		ADB_FIELD(ADBI_PI_UNIQUE_ID,	"unique-id",	scalar_int),
 		ADB_FIELD(ADBI_PI_DESCRIPTION,	"description",	scalar_string),
 		ADB_FIELD(ADBI_PI_ARCH,		"arch",		scalar_string),
@@ -363,11 +387,9 @@ static uint32_t file_get_default_int(unsigned i)
 	return -1;
 }
 
-static int file_cmp(struct adb_obj *o1, struct adb_obj *o2)
+static int file_cmp(const struct adb_obj *o1, const struct adb_obj *o2)
 {
-	return apk_blob_sort(
-		adb_ro_blob(o1, ADBI_FI_NAME),
-		adb_ro_blob(o2, ADBI_FI_NAME));
+	return adb_ro_cmp(o1, o2, ADBI_FI_NAME);
 }
 
 const struct adb_object_schema schema_file = {
@@ -440,9 +462,15 @@ const struct adb_object_schema schema_scripts = {
 	},
 };
 
+static int package_cmp(const struct adb_obj *o1, const struct adb_obj *o2)
+{
+	return adb_ro_cmp(o1, o2, ADBI_PKG_PKGINFO);
+}
+
 const struct adb_object_schema schema_package = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_PKG_MAX,
+	.compare = package_cmp,
 	.fields = {
 		ADB_FIELD(ADBI_PKG_PKGINFO,	"info",		schema_pkginfo),
 		ADB_FIELD(ADBI_PKG_PATHS,	"paths",	schema_path_array),
@@ -455,10 +483,12 @@ const struct adb_object_schema schema_package = {
 const struct adb_adb_schema schema_package_adb = {
 	.kind = ADB_KIND_ADB,
 	.schema_id = ADB_SCHEMA_PACKAGE,
+	.schema = &schema_package,
 };
 
 const struct adb_object_schema schema_package_adb_array = {
 	.kind = ADB_KIND_ARRAY,
+	.pre_commit = adb_wa_sort,
 	.num_fields = APK_MAX_INDEX_PACKAGES,
 	.fields = ADB_ARRAY_ITEM(schema_package_adb),
 };

@@ -102,7 +102,7 @@ struct adb_object_schema {
 	apk_blob_t (*tostring)(struct adb_obj *, char *, size_t);
 	int (*fromstring)(struct adb_obj *, apk_blob_t);
 	uint32_t (*get_default_int)(unsigned i);
-	int (*compare)(struct adb_obj *, struct adb_obj *);
+	int (*compare)(const struct adb_obj *, const struct adb_obj *);
 	void (*pre_commit)(struct adb_obj *);
 
 	struct {
@@ -116,13 +116,13 @@ struct adb_scalar_schema {
 
 	apk_blob_t (*tostring)(struct adb*, adb_val_t, char *, size_t);
 	adb_val_t (*fromstring)(struct adb*, apk_blob_t);
-	int (*compare)(adb_val_t, adb_val_t);
+	int (*compare)(struct adb*, adb_val_t, struct adb*, adb_val_t);
 };
 
 struct adb_adb_schema {
 	uint8_t kind;
 	uint32_t schema_id;
-	struct adb_object_schema *obj;
+	const struct adb_object_schema *schema;
 };
 
 /* Database read interface */
@@ -153,6 +153,7 @@ struct adb_obj {
 int adb_free(struct adb *);
 void adb_reset(struct adb *);
 
+int adb_m_blob(struct adb *, apk_blob_t, struct adb_trust *);
 int adb_m_map(struct adb *, int fd, uint32_t expected_schema, struct adb_trust *);
 #define adb_w_init_alloca(db, schema, num_buckets) adb_w_init_dynamic(db, schema, alloca(sizeof(struct list_head[num_buckets])), num_buckets)
 #define adb_w_init_tmp(db, size) adb_w_init_static(db, alloca(size), size)
@@ -174,6 +175,7 @@ adb_val_t adb_ro_val(const struct adb_obj *o, unsigned i);
 uint32_t adb_ro_int(const struct adb_obj *o, unsigned i);
 apk_blob_t adb_ro_blob(const struct adb_obj *o, unsigned i);
 struct adb_obj *adb_ro_obj(const struct adb_obj *o, unsigned i, struct adb_obj *);
+int adb_ro_cmp(const struct adb_obj *o1, const struct adb_obj *o2, unsigned i);
 int adb_ra_find(struct adb_obj *arr, int cur, struct adb *db, adb_val_t val);
 
 /* Primitive write */
