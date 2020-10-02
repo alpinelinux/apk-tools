@@ -2,7 +2,7 @@ project(
 	'apk-tools',
 	['c'],
 	default_options : ['c_std=gnu99'],
-	version: '2.10.5',
+	version: '3.0.0_pre0',
 	meson_version: '>=0.51'
 )
 pkgc = import('pkgconfig')
