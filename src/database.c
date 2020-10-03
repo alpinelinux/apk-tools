@@ -1700,7 +1700,7 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 			apk_dir_foreach_file(openat(db->root_fd, "etc/apk/repositories.d", O_RDONLY | O_CLOEXEC),
 					     add_repos_from_file, db);
 		} else {
-			add_repos_from_file(db, db->root_fd, dbopts->repositories_file);
+			add_repos_from_file(db, AT_FDCWD, dbopts->repositories_file);
 		}
 
 		if (db->repo_update_counter)

@@ -155,9 +155,9 @@ The following options are available for all commands.
 	packages from cache on cache clean.
 
 *--repositories-file* _REPOFILE_
-	Override repositories file, see *apk-repositories*(8). This directory
-	is relative to _ROOT_. This can be used to override normal system
-	repositories.
+	Override system repositories, see *apk-repositories*(8). Specifying this
+	option override the normal repositories file and repositories.d directory
+	processing.
 
 *--wait* _TIME_
 	Wait for TIME seconds to get an exclusive repository lock before
