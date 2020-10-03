@@ -1659,6 +1659,12 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 		if (fd >= 0) close(fd);
 		db->cache_dir = apk_static_cache_dir;
 		db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
+		if (db->cache_fd < 0) {
+			mkdirat(db->root_fd, "var/cache", 0755);
+			mkdirat(db->root_fd, "var/cache/apk", 0755);
+			db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
+			if (db->cache_fd < 0) goto ret_errno;
+		}
 	}
 
 	db->keys_fd = openat(db->root_fd,
