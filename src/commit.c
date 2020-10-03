@@ -545,7 +545,7 @@ static void analyze_name(struct print_state *ps, struct apk_name *name)
 		}
 		label_end(ps);
 	} else {
-		snprintf(tmp, sizeof(tmp), "%s (missing)", name->name);
+		snprintf(tmp, sizeof(tmp), "%s (no such package)", name->name);
 		ps->label = tmp;
 	}
 
@@ -642,7 +642,7 @@ void apk_solver_print_errors(struct apk_database *db,
 	 * any other selected version. or all of them with -v.
 	 */
  
-	apk_error("unsatisfiable constraints:");
+	apk_error("unable to select packages:");
 
 	/* Construct information about names */
 	foreach_array_item(change, changeset->changes) {

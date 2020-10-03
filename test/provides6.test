@@ -2,7 +2,7 @@
 --test-repo provides.repo
 add app app2
 @EXPECT
-ERROR: unsatisfiable constraints:
+ERROR: unable to select packages:
   libfoo-1:
     conflicts: libfoo-2
     satisfies: app-2[so:foo.so.1]

@@ -3,7 +3,7 @@
 --test-repo provides.repo
 add conflicted-parent
 @EXPECT
-ERROR: unsatisfiable constraints:
+ERROR: unable to select packages:
   conflicted-provider (virtual):
     provided by: conflicted-provider-a
                  conflicted-provider-b
