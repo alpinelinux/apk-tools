@@ -5,6 +5,6 @@
 --latest
 upgrade
 @EXPECT
-ERROR: unsatisfiable constraints:
+ERROR: unable to select packages:
   a-2:
     breaks: world[a<2]

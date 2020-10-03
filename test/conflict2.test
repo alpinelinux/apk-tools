@@ -2,7 +2,7 @@
 --test-repo conflict.repo
 add a b>1
 @EXPECT
-ERROR: unsatisfiable constraints:
+ERROR: unable to select packages:
   b-2:
     breaks: a-1[!b>1]
     satisfies: world[b>1]

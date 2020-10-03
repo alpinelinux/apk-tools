@@ -2,6 +2,6 @@
 --test-repo complicated1.repo
 add a nonexistant
 @EXPECT
-ERROR: unsatisfiable constraints:
-  nonexistant (missing):
+ERROR: unable to select packages:
+  nonexistant (no such package):
     required by: world[nonexistant]

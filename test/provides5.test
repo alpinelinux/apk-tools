@@ -2,7 +2,7 @@
 --test-repo provides.repo
 add server-a server-b
 @EXPECT
-ERROR: unsatisfiable constraints:
+ERROR: unable to select packages:
   server-a-1:
     conflicts: server-b-1[theservice=1]
     satisfies: world[server-a]

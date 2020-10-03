@@ -6,7 +6,7 @@
 --latest
 upgrade
 @EXPECT
-ERROR: unsatisfiable constraints:
+ERROR: unable to select packages:
   b-2:
     masked in: --no-network
     satisfies: a-2[b]
