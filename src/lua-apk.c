@@ -170,7 +170,7 @@ static int Papk_db_open(lua_State *L)
 	int r;
 
 	memset(&opts, 0, sizeof(opts));
-	list_init(&opts.repository_list);
+	apk_string_array_init(&opts.repository_list);
 	if (lua_istable(L, 1))
 		get_dbopts(L, 1, &opts);
 	else

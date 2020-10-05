@@ -1511,7 +1511,6 @@ void apk_db_init(struct apk_database *db)
 int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 {
 	const char *msg = NULL;
-	struct apk_repository_list *repo = NULL;
 	struct statfs stfs;
 	apk_blob_t blob;
 	int r, fd, write_arch = FALSE;
@@ -1695,8 +1694,10 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 	}
 
 	if (!(dbopts->open_flags & APK_OPENF_NO_SYS_REPOS)) {
-		list_for_each_entry(repo, &dbopts->repository_list, list)
-			apk_db_add_repository(db, APK_BLOB_STR(repo->url));
+		char **repo;
+
+		foreach_array_item(repo, dbopts->repository_list)
+			apk_db_add_repository(db, APK_BLOB_STR(*repo));
 
 		if (dbopts->repositories_file == NULL) {
 			add_repos_from_file(db, db->root_fd, "etc/apk/repositories");

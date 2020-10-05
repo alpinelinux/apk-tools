@@ -117,11 +117,6 @@ struct apk_repository {
 	apk_blob_t description;
 };
 
-struct apk_repository_list {
-	struct list_head list;
-	const char *url;
-};
-
 struct apk_db_options {
 	int lock_wait;
 	unsigned int cache_max_age;
@@ -131,7 +126,7 @@ struct apk_db_options {
 	const char *keys_dir;
 	const char *cache_dir;
 	const char *repositories_file;
-	struct list_head repository_list;
+	struct apk_string_array *repository_list;
 	struct apk_string_array *private_keys;
 };
 

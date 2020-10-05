@@ -63,16 +63,6 @@ static void version(void)
 		);
 }
 
-static struct apk_repository_list *apk_repository_new(const char *url)
-{
-	struct apk_repository_list *r = calloc(1, sizeof(struct apk_repository_list));
-	if (r) {
-		r->url = url;
-		list_init(&r->list);
-	}
-	return r;
-}
-
 #define GLOBAL_OPTIONS(OPT) \
 	OPT(OPT_GLOBAL_allow_untrusted,		"allow-untrusted") \
 	OPT(OPT_GLOBAL_arch,			APK_OPT_ARG "arch") \
@@ -118,8 +108,6 @@ APK_OPT_GROUP(optiondesc_global, "Global", GLOBAL_OPTIONS);
 
 static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
-	struct apk_repository_list *repo;
-
 	switch (opt) {
 	case OPT_GLOBAL_help:
 		return -EINVAL;
@@ -133,8 +121,7 @@ static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt
 		dbopts->repositories_file = optarg;
 		break;
 	case OPT_GLOBAL_repository:
-		repo = apk_repository_new(optarg);
-		if (repo) list_add(&repo->list, &dbopts->repository_list);
+		*apk_string_array_add(&dbopts->repository_list) = (char*) optarg;
 		break;
 	case OPT_GLOBAL_quiet:
 		apk_verbosity--;
@@ -471,7 +458,7 @@ int main(int argc, char **argv)
 	apk_argv[argc+1] = NULL;
 
 	memset(&dbopts, 0, sizeof(dbopts));
-	list_init(&dbopts.repository_list);
+	apk_string_array_init(&dbopts.repository_list);
 	apk_string_array_init(&dbopts.private_keys);
 	umask(0);
 	setup_terminal();
