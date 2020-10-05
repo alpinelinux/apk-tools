@@ -579,14 +579,15 @@ int apk_repo_format_cache_index(apk_blob_t to, struct apk_repository *repo)
 	return 0;
 }
 
-int apk_repo_format_real_url(struct apk_database *db, struct apk_repository *repo,
-			     struct apk_package *pkg, char *buf, size_t len)
+int apk_repo_format_real_url(apk_blob_t *default_arch, struct apk_repository *repo,
+			     struct apk_package *pkg, char *buf, size_t len,
+			     struct apk_url_print *urlp)
 {
 	apk_blob_t arch;
 	int r;
 
 	if (pkg && pkg->arch) arch = *pkg->arch;
-	else arch = *db->arch;
+	else arch = *default_arch;
 
 	if (pkg != NULL)
 		r = snprintf(buf, len, "%s%s" BLOB_FMT "/"  PKG_FILE_FMT,
@@ -598,6 +599,8 @@ int apk_repo_format_real_url(struct apk_database *db, struct apk_repository *rep
 			     BLOB_PRINTF(arch), apkindex_tar_gz);
 	if (r >= len)
 		return -ENOBUFS;
+
+	if (urlp) apk_url_parse(urlp, buf);
 	return 0;
 }
 
@@ -609,7 +612,7 @@ int apk_repo_format_item(struct apk_database *db, struct apk_repository *repo, s
 		return apk_pkg_format_cache_pkg(APK_BLOB_PTR_LEN(buf, len), pkg);
 	} else {
 		*fd = AT_FDCWD;
-		return apk_repo_format_real_url(db, repo, pkg, buf, len);
+		return apk_repo_format_real_url(db->arch, repo, pkg, buf, len, 0);
 	}
 }
 
@@ -618,6 +621,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		       apk_progress_cb cb, void *cb_ctx)
 {
 	struct stat st = {0};
+	struct apk_url_print urlp;
 	struct apk_istream *is;
 	struct apk_sign_ctx sctx;
 	char url[PATH_MAX];
@@ -633,7 +637,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		r = apk_repo_format_cache_index(b, repo);
 	if (r < 0) return r;
 
-	r = apk_repo_format_real_url(db, repo, pkg, url, sizeof(url));
+	r = apk_repo_format_real_url(db->arch, repo, pkg, url, sizeof(url), &urlp);
 	if (r < 0) return r;
 
 	if (autoupdate && !(apk_force & APK_FORCE_REFRESH)) {
@@ -641,8 +645,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		    now - st.st_mtime <= db->cache_max_age)
 			return -EALREADY;
 	}
-
-	apk_message("fetch %s", url);
+	apk_message("fetch " URL_FMT, URL_PRINTF(urlp));
 
 	if (apk_flags & APK_SIMULATE) return 0;
 	if (cb) cb(cb_ctx, 0);
@@ -2140,12 +2143,14 @@ struct apk_repository *apk_db_select_repo(struct apk_database *db,
 
 static int apk_repository_update(struct apk_database *db, struct apk_repository *repo)
 {
+	struct apk_url_print urlp;
 	int r, verify = (apk_flags & APK_ALLOW_UNTRUSTED) ? APK_SIGN_NONE : APK_SIGN_VERIFY;
 
 	r = apk_cache_download(db, repo, NULL, verify, 1, NULL, NULL);
 	if (r == -EALREADY) return 0;
 	if (r != 0) {
-		apk_error("%s: %s", repo->url, apk_error_str(r));
+		apk_url_parse(&urlp, repo->url);
+		apk_error(URL_FMT ": %s", URL_PRINTF(urlp), apk_error_str(r));
 		db->repo_update_errors++;
 	} else {
 		db->repo_update_counter++;
@@ -2222,6 +2227,7 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 {
 	struct apk_database *db = _db.db;
 	struct apk_repository *repo;
+	struct apk_url_print urlp;
 	apk_blob_t brepo, btag;
 	int repo_num, r, targz = 1, tag_id = 0;
 	char buf[PATH_MAX], *url;
@@ -2264,8 +2270,8 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 		if (!(apk_flags & APK_NO_NETWORK))
 			db->available_repos |= BIT(repo_num);
 		if (apk_flags & APK_NO_CACHE) {
-			r = apk_repo_format_real_url(db, repo, NULL, buf, sizeof(buf));
-			if (r == 0) apk_message("fetch %s", buf);
+			r = apk_repo_format_real_url(db->arch, repo, NULL, buf, sizeof(buf), &urlp);
+			if (r == 0) apk_message("fetch " URL_FMT, URL_PRINTF(urlp));
 		} else {
 			if (db->autoupdate) apk_repository_update(db, repo);
 			r = apk_repo_format_cache_index(APK_BLOB_BUF(buf), repo);
@@ -2273,14 +2279,15 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 	} else {
 		db->local_repos |= BIT(repo_num);
 		db->available_repos |= BIT(repo_num);
-		r = apk_repo_format_real_url(db, repo, NULL, buf, sizeof(buf));
+		r = apk_repo_format_real_url(db->arch, repo, NULL, buf, sizeof(buf), &urlp);
 	}
 	if (r == 0) {
 		r = load_index(db, apk_istream_from_fd_url(db->cache_fd, buf), targz, repo_num);
 	}
 
 	if (r != 0) {
-		apk_warning("Ignoring %s: %s", buf, apk_error_str(r));
+		apk_url_parse(&urlp, repo->url);
+		apk_warning("Ignoring " URL_FMT ": %s", URL_PRINTF(urlp), apk_error_str(r));
 		db->available_repos &= ~BIT(repo_num);
 		r = 0;
 	} else {

@@ -12,6 +12,18 @@
 
 #include "apk_blob.h"
 
+struct apk_url_print {
+	const char *url;
+	const char *pwmask;
+	const char *url_or_host;
+	size_t len_before_pw;
+};
+
+void apk_url_parse(struct apk_url_print *, const char *);
+
+#define URL_FMT			"%.*s%s%s"
+#define URL_PRINTF(u)		u.len_before_pw, u.url, u.pwmask, u.url_or_host
+
 #define apk_error(args...)	do { apk_log_err("ERROR: ", args); } while (0)
 #define apk_warning(args...)	do { if (apk_verbosity > 0) { apk_log_err("WARNING: ", args); } } while (0)
 #define apk_message(args...)	do { if (apk_verbosity > 0) { apk_log(NULL, args); } } while (0)

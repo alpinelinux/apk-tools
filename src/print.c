@@ -211,3 +211,27 @@ void apk_log_err(const char *prefix, const char *format, ...)
 	log_internal(stderr, prefix, format, va);
 	va_end(va);
 }
+
+void apk_url_parse(struct apk_url_print *urlp, const char *url)
+{
+	const char *authority, *path_or_host, *pw;
+
+	*urlp = (struct apk_url_print) {
+		.url = "",
+		.pwmask = "",
+		.url_or_host = url,
+	};
+
+	if (!(authority = strstr(url, "://"))) return;
+	authority += 3;
+	path_or_host = strpbrk(authority, "/@");
+	if (!path_or_host || *path_or_host == '/') return;
+	pw = strpbrk(authority, "@:");
+	if (!pw || *pw == '@') return;
+	*urlp = (struct apk_url_print) {
+		.url = url,
+		.pwmask = "*",
+		.url_or_host = path_or_host,
+		.len_before_pw = pw - url + 1,
+	};
+}
