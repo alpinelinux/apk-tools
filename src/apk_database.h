@@ -16,11 +16,24 @@
 #include "apk_archive.h"
 #include "apk_package.h"
 #include "apk_io.h"
+#include "apk_print.h"
 
 #include "apk_provider_data.h"
 #include "apk_solver_data.h"
 
 #include "adb.h"
+
+#define APK_SIMULATE			BIT(0)
+#define APK_CLEAN_PROTECTED		BIT(1)
+#define APK_RECURSIVE			BIT(2)
+#define APK_ALLOW_UNTRUSTED		BIT(3)
+#define APK_PURGE			BIT(4)
+#define APK_INTERACTIVE			BIT(5)
+#define APK_NO_NETWORK			BIT(6)
+#define APK_OVERLAY_FROM_STDIN		BIT(7)
+#define APK_NO_SCRIPTS			BIT(8)
+#define APK_NO_CACHE			BIT(9)
+#define APK_NO_COMMIT_HOOKS		BIT(10)
 
 #define APK_FORCE_OVERWRITE		BIT(0)
 #define APK_FORCE_OLD_APK		BIT(1)
@@ -125,7 +138,8 @@ struct apk_repository {
 };
 
 struct apk_db_options {
-	unsigned int force, lock_wait;
+	unsigned int flags, force, lock_wait;
+	struct apk_progress progress;
 	unsigned int cache_max_age;
 	unsigned long open_flags;
 	const char *root;
@@ -149,7 +163,8 @@ struct apk_repository_tag {
 };
 
 struct apk_database {
-	unsigned int force;
+	unsigned int flags, force;
+	struct apk_progress progress;
 	char *root;
 	int root_fd, lock_fd, cache_fd, keys_fd;
 	unsigned num_repos, num_repo_tags;

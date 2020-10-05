@@ -28,6 +28,7 @@ struct fetch_ctx {
 	unsigned int flags;
 	int outdir_fd, errors;
 	struct apk_database *db;
+	struct apk_progress prog;
 	size_t done, total;
 	struct apk_dependency_array *world;
 };
@@ -81,7 +82,7 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 
 	switch (opt) {
 	case OPT_FETCH_simulate:
-		apk_flags |= APK_SIMULATE;
+		dbopts->flags |= APK_SIMULATE;
 		break;
 	case OPT_FETCH_recursive:
 		fctx->flags |= FETCH_RECURSIVE;
@@ -109,7 +110,7 @@ static const struct apk_option_group optgroup_applet = {
 static void progress_cb(void *pctx, size_t bytes_done)
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	apk_print_progress(ctx->done + bytes_done, ctx->total);
+	apk_print_progress(&ctx->prog, ctx->done + bytes_done, ctx->total);
 }
 
 static int fetch_package(apk_hash_item item, void *pctx)
@@ -144,7 +145,7 @@ static int fetch_package(apk_hash_item item, void *pctx)
 	}
 
 	apk_message("Downloading " PKG_VER_FMT, PKG_VER_PRINTF(pkg));
-	if (apk_flags & APK_SIMULATE)
+	if (db->flags & APK_SIMULATE)
 		return 0;
 
 	r = apk_repo_format_item(db, repo, pkg, &urlfd, url, sizeof(url));
@@ -294,7 +295,7 @@ static int purge_package(void *pctx, int dirfd, const char *filename)
 	}
 
 	apk_message("Purging %s", filename);
-	if (apk_flags & APK_SIMULATE)
+	if (db->flags & APK_SIMULATE)
 		return 0;
 
 	unlinkat(dirfd, filename, 0);
@@ -305,8 +306,10 @@ static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_arr
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
 
+	ctx->db = db;
+	ctx->prog = db->progress;
 	if (ctx->flags & FETCH_STDOUT) {
-		apk_flags &= ~APK_PROGRESS;
+		ctx->prog.out = 0;
 		apk_verbosity = 0;
 	}
 
@@ -318,8 +321,6 @@ static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_arr
 		apk_message("Go and fetch your own coffee.");
 		return 0;
 	}
-
-	ctx->db = db;
 
 	if (ctx->flags & FETCH_RECURSIVE) {
 		apk_dependency_array_init(&ctx->world);
@@ -334,7 +335,7 @@ static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_arr
 		apk_hash_foreach(&db->available.packages, fetch_package, ctx);
 
 	/* Remove packages not matching download spec from the output directory */
-	if (!ctx->errors && (apk_flags & APK_PURGE) &&
+	if (!ctx->errors && (db->flags & APK_PURGE) &&
 	    !(ctx->flags & FETCH_STDOUT) && ctx->outdir_fd > 0)
 		apk_dir_foreach_file(ctx->outdir_fd, purge_package, ctx);
 

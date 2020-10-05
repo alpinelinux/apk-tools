@@ -110,7 +110,7 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	if (changeset.num_total_changes == 0)
 		goto ret;
 
-	if (!self_upgrade_only && apk_flags & APK_SIMULATE) {
+	if (!self_upgrade_only && db->flags & APK_SIMULATE) {
 		apk_warning("This simulation is not reliable as apk-tools upgrade is available.");
 		goto ret;
 	}

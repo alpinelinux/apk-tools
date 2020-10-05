@@ -112,6 +112,7 @@ static void count_change(struct apk_change *change, struct apk_stats *stats)
 }
 
 struct progress {
+	struct apk_progress prog;
 	struct apk_stats done;
 	struct apk_stats total;
 	struct apk_package *pkg;
@@ -120,7 +121,8 @@ struct progress {
 static void progress_cb(void *ctx, size_t installed_bytes)
 {
 	struct progress *prog = (struct progress *) ctx;
-	apk_print_progress(prog->done.bytes + prog->done.packages + installed_bytes,
+	apk_print_progress(&prog->prog,
+			   prog->done.bytes + prog->done.packages + installed_bytes,
 			   prog->total.bytes + prog->total.packages);
 }
 
@@ -232,10 +234,10 @@ static int run_commit_hook(void *ctx, int dirfd, const char *file)
 	char fn[PATH_MAX], *argv[] = { fn, (char *) commit_hook_str[hook->type], NULL };
 
 	if (file[0] == '.') return 0;
-	if ((apk_flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
+	if ((db->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
 
 	snprintf(fn, sizeof(fn), "etc/apk/commit_hooks.d" "/%s", file);
-	if ((apk_flags & APK_NO_COMMIT_HOOKS) != 0) {
+	if ((db->flags & APK_NO_COMMIT_HOOKS) != 0) {
 		apk_message("Skipping: %s %s", fn, commit_hook_str[hook->type]);
 		return 0;
 	}
@@ -258,7 +260,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 				struct apk_changeset *changeset,
 				struct apk_dependency_array *world)
 {
-	struct progress prog;
+	struct progress prog = { .prog = db->progress };
 	struct apk_change *change;
 	char buf[32];
 	const char *size_unit;
@@ -276,7 +278,6 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		goto all_done;
 
 	/* Count what needs to be done */
-	memset(&prog, 0, sizeof(prog));
 	foreach_array_item(change, changeset->changes) {
 		count_change(change, &prog.total);
 		if (change->new_pkg)
@@ -286,13 +287,13 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	}
 	size_unit = apk_get_human_size(llabs(size_diff), &humanized);
 
-	if ((apk_verbosity > 1 || (apk_flags & APK_INTERACTIVE)) &&
-	    !(apk_flags & APK_SIMULATE)) {
+	if ((apk_verbosity > 1 || (db->flags & APK_INTERACTIVE)) &&
+	    !(db->flags & APK_SIMULATE)) {
 		r = dump_packages(changeset, cmp_remove,
 				  "The following packages will be REMOVED");
 		r += dump_packages(changeset, cmp_downgrade,
 				   "The following packages will be DOWNGRADED");
-		if (r || (apk_flags & APK_INTERACTIVE) || apk_verbosity > 2) {
+		if (r || (db->flags & APK_INTERACTIVE) || apk_verbosity > 2) {
 			r += dump_packages(changeset, cmp_new,
 					   "The following NEW packages will be installed");
 			r += dump_packages(changeset, cmp_upgrade,
@@ -306,7 +307,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 				"disk space will be freed" :
 				"additional disk space will be used");
 		}
-		if (r > 0 && (apk_flags & APK_INTERACTIVE)) {
+		if (r > 0 && (db->flags & APK_INTERACTIVE)) {
 			printf("Do you want to continue [Y/n]? ");
 			fflush(stdout);
 			r = fgetc(stdin);
@@ -327,7 +328,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 			prog.pkg = change->new_pkg;
 			progress_cb(&prog, 0);
 
-			if (!(apk_flags & APK_SIMULATE) &&
+			if (!(db->flags & APK_SIMULATE) &&
 			    ((change->old_pkg != change->new_pkg) ||
 			     (change->reinstall && pkg_available(db, change->new_pkg)))) {
 				r = apk_db_install_pkg(db, change->old_pkg, change->new_pkg,
@@ -339,7 +340,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		errors += r;
 		count_change(change, &prog.done);
 	}
-	apk_print_progress(prog.total.bytes + prog.total.packages,
+	apk_print_progress(&prog.prog, prog.total.bytes + prog.total.packages,
 			   prog.total.bytes + prog.total.packages);
 
 	apk_db_update_directory_permissions(db);

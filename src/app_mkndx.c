@@ -273,7 +273,7 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 		}
 		if (!found) {
 		do_file:
-			apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, db->keys_fd);
+			apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->flags & APK_ALLOW_UNTRUSTED);
 			r = apk_tar_parse(
 				apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, *parg), apk_sign_ctx_mpart_cb, &ctx->sctx),
 				mkndx_parse_v2_tar, ctx, &db->id_cache);

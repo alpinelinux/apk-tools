@@ -54,6 +54,7 @@ struct apk_sign_ctx {
 	int has_data_checksum : 1;
 	int control_verified : 1;
 	int data_verified : 1;
+	int allow_untrusted : 1;
 	char data_checksum[EVP_MAX_MD_SIZE];
 	struct apk_checksum identity;
 	EVP_MD_CTX *mdctx;
@@ -131,7 +132,7 @@ APK_ARRAY(apk_package_array, struct apk_package *);
 extern const char *apk_script_types[];
 
 void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action,
-		       struct apk_checksum *identity, int keys_fd);
+		       struct apk_checksum *identity, int keys_fd, int allow_untrusted);
 void apk_sign_ctx_free(struct apk_sign_ctx *ctx);
 int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
 			      const struct apk_file_info *fi,

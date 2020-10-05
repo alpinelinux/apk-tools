@@ -69,21 +69,7 @@ static inline int IS_ERR_OR_NULL(const void *ptr) { return IS_ERR(ptr) || !ptr; 
 #define ROUND_UP(x,a)		(((x)+(a)-1) & ~((a)-1))
 
 extern int apk_verbosity;
-extern unsigned int apk_flags;
 extern char **apk_argv;
-
-#define APK_SIMULATE		0x0002
-#define APK_CLEAN_PROTECTED	0x0004
-#define APK_PROGRESS		0x0008
-#define APK_RECURSIVE		0x0020
-#define APK_ALLOW_UNTRUSTED	0x0100
-#define APK_PURGE		0x0200
-#define APK_INTERACTIVE		0x0400
-#define APK_NO_NETWORK		0x1000
-#define APK_OVERLAY_FROM_STDIN	0x2000
-#define APK_NO_SCRIPTS		0x4000
-#define APK_NO_CACHE		0x8000
-#define APK_NO_COMMIT_HOOKS	0x00010000
 
 /* default architecture for APK packages. */
 #if defined(__x86_64__)

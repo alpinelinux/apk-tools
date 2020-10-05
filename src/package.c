@@ -465,11 +465,13 @@ int apk_script_type(const char *name)
 }
 
 void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action,
-		       struct apk_checksum *identity, int keys_fd)
+		       struct apk_checksum *identity, int keys_fd,
+		       int allow_untrusted)
 {
 	memset(ctx, 0, sizeof(struct apk_sign_ctx));
 	ctx->keys_fd = keys_fd;
 	ctx->action = action;
+	ctx->allow_untrusted = !!allow_untrusted;
 	switch (action) {
 	case APK_SIGN_VERIFY:
 		/* If we're only verifing, we're going to start with a
@@ -514,7 +516,7 @@ static int check_signing_key_trust(struct apk_sign_ctx *sctx)
 	case APK_SIGN_VERIFY:
 	case APK_SIGN_VERIFY_AND_GENERATE:
 		if (sctx->signature.pkey == NULL) {
-			if (apk_flags & APK_ALLOW_UNTRUSTED)
+			if (sctx->allow_untrusted)
 				break;
 			return -ENOKEY;
 		}
@@ -697,8 +699,7 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 		           EVP_MD_CTX_size(sctx->mdctx)) != 0)
 			return -EKEYREJECTED;
 		sctx->data_verified = 1;
-		if (!(apk_flags & APK_ALLOW_UNTRUSTED) &&
-		    !sctx->control_verified)
+		if (!sctx->allow_untrusted && !sctx->control_verified)
 			return -ENOKEY;
 		return 0;
 	}
@@ -718,11 +719,11 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 				(unsigned char *) sctx->signature.data.ptr,
 				sctx->signature.data.len,
 				sctx->signature.pkey);
-			if (r != 1 && !(apk_flags & APK_ALLOW_UNTRUSTED))
+			if (r != 1 && !sctx->allow_untrusted)
 				return -EKEYREJECTED;
 		} else {
 			r = 0;
-			if (!(apk_flags & APK_ALLOW_UNTRUSTED))
+			if (!sctx->allow_untrusted)
 				return -ENOKEY;
 		}
 		if (r == 1) {
@@ -1017,7 +1018,7 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		PKG_VER_PRINTF(pkg),
 		apk_script_types[type]);
 
-	if ((apk_flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
+	if ((db->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
 		return;
 
 	apk_message("Executing %s", &fn[15]);

@@ -156,31 +156,31 @@ static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt
 		dbopts->force |= APK_FORCE_BINARY_STDOUT;
 		break;
 	case OPT_GLOBAL_interactive:
-		apk_flags |= APK_INTERACTIVE;
+		dbopts->flags |= APK_INTERACTIVE;
 		break;
 	case OPT_GLOBAL_progress:
-		apk_flags |= APK_PROGRESS;
+		dbopts->progress.out = stdout;
 		break;
 	case OPT_GLOBAL_no_progress:
-		apk_flags &= ~APK_PROGRESS;
+		dbopts->progress.out = NULL;
 		break;
 	case OPT_GLOBAL_progress_fd:
-		apk_progress_fd = atoi(optarg);
+		dbopts->progress.fd = atoi(optarg);
 		break;
 	case OPT_GLOBAL_allow_untrusted:
-		apk_flags |= APK_ALLOW_UNTRUSTED;
+		dbopts->flags |= APK_ALLOW_UNTRUSTED;
 		break;
 	case OPT_GLOBAL_purge:
-		apk_flags |= APK_PURGE;
+		dbopts->flags |= APK_PURGE;
 		break;
 	case OPT_GLOBAL_wait:
 		dbopts->lock_wait = atoi(optarg);
 		break;
 	case OPT_GLOBAL_no_network:
-		apk_flags |= APK_NO_NETWORK;
+		dbopts->flags |= APK_NO_NETWORK;
 		break;
 	case OPT_GLOBAL_no_cache:
-		apk_flags |= APK_NO_CACHE;
+		dbopts->flags |= APK_NO_CACHE;
 		break;
 	case OPT_GLOBAL_cache_dir:
 		dbopts->cache_dir = optarg;
@@ -235,23 +235,23 @@ static int option_parse_commit(void *ctx, struct apk_db_options *dbopts, int opt
 {
 	switch (opt) {
 	case OPT_COMMIT_simulate:
-		apk_flags |= APK_SIMULATE;
+		dbopts->flags |= APK_SIMULATE;
 		break;
 	case OPT_COMMIT_clean_protected:
-		apk_flags |= APK_CLEAN_PROTECTED;
+		dbopts->flags |= APK_CLEAN_PROTECTED;
 		break;
 	case OPT_COMMIT_overlay_from_stdin:
-		apk_flags |= APK_OVERLAY_FROM_STDIN;
+		dbopts->flags |= APK_OVERLAY_FROM_STDIN;
 		break;
 	case OPT_COMMIT_no_scripts:
-		apk_flags |= APK_NO_SCRIPTS;
+		dbopts->flags |= APK_NO_SCRIPTS;
 		break;
 	case OPT_COMMIT_no_commit_hooks:
-		apk_flags |= APK_NO_COMMIT_HOOKS;
+		dbopts->flags |= APK_NO_COMMIT_HOOKS;
 		break;
 	case OPT_COMMIT_initramfs_diskless_boot:
 		dbopts->open_flags |= APK_OPENF_CREATE;
-		apk_flags |= APK_NO_COMMIT_HOOKS;
+		dbopts->flags |= APK_NO_COMMIT_HOOKS;
 		dbopts->force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
 			|  APK_FORCE_BROKEN_WORLD | APK_FORCE_NON_REPOSITORY;
 		break;
@@ -402,16 +402,25 @@ static void setup_terminal(void)
 	signal(SIGPIPE, SIG_IGN);
 }
 
-static void setup_automatic_flags(void)
+static void setup_automatic_flags(struct apk_db_options *dbopts)
 {
+	const char *tmp;
+
+	if ((tmp = getenv("APK_PROGRESS_CHAR")) != NULL)
+		dbopts->progress.progress_char = tmp;
+	else if ((tmp = getenv("LANG")) != NULL && strstr(tmp, "UTF-8") != NULL)
+		dbopts->progress.progress_char = "\u2588";
+	else
+		dbopts->progress.progress_char = "#";
+
 	if (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO) ||
 	    !isatty(STDIN_FILENO))
 		return;
 
-	apk_flags |= APK_PROGRESS;
-	if (!(apk_flags & APK_SIMULATE) &&
+	dbopts->progress.out = stdout;
+	if (!(dbopts->flags & APK_SIMULATE) &&
 	    access("/etc/apk/interactive", F_OK) == 0)
-		apk_flags |= APK_INTERACTIVE;
+		dbopts->flags |= APK_INTERACTIVE;
 }
 
 void apk_applet_register(struct apk_applet *applet)
@@ -468,12 +477,11 @@ int main(int argc, char **argv)
 		if (applet->context_size != 0)
 			ctx = calloc(1, applet->context_size);
 		dbopts.open_flags = applet->open_flags;
-		apk_flags |= applet->forced_flags;
 		dbopts.force |= applet->forced_force;
 	}
 
 	init_openssl();
-	setup_automatic_flags();
+	setup_automatic_flags(&dbopts);
 	fetchConnectionCacheInit(32, 4);
 
 	r = parse_options(argc, argv, applet, ctx, &dbopts);
@@ -500,8 +508,8 @@ int main(int argc, char **argv)
 #ifdef TEST_MODE
 	dbopts.open_flags &= ~(APK_OPENF_WRITE | APK_OPENF_CACHE_WRITE | APK_OPENF_CREATE);
 	dbopts.open_flags |= APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
-	apk_flags |= APK_SIMULATE;
-	apk_flags &= ~APK_INTERACTIVE;
+	dbopts.flags |= APK_SIMULATE;
+	dbopts.flags &= ~APK_INTERACTIVE;
 #endif
 	r = apk_db_open(&db, &dbopts);
 	if (r != 0) {
@@ -541,7 +549,7 @@ int main(int argc, char **argv)
 		}
 
 		if (repo != -2) {
-			if (!(apk_flags & APK_NO_NETWORK))
+			if (!(db.flags & APK_NO_NETWORK))
 				db.available_repos |= BIT(repo);
 			db.repo_tags[repo_tag].allowed_repos |= BIT(repo);
 		}

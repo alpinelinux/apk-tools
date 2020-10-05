@@ -28,8 +28,6 @@ void apk_url_parse(struct apk_url_print *, const char *);
 #define apk_warning(args...)	do { if (apk_verbosity > 0) { apk_log_err("WARNING: ", args); } } while (0)
 #define apk_message(args...)	do { if (apk_verbosity > 0) { apk_log(NULL, args); } } while (0)
 
-extern int apk_progress_fd;
-
 void apk_log(const char *prefix, const char *format, ...);
 void apk_log_err(const char *prefix, const char *format, ...);
 const char *apk_error_str(int error);
@@ -38,12 +36,21 @@ void apk_reset_screen_width(void);
 int apk_get_screen_width(void);
 const char *apk_get_human_size(off_t size, off_t *dest);
 
+struct apk_progress {
+	int fd;
+	FILE *out;
+	int last_bar, last_percent;
+	size_t last_done;
+	const char *progress_char;
+};
+
+void apk_print_progress(struct apk_progress *p, size_t done, size_t total);
+
 struct apk_indent {
 	int x;
 	int indent;
 };
 
-void apk_print_progress(size_t done, size_t total);
 int  apk_print_indented(struct apk_indent *i, apk_blob_t blob);
 void apk_print_indented_words(struct apk_indent *i, const char *text);
 void apk_print_indented_fmt(struct apk_indent *i, const char *fmt, ...);

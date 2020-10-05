@@ -19,10 +19,8 @@
 #include "apk_defines.h"
 #include "apk_print.h"
 
-int apk_progress_fd;
 static int apk_screen_width = 0;
 static int apk_progress_force = 1;
-static const char *apk_progress_char = "#";
 static const char *apk_size_units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
 
 void apk_reset_screen_width(void)
@@ -34,8 +32,6 @@ void apk_reset_screen_width(void)
 int apk_get_screen_width(void)
 {
 	struct winsize w;
-	const char *lang;
-	const char *progress_char;
 
 	if (apk_screen_width == 0) {
 		apk_screen_width = 50;
@@ -43,13 +39,6 @@ int apk_get_screen_width(void)
 		    w.ws_col > 25)
 			apk_screen_width = w.ws_col;
 	}
-
-	lang = getenv("LANG");
-	if (lang != NULL && strstr(lang, "UTF-8") != NULL)
-		apk_progress_char = "\u2588";
-
-	if ((progress_char = getenv("APK_PROGRESS_CHAR")) != NULL)
-		apk_progress_char = progress_char;
 
 	return apk_screen_width;
 }
@@ -69,26 +58,24 @@ const char *apk_get_human_size(off_t size, off_t *dest)
 	return apk_size_units[min(i, ARRAY_SIZE(apk_size_units) - 1)];
 }
 
-void apk_print_progress(size_t done, size_t total)
+void apk_print_progress(struct apk_progress *p, size_t done, size_t total)
 {
-	static size_t last_done = 0;
-	static int last_bar = 0, last_percent = 0;
 	int bar_width;
 	int bar = 0;
 	char buf[64]; /* enough for petabytes... */
 	int i, percent = 0;
+	FILE *out = p->out;
 
-	if (last_done == done && !apk_progress_force)
+	if (p->last_done == done && !apk_progress_force)
 		return;
 
-	if (apk_progress_fd != 0) {
+	if (p->fd != 0) {
 		i = snprintf(buf, sizeof(buf), "%zu/%zu\n", done, total);
-		write(apk_progress_fd, buf, i);
+		write(p->fd, buf, i);
 	}
-	last_done = done;
+	p->last_done = done;
 
-	if (!(apk_flags & APK_PROGRESS))
-		return;
+	if (!out) return;
 
 	bar_width = apk_get_screen_width() - 6;
 	if (total > 0) {
@@ -96,22 +83,22 @@ void apk_print_progress(size_t done, size_t total)
 		percent = muldiv(100, done, total);
 	}
 
-	if (bar  == last_bar && percent == last_percent && !apk_progress_force)
+	if (bar == p->last_bar && percent == p->last_percent && !apk_progress_force)
 		return;
 
-	last_bar = bar;
-	last_percent = percent;
+	p->last_bar = bar;
+	p->last_percent = percent;
 	apk_progress_force = 0;
 
-	fprintf(stdout, "\e7%3i%% ", percent);
+	fprintf(out, "\e7%3i%% ", percent);
 
 	for (i = 0; i < bar; i++)
-		fputs(apk_progress_char, stdout);
+		fputs(p->progress_char, out);
 	for (; i < bar_width; i++)
-		fputc(' ', stdout);
+		fputc(' ', out);
 
-	fflush(stdout);
-	fputs("\e8\e[0K", stdout);
+	fflush(out);
+	fputs("\e8\e[0K", out);
 }
 
 int apk_print_indented(struct apk_indent *i, apk_blob_t blob)

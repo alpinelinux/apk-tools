@@ -92,7 +92,7 @@ static void process_file(struct apk_database *db, const char *match)
 	struct manifest_file_ctx ctx = {match, &sctx};
 	int r;
 
-	apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd);
+	apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->flags & APK_ALLOW_UNTRUSTED);
 	r = apk_tar_parse(
 		apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, match), apk_sign_ctx_mpart_cb, &sctx),
 		read_file_entry, &ctx, &db->id_cache);

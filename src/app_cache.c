@@ -57,13 +57,14 @@ static const struct apk_option_group optgroup_applet = {
 };
 
 struct progress {
+	struct apk_progress prog;
 	size_t done, total;
 };
 
 static void progress_cb(void *ctx, size_t bytes_done)
 {
 	struct progress *prog = (struct progress *) ctx;
-	apk_print_progress(prog->done + bytes_done, prog->total);
+	apk_print_progress(&prog->prog, prog->done + bytes_done, prog->total);
 }
 
 static int cache_download(struct cache_ctx *cctx, struct apk_database *db)
@@ -72,7 +73,7 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db)
 	struct apk_change *change;
 	struct apk_package *pkg;
 	struct apk_repository *repo;
-	struct progress prog = { 0, 0 };
+	struct progress prog = { .prog = db->progress };
 	int r, ret = 0;
 
 	r = apk_solver_solve(db, cctx->solver_flags, db->world, &changeset);
@@ -117,7 +118,7 @@ static void cache_clean_item(struct apk_database *db, int dirfd, const char *nam
 	if (strcmp(name, "installed") == 0) return;
 
 	if (pkg) {
-		if ((apk_flags & APK_PURGE) && pkg->ipkg == NULL) goto delete;
+		if ((db->flags & APK_PURGE) && pkg->ipkg == NULL) goto delete;
 		if (pkg->repos & db->local_repos & ~BIT(APK_REPOSITORY_CACHED)) goto delete;
 		if (pkg->ipkg == NULL && !(pkg->repos & ~BIT(APK_REPOSITORY_CACHED))) goto delete;
 		return;
@@ -133,7 +134,7 @@ static void cache_clean_item(struct apk_database *db, int dirfd, const char *nam
 delete:
 	if (apk_verbosity >= 2)
 		apk_message("deleting %s", name);
-	if (!(apk_flags & APK_SIMULATE)) {
+	if (!(db->flags & APK_SIMULATE)) {
 		if (unlinkat(dirfd, name, 0) < 0 && errno == EISDIR)
 			unlinkat(dirfd, name, AT_REMOVEDIR);
 	}

@@ -22,7 +22,7 @@ static int verify_main(void *ctx, struct apk_database *db, struct apk_string_arr
 	int r, ok, rc = 0;
 
 	foreach_array_item(parg, args) {
-		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd);
+		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, 1);
 		r = apk_tar_parse(
 			apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, *parg),
 						 apk_sign_ctx_mpart_cb, &sctx),
@@ -47,7 +47,6 @@ static int verify_main(void *ctx, struct apk_database *db, struct apk_string_arr
 static struct apk_applet apk_verify = {
 	.name = "verify",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
-	.forced_flags = APK_ALLOW_UNTRUSTED,
 	.main = verify_main,
 };
 
