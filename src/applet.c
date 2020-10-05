@@ -10,6 +10,37 @@
 #include "apk_applet.h"
 #include "apk_print.h"
 
+static struct list_head apk_applet_list;
+
+#define apk_applet_foreach(iter) list_for_each_entry(iter, &apk_applet_list, node)
+
+void apk_applet_register(struct apk_applet *applet)
+{
+	list_init(&applet->node);
+	list_add_tail(&applet->node, &apk_applet_list);
+}
+
+void apk_applet_register_builtin(void)
+{
+	extern apk_init_func_t __start_initapplets[], __stop_initapplets[];
+	apk_init_func_t *p;
+
+	list_init(&apk_applet_list);
+	for (p = __start_initapplets; p < __stop_initapplets; p++)
+		(*p)();
+}
+
+struct apk_applet *apk_applet_find(const char *name)
+{
+	struct apk_applet *a;
+
+	apk_applet_foreach(a) {
+		if (strcmp(name, a->name) == 0)
+			return a;
+	}
+	return NULL;
+}
+
 static inline int is_group(struct apk_applet *applet, const char *topic)
 {
 	if (!applet) return strcasecmp(topic, "apk") == 0;
@@ -19,7 +50,7 @@ static inline int is_group(struct apk_applet *applet, const char *topic)
 	return 0;
 }
 
-void apk_help(struct apk_applet *applet)
+void apk_applet_help(struct apk_applet *applet, struct apk_out *out)
 {
 #include "help.h"
 
@@ -31,16 +62,15 @@ void apk_help(struct apk_applet *applet)
 	uncompress((unsigned char*) buf, &len, compressed_help, sizeof compressed_help);
 	for (ptr = buf; *ptr && ptr < &buf[len]; ptr = msg + strlen(msg) + 1) {
 		msg = ptr + strlen(ptr) + 1;
-
 		if (is_group(applet, ptr)) {
 			fputc('\n', stdout);
 			fwrite(msg, strlen(msg), 1, stdout);
 			num++;
 		}
 	}
-	if (num == 0) apk_error("Help not found");
+	if (num == 0) apk_err(out, "Help not found");
 #else
 	fputc('\n', stdout);
-	apk_error("This apk-tools has been built without help");
+	apk_err(out, "This apk-tools has been built without help");
 #endif
 }

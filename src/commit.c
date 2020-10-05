@@ -28,6 +28,7 @@ static inline int pkg_available(struct apk_database *db, struct apk_package *pkg
 static int print_change(struct apk_database *db, struct apk_change *change,
 			int cur, int total)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_name *name;
 	struct apk_package *oldpkg = change->old_pkg;
 	struct apk_package *newpkg = change->new_pkg;
@@ -73,18 +74,18 @@ static int print_change(struct apk_database *db, struct apk_change *change,
 		return FALSE;
 
 	if (oneversion) {
-		apk_message("%s %s %s" BLOB_FMT " (" BLOB_FMT ")",
-			    status, msg,
-			    name->name,
-			    BLOB_PRINTF(db->repo_tags[change->new_repository_tag].tag),
-			    BLOB_PRINTF(*oneversion));
+		apk_msg(out, "%s %s %s" BLOB_FMT " (" BLOB_FMT ")",
+			status, msg,
+			name->name,
+			BLOB_PRINTF(db->repo_tags[change->new_repository_tag].tag),
+			BLOB_PRINTF(*oneversion));
 	} else {
-		apk_message("%s %s %s" BLOB_FMT " (" BLOB_FMT " -> " BLOB_FMT ")",
-			    status, msg,
-			    name->name,
-			    BLOB_PRINTF(db->repo_tags[change->new_repository_tag].tag),
-			    BLOB_PRINTF(*oldpkg->version),
-			    BLOB_PRINTF(*newpkg->version));
+		apk_msg(out, "%s %s %s" BLOB_FMT " (" BLOB_FMT " -> " BLOB_FMT ")",
+			status, msg,
+			name->name,
+			BLOB_PRINTF(db->repo_tags[change->new_repository_tag].tag),
+			BLOB_PRINTF(*oldpkg->version),
+			BLOB_PRINTF(*newpkg->version));
 	}
 	return TRUE;
 }
@@ -126,13 +127,13 @@ static void progress_cb(void *ctx, size_t installed_bytes)
 			   prog->total.bytes + prog->total.packages);
 }
 
-static int dump_packages(struct apk_changeset *changeset,
+static int dump_packages(struct apk_out *out, struct apk_changeset *changeset,
 			 int (*cmp)(struct apk_change *change),
 			 const char *msg)
 {
 	struct apk_change *change;
 	struct apk_name *name;
-	struct apk_indent indent = { .indent = 2 };
+	struct apk_indent indent = { .out = out, .indent = 2 };
 	int match = 0;
 
 	foreach_array_item(change, changeset->changes) {
@@ -231,17 +232,18 @@ static int run_commit_hook(void *ctx, int dirfd, const char *file)
 	static char *const commit_hook_str[] = { "pre-commit", "post-commit" };
 	struct apk_commit_hook *hook = (struct apk_commit_hook *) ctx;
 	struct apk_database *db = hook->db;
+	struct apk_out *out = &db->ctx->out;
 	char fn[PATH_MAX], *argv[] = { fn, (char *) commit_hook_str[hook->type], NULL };
 
 	if (file[0] == '.') return 0;
-	if ((db->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
+	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
 
 	snprintf(fn, sizeof(fn), "etc/apk/commit_hooks.d" "/%s", file);
-	if ((db->flags & APK_NO_COMMIT_HOOKS) != 0) {
-		apk_message("Skipping: %s %s", fn, commit_hook_str[hook->type]);
+	if ((db->ctx->flags & APK_NO_COMMIT_HOOKS) != 0) {
+		apk_msg(out, "Skipping: %s %s", fn, commit_hook_str[hook->type]);
 		return 0;
 	}
-	if (apk_verbosity >= 2) apk_message("Executing: %s %s", fn, commit_hook_str[hook->type]);
+	apk_dbg(out, "Executing: %s %s", fn, commit_hook_str[hook->type]);
 
 	if (apk_db_run_script(db, fn, argv) < 0 && hook->type == PRE_COMMIT_HOOK)
 		return -2;
@@ -260,7 +262,8 @@ int apk_solver_commit_changeset(struct apk_database *db,
 				struct apk_changeset *changeset,
 				struct apk_dependency_array *world)
 {
-	struct progress prog = { .prog = db->progress };
+	struct apk_out *out = &db->ctx->out;
+	struct progress prog = { .prog = db->ctx->progress };
 	struct apk_change *change;
 	char buf[32];
 	const char *size_unit;
@@ -269,8 +272,8 @@ int apk_solver_commit_changeset(struct apk_database *db,
 
 	assert(world);
 	if (apk_db_check_world(db, world) != 0) {
-		apk_error("Not committing changes due to missing repository tags. "
-			  "Use --force-broken-world to override.");
+		apk_err(out, "Not committing changes due to missing repository tags. "
+			"Use --force-broken-world to override.");
 		return -1;
 	}
 
@@ -287,18 +290,18 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	}
 	size_unit = apk_get_human_size(llabs(size_diff), &humanized);
 
-	if ((apk_verbosity > 1 || (db->flags & APK_INTERACTIVE)) &&
-	    !(db->flags & APK_SIMULATE)) {
-		r = dump_packages(changeset, cmp_remove,
+	if ((apk_out_verbosity(out) > 1 || (db->ctx->flags & APK_INTERACTIVE)) &&
+	    !(db->ctx->flags & APK_SIMULATE)) {
+		r = dump_packages(out, changeset, cmp_remove,
 				  "The following packages will be REMOVED");
-		r += dump_packages(changeset, cmp_downgrade,
+		r += dump_packages(out, changeset, cmp_downgrade,
 				   "The following packages will be DOWNGRADED");
-		if (r || (db->flags & APK_INTERACTIVE) || apk_verbosity > 2) {
-			r += dump_packages(changeset, cmp_new,
+		if (r || (db->ctx->flags & APK_INTERACTIVE) || apk_out_verbosity(out) > 2) {
+			r += dump_packages(out, changeset, cmp_new,
 					   "The following NEW packages will be installed");
-			r += dump_packages(changeset, cmp_upgrade,
+			r += dump_packages(out, changeset, cmp_upgrade,
 					   "The following packages will be upgraded");
-			r += dump_packages(changeset, cmp_reinstall,
+			r += dump_packages(out, changeset, cmp_reinstall,
 					   "The following packages will be reinstalled");
 			printf("After this operation, %lld %s of %s.\n",
 				(long long)humanized,
@@ -307,7 +310,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 				"disk space will be freed" :
 				"additional disk space will be used");
 		}
-		if (r > 0 && (db->flags & APK_INTERACTIVE)) {
+		if (r > 0 && (db->ctx->flags & APK_INTERACTIVE)) {
 			printf("Do you want to continue [Y/n]? ");
 			fflush(stdout);
 			r = fgetc(stdin);
@@ -328,7 +331,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 			prog.pkg = change->new_pkg;
 			progress_cb(&prog, 0);
 
-			if (!(db->flags & APK_SIMULATE) &&
+			if (!(db->ctx->flags & APK_SIMULATE) &&
 			    ((change->old_pkg != change->new_pkg) ||
 			     (change->reinstall && pkg_available(db, change->new_pkg)))) {
 				r = apk_db_install_pkg(db, change->old_pkg, change->new_pkg,
@@ -357,18 +360,18 @@ all_done:
 				 errors > 1 ? "s" : "");
 		else
 			strcpy(buf, "OK:");
-		if (apk_verbosity > 1) {
-			apk_message("%s %d packages, %d dirs, %d files, %zu MiB",
-				    buf,
-				    db->installed.stats.packages,
-				    db->installed.stats.dirs,
-				    db->installed.stats.files,
-				    db->installed.stats.bytes / (1024 * 1024));
+		if (apk_out_verbosity(out) > 1) {
+			apk_msg(out, "%s %d packages, %d dirs, %d files, %zu MiB",
+				buf,
+				db->installed.stats.packages,
+				db->installed.stats.dirs,
+				db->installed.stats.files,
+				db->installed.stats.bytes / (1024 * 1024));
 		} else {
-			apk_message("%s %zu MiB in %d packages",
-				    buf,
-				    db->installed.stats.bytes / (1024 * 1024),
-				    db->installed.stats.packages);
+			apk_msg(out, "%s %zu MiB in %d packages",
+				buf,
+				db->installed.stats.bytes / (1024 * 1024),
+				db->installed.stats.packages);
 		}
 	}
 	return errors;
@@ -599,6 +602,7 @@ void apk_solver_print_errors(struct apk_database *db,
 			     struct apk_changeset *changeset,
 			     struct apk_dependency_array *world)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct print_state ps;
 	struct apk_change *change;
 	struct apk_dependency *p;
@@ -640,7 +644,7 @@ void apk_solver_print_errors(struct apk_database *db,
 	 * any other selected version. or all of them with -v.
 	 */
  
-	apk_error("unable to select packages:");
+	apk_err(out, "unable to select packages:");
 
 	/* Construct information about names */
 	foreach_array_item(change, changeset->changes) {
@@ -655,6 +659,7 @@ void apk_solver_print_errors(struct apk_database *db,
 
 	/* Analyze is package, and missing names referred to */
 	ps = (struct print_state) {
+		.i.out = out,
 		.db = db,
 		.world = world,
 	};
@@ -675,12 +680,13 @@ int apk_solver_commit(struct apk_database *db,
 		      unsigned short solver_flags,
 		      struct apk_dependency_array *world)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_changeset changeset = {};
 	int r;
 
 	if (apk_db_check_world(db, world) != 0) {
-		apk_error("Not committing changes due to missing repository tags. "
-			  "Use --force-broken-world to override.");
+		apk_err(out, "Not committing changes due to missing repository tags. "
+			"Use --force-broken-world to override.");
 		return -1;
 	}
 

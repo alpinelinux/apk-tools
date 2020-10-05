@@ -147,7 +147,7 @@ struct apk_ostream *apk_ostream_to_fd(int fd);
 struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode);
 struct apk_ostream *apk_ostream_to_file_gz(int atfd, const char *file, const char *tmpfile, mode_t mode);
 size_t apk_ostream_write_string(struct apk_ostream *ostream, const char *string);
-static inline void apk_ostream_cancel(struct apk_ostream *os, int rc) { if (!os->rc) os->rc = rc; }
+static inline int apk_ostream_cancel(struct apk_ostream *os, int rc) { if (!os->rc) os->rc = rc; return rc; }
 static inline ssize_t apk_ostream_write(struct apk_ostream *os, const void *buf, size_t size)
 {
 	return os->ops->write(os, buf, size);

@@ -16,11 +16,12 @@
 
 static int update_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_repository *repo;
 	int i;
 	char buf[32] = "OK:";
 
-	if (apk_verbosity < 1)
+	if (apk_out_verbosity(out) < 1)
 		return db->repo_update_errors;
 
 	for (i = 0; i < db->num_repos; i++) {
@@ -29,15 +30,15 @@ static int update_main(void *ctx, struct apk_database *db, struct apk_string_arr
 		if (APK_BLOB_IS_NULL(repo->description))
 			continue;
 
-		apk_message(BLOB_FMT " [%s]",
-			    BLOB_PRINTF(repo->description),
-			    db->repos[i].url);
+		apk_msg(out, BLOB_FMT " [%s]",
+			BLOB_PRINTF(repo->description),
+			db->repos[i].url);
 	}
 
 	if (db->repo_update_errors != 0)
 		snprintf(buf, sizeof(buf), "%d errors;",
 			 db->repo_update_errors);
-	apk_message("%s %d distinct packages available", buf,
+	apk_msg(out, "%s %d distinct packages available", buf,
 		db->available.packages.num_items);
 
 	return db->repo_update_errors;

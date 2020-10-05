@@ -336,7 +336,8 @@ int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 			      const char *extract_name, const char *link_target,
 			      struct apk_istream *is,
 			      apk_progress_cb cb, void *cb_ctx,
-			      unsigned int apk_extract_flags)
+			      unsigned int apk_extract_flags,
+			      struct apk_out *out)
 {
 	struct apk_xattr *xattr;
 	const char *fn = extract_name ?: ae->name;
@@ -380,15 +381,15 @@ int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 		break;
 	}
 	if (ret) {
-		apk_error("Failed to create %s: %s", ae->name, strerror(-ret));
+		apk_err(out, "Failed to create %s: %s", ae->name, strerror(-ret));
 		return ret;
 	}
 
 	if (!(apk_extract_flags & APK_EXTRACTF_NO_CHOWN)) {
 		r = fchownat(atfd, fn, ae->uid, ae->gid, atflags);
 		if (r < 0) {
-			apk_error("Failed to set ownership on %s: %s",
-				  fn, strerror(errno));
+			apk_err(out, "Failed to set ownership on %s: %s",
+				fn, strerror(errno));
 			if (!ret) ret = -errno;
 		}
 
@@ -396,9 +397,8 @@ int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 		if (ae->mode & 07000) {
 			r = fchmodat(atfd, fn, ae->mode & 07777, atflags);
 			if (r < 0) {
-				apk_error("Failed to set file permissions "
-					  "on %s: %s",
-					  fn, strerror(errno));
+				apk_err(out, "Failed to set file permissions on %s: %s",
+					fn, strerror(errno));
 				if (!ret) ret = -errno;
 			}
 		}
@@ -421,8 +421,8 @@ int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 		}
 		if (r) {
 			if (r != -ENOTSUP)
-				apk_error("Failed to set xattrs on %s: %s",
-					  fn, strerror(-r));
+				apk_err(out, "Failed to set xattrs on %s: %s",
+					fn, strerror(-r));
 			if (!ret) ret = r;
 		}
 	}
@@ -435,7 +435,7 @@ int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 		times[0].tv_nsec = times[1].tv_nsec = 0;
 		r = utimensat(atfd, fn, times, atflags);
 		if (r < 0) {
-			apk_error("Failed to preserve modification time on %s: %s",
+			apk_err(out, "Failed to preserve modification time on %s: %s",
 				fn, strerror(errno));
 			if (!ret || ret == -ENOTSUP) ret = -errno;
 		}

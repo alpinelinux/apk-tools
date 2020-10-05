@@ -30,13 +30,13 @@ struct add_ctx {
 
 APK_OPT_APPLET(option_desc, ADD_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct add_ctx *actx = (struct add_ctx *) ctx;
 
 	switch (opt) {
 	case OPT_ADD_initdb:
-		dbopts->open_flags |= APK_OPENF_CREATE;
+		ac->open_flags |= APK_OPENF_CREATE;
 		break;
 	case OPT_ADD_latest:
 		actx->solver_flags |= APK_SOLVERF_LATEST;
@@ -63,17 +63,18 @@ static const struct apk_option_group optgroup_applet = {
 
 static int non_repository_check(struct apk_database *db)
 {
-	if (db->force & APK_FORCE_NON_REPOSITORY)
+	if (db->ctx->force & APK_FORCE_NON_REPOSITORY)
 		return 0;
 	if (apk_db_cache_active(db))
 		return 0;
 	if (apk_db_permanent(db))
 		return 0;
 
-	apk_error("You tried to add a non-repository package to system, "
-		  "but it would be lost on next reboot. Enable package caching "
-		  "(apk cache --help) or use --force-non-repository "
-		  "if you know what you are doing.");
+	apk_err(&db->ctx->out,
+		"You tried to add a non-repository package to system, "
+		"but it would be lost on next reboot. Enable package caching "
+		"(apk cache --help) or use --force-non-repository "
+		"if you know what you are doing.");
 	return 1;
 }
 
@@ -111,6 +112,7 @@ static struct apk_package *create_virtual_package(struct apk_database *db, struc
 
 static int add_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct add_ctx *actx = (struct add_ctx *) ctx;
 	struct apk_package *virtpkg = NULL;
 	struct apk_dependency virtdep;
@@ -129,7 +131,7 @@ static int add_main(void *ctx, struct apk_database *db, struct apk_string_array 
 		if (APK_BLOB_IS_NULL(b) || virtdep.conflict ||
 		    virtdep.result_mask != APK_DEPMASK_ANY ||
 		    virtdep.version != &apk_atom_null) {
-			apk_error("%s: bad package specifier");
+			apk_err(out, "%s: bad package specifier");
 			return -1;
 		}
 		if (virtdep.name->name[0] != '.' && non_repository_check(db))
@@ -137,7 +139,7 @@ static int add_main(void *ctx, struct apk_database *db, struct apk_string_array 
 
 		virtpkg = create_virtual_package(db, virtdep.name);
 		if (!virtpkg) {
-			apk_error("Failed to allocate virtual meta package");
+			apk_err(out, "Failed to allocate virtual meta package");
 			return -1;
 		}
 
@@ -156,11 +158,11 @@ static int add_main(void *ctx, struct apk_database *db, struct apk_string_array 
 				return -1;
 
 			apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY_AND_GENERATE,
-					  NULL, db->keys_fd, db->flags & APK_ALLOW_UNTRUSTED);
+					  NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
 			r = apk_pkg_read(db, *parg, &sctx, &pkg);
 			apk_sign_ctx_free(&sctx);
 			if (r != 0) {
-				apk_error("%s: %s", *parg, apk_error_str(r));
+				apk_err(out, "%s: %s", *parg, apk_error_str(r));
 				return -1;
 			}
 			apk_dep_from_pkg(&dep, db, pkg);
@@ -169,9 +171,9 @@ static int add_main(void *ctx, struct apk_database *db, struct apk_string_array 
 
 			apk_blob_pull_dep(&b, db, &dep);
 			if (APK_BLOB_IS_NULL(b) || b.len > 0 || (virtpkg != NULL && dep.repository_tag)) {
-				apk_error("'%s' is not a valid %s dependency, format is %s",
-					  *parg, virtpkg == NULL ? "world" : "child",
-					  virtpkg == NULL ? "name(@tag)([<>~=]version)" : "name([<>~=]version)");
+				apk_err(out, "'%s' is not a valid %s dependency, format is %s",
+					*parg, virtpkg == NULL ? "world" : "child",
+					virtpkg == NULL ? "name(@tag)([<>~=]version)" : "name([<>~=]version)");
 				return -1;
 			}
 		}

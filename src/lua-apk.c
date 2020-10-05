@@ -140,7 +140,7 @@ static int get_boolean_field(lua_State *L, int index, const char *key)
 	return value;
 }
 
-static int get_dbopts(lua_State *L, int i, struct apk_db_options *o)
+static int get_ctx(lua_State *L, int i, struct apk_ctx *o)
 {
 	struct flagmap *f;
 	o->root = (char *)get_opt_string_field(L, i, "root", NULL);
@@ -165,14 +165,14 @@ static struct apk_database *checkdb(lua_State *L, int index)
 
 static int Papk_db_open(lua_State *L)
 {
-	struct apk_db_options opts;
+	struct apk_ctx opts;
 	struct apk_database *db;
 	int r;
 
 	memset(&opts, 0, sizeof(opts));
 	apk_string_array_init(&opts.repository_list);
 	if (lua_istable(L, 1))
-		get_dbopts(L, 1, &opts);
+		get_ctx(L, 1, &opts);
 	else
 		opts.open_flags |= APK_OPENF_READ;
 

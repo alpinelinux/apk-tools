@@ -57,7 +57,7 @@ static int load_index(struct conv_ctx *ctx, struct apk_istream *is)
 	if (IS_ERR_OR_NULL(is)) return is ? PTR_ERR(is) : -EINVAL;
 
 	ctx->found = 0;
-	apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, ctx->db->keys_fd, ctx->db->flags & APK_ALLOW_UNTRUSTED);
+	apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, ctx->db->keys_fd, ctx->db->ctx->flags & APK_ALLOW_UNTRUSTED);
 	r = apk_tar_parse(
 		apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx->sctx),
 		load_apkindex, ctx, &ctx->db->id_cache);

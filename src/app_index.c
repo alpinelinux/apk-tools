@@ -20,6 +20,7 @@
 #define APK_INDEXF_NO_WARNINGS	0x0001
 
 struct counts {
+	struct apk_out *out;
 	int unsatisfied;
 };
 
@@ -42,7 +43,7 @@ struct index_ctx {
 
 APK_OPT_APPLET(option_desc, INDEX_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct index_ctx *ictx = (struct index_ctx *) ctx;
 
@@ -90,16 +91,15 @@ static int warn_if_no_providers(apk_hash_item item, void *ctx)
 {
 	struct counts *counts = (struct counts *) ctx;
 	struct apk_name *name = (struct apk_name *) item;
+	struct apk_out *out = counts->out;
 
 	if (!name->is_dependency) return 0;
 	if (name->providers->num) return 0;
 
 	if (++counts->unsatisfied < 10) {
-		apk_warning("No provider for dependency '%s'",
-			    name->name);
+		apk_warn(out, "No provider for dependency '%s'", name->name);
 	} else if (counts->unsatisfied == 10) {
-		apk_warning("Too many unsatisfiable dependencies, "
-			    "not reporting the rest.");
+		apk_warn(out, "Too many unsatisfiable dependencies, not reporting the rest.");
 	}
 
 	return 0;
@@ -107,7 +107,8 @@ static int warn_if_no_providers(apk_hash_item item, void *ctx)
 
 static int index_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
-	struct counts counts = {0};
+	struct apk_out *out = &db->ctx->out;
+	struct counts counts = { .out = out };
 	struct apk_ostream *os;
 	struct apk_file_info fi;
 	int total, r, found, newpkgs = 0, errors = 0;
@@ -117,9 +118,10 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 	apk_blob_t *rewrite_arch = NULL;
 
 	if (isatty(STDOUT_FILENO) && ictx->output == NULL &&
-	    !(db->force & APK_FORCE_BINARY_STDOUT)) {
-		apk_error("Will not write binary index to console. "
-			  "Use --force-binary-stdout to override.");
+	    !(db->ctx->force & APK_FORCE_BINARY_STDOUT)) {
+		apk_err(out,
+			"Will not write binary index to console. "
+			"Use --force-binary-stdout to override.");
 		return -1;
 	}
 
@@ -127,7 +129,7 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 		ictx->method = APK_SIGN_GENERATE;
 
 	if ((r = index_read_file(db, ictx)) < 0) {
-		apk_error("%s: %s", ictx->index, apk_error_str(r));
+		apk_err(out, "%s: %s", ictx->index, apk_error_str(r));
 		return r;
 	}
 
@@ -136,7 +138,7 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 
 	foreach_array_item(parg, args) {
 		if (apk_fileinfo_get(AT_FDCWD, *parg, APK_CHECKSUM_NONE, &fi, &db->atoms) < 0) {
-			apk_warning("File '%s' is unaccessible", *parg);
+			apk_warn(out, "File '%s' is unaccessible", *parg);
 			continue;
 		}
 
@@ -183,10 +185,10 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 
 		if (!found) {
 			struct apk_sign_ctx sctx;
-			apk_sign_ctx_init(&sctx, ictx->method, NULL, db->keys_fd, db->flags & APK_ALLOW_UNTRUSTED);
+			apk_sign_ctx_init(&sctx, ictx->method, NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
 			r = apk_pkg_read(db, *parg, &sctx, &pkg);
 			if (r < 0) {
-				apk_error("%s: %s", *parg, apk_error_str(r));
+				apk_err(out, "%s: %s", *parg, apk_error_str(r));
 				errors++;
 			} else {
 				newpkgs++;
@@ -237,7 +239,7 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 	apk_ostream_close(os);
 
 	if (r < 0) {
-		apk_error("Index generation failed: %s", apk_error_str(r));
+		apk_err(out, "Index generation failed: %s", apk_error_str(r));
 		return r;
 	}
 
@@ -247,11 +249,11 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 	}
 
 	if (counts.unsatisfied != 0)
-		apk_warning("Total of %d unsatisfiable package "
-			    "names. Your repository may be broken.",
-			    counts.unsatisfied);
-	apk_message("Index has %d packages (of which %d are new)",
-		    total, newpkgs);
+		apk_warn(out,
+			"Total of %d unsatisfiable package names. Your repository may be broken.",
+			counts.unsatisfied);
+	apk_msg(out, "Index has %d packages (of which %d are new)",
+		total, newpkgs);
 
 	return 0;
 }

@@ -20,7 +20,7 @@ libapk_soname		:= 3.12.0
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
 	adb.o adb_trust.o \
-	common.o database.o package.o commit.o solver.o \
+	common.o context.o database.o package.o commit.o solver.o \
 	version.o atom.o blob.o hash.o print.o \
 	io.o io_url.o io_gunzip.o io_archive.o
 
@@ -60,7 +60,7 @@ endif
 
 # Apk utility
 progs-y			+= apk
-apk-objs		:= apk.o help.o \
+apk-objs		:= apk.o applet.o \
 			   app_add.o app_del.o app_fix.o app_update.o app_upgrade.o \
 			   app_info.o app_list.o app_search.o app_manifest.o \
 			   app_policy.o app_stats.o \

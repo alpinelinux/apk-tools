@@ -12,6 +12,7 @@
 
 #include <sys/types.h>
 #include "apk_blob.h"
+#include "apk_print.h"
 #include "apk_io.h"
 
 #define APK_EXTRACTF_NO_CHOWN	0x0001
@@ -31,6 +32,7 @@ int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 			      const char *extract_name, const char *hardlink_name,
 			      struct apk_istream *is,
 			      apk_progress_cb cb, void *cb_ctx,
-			      unsigned int extract_flags);
+			      unsigned int extract_flags,
+			      struct apk_out *out);
 
 #endif

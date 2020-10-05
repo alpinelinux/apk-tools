@@ -18,6 +18,7 @@ struct search_ctx {
 	void (*print_result)(struct search_ctx *ctx, struct apk_package *pkg);
 	void (*print_package)(struct search_ctx *ctx, struct apk_package *pkg);
 
+	int verbosity;
 	int show_all : 1;
 	int search_exact : 1;
 	int search_description : 1;
@@ -38,9 +39,9 @@ static void print_package_name(struct search_ctx *ctx, struct apk_package *pkg)
 {
 	if (!unique_match(pkg)) return;
 	printf("%s", pkg->name->name);
-	if (apk_verbosity > 0)
+	if (ctx->verbosity > 0)
 		printf("-" BLOB_FMT, BLOB_PRINTF(*pkg->version));
-	if (apk_verbosity > 1)
+	if (ctx->verbosity > 1)
 		printf(" - %s", pkg->description);
 	printf("\n");
 }
@@ -52,7 +53,7 @@ static void print_origin_name(struct search_ctx *ctx, struct apk_package *pkg)
 		printf(BLOB_FMT, BLOB_PRINTF(*pkg->origin));
 	else
 		printf("%s", pkg->name->name);
-	if (apk_verbosity > 0)
+	if (ctx->verbosity > 0)
 		printf("-" BLOB_FMT, BLOB_PRINTF(*pkg->version));
 	printf("\n");
 }
@@ -65,7 +66,7 @@ static void print_rdep_pkg(struct apk_package *pkg0, struct apk_dependency *dep0
 
 static void print_rdepends(struct search_ctx *ctx, struct apk_package *pkg)
 {
-	if (apk_verbosity > 0) {
+	if (ctx->verbosity > 0) {
 		ctx->matches = apk_foreach_genid() | APK_DEP_SATISFIES;
 		printf(PKG_VER_FMT " is required by:\n", PKG_VER_PRINTF(pkg));
 	}
@@ -82,7 +83,7 @@ static void print_rdepends(struct search_ctx *ctx, struct apk_package *pkg)
 
 APK_OPT_APPLET(option_desc, SEARCH_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct search_ctx *ictx = (struct search_ctx *) ctx;
 
@@ -176,6 +177,7 @@ static int search_main(void *pctx, struct apk_database *db, struct apk_string_ar
 	struct search_ctx *ctx = (struct search_ctx *) pctx;
 	char *tmp, **pmatch;
 
+	ctx->verbosity = apk_out_verbosity(&db->ctx->out);
 	ctx->filter = args;
 	ctx->matches = apk_foreach_genid() | APK_DEP_SATISFIES;
 	if (ctx->print_package == NULL)

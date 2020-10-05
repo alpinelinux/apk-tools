@@ -31,7 +31,7 @@ struct fix_ctx {
 
 APK_OPT_APPLET(option_desc, FIX_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct fix_ctx *ctx = (struct fix_ctx *) pctx;
 	switch (opt) {
@@ -76,10 +76,11 @@ static void mark_fix(struct fix_ctx *ctx, struct apk_name *name)
 
 static void set_solver_flags(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct fix_ctx *ctx = pctx;
 
 	if (!name) {
-		apk_error("Package '%s' not found", match);
+		apk_err(out, "Package '%s' not found", match);
 		ctx->errors++;
 	} else
 		mark_fix(ctx, name);

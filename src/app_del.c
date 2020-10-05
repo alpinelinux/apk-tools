@@ -24,7 +24,7 @@ struct del_ctx {
 
 APK_OPT_APPLET(option_desc, DEL_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct del_ctx *ctx = (struct del_ctx *) pctx;
 
@@ -44,6 +44,7 @@ static const struct apk_option_group optgroup_applet = {
 };
 
 struct not_deleted_ctx {
+	struct apk_out *out;
 	struct apk_indent indent;
 	struct apk_name *name;
 	unsigned int matches;
@@ -54,12 +55,13 @@ static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependenc
 				  struct apk_package *pkg, void *pctx)
 {
 	struct not_deleted_ctx *ctx = (struct not_deleted_ctx *) pctx;
+	struct apk_out *out = ctx->out;
 	struct apk_dependency *d;
 	struct apk_provider *p;
 
 	if (pkg0->name != ctx->name) {
 		if (!ctx->header) {
-			apk_message("World updated, but the following packages are not removed due to:");
+			apk_msg(out, "World updated, but the following packages are not removed due to:");
 			ctx->header = 1;
 		}
 		if (!ctx->indent.indent) {
@@ -83,10 +85,11 @@ static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependenc
 static void print_not_deleted_name(struct apk_database *db, const char *match,
 				   struct apk_name *name, void *pctx)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct not_deleted_ctx *ctx = (struct not_deleted_ctx *) pctx;
 	struct apk_provider *p;
 
-	ctx->indent.indent = 0;
+	ctx->indent = (struct apk_indent) { .out = out };
 	ctx->name = name;
 	ctx->matches = apk_foreach_genid() | APK_FOREACH_MARKED | APK_DEP_SATISFIES;
 	foreach_array_item(p, name->providers)
@@ -111,11 +114,12 @@ static void delete_pkg(struct apk_package *pkg0, struct apk_dependency *dep0,
 static void delete_name(struct apk_database *db, const char *match,
 			struct apk_name *name, void *pctx)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct del_ctx *ctx = (struct del_ctx *) pctx;
 	struct apk_package *pkg;
 
 	if (!name) {
-		apk_error("No such package: %s", match);
+		apk_err(out, "No such package: %s", match);
 		ctx->errors++;
 		return;
 	}
@@ -130,7 +134,7 @@ static void delete_name(struct apk_database *db, const char *match,
 static int del_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
 {
 	struct del_ctx *ctx = (struct del_ctx *) pctx;
-	struct not_deleted_ctx ndctx = {};
+	struct not_deleted_ctx ndctx = { .out = &db->ctx->out };
 	struct apk_changeset changeset = {};
 	struct apk_change *change;
 	int r = 0;

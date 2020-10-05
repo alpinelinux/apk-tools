@@ -248,11 +248,11 @@ int adb_trust_verify_signature(struct adb_trust *trust, struct adb *db, struct a
 
 APK_OPT_GROUP(options_signing, "Signing", SIGNING_OPTIONS);
 
-static int option_parse_signing(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+static int option_parse_signing(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
 {
 	switch (optch) {
 	case OPT_SIGN_sign_key:
-		*apk_string_array_add(&dbopts->private_keys) = (char*) optarg;
+		*apk_string_array_add(&ac->private_keys) = (char*) optarg;
 		break;
 	default:
 		return -ENOTSUP;

@@ -47,10 +47,7 @@ enum {
 	APK_DIR_REMOVE
 };
 
-int apk_verbosity = 1;
-
-static apk_blob_t tmpprefix = { .len=8, .ptr = ".apknew." };
-
+static apk_blob_t tmpprefix = APK_BLOB_STRLIT(".apknew.");
 static const char * const apkindex_tar_gz = "APKINDEX.tar.gz";
 static const char * const apk_static_cache_dir = "var/cache/apk";
 static const char * const apk_world_file = "etc/apk/world";
@@ -242,7 +239,7 @@ static void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir, 
 			(st.st_mode & 07777) == (dir->mode & 07777) &&
 			st.st_uid == dir->uid && st.st_gid == dir->gid;
 	} else if (newmode) {
-		if (!(db->flags & APK_SIMULATE))
+		if (!(db->ctx->flags & APK_SIMULATE))
 			mkdirat(db->root_fd, dir->name, newmode);
 		dir->created = 1;
 		dir->update_permissions = 1;
@@ -257,7 +254,7 @@ void apk_db_dir_unref(struct apk_database *db, struct apk_db_dir *dir, int rmdir
 	if (dir->namelen != 0) {
 		if (rmdir_mode == APK_DIR_REMOVE) {
 			dir->modified = 1;
-			if (!(db->flags & APK_SIMULATE) &&
+			if (!(db->ctx->flags & APK_SIMULATE) &&
 			    unlinkat(db->root_fd, dir->name, AT_REMOVEDIR) != 0)
 				;
 		}
@@ -609,6 +606,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		       struct apk_package *pkg, int verify, int autoupdate,
 		       apk_progress_cb cb, void *cb_ctx)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct stat st = {0};
 	struct apk_url_print urlp;
 	struct apk_istream *is;
@@ -629,18 +627,18 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 	r = apk_repo_format_real_url(db->arch, repo, pkg, url, sizeof(url), &urlp);
 	if (r < 0) return r;
 
-	if (autoupdate && !(db->force & APK_FORCE_REFRESH)) {
+	if (autoupdate && !(db->ctx->force & APK_FORCE_REFRESH)) {
 		if (fstatat(db->cache_fd, cacheitem, &st, 0) == 0 &&
-		    now - st.st_mtime <= db->cache_max_age)
+		    now - st.st_mtime <= db->ctx->cache_max_age)
 			return -EALREADY;
 	}
-	apk_message("fetch " URL_FMT, URL_PRINTF(urlp));
+	apk_msg(out, "fetch " URL_FMT, URL_PRINTF(urlp));
 
-	if (db->flags & APK_SIMULATE) return 0;
+	if (db->ctx->flags & APK_SIMULATE) return 0;
 	if (cb) cb(cb_ctx, 0);
 
 	if (verify != APK_SIGN_NONE) {
-		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->flags & APK_ALLOW_UNTRUSTED);
+		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
 		is = apk_istream_from_url(url, apk_db_url_since(db, st.st_mtime));
 		is = apk_istream_tee(is, db->cache_fd, tmpcacheitem, !autoupdate, cb, cb_ctx);
 		is = apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx);
@@ -747,6 +745,7 @@ err:
 
 int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_package *pkg = NULL;
 	struct apk_installed_package *ipkg = NULL;
 	struct apk_db_dir_instance *diri = NULL;
@@ -782,7 +781,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 			}
 
 			if (apk_db_pkg_add(db, pkg) == NULL) {
-				apk_error("Installed database load failed");
+				apk_err(out, "Installed database load failed");
 				return -1;
 			}
 			pkg = NULL;
@@ -870,13 +869,13 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 				case 's': ipkg->broken_script = 1; break;
 				case 'x': ipkg->broken_xattr = 1; break;
 				default:
-					if (!(db->force & APK_FORCE_OLD_APK))
+					if (!(db->ctx->force & APK_FORCE_OLD_APK))
 						goto old_apk_tools;
 				}
 			}
 			break;
 		default:
-			if (r != 0 && !(db->force & APK_FORCE_OLD_APK))
+			if (r != 0 && !(db->ctx->force & APK_FORCE_OLD_APK))
 				goto old_apk_tools;
 			/* Installed. So mark the package as installable. */
 			pkg->filename = NULL;
@@ -888,10 +887,10 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 	return 0;
 old_apk_tools:
 	/* Installed db should not have unsupported fields */
-	apk_error("This apk-tools is too old to handle installed packages");
+	apk_err(out, "This apk-tools is too old to handle installed packages");
 	goto err;
 bad_entry:
-	apk_error("FDB format error (line %d, entry '%c')", lineno, field);
+	apk_err(out, "FDB format error (line %d, entry '%c')", lineno, field);
 err:
 	apk_istream_close(is);
 	return -1;
@@ -928,8 +927,9 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
 		pkg = ipkg->pkg;
 		r = apk_pkg_write_index_entry(pkg, os);
-		if (r < 0)
+		if (r < 0) {
 			return r;
+		}
 
 		if (ipkg->replaces->num) {
 			apk_blob_push_blob(&bbuf, APK_BLOB_STR("r:"));
@@ -1192,7 +1192,7 @@ static int write_index_entry(apk_hash_item item, void *ctx)
 		return r;
 
 	if (apk_ostream_write(iwctx->os, "\n", 1) != 1)
-		return -EIO;
+		return apk_ostream_cancel(iwctx->os, -EIO);
 
 	iwctx->count++;
 	return 0;
@@ -1390,6 +1390,7 @@ static void mark_in_cache(struct apk_database *db, int dirfd, const char *name, 
 static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 {
 	struct apk_database *db = (struct apk_database *) ctx;
+	struct apk_out *out = &db->ctx->out;
 	apk_blob_t blob;
 
 	if (dirfd != AT_FDCWD && dirfd != db->root_fd) {
@@ -1401,8 +1402,8 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 	blob = apk_blob_from_file(dirfd, file);
 	if (APK_BLOB_IS_NULL(blob)) {
 		if (dirfd != AT_FDCWD) return 0;
-		apk_error("failed to read repositories: %s", file);
-		apk_message("NOTE: --repositories-file is relative to the startup directory since apk 2.12.0_rc2");
+		apk_err(out, "failed to read repositories: %s", file);
+		apk_msg(out, "NOTE: --repositories-file is relative to the startup directory since apk 2.12.0_rc2");
 		return -ENOENT;
 	}
 
@@ -1507,8 +1508,9 @@ void apk_db_init(struct apk_database *db)
 	db->root_fd = -1;
 }
 
-int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
+int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 {
+	struct apk_out *out = &ac->out;
 	const char *msg = NULL;
 	struct statfs stfs;
 	apk_blob_t blob;
@@ -1517,31 +1519,31 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 	apk_default_acl_dir = apk_db_acl_atomize(db, 0755, 0, 0, NULL);
 	apk_default_acl_file = apk_db_acl_atomize(db, 0644, 0, 0, NULL);
 
-	if (dbopts->flags & APK_SIMULATE) {
-		dbopts->open_flags &= ~(APK_OPENF_CREATE | APK_OPENF_WRITE);
-		dbopts->open_flags |= APK_OPENF_READ;
-	}
-	if (dbopts->open_flags == 0) {
+	db->ctx = ac;
+	if (ac->open_flags == 0) {
 		msg = "Invalid open flags (internal error)";
 		r = -1;
 		goto ret_r;
 	}
-	db->flags = dbopts->flags;
-	db->force = dbopts->force;
-	if ((dbopts->open_flags & APK_OPENF_WRITE) &&
-	    !(dbopts->open_flags & APK_OPENF_NO_AUTOUPDATE) &&
-	    !(dbopts->flags & APK_NO_NETWORK))
+	if (ac->flags & APK_SIMULATE) {
+		ac->open_flags &= ~(APK_OPENF_CREATE | APK_OPENF_WRITE);
+		ac->open_flags |= APK_OPENF_READ;
+	}
+	if ((ac->open_flags & APK_OPENF_WRITE) &&
+	    !(ac->open_flags & APK_OPENF_NO_AUTOUPDATE) &&
+	    !(ac->flags & APK_NO_NETWORK))
 		db->autoupdate = 1;
-	if (!dbopts->cache_dir) dbopts->cache_dir = "etc/apk/cache";
+	if (!ac->cache_dir) ac->cache_dir = "etc/apk/cache";
+	if (!ac->keys_dir) ac->keys_dir = "etc/apk/keys";
+	if (!ac->root) ac->root = "/";
+	if (!ac->cache_max_age) ac->cache_max_age = 4*60*60; /* 4 hours default */
 
-	apk_db_setup_repositories(db, dbopts->cache_dir);
+	apk_db_setup_repositories(db, ac->cache_dir);
 
-	db->cache_max_age = dbopts->cache_max_age ?: 4*60*60; /* 4 hours default */
-	db->root = strdup(dbopts->root ?: "/");
-	db->root_fd = openat(AT_FDCWD, db->root, O_RDONLY | O_CLOEXEC);
-	if (db->root_fd < 0 && (dbopts->open_flags & APK_OPENF_CREATE)) {
-		mkdirat(AT_FDCWD, db->root, 0755);
-		db->root_fd = openat(AT_FDCWD, db->root, O_RDONLY | O_CLOEXEC);
+	db->root_fd = openat(AT_FDCWD, db->ctx->root, O_RDONLY | O_CLOEXEC);
+	if (db->root_fd < 0 && (ac->open_flags & APK_OPENF_CREATE)) {
+		mkdirat(AT_FDCWD, db->ctx->root, 0755);
+		db->root_fd = openat(AT_FDCWD, db->ctx->root, O_RDONLY | O_CLOEXEC);
 	}
 	if (db->root_fd < 0) {
 		msg = "Unable to open root";
@@ -1551,8 +1553,8 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 	    stfs.f_type == TMPFS_MAGIC)
 		db->permanent = 0;
 
-	if (dbopts->root && dbopts->arch) {
-		db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(dbopts->arch));
+	if (ac->root && ac->arch) {
+		db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(ac->arch));
 		write_arch = TRUE;
 	} else {
 		apk_blob_t arch;
@@ -1568,11 +1570,11 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 
 	apk_id_cache_init(&db->id_cache, db->root_fd);
 
-	if (dbopts->open_flags & APK_OPENF_WRITE) {
+	if (ac->open_flags & APK_OPENF_WRITE) {
 		db->lock_fd = openat(db->root_fd, apk_lock_file,
 				     O_CREAT | O_RDWR | O_CLOEXEC, 0600);
 		if (db->lock_fd < 0 && errno == ENOENT &&
-		    (dbopts->open_flags & APK_OPENF_CREATE)) {
+		    (ac->open_flags & APK_OPENF_CREATE)) {
 			r = apk_db_create(db);
 			if (r != 0) {
 				msg = "Unable to create database";
@@ -1584,16 +1586,16 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 		if (db->lock_fd < 0 ||
 		    flock(db->lock_fd, LOCK_EX | LOCK_NB) < 0) {
 			msg = "Unable to lock database";
-			if (dbopts->lock_wait) {
+			if (ac->lock_wait) {
 				struct sigaction sa, old_sa;
 
-				apk_message("Waiting for repository lock");
+				apk_msg(out, "Waiting for repository lock");
 				memset(&sa, 0, sizeof sa);
 				sa.sa_handler = handle_alarm;
 				sa.sa_flags   = SA_ONESHOT;
 				sigaction(SIGALRM, &sa, &old_sa);
 
-				alarm(dbopts->lock_wait);
+				alarm(ac->lock_wait);
 				if (flock(db->lock_fd, LOCK_EX) < 0)
 					goto ret_errno;
 
@@ -1606,7 +1608,7 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 			apk_blob_to_file(db->root_fd, apk_arch_file, *db->arch, APK_BTF_ADD_EOL);
 
 		/* mount /proc */
-		if (asprintf(&db->root_proc_dir, "%s/proc", db->root) == -1)
+		if (asprintf(&db->root_proc_dir, "%s/proc", db->ctx->root) == -1)
 			goto ret_errno;
 		if (statfs(db->root_proc_dir, &stfs) != 0) {
 			if (errno == ENOENT) mkdir(db->root_proc_dir, 0555);
@@ -1628,21 +1630,21 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 			     add_protected_paths_from_file, db);
 
 	/* figure out where to have the cache */
-	fd = openat(db->root_fd, dbopts->cache_dir, O_RDONLY | O_CLOEXEC);
+	fd = openat(db->root_fd, ac->cache_dir, O_RDONLY | O_CLOEXEC);
 	if (fd >= 0 && fstatfs(fd, &stfs) == 0) {
-		db->cache_dir = dbopts->cache_dir;
+		db->cache_dir = ac->cache_dir;
 		db->cache_fd = fd;
 		db->cache_remount_flags = map_statfs_flags(stfs.f_flags);
-		if ((dbopts->open_flags & (APK_OPENF_WRITE | APK_OPENF_CACHE_WRITE)) &&
+		if ((ac->open_flags & (APK_OPENF_WRITE | APK_OPENF_CACHE_WRITE)) &&
 		    (db->cache_remount_flags & MS_RDONLY) != 0) {
 			/* remount cache read/write */
 			db->cache_remount_dir = find_mountpoint(db->root_fd, db->cache_dir);
 			if (db->cache_remount_dir == NULL) {
-				apk_warning("Unable to find cache directory mount point");
+				apk_warn(out, "Unable to find cache directory mount point");
 			} else if (mount(0, db->cache_remount_dir, 0, MS_REMOUNT | (db->cache_remount_flags & ~MS_RDONLY), 0) != 0) {
 				free(db->cache_remount_dir);
 				db->cache_remount_dir = NULL;
-				apk_error("Unable to remount cache read/write");
+				apk_err(out, "Unable to remount cache read/write");
 				r = EROFS;
 				goto ret_r;
 			}
@@ -1659,53 +1661,51 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 		}
 	}
 
-	db->keys_fd = openat(db->root_fd,
-			     dbopts->keys_dir ?: "etc/apk/keys",
-			     O_RDONLY | O_CLOEXEC);
+	db->keys_fd = openat(db->root_fd, ac->keys_dir, O_RDONLY | O_CLOEXEC);
 
-	r = adb_trust_init(&db->trust, dup(db->keys_fd), dbopts->private_keys);
+	r = adb_trust_init(&db->trust, dup(db->keys_fd), ac->private_keys);
 	if (r) {
 		msg = "Unable to read trusted keys";
 		goto ret_r;
 	}
 
-	if (db->flags & APK_OVERLAY_FROM_STDIN) {
-		db->flags &= ~APK_OVERLAY_FROM_STDIN;
+	if (db->ctx->flags & APK_OVERLAY_FROM_STDIN) {
+		db->ctx->flags &= ~APK_OVERLAY_FROM_STDIN;
 		apk_db_read_overlay(db, apk_istream_from_fd(STDIN_FILENO));
 	}
 
-	r = apk_db_read_state(db, dbopts->open_flags);
-	if (r == -ENOENT && (dbopts->open_flags & APK_OPENF_CREATE)) {
+	r = apk_db_read_state(db, ac->open_flags);
+	if (r == -ENOENT && (ac->open_flags & APK_OPENF_CREATE)) {
 		r = apk_db_create(db);
 		if (r != 0) {
 			msg = "Unable to create database";
 			goto ret_r;
 		}
-		r = apk_db_read_state(db, dbopts->open_flags);
+		r = apk_db_read_state(db, ac->open_flags);
 	}
 	if (r != 0) {
 		msg = "Unable to read database state";
 		goto ret_r;
 	}
 
-	if (!(dbopts->open_flags & APK_OPENF_NO_INSTALLED_REPO)) {
+	if (!(ac->open_flags & APK_OPENF_NO_INSTALLED_REPO)) {
 		if (apk_db_cache_active(db)) {
 			apk_db_index_read(db, apk_istream_from_file(db->cache_fd, "installed"), -2);
 		}
 	}
 
-	if (!(dbopts->open_flags & APK_OPENF_NO_SYS_REPOS)) {
+	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS)) {
 		char **repo;
 
-		foreach_array_item(repo, dbopts->repository_list)
+		foreach_array_item(repo, ac->repository_list)
 			apk_db_add_repository(db, APK_BLOB_STR(*repo));
 
-		if (dbopts->repositories_file == NULL) {
+		if (ac->repositories_file == NULL) {
 			add_repos_from_file(db, db->root_fd, "etc/apk/repositories");
 			apk_dir_foreach_file(openat(db->root_fd, "etc/apk/repositories.d", O_RDONLY | O_CLOEXEC),
 					     add_repos_from_file, db);
 		} else {
-			add_repos_from_file(db, AT_FDCWD, dbopts->repositories_file);
+			add_repos_from_file(db, AT_FDCWD, ac->repositories_file);
 		}
 
 		if (db->repo_update_counter)
@@ -1714,16 +1714,15 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 		apk_hash_foreach(&db->available.names, apk_db_name_rdepends, db);
 	}
 
-	if (apk_db_cache_active(db) && (dbopts->open_flags & (APK_OPENF_NO_REPOS|APK_OPENF_NO_INSTALLED)) == 0)
+	if (apk_db_cache_active(db) && (ac->open_flags & (APK_OPENF_NO_REPOS|APK_OPENF_NO_INSTALLED)) == 0)
 		apk_db_cache_foreach_item(db, mark_in_cache);
 
 	db->open_complete = 1;
 
 	if (db->compat_newfeatures) {
-		apk_warning("This apk-tools is OLD! Some packages %s.",
-			    db->compat_notinstallable ?
-			    "are not installable" :
-			    "might not function properly");
+		apk_warn(out,
+			"This apk-tools is OLD! Some packages %s.",
+			db->compat_notinstallable ? "are not installable" : "might not function properly");
 	}
 
 	return 0;
@@ -1732,7 +1731,7 @@ ret_errno:
 	r = -errno;
 ret_r:
 	if (msg != NULL)
-		apk_error("%s: %s", msg, strerror(-r));
+		apk_err(out, "%s: %s", msg, strerror(-r));
 	apk_db_close(db);
 
 	return r;
@@ -1745,14 +1744,15 @@ struct write_ctx {
 
 int apk_db_write_config(struct apk_database *db)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_ostream *os;
 	int r;
 
-	if ((db->flags & APK_SIMULATE) || db->root == NULL)
+	if ((db->ctx->flags & APK_SIMULATE) || db->ctx->root == NULL)
 		return 0;
 
 	if (db->lock_fd == 0) {
-		apk_error("Refusing to write db without write lock!");
+		apk_err(out, "Refusing to write db without write lock!");
 		return -1;
 	}
 
@@ -1837,16 +1837,10 @@ void apk_db_close(struct apk_database *db)
 
 	adb_trust_free(&db->trust);
 
-	if (db->keys_fd)
-		close(db->keys_fd);
-	if (db->cache_fd)
-		close(db->cache_fd);
-	if (db->root_fd)
-		close(db->root_fd);
-	if (db->lock_fd)
-		close(db->lock_fd);
-	if (db->root != NULL)
-		free(db->root);
+	if (db->keys_fd) close(db->keys_fd);
+	if (db->cache_fd) close(db->cache_fd);
+	if (db->root_fd) close(db->root_fd);
+	if (db->lock_fd) close(db->lock_fd);
 }
 
 int apk_db_get_tag_id(struct apk_database *db, apk_blob_t tag)
@@ -1927,6 +1921,7 @@ int apk_db_fire_triggers(struct apk_database *db)
 
 int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 {
+	struct apk_out *out = &db->ctx->out;
 	int status;
 	pid_t pid;
 	static char * const environment[] = {
@@ -1936,7 +1931,7 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 
 	pid = fork();
 	if (pid == -1) {
-		apk_error("%s: fork: %s", basename(fn), strerror(errno));
+		apk_err(out, "%s: fork: %s", basename(fn), strerror(errno));
 		return -2;
 	}
 	if (pid == 0) {
@@ -1947,7 +1942,7 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 	}
 	waitpid(pid, &status, 0);
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-		apk_error("%s: script exited with error %d", basename(fn), WEXITSTATUS(status));
+		apk_err(out, "%s: script exited with error %d", basename(fn), WEXITSTATUS(status));
 		return -1;
 	}
 	return 0;
@@ -1998,7 +1993,7 @@ void apk_db_update_directory_permissions(struct apk_database *db)
 
 int apk_db_cache_active(struct apk_database *db)
 {
-	return db->cache_dir != apk_static_cache_dir;
+	return db->ctx->cache_dir != apk_static_cache_dir;
 }
 
 struct foreach_cache_item_ctx {
@@ -2052,10 +2047,11 @@ int apk_db_permanent(struct apk_database *db)
 
 int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *world)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_dependency *dep;
 	int bad = 0, tag;
 
-	if (db->force & APK_FORCE_BROKEN_WORLD)
+	if (db->ctx->force & APK_FORCE_BROKEN_WORLD)
 		return 0;
 
 	foreach_array_item(dep, world) {
@@ -2064,8 +2060,8 @@ int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *wor
 			continue;
 		if (tag < 0)
 			tag = 0;
-		apk_warning("The repository tag for world dependency '%s" BLOB_FMT "' does not exist",
-			    dep->name->name, BLOB_PRINTF(db->repo_tags[tag].tag));
+		apk_warn(out, "The repository tag for world dependency '%s" BLOB_FMT "' does not exist",
+			dep->name->name, BLOB_PRINTF(db->repo_tags[tag].tag));
 		bad++;
 	}
 
@@ -2138,14 +2134,15 @@ struct apk_repository *apk_db_select_repo(struct apk_database *db,
 
 static int apk_repository_update(struct apk_database *db, struct apk_repository *repo)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_url_print urlp;
-	int r, verify = (db->flags & APK_ALLOW_UNTRUSTED) ? APK_SIGN_NONE : APK_SIGN_VERIFY;
+	int r, verify = (db->ctx->flags & APK_ALLOW_UNTRUSTED) ? APK_SIGN_NONE : APK_SIGN_VERIFY;
 
 	r = apk_cache_download(db, repo, NULL, verify, 1, NULL, NULL);
 	if (r == -EALREADY) return 0;
 	if (r != 0) {
 		apk_url_parse(&urlp, repo->url);
-		apk_error(URL_FMT ": %s", URL_PRINTF(urlp), apk_error_str(r));
+		apk_err(out, URL_FMT ": %s", URL_PRINTF(urlp), apk_error_str(r));
 		db->repo_update_errors++;
 	} else {
 		db->repo_update_counter++;
@@ -2196,7 +2193,7 @@ static int load_index(struct apk_database *db, struct apk_istream *is,
 		ctx.db = db;
 		ctx.repo = repo;
 		ctx.found = 0;
-		apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->flags & APK_ALLOW_UNTRUSTED);
+		apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
 		r = apk_tar_parse(apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx), load_apkindex, &ctx, &db->id_cache);
 		apk_sign_ctx_free(&ctx.sctx);
 
@@ -2221,6 +2218,7 @@ int apk_db_index_read_file(struct apk_database *db, const char *file, int repo)
 int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 {
 	struct apk_database *db = _db.db;
+	struct apk_out *out = &db->ctx->out;
 	struct apk_repository *repo;
 	struct apk_url_print urlp;
 	apk_blob_t brepo, btag;
@@ -2262,11 +2260,11 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 	apk_blob_checksum(brepo, apk_checksum_default(), &repo->csum);
 
 	if (apk_url_local_file(repo->url) == NULL) {
-		if (!(db->flags & APK_NO_NETWORK))
+		if (!(db->ctx->flags & APK_NO_NETWORK))
 			db->available_repos |= BIT(repo_num);
-		if (db->flags & APK_NO_CACHE) {
+		if (db->ctx->flags & APK_NO_CACHE) {
 			r = apk_repo_format_real_url(db->arch, repo, NULL, buf, sizeof(buf), &urlp);
-			if (r == 0) apk_message("fetch " URL_FMT, URL_PRINTF(urlp));
+			if (r == 0) apk_msg(out, "fetch " URL_FMT, URL_PRINTF(urlp));
 		} else {
 			if (db->autoupdate) apk_repository_update(db, repo);
 			r = apk_repo_format_cache_index(APK_BLOB_BUF(buf), repo);
@@ -2282,7 +2280,7 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 
 	if (r != 0) {
 		apk_url_parse(&urlp, repo->url);
-		apk_warning("Ignoring " URL_FMT ": %s", URL_PRINTF(urlp), apk_error_str(r));
+		apk_warn(out, "Ignoring " URL_FMT ": %s", URL_PRINTF(urlp), apk_error_str(r));
 		db->available_repos &= ~BIT(repo_num);
 		r = 0;
 	} else {
@@ -2394,6 +2392,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 	static const char dot1[] = "/./", dot2[] = "/../";
 	struct install_ctx *ctx = (struct install_ctx *) _ctx;
 	struct apk_database *db = ctx->db;
+	struct apk_out *out = &db->ctx->out;
 	struct apk_package *pkg = ctx->pkg, *opkg;
 	struct apk_dependency *dep;
 	struct apk_installed_package *ipkg = pkg->ipkg;
@@ -2437,8 +2436,8 @@ static int apk_db_install_archive_entry(void *_ctx,
 	    strncmp(ae->name, &dot1[1], 2) == 0 ||
 	    strncmp(ae->name, &dot2[1], 3) == 0 ||
 	    strstr(ae->name, dot1) || strstr(ae->name, dot2)) {
-		apk_warning(PKG_VER_FMT": ignoring malicious file %s",
-			    PKG_VER_PRINTF(pkg), ae->name);
+		apk_warn(out, PKG_VER_FMT": ignoring malicious file %s",
+			PKG_VER_PRINTF(pkg), ae->name);
 		ipkg->broken_files = 1;
 		return 0;
 	}
@@ -2458,8 +2457,8 @@ static int apk_db_install_archive_entry(void *_ctx,
 		diri = ctx->diri = find_diri(ipkg, bdir, diri, &ctx->file_diri_node);
 		if (diri == NULL) {
 			if (!APK_BLOB_IS_NULL(bdir)) {
-				apk_error(PKG_VER_FMT": "BLOB_FMT": no dirent in archive",
-					  PKG_VER_PRINTF(pkg), BLOB_PRINTF(name));
+				apk_err(out, PKG_VER_FMT": "BLOB_FMT": no dirent in archive",
+					PKG_VER_PRINTF(pkg), BLOB_PRINTF(name));
 				ipkg->broken_files = 1;
 				return 0;
 			}
@@ -2493,8 +2492,8 @@ static int apk_db_install_archive_entry(void *_ctx,
 			} while (0);
 
 			if (!link_target_file) {
-				apk_error(PKG_VER_FMT": "BLOB_FMT": no hard link target (%s) in archive",
-					  PKG_VER_PRINTF(pkg), BLOB_PRINTF(name), ae->link_target);
+				apk_err(out, PKG_VER_FMT": "BLOB_FMT": no hard link target (%s) in archive",
+					PKG_VER_PRINTF(pkg), BLOB_PRINTF(name), ae->link_target);
 				ipkg->broken_files = 1;
 				return 0;
 			}
@@ -2539,14 +2538,14 @@ static int apk_db_install_archive_entry(void *_ctx,
 				if (pkg_prio >= 0)
 					break;
 
-				if (!(db->force & APK_FORCE_OVERWRITE)) {
-					apk_error(PKG_VER_FMT": trying to overwrite %s owned by "PKG_VER_FMT".",
-						  PKG_VER_PRINTF(pkg), ae->name, PKG_VER_PRINTF(opkg));
+				if (!(db->ctx->force & APK_FORCE_OVERWRITE)) {
+					apk_err(out, PKG_VER_FMT": trying to overwrite %s owned by "PKG_VER_FMT".",
+						PKG_VER_PRINTF(pkg), ae->name, PKG_VER_PRINTF(opkg));
 					ipkg->broken_files = 1;
 					return 0;
 				}
-				apk_warning(PKG_VER_FMT": overwriting %s owned by "PKG_VER_FMT".",
-					    PKG_VER_PRINTF(pkg), ae->name, PKG_VER_PRINTF(opkg));
+				apk_warn(out, PKG_VER_FMT": overwriting %s owned by "PKG_VER_FMT".",
+					PKG_VER_PRINTF(pkg), ae->name, PKG_VER_PRINTF(opkg));
 			} while (0);
 		}
 
@@ -2555,8 +2554,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 			file = apk_db_file_new(diri, bfile, &ctx->file_diri_node);
 		}
 
-		if (apk_verbosity >= 3)
-			apk_message("%s", ae->name);
+		apk_dbg2(out, "%s", ae->name);
 
 		/* Extract the file with temporary name */
 		file->acl = apk_db_acl_atomize(db, ae->mode, ae->uid, ae->gid, &ae->xattr_csum);
@@ -2564,7 +2562,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 				db->root_fd, ae,
 				format_tmpname(pkg, file, tmpname_file),
 				format_tmpname(pkg, link_target_file, tmpname_link_target),
-				is, extract_cb, ctx, db->extract_flags);
+				is, extract_cb, ctx, db->extract_flags, out);
 
 		switch (r) {
 		case 0:
@@ -2575,9 +2573,10 @@ static int apk_db_install_archive_entry(void *_ctx,
 				memcpy(&file->csum, &ae->csum, sizeof file->csum);
 			/* only warn once per package */
 			if (file->csum.type == APK_CHECKSUM_NONE && !ctx->missing_checksum) {
-				apk_warning(PKG_VER_FMT": support for packages without embedded "
-					    "checksums will be dropped in apk-tools 3.",
-					    PKG_VER_PRINTF(pkg));
+				apk_warn(out,
+					PKG_VER_FMT": support for packages without embedded "
+					"checksums will be dropped in apk-tools 3.",
+					PKG_VER_PRINTF(pkg));
 				ipkg->broken_files = 1;
 				ctx->missing_checksum = 1;
 			}
@@ -2592,8 +2591,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 			break;
 		}
 	} else {
-		if (apk_verbosity >= 3)
-			apk_message("%s (dir)", ae->name);
+		apk_dbg2(out, "%s (dir)", ae->name);
 
 		if (name.ptr[name.len-1] == '/')
 			name.len--;
@@ -2614,6 +2612,7 @@ static void apk_db_purge_pkg(struct apk_database *db,
 			     struct apk_installed_package *ipkg,
 			     int is_installed)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_db_dir_instance *diri;
 	struct apk_db_file *file;
 	struct apk_db_file_hash_key key;
@@ -2637,13 +2636,12 @@ static void apk_db_purge_pkg(struct apk_database *db,
 			};
 			hash = apk_blob_hash_seed(key.filename, diri->dir->hash);
 			if ((diri->dir->protect_mode == APK_PROTECT_NONE) ||
-			    (db->flags & APK_PURGE) ||
+			    (db->ctx->flags & APK_PURGE) ||
 			    (file->csum.type != APK_CHECKSUM_NONE &&
 			     apk_fileinfo_get(db->root_fd, name, APK_FI_NOFOLLOW | file->csum.type, &fi, &db->atoms) == 0 &&
 			     apk_checksum_compare(&file->csum, &fi.csum) == 0))
 				unlinkat(db->root_fd, name, 0);
-			if (apk_verbosity >= 3)
-				apk_message("%s", name);
+			apk_dbg2(out, "%s", name);
 			__hlist_del(fc, &diri->owned_files.first);
 			if (is_installed) {
 				apk_hash_delete_hashed(&db->installed.files, APK_BLOB_BUF(&key), hash);
@@ -2659,6 +2657,7 @@ static void apk_db_purge_pkg(struct apk_database *db,
 static void apk_db_migrate_files(struct apk_database *db,
 				 struct apk_installed_package *ipkg)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_db_dir_instance *diri;
 	struct apk_db_dir *dir;
 	struct apk_db_file *file, *ofile;
@@ -2715,7 +2714,7 @@ static void apk_db_migrate_files(struct apk_database *db,
 					apk_fileinfo_get(db->root_fd, name,
 						APK_FI_NOFOLLOW | file->csum.type,
 						&fi, &db->atoms);
-				if ((db->flags & APK_CLEAN_PROTECTED) ||
+				if ((db->ctx->flags & APK_CLEAN_PROTECTED) ||
 				    (file->csum.type != APK_CHECKSUM_NONE &&
 				     apk_checksum_compare(&file->csum, &fi.csum) == 0)) {
 					unlinkat(db->root_fd, tmpname, 0);
@@ -2725,9 +2724,9 @@ static void apk_db_migrate_files(struct apk_database *db,
 						 DIR_FILE_PRINTF(diri->dir, file));
 					if (renameat(db->root_fd, tmpname,
 						     db->root_fd, name) != 0) {
-						apk_error(PKG_VER_FMT": failed to rename %s to %s.",
-							  PKG_VER_PRINTF(ipkg->pkg),
-							  tmpname, name);
+						apk_err(out, PKG_VER_FMT": failed to rename %s to %s.",
+							PKG_VER_PRINTF(ipkg->pkg),
+							tmpname, name);
 						ipkg->broken_files = 1;
 					}
 				}
@@ -2736,8 +2735,8 @@ static void apk_db_migrate_files(struct apk_database *db,
 				/* Overwrite the old file */
 				if (renameat(db->root_fd, tmpname,
 					     db->root_fd, name) != 0) {
-					apk_error(PKG_VER_FMT": failed to rename %s to %s.",
-						  PKG_VER_PRINTF(ipkg->pkg), tmpname, name);
+					apk_err(out, PKG_VER_FMT": failed to rename %s to %s.",
+						PKG_VER_PRINTF(ipkg->pkg), tmpname, name);
 					ipkg->broken_files = 1;
 				}
 			}
@@ -2763,6 +2762,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 			     int upgrade, apk_progress_cb cb, void *cb_ctx,
 			     char **script_args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct install_ctx ctx;
 	struct apk_istream *is = NULL, *cache_is;
 	struct apk_repository *repo;
@@ -2807,8 +2807,8 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 		if (!IS_ERR_OR_NULL(cache_is))
 			is = cache_is;
 		else
-			apk_warning(PKG_VER_FMT": unable to cache: %s",
-				    PKG_VER_PRINTF(pkg), apk_error_str(errno));
+			apk_warn(out, PKG_VER_FMT": unable to cache: %s",
+				PKG_VER_PRINTF(pkg), apk_error_str(errno));
 	}
 
 	ctx = (struct install_ctx) {
@@ -2821,7 +2821,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 		.cb = cb,
 		.cb_ctx = cb_ctx,
 	};
-	apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY_IDENTITY, &pkg->csum, db->keys_fd, db->flags & APK_ALLOW_UNTRUSTED);
+	apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY_IDENTITY, &pkg->csum, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
 	r = apk_tar_parse(apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx), apk_db_install_archive_entry, &ctx, &db->id_cache);
 	apk_sign_ctx_free(&ctx.sctx);
 
@@ -2839,7 +2839,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	apk_db_run_pending_script(&ctx);
 	return 0;
 err_msg:
-	apk_error(PKG_VER_FMT": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
+	apk_err(out, PKG_VER_FMT": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
 	return r;
 }
 

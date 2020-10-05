@@ -7,6 +7,7 @@ libapk_src = [
 	'blob.c',
 	'commit.c',
 	'common.c',
+	'context.c',
 	'database.c',
 	'hash.c',
 	'io.c',
@@ -63,7 +64,7 @@ apk_src = [
 	'app_verify.c',
 	'app_version.c',
 	'app_vertest.c',
-	'help.c',
+	'applet.c',
 ]
 
 if lua_bin.found()

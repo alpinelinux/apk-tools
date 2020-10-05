@@ -16,31 +16,12 @@
 #include "apk_archive.h"
 #include "apk_package.h"
 #include "apk_io.h"
-#include "apk_print.h"
+#include "apk_context.h"
 
 #include "apk_provider_data.h"
 #include "apk_solver_data.h"
 
 #include "adb.h"
-
-#define APK_SIMULATE			BIT(0)
-#define APK_CLEAN_PROTECTED		BIT(1)
-#define APK_RECURSIVE			BIT(2)
-#define APK_ALLOW_UNTRUSTED		BIT(3)
-#define APK_PURGE			BIT(4)
-#define APK_INTERACTIVE			BIT(5)
-#define APK_NO_NETWORK			BIT(6)
-#define APK_OVERLAY_FROM_STDIN		BIT(7)
-#define APK_NO_SCRIPTS			BIT(8)
-#define APK_NO_CACHE			BIT(9)
-#define APK_NO_COMMIT_HOOKS		BIT(10)
-
-#define APK_FORCE_OVERWRITE		BIT(0)
-#define APK_FORCE_OLD_APK		BIT(1)
-#define APK_FORCE_BROKEN_WORLD		BIT(2)
-#define APK_FORCE_REFRESH		BIT(3)
-#define APK_FORCE_NON_REPOSITORY	BIT(4)
-#define APK_FORCE_BINARY_STDOUT		BIT(5)
 
 struct apk_name;
 APK_ARRAY(apk_name_array, struct apk_name *);
@@ -137,20 +118,6 @@ struct apk_repository {
 	apk_blob_t description;
 };
 
-struct apk_db_options {
-	unsigned int flags, force, lock_wait;
-	struct apk_progress progress;
-	unsigned int cache_max_age;
-	unsigned long open_flags;
-	const char *root;
-	const char *arch;
-	const char *keys_dir;
-	const char *cache_dir;
-	const char *repositories_file;
-	struct apk_string_array *repository_list;
-	struct apk_string_array *private_keys;
-};
-
 #define APK_REPOSITORY_CACHED		0
 #define APK_REPOSITORY_FIRST_CONFIGURED	1
 
@@ -163,16 +130,14 @@ struct apk_repository_tag {
 };
 
 struct apk_database {
-	unsigned int flags, force;
-	struct apk_progress progress;
-	char *root;
+	struct apk_ctx *ctx;
 	int root_fd, lock_fd, cache_fd, keys_fd;
 	unsigned num_repos, num_repo_tags;
 	const char *cache_dir;
 	char *cache_remount_dir, *root_proc_dir;
 	unsigned long cache_remount_flags;
 	apk_blob_t *arch;
-	unsigned int local_repos, available_repos, cache_max_age;
+	unsigned int local_repos, available_repos;
 	unsigned int repo_update_errors, repo_update_counter;
 	unsigned int pending_triggers;
 	unsigned int extract_flags;
@@ -245,7 +210,7 @@ struct apk_db_file *apk_db_file_query(struct apk_database *db,
 				 APK_OPENF_NO_WORLD)
 
 void apk_db_init(struct apk_database *db);
-int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts);
+int apk_db_open(struct apk_database *db, struct apk_ctx *ctx);
 void apk_db_close(struct apk_database *db);
 int apk_db_write_config(struct apk_database *db);
 int apk_db_permanent(struct apk_database *db);
@@ -254,7 +219,7 @@ int apk_db_fire_triggers(struct apk_database *db);
 int apk_db_run_script(struct apk_database *db, char *fn, char **argv);
 void apk_db_update_directory_permissions(struct apk_database *db);
 static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
-	return (db->force & APK_FORCE_REFRESH) ? APK_ISTREAM_FORCE_REFRESH : since;
+	return (db->ctx->force & APK_FORCE_REFRESH) ? APK_ISTREAM_FORCE_REFRESH : since;
 }
 
 struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *pkg);

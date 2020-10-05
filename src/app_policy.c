@@ -17,6 +17,7 @@ extern const char * const apk_installed_file;
 
 static void print_policy(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_provider *p;
 	struct apk_repository *repo;
 	int i, j, num = 0;
@@ -41,17 +42,17 @@ zlib1g policy:
 		if (p->pkg->name != name)
 			continue;
 		if (num++ == 0)
-			printf("%s policy:\n", name->name);
-		printf("  " BLOB_FMT ":\n", BLOB_PRINTF(*p->version));
+			apk_out(out, "%s policy:", name->name);
+		apk_out(out, "  " BLOB_FMT ":", BLOB_PRINTF(*p->version));
 		if (p->pkg->ipkg != NULL)
-			printf("    %s\n", apk_installed_file);
+			apk_out(out, "    %s", apk_installed_file);
 		for (i = 0; i < db->num_repos; i++) {
 			repo = &db->repos[i];
 			if (!(BIT(i) & p->pkg->repos))
 				continue;
 			for (j = 0; j < db->num_repo_tags; j++) {
 				if (db->repo_tags[j].allowed_repos & p->pkg->repos)
-					printf("    "BLOB_FMT"%s%s\n",
+					apk_out(out, "    "BLOB_FMT"%s%s",
 						BLOB_PRINTF(db->repo_tags[j].tag),
 						j == 0 ? "" : " ",
 						repo->url);

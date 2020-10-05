@@ -29,6 +29,7 @@ enum {
 };
 
 struct audit_ctx {
+	int verbosity;
 	unsigned mode : 1;
 	unsigned recursive : 1;
 	unsigned check_permissions : 1;
@@ -44,9 +45,9 @@ struct audit_ctx {
 
 APK_OPT_APPLET(option_desc, AUDIT_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
-	struct audit_ctx *actx = (struct audit_ctx *) ctx;
+	struct audit_ctx *actx = (struct audit_ctx *) applet_ctx;
 
 	switch (opt) {
 	case OPT_AUDIT_backup:
@@ -146,18 +147,19 @@ static int audit_directory(struct audit_ctx *actx,
 static void report_audit(struct audit_ctx *actx,
 			 char reason, apk_blob_t bfull, struct apk_package *pkg)
 {
-	if (!reason)
-		return;
+	int verbosity = actx->verbosity;
+
+	if (!reason) return;
 
 	if (actx->packages_only) {
 		if (pkg == NULL || pkg->state_int != 0)
 			return;
 		pkg->state_int = 1;
-		if (apk_verbosity < 1)
+		if (verbosity < 1)
 			printf("%s\n", pkg->name->name);
 		else
 			printf(PKG_VER_FMT "\n", PKG_VER_PRINTF(pkg));
-	} else if (apk_verbosity < 1) {
+	} else if (verbosity < 1) {
 		printf(BLOB_FMT "\n", BLOB_PRINTF(bfull));
 	} else
 		printf("%c " BLOB_FMT "\n", reason, BLOB_PRINTF(bfull));
@@ -307,11 +309,13 @@ static int audit_missing_files(apk_hash_item item, void *pctx)
 
 static int audit_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct audit_tree_ctx atctx;
 	struct audit_ctx *actx = (struct audit_ctx *) ctx;
 	char **parg, *arg;
 	int r = 0;
 
+	actx->verbosity = apk_out_verbosity(&db->ctx->out);
 	atctx.db = db;
 	atctx.actx = actx;
 	atctx.pathlen = 0;
@@ -323,7 +327,7 @@ static int audit_main(void *ctx, struct apk_database *db, struct apk_string_arra
 		foreach_array_item(parg, args) {
 			arg = *parg;
 			if (arg[0] != '/') {
-				apk_warning("%s: relative path skipped.\n", arg);
+				apk_warn(out, "%s: relative path skipped.\n", arg);
 				continue;
 			}
 			arg++;

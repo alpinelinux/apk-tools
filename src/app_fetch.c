@@ -76,13 +76,13 @@ static int cup(void)
 
 APK_OPT_APPLET(option_desc, FETCH_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct fetch_ctx *fctx = (struct fetch_ctx *) ctx;
 
 	switch (opt) {
 	case OPT_FETCH_simulate:
-		dbopts->flags |= APK_SIMULATE;
+		ac->flags |= APK_SIMULATE;
 		break;
 	case OPT_FETCH_recursive:
 		fctx->flags |= FETCH_RECURSIVE;
@@ -117,6 +117,7 @@ static int fetch_package(apk_hash_item item, void *pctx)
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
 	struct apk_database *db = ctx->db;
+	struct apk_out *out = &db->ctx->out;
 	struct apk_package *pkg = (struct apk_package *) item;
 	struct apk_istream *is;
 	struct apk_repository *repo;
@@ -144,8 +145,8 @@ static int fetch_package(apk_hash_item item, void *pctx)
 			return 0;
 	}
 
-	apk_message("Downloading " PKG_VER_FMT, PKG_VER_PRINTF(pkg));
-	if (db->flags & APK_SIMULATE)
+	apk_msg(out, "Downloading " PKG_VER_FMT, PKG_VER_PRINTF(pkg));
+	if (db->ctx->flags & APK_SIMULATE)
 		return 0;
 
 	r = apk_repo_format_item(db, repo, pkg, &urlfd, url, sizeof(url));
@@ -194,7 +195,7 @@ static int fetch_package(apk_hash_item item, void *pctx)
 	return 0;
 
 err:
-	apk_error(PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
+	apk_err(out, PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
 	ctx->errors++;
 	return 0;
 }
@@ -209,10 +210,12 @@ static void mark_package(struct fetch_ctx *ctx, struct apk_package *pkg)
 
 static void mark_error(struct fetch_ctx *ctx, const char *match, struct apk_name *name)
 {
+	struct apk_out *out = &ctx->db->ctx->out;
+
 	if (strchr(match, '*') != NULL)
 		return;
 
-	apk_message("%s: unable to select package (or its dependencies)", name ? name->name : match);
+	apk_msg(out, "%s: unable to select package (or its dependencies)", name ? name->name : match);
 	ctx->errors++;
 }
 
@@ -276,6 +279,7 @@ static int purge_package(void *pctx, int dirfd, const char *filename)
 	char tmp[PATH_MAX];
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
 	struct apk_database *db = ctx->db;
+	struct apk_out *out = &db->ctx->out;
 	struct apk_provider *p0;
 	struct apk_name *name;
 	apk_blob_t b = APK_BLOB_STR(filename), bname, bver;
@@ -294,8 +298,8 @@ static int purge_package(void *pctx, int dirfd, const char *filename)
 		break;
 	}
 
-	apk_message("Purging %s", filename);
-	if (db->flags & APK_SIMULATE)
+	apk_msg(out, "Purging %s", filename);
+	if (db->ctx->flags & APK_SIMULATE)
 		return 0;
 
 	unlinkat(dirfd, filename, 0);
@@ -304,21 +308,22 @@ static int purge_package(void *pctx, int dirfd, const char *filename)
 
 static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
 
 	ctx->db = db;
-	ctx->prog = db->progress;
+	ctx->prog = db->ctx->progress;
 	if (ctx->flags & FETCH_STDOUT) {
-		ctx->prog.out = 0;
-		apk_verbosity = 0;
+		db->ctx->progress.out = 0;
+		db->ctx->out.verbosity = 0;
 	}
 
 	if (ctx->outdir_fd == 0)
 		ctx->outdir_fd = AT_FDCWD;
 
 	if ((args->num == 1) && (strcmp(args->item[0], "coffee") == 0)) {
-		if (db->force) return cup();
-		apk_message("Go and fetch your own coffee.");
+		if (db->ctx->force) return cup();
+		apk_msg(out, "Go and fetch your own coffee.");
 		return 0;
 	}
 
@@ -335,7 +340,7 @@ static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_arr
 		apk_hash_foreach(&db->available.packages, fetch_package, ctx);
 
 	/* Remove packages not matching download spec from the output directory */
-	if (!ctx->errors && (db->flags & APK_PURGE) &&
+	if (!ctx->errors && (db->ctx->flags & APK_PURGE) &&
 	    !(ctx->flags & FETCH_STDOUT) && ctx->outdir_fd > 0)
 		apk_dir_foreach_file(ctx->outdir_fd, purge_package, ctx);
 

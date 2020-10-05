@@ -18,6 +18,7 @@
 #include "apk_print.h"
 
 struct list_ctx {
+	int verbosity;
 	unsigned int installed : 1;
 	unsigned int orphaned : 1;
 	unsigned int available : 1;
@@ -36,8 +37,7 @@ static int origin_matches(const struct list_ctx *ctx, const struct apk_package *
 	if (pkg->origin == NULL)
 		return 0;
 
-	foreach_array_item(pmatch, ctx->filters)
-	{
+	foreach_array_item(pmatch, ctx->filters) {
 		if (apk_blob_compare(APK_BLOB_STR(*pmatch), *pkg->origin) == 0)
 			return 1;
 	}
@@ -103,8 +103,7 @@ static void print_package(const struct apk_package *pkg, const struct list_ctx *
 
 	if (pkg->ipkg)
 		printf(" [installed]");
-	else
-	{
+	else {
 		const struct apk_package *u;
 
 		u = is_upgradable(pkg->name, pkg);
@@ -113,10 +112,9 @@ static void print_package(const struct apk_package *pkg, const struct list_ctx *
 	}
 
 
-	if (apk_verbosity > 1)
-	{
+	if (ctx->verbosity > 1) {
 		printf("\n  %s\n", pkg->description);
-		if (apk_verbosity > 2)
+		if (ctx->verbosity > 2)
 			printf("  <%s>\n", pkg->url);
 	}
 
@@ -147,8 +145,7 @@ static void iterate_providers(const struct apk_name *name, const struct list_ctx
 {
 	struct apk_provider *p;
 
-	foreach_array_item(p, name->providers)
-	{
+	foreach_array_item(p, name->providers) {
 		if (!ctx->match_providers && p->pkg->name != name)
 			continue;
 
@@ -162,19 +159,17 @@ static void iterate_providers(const struct apk_name *name, const struct list_ctx
 static void print_result(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
 	struct list_ctx *ctx = pctx;
+	struct apk_name **pname;
 
 	if (name == NULL)
 		return;
 
-	if (ctx->match_depends)
-	{
-		struct apk_name **pname;
-
+	if (ctx->match_depends) {
 		foreach_array_item(pname, name->rdepends)
 			iterate_providers(*pname, ctx);
-	}
-	else
+	} else {
 		iterate_providers(name, ctx);
+	}
 }
 
 #define LIST_OPTIONS(OPT) \
@@ -188,7 +183,7 @@ static void print_result(struct apk_database *db, const char *match, struct apk_
 
 APK_OPT_APPLET(option_desc, LIST_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct list_ctx *ctx = pctx;
 
@@ -235,6 +230,7 @@ static int list_main(void *pctx, struct apk_database *db, struct apk_string_arra
 {
 	struct list_ctx *ctx = pctx;
 
+	ctx->verbosity = apk_out_verbosity(&db->ctx->out);
 	ctx->filters = args;
 
 	if (ctx->match_origin)

@@ -28,7 +28,7 @@ struct dot_ctx {
 
 APK_OPT_APPLET(option_desc, DOT_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct dot_ctx *ctx = (struct dot_ctx *) pctx;
 
@@ -38,7 +38,7 @@ static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int op
 		break;
 	case OPT_DOT_installed:
 		ctx->installed_only = 1;
-		dbopts->open_flags &= ~APK_OPENF_NO_INSTALLED;
+		ac->open_flags &= ~APK_OPENF_NO_INSTALLED;
 		break;
 	default:
 		return -ENOTSUP;

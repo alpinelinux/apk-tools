@@ -22,6 +22,7 @@ struct ver_ctx {
 
 static int ver_indexes(struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_repository *repo;
 	int i;
 
@@ -31,9 +32,9 @@ static int ver_indexes(struct apk_database *db, struct apk_string_array *args)
 		if (APK_BLOB_IS_NULL(repo->description))
 			continue;
 
-		printf(BLOB_FMT " [%s]\n",
-		       BLOB_PRINTF(repo->description),
-		       db->repos[i].url);
+		apk_out(out, BLOB_FMT " [%s]",
+			BLOB_PRINTF(repo->description),
+			db->repos[i].url);
 	}
 
 	return 0;
@@ -41,25 +42,26 @@ static int ver_indexes(struct apk_database *db, struct apk_string_array *args)
 
 static int ver_test(struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	int r;
 
 	if (args->num != 2)
 		return 1;
 
 	r = apk_version_compare(args->item[0], args->item[1]);
-	printf("%s\n", apk_version_op_string(r));
+	apk_out(out, "%s", apk_version_op_string(r));
 	return 0;
 }
 
 static int ver_validate(struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	char **parg;
 	int errors = 0;
 
 	foreach_array_item(parg, args) {
 		if (!apk_version_validate(APK_BLOB_STR(*parg))) {
-			if (apk_verbosity > 0)
-				printf("%s\n", *parg);
+			apk_msg(out, "%s", *parg);
 			errors++;
 		}
 	}
@@ -75,7 +77,7 @@ static int ver_validate(struct apk_database *db, struct apk_string_array *args)
 
 APK_OPT_APPLET(option_desc, VERSION_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct ver_ctx *ictx = (struct ver_ctx *) ctx;
 	switch (opt) {
@@ -84,7 +86,7 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 		break;
 	case OPT_VERSION_check:
 		ictx->action = ver_validate;
-		dbopts->open_flags |= APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
+		ac->open_flags |= APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
 		break;
 	case OPT_VERSION_indexes:
 		ictx->action = ver_indexes;
@@ -94,7 +96,7 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 		break;
 	case OPT_VERSION_test:
 		ictx->action = ver_test;
-		dbopts->open_flags |= APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
+		ac->open_flags |= APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
 		break;
 	default:
 		return -ENOTSUP;
@@ -109,6 +111,7 @@ static const struct apk_option_group optgroup_applet = {
 
 static void ver_print_package_status(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct ver_ctx *ctx = (struct ver_ctx *) pctx;
 	struct apk_package *pkg;
 	struct apk_provider *p0;
@@ -149,8 +152,8 @@ static void ver_print_package_status(struct apk_database *db, const char *match,
 	opstr = apk_version_op_string(r);
 	if ((ctx->limchars != NULL) && (strchr(ctx->limchars, *opstr) == NULL))
 		return;
-	if (apk_verbosity <= 0) {
-		printf("%s\n", pkg->name->name);
+	if (apk_out_verbosity(out) <= 0) {
+		apk_out(out, "%s", pkg->name->name);
 		return;
 	}
 
@@ -163,7 +166,7 @@ static void ver_print_package_status(struct apk_database *db, const char *match,
 	}
 
 	snprintf(pkgname, sizeof(pkgname), PKG_VER_FMT, PKG_VER_PRINTF(pkg));
-	printf("%-40s%s " BLOB_FMT " " BLOB_FMT "\n",
+	apk_out(out, "%-40s%s " BLOB_FMT " " BLOB_FMT,
 		pkgname, opstr,
 		BLOB_PRINTF(*latest),
 		BLOB_PRINTF(db->repo_tags[tag].tag));
@@ -171,20 +174,20 @@ static void ver_print_package_status(struct apk_database *db, const char *match,
 
 static int ver_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct ver_ctx *ctx = (struct ver_ctx *) pctx;
 
 	if (ctx->limchars) {
 		if (strlen(ctx->limchars) == 0)
 			ctx->limchars = NULL;
-	} else if (args->num == 0 && apk_verbosity == 1) {
+	} else if (args->num == 0 && apk_out_verbosity(out) == 1) {
 		ctx->limchars = "<";
 	}
 
 	if (ctx->action != NULL)
 		return ctx->action(db, args);
 
-	if (apk_verbosity > 0)
-		printf("%-42sAvailable:\n", "Installed:");
+	apk_msg(out, "%-42s%s", "Installed:", "Available:");
 
 	apk_name_foreach_matching(
 		db, args, APK_FOREACH_NULL_MATCHES_ALL | apk_foreach_genid(),

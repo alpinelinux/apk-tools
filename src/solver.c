@@ -1097,7 +1097,7 @@ restart:
 
 	generate_changeset(ss, world);
 
-	if (ss->errors && (db->force & APK_FORCE_BROKEN_WORLD)) {
+	if (ss->errors && (db->ctx->force & APK_FORCE_BROKEN_WORLD)) {
 		foreach_array_item(d, world) {
 			name = d->name;
 			pkg = name->ss.chosen.pkg;

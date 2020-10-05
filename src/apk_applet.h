@@ -15,13 +15,6 @@
 #include "apk_defines.h"
 #include "apk_database.h"
 
-#if 0
-#define APK_OPT1n(_opt)		       "\xf0" _opt "\x00"
-#define APK_OPT1R(_opt)		"\xaf" "\xf0" _opt "\x00"
-#define APK_OPT2n(_opt, _short)	       _short _opt "\x00"
-#define APK_OPT2R(_opt, _short)	"\xaf" _short _opt "\x00"
-#endif
-
 #define __APK_OPTAPPLET		"\x00"
 #define __APK_OPTGROUP(_name)	_name "\x00"
 #define __APK_OPT_ENUM(_enum,__desc) _enum,
@@ -45,8 +38,7 @@
 
 struct apk_option_group {
 	const char *desc;
-	int (*parse)(void *ctx, struct apk_db_options *dbopts,
-		     int opt, const char *optarg);
+	int (*parse)(void *ctx, struct apk_ctx *ac, int opt, const char *optarg);
 };
 
 struct apk_applet {
@@ -63,9 +55,12 @@ struct apk_applet {
 
 extern const struct apk_option_group optgroup_global, optgroup_commit, optgroup_signing;
 
-void apk_help(struct apk_applet *applet);
 void apk_applet_register(struct apk_applet *);
+void apk_applet_register_builtin(void);
+struct apk_applet *apk_applet_find(const char *name);
+void apk_applet_help(struct apk_applet *applet, struct apk_out *out);
 typedef void (*apk_init_func_t)(void);
+
 
 #define APK_DEFINE_APPLET(x) \
 static void __register_##x(void) { apk_applet_register(&x); } \

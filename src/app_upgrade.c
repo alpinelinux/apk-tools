@@ -16,6 +16,8 @@
 #include "apk_print.h"
 #include "apk_solver.h"
 
+extern char **apk_argv;
+
 struct upgrade_ctx {
 	unsigned short solver_flags;
 	int no_self_upgrade : 1;
@@ -35,7 +37,7 @@ struct upgrade_ctx {
 
 APK_OPT_APPLET(option_desc, UPGRADE_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) ctx;
 
@@ -71,6 +73,7 @@ static const struct apk_option_group optgroup_applet = {
 
 int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, unsigned int self_upgrade_only)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_name *name;
 	struct apk_package *pkg;
 	struct apk_provider *p0;
@@ -102,7 +105,7 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 
 	r = apk_solver_solve(db, 0, db->world, &changeset);
 	if (r != 0) {
-		apk_warning("Failed to perform initial self-upgrade, continuing with full upgrade.");
+		apk_warn(out, "Failed to perform initial self-upgrade, continuing with full upgrade.");
 		r = 0;
 		goto ret;
 	}
@@ -110,24 +113,24 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	if (changeset.num_total_changes == 0)
 		goto ret;
 
-	if (!self_upgrade_only && db->flags & APK_SIMULATE) {
-		apk_warning("This simulation is not reliable as apk-tools upgrade is available.");
+	if (!self_upgrade_only && db->ctx->flags & APK_SIMULATE) {
+		apk_warn(out, "This simulation is not reliable as apk-tools upgrade is available.");
 		goto ret;
 	}
 
-	apk_message("Upgrading critical system libraries and apk-tools:");
+	apk_msg(out, "Upgrading critical system libraries and apk-tools:");
 	apk_solver_commit_changeset(db, &changeset, db->world);
 	if (self_upgrade_only) goto ret;
 
 	apk_db_close(db);
+	apk_msg(out, "Continuing the upgrade transaction with new apk-tools:");
 
-	apk_message("Continuing the upgrade transaction with new apk-tools:");
 	for (r = 0; apk_argv[r] != NULL; r++)
 		;
 	apk_argv[r] = "--no-self-upgrade";
 	execvp(apk_argv[0], apk_argv);
 
-	apk_error("PANIC! Failed to re-execute new apk-tools!");
+	apk_err(out, "PANIC! Failed to re-execute new apk-tools!");
 	exit(1);
 
 ret:
@@ -138,10 +141,11 @@ ret:
 
 static void set_upgrade_for_name(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) pctx;
 
 	if (!name) {
-		apk_error("Package '%s' not found", match);
+		apk_err(out, "Package '%s' not found", match);
 		uctx->errors++;
 		return;
 	}
@@ -151,6 +155,7 @@ static void set_upgrade_for_name(struct apk_database *db, const char *match, str
 
 static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) ctx;
 	unsigned short solver_flags;
 	struct apk_dependency *dep;
@@ -159,8 +164,9 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 	int r = 0;
 
 	if (apk_db_check_world(db, db->world) != 0) {
-		apk_error("Not continuing with upgrade due to missing repository tags. "
-			  "Use --force-broken-world to override.");
+		apk_err(out,
+			"Not continuing with upgrade due to missing repository tags. "
+			"Use --force-broken-world to override.");
 		return -1;
 	}
 

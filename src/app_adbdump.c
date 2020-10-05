@@ -223,13 +223,14 @@ static int mmap_and_dump_adb(struct adb_trust *trust, int fd)
 
 static int adbdump_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	char **arg;
 	int r;
 
 	foreach_array_item(arg, args) {
 		r = mmap_and_dump_adb(&db->trust, open(*arg, O_RDONLY));
 		if (r) {
-			apk_error("%s: %s", *arg, apk_error_str(r));
+			apk_err(out, "%s: %s", *arg, apk_error_str(r));
 			return r;
 		}
 	}

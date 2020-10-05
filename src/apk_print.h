@@ -12,6 +12,9 @@
 
 #include "apk_blob.h"
 
+const char *apk_error_str(int error);
+const char *apk_get_human_size(off_t size, off_t *dest);
+
 struct apk_url_print {
 	const char *url;
 	const char *pwmask;
@@ -24,22 +27,28 @@ void apk_url_parse(struct apk_url_print *, const char *);
 #define URL_FMT			"%.*s%s%s"
 #define URL_PRINTF(u)		u.len_before_pw, u.url, u.pwmask, u.url_or_host
 
-#define apk_error(args...)	do { apk_log_err("ERROR: ", args); } while (0)
-#define apk_warning(args...)	do { if (apk_verbosity > 0) { apk_log_err("WARNING: ", args); } } while (0)
-#define apk_message(args...)	do { if (apk_verbosity > 0) { apk_log(NULL, args); } } while (0)
+struct apk_out {
+	int verbosity;
+	unsigned int width, last_change;
+	FILE *out, *err;
+};
 
-void apk_log(const char *prefix, const char *format, ...);
-void apk_log_err(const char *prefix, const char *format, ...);
-const char *apk_error_str(int error);
+static inline int apk_out_verbosity(struct apk_out *out) { return out->verbosity; }
 
-void apk_reset_screen_width(void);
-int apk_get_screen_width(void);
-const char *apk_get_human_size(off_t size, off_t *dest);
+#define apk_err(out, args...)	do { apk_out_fmt(out, "ERROR: ", args); } while (0)
+#define apk_out(out, args...)	do { apk_out_fmt(out, NULL, args); } while (0)
+#define apk_warn(out, args...)	do { if (apk_out_verbosity(out) >= 0) { apk_out_fmt(out, "WARNING: ", args); } } while (0)
+#define apk_msg(out, args...)	do { if (apk_out_verbosity(out) >= 1) { apk_out_fmt(out, NULL, args); } } while (0)
+#define apk_dbg(out, args...)	do { if (apk_out_verbosity(out) >= 2) { apk_out_fmt(out, NULL, args); } } while (0)
+#define apk_dbg2(out, args...)	do { if (apk_out_verbosity(out) >= 3) { apk_out_fmt(out, NULL, args); } } while (0)
+
+void apk_out_reset(struct apk_out *);
+void apk_out_fmt(struct apk_out *, const char *prefix, const char *format, ...);
 
 struct apk_progress {
-	int fd;
-	FILE *out;
-	int last_bar, last_percent;
+	struct apk_out *out;
+	int fd, last_bar, last_percent;
+	unsigned int last_out_change;
 	size_t last_done;
 	const char *progress_char;
 };
@@ -47,8 +56,8 @@ struct apk_progress {
 void apk_print_progress(struct apk_progress *p, size_t done, size_t total);
 
 struct apk_indent {
-	int x;
-	int indent;
+	struct apk_out *out;
+	int x, indent;
 };
 
 int  apk_print_indented(struct apk_indent *i, apk_blob_t blob);

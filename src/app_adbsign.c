@@ -19,7 +19,7 @@ struct sign_ctx {
 
 APK_OPT_APPLET(option_desc, ADBSIGN_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+static int option_parse_applet(void *pctx, struct apk_ctx *ac, int optch, const char *optarg)
 {
 	struct sign_ctx *ctx = (struct sign_ctx *) pctx;
 
@@ -64,6 +64,7 @@ static int update_signatures(struct adb_xfrm *xfrm, struct adb_block *blk, struc
 
 static int adbsign_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct sign_ctx *ctx = pctx;
 	char **arg;
 	int r;
@@ -75,7 +76,7 @@ static int adbsign_main(void *pctx, struct apk_database *db, struct apk_string_a
 		adb_c_xfrm(&ctx->xfrm, update_signatures);
 		apk_istream_close(ctx->xfrm.is);
 		r = apk_ostream_close(ctx->xfrm.os);
-		if (r) apk_error("%s: %s", *arg, apk_error_str(r));
+		if (r) apk_err(out, "%s: %s", *arg, apk_error_str(r));
 	}
 
 	return 0;

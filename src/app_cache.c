@@ -34,7 +34,7 @@ struct cache_ctx {
 
 APK_OPT_APPLET(option_desc, CACHE_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
+static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct cache_ctx *cctx = (struct cache_ctx *) ctx;
 
@@ -69,16 +69,17 @@ static void progress_cb(void *ctx, size_t bytes_done)
 
 static int cache_download(struct cache_ctx *cctx, struct apk_database *db)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_changeset changeset = {};
 	struct apk_change *change;
 	struct apk_package *pkg;
 	struct apk_repository *repo;
-	struct progress prog = { .prog = db->progress };
+	struct progress prog = { .prog = db->ctx->progress };
 	int r, ret = 0;
 
 	r = apk_solver_solve(db, cctx->solver_flags, db->world, &changeset);
 	if (r < 0) {
-		apk_error("Unable to select packages. Run apk fix.");
+		apk_err(out, "Unable to select packages. Run apk fix.");
 		return r;
 	}
 
@@ -100,7 +101,7 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db)
 		r = apk_cache_download(db, repo, pkg, APK_SIGN_VERIFY_IDENTITY, 0,
 				       progress_cb, &prog);
 		if (r && r != -EALREADY) {
-			apk_error(PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
+			apk_err(out, PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
 			ret++;
 		}
 		prog.done += pkg->size;
@@ -111,6 +112,7 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db)
 
 static void cache_clean_item(struct apk_database *db, int dirfd, const char *name, struct apk_package *pkg)
 {
+	struct apk_out *out = &db->ctx->out;
 	char tmp[PATH_MAX];
 	apk_blob_t b;
 	int i;
@@ -118,7 +120,7 @@ static void cache_clean_item(struct apk_database *db, int dirfd, const char *nam
 	if (strcmp(name, "installed") == 0) return;
 
 	if (pkg) {
-		if ((db->flags & APK_PURGE) && pkg->ipkg == NULL) goto delete;
+		if ((db->ctx->flags & APK_PURGE) && pkg->ipkg == NULL) goto delete;
 		if (pkg->repos & db->local_repos & ~BIT(APK_REPOSITORY_CACHED)) goto delete;
 		if (pkg->ipkg == NULL && !(pkg->repos & ~BIT(APK_REPOSITORY_CACHED))) goto delete;
 		return;
@@ -132,9 +134,8 @@ static void cache_clean_item(struct apk_database *db, int dirfd, const char *nam
 	}
 
 delete:
-	if (apk_verbosity >= 2)
-		apk_message("deleting %s", name);
-	if (!(db->flags & APK_SIMULATE)) {
+	apk_dbg(out, "deleting %s", name);
+	if (!(db->ctx->flags & APK_SIMULATE)) {
 		if (unlinkat(dirfd, name, 0) < 0 && errno == EISDIR)
 			unlinkat(dirfd, name, AT_REMOVEDIR);
 	}
@@ -147,6 +148,7 @@ static int cache_clean(struct apk_database *db)
 
 static int cache_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct cache_ctx *cctx = (struct cache_ctx *) ctx;
 	char *arg;
 	int r = 0, actions = 0;
@@ -165,7 +167,7 @@ static int cache_main(void *ctx, struct apk_database *db, struct apk_string_arra
 		return -EINVAL;
 
 	if (!apk_db_cache_active(db)) {
-		apk_error("Package cache is not enabled.\n");
+		apk_err(out, "Package cache is not enabled.\n");
 		r = 2;
 		goto err;
 	}

@@ -17,6 +17,7 @@
 
 static int verify_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_sign_ctx sctx;
 	char **parg;
 	int r, ok, rc = 0;
@@ -28,13 +29,13 @@ static int verify_main(void *ctx, struct apk_database *db, struct apk_string_arr
 						 apk_sign_ctx_mpart_cb, &sctx),
 			apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
 		ok = sctx.control_verified && sctx.data_verified;
-		if (apk_verbosity >= 1)
-			apk_message("%s: %d - %s", *parg, r,
+		if (apk_out_verbosity(out) >= 1)
+			apk_msg(out, "%s: %d - %s", *parg, r,
 				r < 0 ? apk_error_str(r) :
 				ok ? "OK" :
 				!sctx.control_verified ? "UNTRUSTED" : "FAILED");
 		else if (!ok)
-			printf("%s\n", *parg);
+			apk_out(out, "%s", *parg);
 		if (!ok)
 			rc++;
 

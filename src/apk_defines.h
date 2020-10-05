@@ -68,9 +68,6 @@ static inline int IS_ERR_OR_NULL(const void *ptr) { return IS_ERR(ptr) || !ptr; 
 #define ROUND_DOWN(x,a)		((x) & ~(a-1))
 #define ROUND_UP(x,a)		(((x)+(a)-1) & ~((a)-1))
 
-extern int apk_verbosity;
-extern char **apk_argv;
-
 /* default architecture for APK packages. */
 #if defined(__x86_64__)
 #define APK_DEFAULT_ARCH        "x86_64"

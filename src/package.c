@@ -908,8 +908,9 @@ static int read_info_entry(void *ctx, const struct apk_file_info *ae,
 		while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
 			read_info_line(ctx, l);
 	} else if (strcmp(ae->name, ".INSTALL") == 0) {
-		apk_warning("Package '%s-%s' contains deprecated .INSTALL",
-				pkg->name->name, pkg->version);
+		apk_warn(&ri->db->ctx->out,
+			"Package '%s-%s' contains deprecated .INSTALL",
+			pkg->name->name, pkg->version);
 	}
 
 	return 0;
@@ -1004,6 +1005,7 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 			 struct apk_database *db,
 			 unsigned int type, char **argv)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_package *pkg = ipkg->pkg;
 	char fn[PATH_MAX];
 	int fd, root_fd = db->root_fd;
@@ -1018,10 +1020,10 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		PKG_VER_PRINTF(pkg),
 		apk_script_types[type]);
 
-	if ((db->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
+	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
 		return;
 
-	apk_message("Executing %s", &fn[15]);
+	apk_msg(out, "Executing %s", &fn[15]);
 	fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0755);
 	if (fd < 0) {
 		mkdirat(root_fd, "var/cache/misc", 0755);
@@ -1043,7 +1045,7 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	goto cleanup;
 
 err_log:
-	apk_error("%s: failed to execute: %s", &fn[15], apk_error_str(errno));
+	apk_err(out, "%s: failed to execute: %s", &fn[15], apk_error_str(errno));
 err:
 	ipkg->broken_script = 1;
 cleanup:
@@ -1063,6 +1065,7 @@ static int parse_index_line(void *ctx, apk_blob_t line)
 
 struct apk_package *apk_pkg_parse_index_entry(struct apk_database *db, apk_blob_t blob)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct read_info_ctx ctx;
 
 	ctx.pkg = apk_pkg_new();
@@ -1075,8 +1078,7 @@ struct apk_package *apk_pkg_parse_index_entry(struct apk_database *db, apk_blob_
 
 	if (ctx.pkg->name == NULL) {
 		apk_pkg_free(ctx.pkg);
-		apk_error("Failed to parse index entry: " BLOB_FMT,
-			  BLOB_PRINTF(blob));
+		apk_err(out, "Failed to parse index entry: " BLOB_FMT, BLOB_PRINTF(blob));
 		ctx.pkg = NULL;
 	}
 
@@ -1143,18 +1145,15 @@ int apk_pkg_write_index_entry(struct apk_package *info,
 	}
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\n"));
 
-	if (APK_BLOB_IS_NULL(bbuf)) {
-		apk_error("Metadata for package " PKG_VER_FMT " is too long.",
-			  PKG_VER_PRINTF(info));
-		return -ENOBUFS;
-	}
+	if (APK_BLOB_IS_NULL(bbuf))
+		return apk_ostream_cancel(os, -ENOBUFS);
 
 	bbuf = apk_blob_pushed(APK_BLOB_BUF(buf), bbuf);
 	if (apk_ostream_write(os, bbuf.ptr, bbuf.len) != bbuf.len ||
 	    write_depends(os, "D:", info->depends) ||
 	    write_depends(os, "p:", info->provides) ||
 	    write_depends(os, "i:", info->install_if))
-		return -EIO;
+		return apk_ostream_cancel(os, -EIO);
 
 	return 0;
 }

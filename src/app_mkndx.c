@@ -44,7 +44,7 @@ struct mkndx_ctx {
 
 APK_OPT_APPLET(option_desc, MKNDX_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int optch, const char *optarg)
+static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
 {
 	struct mkndx_ctx *ictx = ctx;
 
@@ -188,6 +188,7 @@ static int mkndx_parse_v2_tar(void *pctx, const struct apk_file_info *ae, struct
 
 static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct adb odb, tmpdb;
 	struct adb_obj oroot, opkgs, ndx, tmpl;
 	struct apk_file_info fi;
@@ -198,7 +199,7 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 	time_t index_mtime = 0;
 
 	if (ctx->output == NULL) {
-		apk_error("Please specify --output FILE");
+		apk_err(out, "Please specify --output FILE");
 		return -1;
 	}
 
@@ -215,7 +216,7 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 
 		r = adb_m_map(&odb, open(ctx->index, O_RDONLY), ADB_SCHEMA_INDEX, &db->trust);
 		if (r) {
-			apk_error("%s: %s", ctx->index, apk_error_str(r));
+			apk_err(out, "%s: %s", ctx->index, apk_error_str(r));
 			return r;
 		}
 		adb_ro_obj(adb_r_rootobj(&odb, &oroot, &schema_index), ADBI_NDX_PACKAGES, &opkgs);
@@ -225,7 +226,7 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 		r = apk_fileinfo_get(AT_FDCWD, *parg, APK_CHECKSUM_NONE, &fi, 0);
 		if (r < 0) {
 		err_pkg:
-			apk_error("%s: %s", *parg, apk_error_str(r));
+			apk_err(out, "%s: %s", *parg, apk_error_str(r));
 			errors++;
 			continue;
 		}
@@ -273,7 +274,7 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 		}
 		if (!found) {
 		do_file:
-			apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->flags & APK_ALLOW_UNTRUSTED);
+			apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
 			r = apk_tar_parse(
 				apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, *parg), apk_sign_ctx_mpart_cb, &ctx->sctx),
 				mkndx_parse_v2_tar, ctx, &db->id_cache);
@@ -283,7 +284,7 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 		}
 	}
 	if (errors) {
-		apk_error("%d errors, not creating index", errors);
+		apk_err(out, "%d errors, not creating index", errors);
 		return -1;
 	}
 
@@ -300,19 +301,18 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 	adb_free(&odb);
 
 	if (r == 0)
-		apk_message("Index has %d packages (of which %d are new)",
-			    numpkgs, newpkgs);
+		apk_msg(out, "Index has %d packages (of which %d are new)", numpkgs, newpkgs);
 	else
-		apk_error("Index creation failed: %s", apk_error_str(r));
+		apk_err(out, "Index creation failed: %s", apk_error_str(r));
 
 
 #if 0
 	apk_hash_foreach(&db->available.names, warn_if_no_providers, &counts);
 
 	if (counts.unsatisfied != 0)
-		apk_warning("Total of %d unsatisfiable package "
-			    "names. Your repository may be broken.",
-			    counts.unsatisfied);
+		apk_warn(out,
+			"Total of %d unsatisfiable package names. Your repository may be broken.",
+			counts.unsatisfied);
 #endif
 
 	return r;

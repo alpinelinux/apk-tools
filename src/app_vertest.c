@@ -16,6 +16,7 @@
 
 static int vertest_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
 {
+	struct apk_out *out = &db->ctx->out;
 	apk_blob_t arg, ver, op, space = APK_BLOB_STRLIT(" ");
 	char **parg;
 	int errors = 0;
@@ -35,8 +36,7 @@ static int vertest_main(void *pctx, struct apk_database *db, struct apk_string_a
 			ok = apk_version_validate(arg);
 		}
 		if (!ok) {
-			if (apk_verbosity > 0)
-				printf("%s\n", *parg);
+			apk_msg(out, "%s", *parg);
 			errors++;
 		}
 	}
