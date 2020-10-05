@@ -209,7 +209,7 @@ static int conv_main(void *pctx, struct apk_database *db, struct apk_string_arra
 
 	read_triggers(ctx, apk_istream_from_file(db->root_fd, "lib/apk/db/triggers"));
 
-	convert_idb(ctx, apk_istream_from_fd_url(db->root_fd, "lib/apk/db/installed"));
+	convert_idb(ctx, apk_istream_from_file(db->root_fd, "lib/apk/db/installed"));
 
 	adb_wo_obj(&idb, ADBI_IDB_PACKAGES, &ctx->pkgs);
 	adb_w_rootobj(&idb);

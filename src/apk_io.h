@@ -75,11 +75,12 @@ struct apk_istream {
 
 #define APK_IO_ALL ((size_t)-1)
 
+#define APK_ISTREAM_FORCE_REFRESH		((time_t) -1)
+
 struct apk_istream *apk_istream_from_file(int atfd, const char *file);
 struct apk_istream *apk_istream_from_file_gz(int atfd, const char *file);
 struct apk_istream *apk_istream_from_fd(int fd);
 struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *url, time_t since);
-struct apk_istream *apk_istream_from_url_gz(const char *url);
 ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size);
 apk_blob_t apk_istream_get(struct apk_istream *is, size_t len);
 apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t size);
@@ -90,17 +91,13 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size,
 			apk_progress_cb cb, void *cb_ctx, EVP_MD_CTX *mdctx);
 
-static inline struct apk_istream *apk_istream_from_url(const char *url)
-{
-	return apk_istream_from_fd_url_if_modified(AT_FDCWD, url, 0);
-}
-static inline struct apk_istream *apk_istream_from_fd_url(int atfd, const char *url)
-{
-	return apk_istream_from_fd_url_if_modified(atfd, url, 0);
-}
-static inline struct apk_istream *apk_istream_from_url_if_modified(const char *url, time_t since)
+static inline struct apk_istream *apk_istream_from_url(const char *url, time_t since)
 {
 	return apk_istream_from_fd_url_if_modified(AT_FDCWD, url, since);
+}
+static inline struct apk_istream *apk_istream_from_fd_url(int atfd, const char *url, time_t since)
+{
+	return apk_istream_from_fd_url_if_modified(atfd, url, since);
 }
 static inline void apk_istream_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
 {

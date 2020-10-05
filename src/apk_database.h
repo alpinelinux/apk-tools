@@ -22,6 +22,13 @@
 
 #include "adb.h"
 
+#define APK_FORCE_OVERWRITE		BIT(0)
+#define APK_FORCE_OLD_APK		BIT(1)
+#define APK_FORCE_BROKEN_WORLD		BIT(2)
+#define APK_FORCE_REFRESH		BIT(3)
+#define APK_FORCE_NON_REPOSITORY	BIT(4)
+#define APK_FORCE_BINARY_STDOUT		BIT(5)
+
 struct apk_name;
 APK_ARRAY(apk_name_array, struct apk_name *);
 
@@ -118,7 +125,7 @@ struct apk_repository {
 };
 
 struct apk_db_options {
-	int lock_wait;
+	unsigned int force, lock_wait;
 	unsigned int cache_max_age;
 	unsigned long open_flags;
 	const char *root;
@@ -142,6 +149,7 @@ struct apk_repository_tag {
 };
 
 struct apk_database {
+	unsigned int force;
 	char *root;
 	int root_fd, lock_fd, cache_fd, keys_fd;
 	unsigned num_repos, num_repo_tags;
@@ -230,6 +238,9 @@ int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *wor
 int apk_db_fire_triggers(struct apk_database *db);
 int apk_db_run_script(struct apk_database *db, char *fn, char **argv);
 void apk_db_update_directory_permissions(struct apk_database *db);
+static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
+	return (db->force & APK_FORCE_REFRESH) ? APK_ISTREAM_FORCE_REFRESH : since;
+}
 
 struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *pkg);
 struct apk_package *apk_db_get_pkg(struct apk_database *db, struct apk_checksum *csum);

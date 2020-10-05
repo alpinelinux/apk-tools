@@ -103,6 +103,7 @@ static struct apk_istream *apk_istream_fetch(const char *url, time_t since)
 {
 	struct apk_fetch_istream *fis = NULL;
 	struct url *u;
+	char *flags = "Ci";
 	fetchIO *io = NULL;
 	int rc = -EIO;
 
@@ -117,8 +118,12 @@ static struct apk_istream *apk_istream_fetch(const char *url, time_t since)
 		goto err;
 	}
 
-	u->last_modified = since;
-	io = fetchXGet(u, &fis->urlstat, (apk_force & APK_FORCE_REFRESH) ? "Ci" : "i");
+	if (since != APK_ISTREAM_FORCE_REFRESH) {
+		u->last_modified = since;
+		flags = "i";
+	}
+
+	io = fetchXGet(u, &fis->urlstat, flags);
 	if (!io) {
 		rc = fetch_maperror(fetchLastErrCode);
 		goto err;
@@ -146,9 +151,4 @@ struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *ur
 	if (apk_url_local_file(url) != NULL)
 		return apk_istream_from_file(atfd, apk_url_local_file(url));
 	return apk_istream_fetch(url, since);
-}
-
-struct apk_istream *apk_istream_from_url_gz(const char *file)
-{
-	return apk_istream_gunzip(apk_istream_from_url(file));
 }

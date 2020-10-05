@@ -63,7 +63,7 @@ static const struct apk_option_group optgroup_applet = {
 
 static int non_repository_check(struct apk_database *db)
 {
-	if (apk_force & APK_FORCE_NON_REPOSITORY)
+	if (db->force & APK_FORCE_NON_REPOSITORY)
 		return 0;
 	if (apk_db_cache_active(db))
 		return 0;

@@ -48,7 +48,7 @@ enum {
 };
 
 int apk_verbosity = 1;
-unsigned int apk_flags = 0, apk_force = 0;
+unsigned int apk_flags = 0;
 
 static apk_blob_t tmpprefix = { .len=8, .ptr = ".apknew." };
 
@@ -630,7 +630,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 	r = apk_repo_format_real_url(db->arch, repo, pkg, url, sizeof(url), &urlp);
 	if (r < 0) return r;
 
-	if (autoupdate && !(apk_force & APK_FORCE_REFRESH)) {
+	if (autoupdate && !(db->force & APK_FORCE_REFRESH)) {
 		if (fstatat(db->cache_fd, cacheitem, &st, 0) == 0 &&
 		    now - st.st_mtime <= db->cache_max_age)
 			return -EALREADY;
@@ -642,13 +642,13 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 
 	if (verify != APK_SIGN_NONE) {
 		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd);
-		is = apk_istream_from_url_if_modified(url, st.st_mtime);
+		is = apk_istream_from_url(url, apk_db_url_since(db, st.st_mtime));
 		is = apk_istream_tee(is, db->cache_fd, tmpcacheitem, !autoupdate, cb, cb_ctx);
 		is = apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx);
 		r = apk_tar_parse(is, apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
 		apk_sign_ctx_free(&sctx);
 	} else {
-		is = apk_istream_from_url_if_modified(url, st.st_mtime);
+		is = apk_istream_from_url(url, apk_db_url_since(db, st.st_mtime));
 		if (!IS_ERR_OR_NULL(is)) {
 			fd = openat(db->cache_fd, tmpcacheitem, O_RDWR | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
 			if (fd < 0) r = -errno;
@@ -871,13 +871,13 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 				case 's': ipkg->broken_script = 1; break;
 				case 'x': ipkg->broken_xattr = 1; break;
 				default:
-					if (!(apk_force & APK_FORCE_OLD_APK))
+					if (!(db->force & APK_FORCE_OLD_APK))
 						goto old_apk_tools;
 				}
 			}
 			break;
 		default:
-			if (r != 0 && !(apk_force & APK_FORCE_OLD_APK))
+			if (r != 0 && !(db->force & APK_FORCE_OLD_APK))
 				goto old_apk_tools;
 			/* Installed. So mark the package as installable. */
 			pkg->filename = NULL;
@@ -1527,6 +1527,7 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 		r = -1;
 		goto ret_r;
 	}
+	db->force = dbopts->force;
 	if ((dbopts->open_flags & APK_OPENF_WRITE) &&
 	    !(dbopts->open_flags & APK_OPENF_NO_AUTOUPDATE) &&
 	    !(apk_flags & APK_NO_NETWORK))
@@ -2054,7 +2055,7 @@ int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *wor
 	struct apk_dependency *dep;
 	int bad = 0, tag;
 
-	if (apk_force & APK_FORCE_BROKEN_WORLD)
+	if (db->force & APK_FORCE_BROKEN_WORLD)
 		return 0;
 
 	foreach_array_item(dep, world) {
@@ -2276,7 +2277,7 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 		r = apk_repo_format_real_url(db->arch, repo, NULL, buf, sizeof(buf), &urlp);
 	}
 	if (r == 0) {
-		r = load_index(db, apk_istream_from_fd_url(db->cache_fd, buf), targz, repo_num);
+		r = load_index(db, apk_istream_from_fd_url(db->cache_fd, buf, apk_db_url_since(db, 0)), targz, repo_num);
 	}
 
 	if (r != 0) {
@@ -2538,7 +2539,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 				if (pkg_prio >= 0)
 					break;
 
-				if (!(apk_force & APK_FORCE_OVERWRITE)) {
+				if (!(db->force & APK_FORCE_OVERWRITE)) {
 					apk_error(PKG_VER_FMT": trying to overwrite %s owned by "PKG_VER_FMT".",
 						  PKG_VER_PRINTF(pkg), ae->name, PKG_VER_PRINTF(opkg));
 					ipkg->broken_files = 1;
@@ -2791,7 +2792,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	if (!apk_db_cache_active(db))
 		need_copy = FALSE;
 
-	is = apk_istream_from_fd_url(filefd, file);
+	is = apk_istream_from_fd_url(filefd, file, apk_db_url_since(db, 0));
 	if (IS_ERR_OR_NULL(is)) {
 		r = PTR_ERR(is);
 		if (r == -ENOENT && pkg->filename == NULL)

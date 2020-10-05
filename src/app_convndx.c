@@ -80,7 +80,7 @@ static int conv_main(void *pctx, struct apk_database *db, struct apk_string_arra
 	adb_wo_alloca(&ctx->pkgs, &schema_pkginfo_array, &ctx->dbi);
 
 	foreach_array_item(arg, args) {
-		r = load_index(ctx, apk_istream_from_url(*arg));
+		r = load_index(ctx, apk_istream_from_url(*arg, apk_db_url_since(db, 0)));
 		if (r) goto err;
 		fprintf(stderr, "%s: %u packages\n", *arg, adb_ra_num(&ctx->pkgs));
 	}

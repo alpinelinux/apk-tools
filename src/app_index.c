@@ -117,7 +117,7 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 	apk_blob_t *rewrite_arch = NULL;
 
 	if (isatty(STDOUT_FILENO) && ictx->output == NULL &&
-	    !(apk_force & APK_FORCE_BINARY_STDOUT)) {
+	    !(db->force & APK_FORCE_BINARY_STDOUT)) {
 		apk_error("Will not write binary index to console. "
 			  "Use --force-binary-stdout to override.");
 		return -1;

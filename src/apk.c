@@ -133,27 +133,27 @@ static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt
 		version();
 		return -ESHUTDOWN;
 	case OPT_GLOBAL_force:
-		apk_force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
-			  |  APK_FORCE_BROKEN_WORLD | APK_FORCE_NON_REPOSITORY
-			  |  APK_FORCE_BINARY_STDOUT;
+		dbopts->force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
+			| APK_FORCE_BROKEN_WORLD | APK_FORCE_NON_REPOSITORY
+			| APK_FORCE_BINARY_STDOUT;
 		break;
 	case OPT_GLOBAL_force_overwrite:
-		apk_force |= APK_FORCE_OVERWRITE;
+		dbopts->force |= APK_FORCE_OVERWRITE;
 		break;
 	case OPT_GLOBAL_force_old_apk:
-		apk_force |= APK_FORCE_OLD_APK;
+		dbopts->force |= APK_FORCE_OLD_APK;
 		break;
 	case OPT_GLOBAL_force_broken_world:
-		apk_force |= APK_FORCE_BROKEN_WORLD;
+		dbopts->force |= APK_FORCE_BROKEN_WORLD;
 		break;
 	case OPT_GLOBAL_force_refresh:
-		apk_force |= APK_FORCE_REFRESH;
+		dbopts->force |= APK_FORCE_REFRESH;
 		break;
 	case OPT_GLOBAL_force_non_repository:
-		apk_force |= APK_FORCE_NON_REPOSITORY;
+		dbopts->force |= APK_FORCE_NON_REPOSITORY;
 		break;
 	case OPT_GLOBAL_force_binary_stdout:
-		apk_force |= APK_FORCE_BINARY_STDOUT;
+		dbopts->force |= APK_FORCE_BINARY_STDOUT;
 		break;
 	case OPT_GLOBAL_interactive:
 		apk_flags |= APK_INTERACTIVE;
@@ -252,8 +252,8 @@ static int option_parse_commit(void *ctx, struct apk_db_options *dbopts, int opt
 	case OPT_COMMIT_initramfs_diskless_boot:
 		dbopts->open_flags |= APK_OPENF_CREATE;
 		apk_flags |= APK_NO_COMMIT_HOOKS;
-		apk_force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
-			  |  APK_FORCE_BROKEN_WORLD | APK_FORCE_NON_REPOSITORY;
+		dbopts->force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
+			|  APK_FORCE_BROKEN_WORLD | APK_FORCE_NON_REPOSITORY;
 		break;
 	default:
 		return -ENOTSUP;
@@ -469,7 +469,7 @@ int main(int argc, char **argv)
 			ctx = calloc(1, applet->context_size);
 		dbopts.open_flags = applet->open_flags;
 		apk_flags |= applet->forced_flags;
-		apk_force |= applet->forced_force;
+		dbopts.force |= applet->forced_force;
 	}
 
 	init_openssl();
