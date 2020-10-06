@@ -156,8 +156,9 @@ The following options are available for all commands.
 
 *--repositories-file* _REPOFILE_
 	Override system repositories, see *apk-repositories*(8). Specifying this
-	option override the normal repositories file and repositories.d directory
-	processing.
+	option overrides the normal repositories file and repositories.d directory
+	processing. The given _REPOFILE_ is relative to the startup directory since
+	apk 2.12.0_rc2.
 
 *--wait* _TIME_
 	Wait for TIME seconds to get an exclusive repository lock before

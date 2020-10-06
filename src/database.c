@@ -1406,15 +1406,19 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 	struct apk_database *db = (struct apk_database *) ctx;
 	apk_blob_t blob;
 
-	if (dirfd != db->root_fd) {
+	if (dirfd != AT_FDCWD && dirfd != db->root_fd) {
 		/* loading from repositories.d; check extension */
 		if (!file_ends_with_dot_list(file))
 			return 0;
 	}
 
 	blob = apk_blob_from_file(dirfd, file);
-	if (APK_BLOB_IS_NULL(blob))
-		return 0;
+	if (APK_BLOB_IS_NULL(blob)) {
+		if (dirfd != AT_FDCWD) return 0;
+		apk_error("failed to read repositories: %s", file);
+		apk_message("NOTE: --repositories-file is relative to the startup directory since apk 2.12.0_rc2");
+		return -ENOENT;
+	}
 
 	apk_blob_for_each_segment(blob, "\n", apk_db_add_repository, db);
 	free(blob.ptr);
