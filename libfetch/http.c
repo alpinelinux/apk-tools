@@ -1070,7 +1070,13 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 					/* XXX should set an error code */
 					goto ouch;
 				}
-				if (!*new->user && !*new->pwd) {
+				if (!new->port)
+					new->port = fetch_default_port(url->scheme);
+				if (!new->user[0] && !new->pwd[0] &&
+				    new->port == url->port &&
+				    strcmp(new->scheme, url->scheme) == 0 &&
+				    strcmp(new->host, url->host) == 0) {
+					/* keep auth if staying on same host */
 					strcpy(new->user, url->user);
 					strcpy(new->pwd, url->pwd);
 				}
