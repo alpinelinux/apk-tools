@@ -2406,6 +2406,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 					const struct apk_file_info *ae,
 					struct apk_istream *is)
 {
+	static const char dot1[] = "/./", dot2[] = "/../";
 	struct install_ctx *ctx = (struct install_ctx *) _ctx;
 	struct apk_database *db = ctx->db;
 	struct apk_package *pkg = ctx->pkg, *opkg;
@@ -2448,10 +2449,9 @@ static int apk_db_install_archive_entry(void *_ctx,
 
 	/* Sanity check the file name */
 	if (ae->name[0] == '/' ||
-	    strncmp(ae->name, "/./"+1, 3) == 0 ||
-	    strncmp(ae->name, "/../"+1, 3) == 0 ||
-	    strstr(ae->name, "/./") ||
-	    strstr(ae->name, "/../")) {
+	    strncmp(ae->name, &dot1[1], 2) == 0 ||
+	    strncmp(ae->name, &dot2[1], 3) == 0 ||
+	    strstr(ae->name, dot1) || strstr(ae->name, dot2)) {
 		apk_warning(PKG_VER_FMT": ignoring malicious file %s",
 			    PKG_VER_PRINTF(pkg), ae->name);
 		ipkg->broken_files = 1;

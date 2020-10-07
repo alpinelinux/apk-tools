@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
+#include <assert.h>
 #include <limits.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -264,6 +265,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	off_t humanized, size_diff = 0;
 	int r, errors = 0;
 
+	assert(world);
 	if (apk_db_check_world(db, world) != 0) {
 		apk_error("Not committing changes due to missing repository tags. "
 			  "Use --force-broken-world to override.");

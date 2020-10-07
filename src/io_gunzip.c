@@ -37,6 +37,7 @@ static int gzi_boundary_change(struct apk_gzip_istream *gis)
 {
 	int r;
 
+	if (!gis->cb) return 0;
 	r = gis->cb(gis->cbctx, gis->is.err ? APK_MPART_END : APK_MPART_BOUNDARY, gis->cbarg);
 	if (r > 0) r = -ECANCELED;
 	if (r != 0) gis->is.err = r;

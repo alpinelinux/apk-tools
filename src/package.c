@@ -488,7 +488,7 @@ void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action,
 		ctx->md = EVP_sha1();
 		break;
 	default:
-		action = APK_SIGN_NONE;
+		ctx->action = APK_SIGN_NONE;
 		ctx->md = EVP_md_null();
 		ctx->control_started = 1;
 		ctx->data_started = 1;

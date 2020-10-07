@@ -351,8 +351,9 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 			if ((unsigned char)*d >= 0xf0)
 				num_short = *d++ & 0x0f;
 			for (; num_short > 0; num_short--) {
-				assert(*d >= 64 && *d < 128);
-				short_option_val[*d - 64] = opt->val;
+				unsigned char ch = *(unsigned char *)d;
+				assert(ch >= 64 && ch < 128);
+				short_option_val[ch-64] = opt->val;
 				*sopt++ = *d++;
 				if (opt->has_arg != no_argument)
 					*sopt++ = ':';
@@ -381,13 +382,6 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 	if (help_requested || r == -ENOTSUP)
 		return usage(applet);
 
-	if (applet == NULL) {
-		if (argc > 1) {
-			apk_error("'%s' is not an apk command. See 'apk --help'.", argv[1]);
-			return 1;
-		}
-		return usage(NULL);
-	}
 	return 0;
 }
 
@@ -496,6 +490,14 @@ int main(int argc, char **argv)
 
 	r = parse_options(argc, argv, applet, ctx, &dbopts);
 	if (r != 0) goto err;
+
+	if (applet == NULL) {
+		if (argc > 1) {
+			apk_error("'%s' is not an apk command. See 'apk --help'.", argv[1]);
+			return 1;
+		}
+		return usage(NULL);
+	}
 
 	argc -= optind;
 	argv += optind;
