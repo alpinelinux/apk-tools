@@ -654,10 +654,10 @@ int apk_repo_format_item(struct apk_database *db, struct apk_repository *repo, s
 		if (db->cache_fd < 0) return db->cache_fd;
 		*fd = db->cache_fd;
 		return apk_pkg_format_cache_pkg(APK_BLOB_PTR_LEN(buf, len), pkg);
-	} else {
-		*fd = AT_FDCWD;
-		return apk_repo_format_real_url(db->arch, repo, pkg, buf, len, 0);
 	}
+
+	*fd = AT_FDCWD;
+	return apk_repo_format_real_url(db->arch, repo, pkg, buf, len, 0);
 }
 
 int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
