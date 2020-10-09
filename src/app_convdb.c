@@ -18,7 +18,7 @@ struct conv_script {
 };
 
 struct conv_ctx {
-	struct apk_database *db;
+	struct apk_atom_pool atoms;
 	struct adb_obj pkgs;
 
 	struct list_head script_head;
@@ -91,7 +91,7 @@ static int read_triggers(struct conv_ctx *ctx, struct apk_istream *is)
 		s = find_pkg(ctx, l, ADBI_SCRPT_TRIGGER);
 		if (!s) continue;
 
-		s->triggers = apk_atomize_dup(&ctx->db->atoms, r);
+		s->triggers = apk_atomize_dup(&ctx->atoms, r);
 	}
 
 	apk_istream_close(is);
@@ -189,14 +189,15 @@ static void convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 	}
 }
 
-static int conv_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct conv_ctx *ctx = pctx;
 	struct adb_obj idb;
 	int r;
+	int root_fd = apk_ctx_fd_root(ac);
 
-	ctx->db = db;
 	list_init(&ctx->script_head);
+	apk_atom_init(&ctx->atoms);
 
 	adb_w_init_alloca(&ctx->dbi, ADB_SCHEMA_INSTALLED_DB, 10);
 	adb_w_init_alloca(&ctx->dbp, ADB_SCHEMA_PACKAGE, 1000);
@@ -204,12 +205,12 @@ static int conv_main(void *pctx, struct apk_database *db, struct apk_string_arra
 	adb_wo_alloca(&ctx->pkgs, &schema_package_adb_array, &ctx->dbi);
 
 	apk_tar_parse(
-		apk_istream_from_file(db->root_fd, "lib/apk/db/scripts.tar"),
-		read_script, ctx, &db->id_cache);
+		apk_istream_from_file(root_fd, "lib/apk/db/scripts.tar"),
+		read_script, ctx, apk_ctx_get_id_cache(ac));
 
-	read_triggers(ctx, apk_istream_from_file(db->root_fd, "lib/apk/db/triggers"));
+	read_triggers(ctx, apk_istream_from_file(root_fd, "lib/apk/db/triggers"));
 
-	convert_idb(ctx, apk_istream_from_file(db->root_fd, "lib/apk/db/installed"));
+	convert_idb(ctx, apk_istream_from_file(root_fd, "lib/apk/db/installed"));
 
 	adb_wo_obj(&idb, ADBI_IDB_PACKAGES, &ctx->pkgs);
 	adb_w_rootobj(&idb);
@@ -217,20 +218,20 @@ static int conv_main(void *pctx, struct apk_database *db, struct apk_string_arra
 	r = adb_c_create(
 		//apk_ostream_to_file(db->root_fd, "lib/apk/db/installed.adb", 0644),
 		apk_ostream_to_file(AT_FDCWD, "installed.adb", 0644),
-		&ctx->dbi, &db->trust);
+		&ctx->dbi, apk_ctx_get_trust(ac));
 	if (r == 0) {
 		// unlink old files
 	}
 
 	adb_free(&ctx->dbi);
 	adb_free(&ctx->dbp);
+	apk_atom_free(&ctx->atoms);
 
 	return r;
 }
 
 static struct apk_applet apk_convdb = {
 	.name = "convdb",
-	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS,
 	.context_size = sizeof(struct conv_ctx),
 	.optgroups = { &optgroup_global, &optgroup_signing },
 	.main = conv_main,

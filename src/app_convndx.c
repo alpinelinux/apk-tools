@@ -7,7 +7,7 @@
 #include "apk_applet.h"
 
 struct conv_ctx {
-	struct apk_database *db;
+	struct apk_ctx *ac;
 	struct adb_obj pkgs;
 	struct adb dbi;
 	struct apk_sign_ctx sctx;
@@ -52,35 +52,37 @@ static int load_apkindex(void *sctx, const struct apk_file_info *fi,
 
 static int load_index(struct conv_ctx *ctx, struct apk_istream *is)
 {
+	struct apk_id_cache *idc = apk_ctx_get_id_cache(ctx->ac);
 	int r = 0;
 
 	if (IS_ERR_OR_NULL(is)) return is ? PTR_ERR(is) : -EINVAL;
 
 	ctx->found = 0;
-	apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, ctx->db->keys_fd, ctx->db->ctx->flags & APK_ALLOW_UNTRUSTED);
+	apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, apk_ctx_fd_keys(ctx->ac), ctx->ac->flags & APK_ALLOW_UNTRUSTED);
 	r = apk_tar_parse(
 		apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx->sctx),
-		load_apkindex, ctx, &ctx->db->id_cache);
+		load_apkindex, ctx, idc);
 	apk_sign_ctx_free(&ctx->sctx);
 	if (r >= 0 && ctx->found == 0) r = -ENOMSG;
 
 	return r;
 }
 
-static int conv_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	char **arg;
 	struct conv_ctx *ctx = pctx;
+	struct adb_trust *trust = apk_ctx_get_trust(ac);
 	struct adb_obj ndx;
 	int r;
 
-	ctx->db = db;
+	ctx->ac = ac;
 	adb_w_init_alloca(&ctx->dbi, ADB_SCHEMA_INDEX, 1000);
 	adb_wo_alloca(&ndx, &schema_index, &ctx->dbi);
 	adb_wo_alloca(&ctx->pkgs, &schema_pkginfo_array, &ctx->dbi);
 
 	foreach_array_item(arg, args) {
-		r = load_index(ctx, apk_istream_from_url(*arg, apk_db_url_since(db, 0)));
+		r = load_index(ctx, apk_istream_from_url(*arg, apk_ctx_since(ac, 0)));
 		if (r) goto err;
 		fprintf(stderr, "%s: %u packages\n", *arg, adb_ra_num(&ctx->pkgs));
 	}
@@ -88,7 +90,7 @@ static int conv_main(void *pctx, struct apk_database *db, struct apk_string_arra
 	adb_wo_obj(&ndx, ADBI_NDX_PACKAGES, &ctx->pkgs);
 	adb_w_rootobj(&ndx);
 
-	r = adb_c_create(apk_ostream_to_fd(STDOUT_FILENO), &ctx->dbi, &db->trust);
+	r = adb_c_create(apk_ostream_to_fd(STDOUT_FILENO), &ctx->dbi, trust);
 err:
 	adb_free(&ctx->dbi);
 
@@ -97,7 +99,6 @@ err:
 
 static struct apk_applet apk_convndx = {
 	.name = "convndx",
-	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS,
 	.context_size = sizeof(struct conv_ctx),
 	.optgroups = { &optgroup_global, &optgroup_signing },
 	.main = conv_main,

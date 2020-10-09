@@ -146,9 +146,10 @@ static int cache_clean(struct apk_database *db)
 	return apk_db_cache_foreach_item(db, cache_clean_item);
 }
 
-static int cache_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
+static int cache_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
 	struct cache_ctx *cctx = (struct cache_ctx *) ctx;
 	char *arg;
 	int r = 0, actions = 0;

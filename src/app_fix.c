@@ -86,8 +86,9 @@ static void set_solver_flags(struct apk_database *db, const char *match, struct 
 		mark_fix(ctx, name);
 }
 
-static int fix_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int fix_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
+	struct apk_database *db = ac->db;
 	struct fix_ctx *ctx = (struct fix_ctx *) pctx;
 	struct apk_installed_package *ipkg;
 

@@ -221,14 +221,14 @@ static int mmap_and_dump_adb(struct adb_trust *trust, int fd)
 	return 0;
 }
 
-static int adbdump_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
 	char **arg;
 	int r;
 
 	foreach_array_item(arg, args) {
-		r = mmap_and_dump_adb(&db->trust, open(*arg, O_RDONLY));
+		r = mmap_and_dump_adb(apk_ctx_get_trust(ac), open(*arg, O_RDONLY));
 		if (r) {
 			apk_err(out, "%s: %s", *arg, apk_error_str(r));
 			return r;
@@ -240,7 +240,6 @@ static int adbdump_main(void *pctx, struct apk_database *db, struct apk_string_a
 
 static struct apk_applet apk_adbdump = {
 	.name = "adbdump",
-	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS,
 	.main = adbdump_main,
 };
 APK_DEFINE_APPLET(apk_adbdump);

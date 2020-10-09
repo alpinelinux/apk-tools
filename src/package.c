@@ -939,7 +939,7 @@ int apk_pkg_read(struct apk_database *db, const char *file,
 
 	r = apk_tar_parse(
 		apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, file), apk_sign_ctx_mpart_cb, sctx),
-		read_info_entry, &ctx, &db->id_cache);
+		read_info_entry, &ctx, db->id_cache);
 	if (r < 0 && r != -ECANCELED)
 		goto err;
 	if (ctx.pkg->name == NULL || ctx.pkg->uninstallable) {
@@ -1040,7 +1040,7 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		goto err;
 
 	/* Script may have done something that changes id cache contents */
-	apk_id_cache_reset(&db->id_cache);
+	apk_id_cache_reset(db->id_cache);
 
 	goto cleanup;
 

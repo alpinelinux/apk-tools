@@ -8,8 +8,8 @@
 #include "apk_print.h"
 
 struct sign_ctx {
+	struct apk_ctx *ac;
 	struct adb_xfrm xfrm;
-	struct apk_database *db;
 	int reset_signatures : 1;
 	int signatures_written : 1;
 };
@@ -41,6 +41,7 @@ static const struct apk_option_group optgroup_applet = {
 static int update_signatures(struct adb_xfrm *xfrm, struct adb_block *blk, struct apk_istream *is)
 {
 	struct sign_ctx *ctx = container_of(xfrm, struct sign_ctx, xfrm);
+	struct adb_trust *trust = apk_ctx_get_trust(ctx->ac);
 	int r;
 
 	switch (blk ? ADB_BLOCK_TYPE(blk) : -1) {
@@ -53,7 +54,7 @@ static int update_signatures(struct adb_xfrm *xfrm, struct adb_block *blk, struc
 	default:
 		if (!ctx->signatures_written) {
 			ctx->signatures_written = 1;
-			r = adb_trust_write_signatures(&ctx->db->trust, &xfrm->db, &xfrm->vfy, xfrm->os);
+			r = adb_trust_write_signatures(trust, &xfrm->db, &xfrm->vfy, xfrm->os);
 			if (r) return r;
 		}
 		if (!blk) break;
@@ -62,14 +63,14 @@ static int update_signatures(struct adb_xfrm *xfrm, struct adb_block *blk, struc
 	return 0;
 }
 
-static int adbsign_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int adbsign_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
 	struct sign_ctx *ctx = pctx;
 	char **arg;
 	int r;
 
-	ctx->db = db;
+	ctx->ac = ac;
 	foreach_array_item(arg, args) {
 		ctx->xfrm.is = apk_istream_from_file(AT_FDCWD, *arg);
 		ctx->xfrm.os = apk_ostream_to_file(AT_FDCWD, *arg, 0644);
@@ -84,7 +85,6 @@ static int adbsign_main(void *pctx, struct apk_database *db, struct apk_string_a
 
 static struct apk_applet apk_adbsign = {
 	.name = "adbsign",
-	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS,
 	.context_size = sizeof(struct sign_ctx),
 	.optgroups = { &optgroup_global, &optgroup_signing, &optgroup_applet },
 	.main = adbsign_main,

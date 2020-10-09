@@ -15,19 +15,20 @@
 #include "apk_database.h"
 #include "apk_print.h"
 
-static int verify_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
+static int verify_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
 	struct apk_sign_ctx sctx;
+	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
 	char **parg;
 	int r, ok, rc = 0;
 
 	foreach_array_item(parg, args) {
-		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, 1);
+		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, apk_ctx_fd_keys(ac), 1);
 		r = apk_tar_parse(
 			apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, *parg),
 						 apk_sign_ctx_mpart_cb, &sctx),
-			apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
+			apk_sign_ctx_verify_tar, &sctx, idc);
 		ok = sctx.control_verified && sctx.data_verified;
 		if (apk_out_verbosity(out) >= 1)
 			apk_msg(out, "%s: %d - %s", *parg, r,
@@ -47,7 +48,6 @@ static int verify_main(void *ctx, struct apk_database *db, struct apk_string_arr
 
 static struct apk_applet apk_verify = {
 	.name = "verify",
-	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
 	.main = verify_main,
 };
 

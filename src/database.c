@@ -642,7 +642,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		is = apk_istream_from_url(url, apk_db_url_since(db, st.st_mtime));
 		is = apk_istream_tee(is, db->cache_fd, tmpcacheitem, !autoupdate, cb, cb_ctx);
 		is = apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx);
-		r = apk_tar_parse(is, apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
+		r = apk_tar_parse(is, apk_sign_ctx_verify_tar, &sctx, db->id_cache);
 		apk_sign_ctx_free(&sctx);
 	} else {
 		is = apk_istream_from_url(url, apk_db_url_since(db, st.st_mtime));
@@ -1165,7 +1165,7 @@ static int apk_db_read_state(struct apk_database *db, int flags)
 
 	if (!(flags & APK_OPENF_NO_SCRIPTS)) {
 		r = apk_tar_parse(apk_istream_from_file(db->root_fd, apk_scripts_file),
-				  apk_read_script_archive_entry, db, &db->id_cache);
+				  apk_read_script_archive_entry, db, db->id_cache);
 		if (r && r != -ENOENT) return r;
 	}
 
@@ -1525,30 +1525,14 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		r = -1;
 		goto ret_r;
 	}
-	if (ac->flags & APK_SIMULATE) {
-		ac->open_flags &= ~(APK_OPENF_CREATE | APK_OPENF_WRITE);
-		ac->open_flags |= APK_OPENF_READ;
-	}
 	if ((ac->open_flags & APK_OPENF_WRITE) &&
 	    !(ac->open_flags & APK_OPENF_NO_AUTOUPDATE) &&
 	    !(ac->flags & APK_NO_NETWORK))
 		db->autoupdate = 1;
-	if (!ac->cache_dir) ac->cache_dir = "etc/apk/cache";
-	if (!ac->keys_dir) ac->keys_dir = "etc/apk/keys";
-	if (!ac->root) ac->root = "/";
-	if (!ac->cache_max_age) ac->cache_max_age = 4*60*60; /* 4 hours default */
 
 	apk_db_setup_repositories(db, ac->cache_dir);
+	db->root_fd = apk_ctx_fd_root(ac);
 
-	db->root_fd = openat(AT_FDCWD, db->ctx->root, O_RDONLY | O_CLOEXEC);
-	if (db->root_fd < 0 && (ac->open_flags & APK_OPENF_CREATE)) {
-		mkdirat(AT_FDCWD, db->ctx->root, 0755);
-		db->root_fd = openat(AT_FDCWD, db->ctx->root, O_RDONLY | O_CLOEXEC);
-	}
-	if (db->root_fd < 0) {
-		msg = "Unable to open root";
-		goto ret_errno;
-	}
 	if (fstatfs(db->root_fd, &stfs) == 0 &&
 	    stfs.f_type == TMPFS_MAGIC)
 		db->permanent = 0;
@@ -1568,7 +1552,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		}
 	}
 
-	apk_id_cache_init(&db->id_cache, db->root_fd);
+	db->id_cache = apk_ctx_get_id_cache(ac);
 
 	if (ac->open_flags & APK_OPENF_WRITE) {
 		db->lock_fd = openat(db->root_fd, apk_lock_file,
@@ -1663,12 +1647,6 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 
 	db->keys_fd = openat(db->root_fd, ac->keys_dir, O_RDONLY | O_CLOEXEC);
 
-	r = adb_trust_init(&db->trust, dup(db->keys_fd), ac->private_keys);
-	if (r) {
-		msg = "Unable to read trusted keys";
-		goto ret_r;
-	}
-
 	if (db->ctx->flags & APK_OVERLAY_FROM_STDIN) {
 		db->ctx->flags &= ~APK_OVERLAY_FROM_STDIN;
 		apk_db_read_overlay(db, apk_istream_from_fd(STDIN_FILENO));
@@ -1725,6 +1703,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			db->compat_notinstallable ? "are not installable" : "might not function properly");
 	}
 
+	ac->db = db;
 	return 0;
 
 ret_errno:
@@ -1794,10 +1773,6 @@ void apk_db_close(struct apk_database *db)
 	struct hlist_node *dc, *dn;
 	int i;
 
-	/* the id cache was never initialized if root_fd failed */
-	if (db->root_fd >= 0)
-		apk_id_cache_free(&db->id_cache);
-
 	/* Cleaning up the directory tree will cause mode, uid and gid
 	 * of all modified (package providing that directory got removed)
 	 * directories to be reset. */
@@ -1835,11 +1810,8 @@ void apk_db_close(struct apk_database *db)
 		db->cache_remount_dir = NULL;
 	}
 
-	adb_trust_free(&db->trust);
-
 	if (db->keys_fd) close(db->keys_fd);
 	if (db->cache_fd) close(db->cache_fd);
-	if (db->root_fd) close(db->root_fd);
 	if (db->lock_fd) close(db->lock_fd);
 }
 
@@ -2194,7 +2166,7 @@ static int load_index(struct apk_database *db, struct apk_istream *is,
 		ctx.repo = repo;
 		ctx.found = 0;
 		apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
-		r = apk_tar_parse(apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx), load_apkindex, &ctx, &db->id_cache);
+		r = apk_tar_parse(apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx), load_apkindex, &ctx, db->id_cache);
 		apk_sign_ctx_free(&ctx.sctx);
 
 		if (r >= 0 && ctx.found == 0)
@@ -2822,7 +2794,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 		.cb_ctx = cb_ctx,
 	};
 	apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY_IDENTITY, &pkg->csum, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
-	r = apk_tar_parse(apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx), apk_db_install_archive_entry, &ctx, &db->id_cache);
+	r = apk_tar_parse(apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx), apk_db_install_archive_entry, &ctx, db->id_cache);
 	apk_sign_ctx_free(&ctx.sctx);
 
 	if (need_copy) {

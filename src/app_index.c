@@ -105,9 +105,10 @@ static int warn_if_no_providers(apk_hash_item item, void *ctx)
 	return 0;
 }
 
-static int index_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
+static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
 	struct counts counts = { .out = out };
 	struct apk_ostream *os;
 	struct apk_file_info fi;

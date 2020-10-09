@@ -1078,8 +1078,10 @@ void apk_id_cache_init(struct apk_id_cache *idc, int root_fd)
 
 void apk_id_cache_free(struct apk_id_cache *idc)
 {
+	if (!idc->root_fd) return;
 	apk_hash_free(&idc->uid_cache);
 	apk_hash_free(&idc->gid_cache);
+	idc->root_fd = 0;
 }
 
 void apk_id_cache_reset(struct apk_id_cache *idc)
@@ -1100,8 +1102,7 @@ uid_t apk_resolve_uid(struct apk_id_cache *idc, const char *username, uid_t defa
 	FILE *in;
 
 	ci = resolve_cache_item(&idc->uid_cache, APK_BLOB_STR(username));
-	if (ci == NULL)
-		return default_uid;
+	if (ci == NULL) return default_uid;
 
 	if (ci->genid != idc->genid) {
 		ci->genid = idc->genid;
@@ -1143,8 +1144,7 @@ uid_t apk_resolve_gid(struct apk_id_cache *idc, const char *groupname, uid_t def
 	FILE *in;
 
 	ci = resolve_cache_item(&idc->gid_cache, APK_BLOB_STR(groupname));
-	if (ci == NULL)
-		return default_gid;
+	if (ci == NULL) return default_gid;
 
 	if (ci->genid != idc->genid) {
 		ci->genid = idc->genid;

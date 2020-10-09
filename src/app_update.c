@@ -14,9 +14,10 @@
 #include "apk_version.h"
 #include "apk_print.h"
 
-static int update_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
+static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
 	struct apk_repository *repo;
 	int i;
 	char buf[32] = "OK:";

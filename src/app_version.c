@@ -172,9 +172,10 @@ static void ver_print_package_status(struct apk_database *db, const char *match,
 		BLOB_PRINTF(db->repo_tags[tag].tag));
 }
 
-static int ver_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int ver_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
 	struct ver_ctx *ctx = (struct ver_ctx *) pctx;
 
 	if (ctx->limchars) {

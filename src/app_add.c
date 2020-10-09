@@ -110,9 +110,10 @@ static struct apk_package *create_virtual_package(struct apk_database *db, struc
 	return virtpkg;
 }
 
-static int add_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
+static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
 	struct add_ctx *actx = (struct add_ctx *) ctx;
 	struct apk_package *virtpkg = NULL;
 	struct apk_dependency virtdep;

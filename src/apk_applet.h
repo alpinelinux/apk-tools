@@ -50,7 +50,7 @@ struct apk_applet {
 	unsigned int open_flags, forced_force;
 	int context_size;
 
-	int (*main)(void *ctx, struct apk_database *db, struct apk_string_array *args);
+	int (*main)(void *ctx, struct apk_ctx *ac, struct apk_string_array *args);
 };
 
 extern const struct apk_option_group optgroup_global, optgroup_commit, optgroup_signing;

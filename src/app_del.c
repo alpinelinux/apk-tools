@@ -131,8 +131,9 @@ static void delete_name(struct apk_database *db, const char *match,
 		apk_deps_del(&ctx->world, name);
 }
 
-static int del_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int del_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
+	struct apk_database *db = ac->db;
 	struct del_ctx *ctx = (struct del_ctx *) pctx;
 	struct not_deleted_ctx ndctx = { .out = &db->ctx->out };
 	struct apk_changeset changeset = {};

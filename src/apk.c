@@ -480,10 +480,16 @@ int main(int argc, char **argv)
 	ctx.flags |= APK_SIMULATE;
 	ctx.flags &= ~APK_INTERACTIVE;
 #endif
-	r = apk_db_open(&db, &ctx);
-	if (r != 0) {
-		apk_err(out, "Failed to open apk database: %s", apk_error_str(r));
-		goto err;
+
+	r = apk_ctx_prepare(&ctx);
+	if (r != 0) goto err;
+
+	if (ctx.open_flags) {
+		r = apk_db_open(&db, &ctx);
+		if (r != 0) {
+			apk_err(out, "Failed to open apk database: %s", apk_error_str(r));
+			goto err;
+		}
 	}
 
 #ifdef TEST_MODE
@@ -527,7 +533,7 @@ int main(int argc, char **argv)
 	apk_string_array_resize(&args, argc);
 	memcpy(args->item, argv, argc * sizeof(*argv));
 
-	r = applet->main(applet_ctx, &db, args);
+	r = applet->main(applet_ctx, &ctx, args);
 	apk_db_close(&db);
 
 #ifdef TEST_MODE

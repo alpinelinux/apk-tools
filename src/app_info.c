@@ -438,12 +438,14 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 	return 0;
 }
 
-static int info_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
+static int info_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
 	struct info_ctx *ictx = (struct info_ctx *) ctx;
 	struct apk_installed_package *ipkg;
 
-	verbosity = apk_out_verbosity(&db->ctx->out);
+	verbosity = apk_out_verbosity(out);
 	ictx->db = db;
 	if (ictx->subaction_mask == 0)
 		ictx->subaction_mask = APK_INFO_DESC | APK_INFO_URL | APK_INFO_SIZE;

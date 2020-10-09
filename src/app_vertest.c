@@ -14,9 +14,9 @@
 #include "apk_version.h"
 #include "apk_print.h"
 
-static int vertest_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int vertest_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
 	apk_blob_t arg, ver, op, space = APK_BLOB_STRLIT(" ");
 	char **parg;
 	int errors = 0;
@@ -45,7 +45,6 @@ static int vertest_main(void *pctx, struct apk_database *db, struct apk_string_a
 }
 
 static struct apk_applet apk_vertest = {
-	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS,
 	.name = "vertest",
 	.main = vertest_main,
 };

@@ -186,9 +186,11 @@ static int mkndx_parse_v2_tar(void *pctx, const struct apk_file_info *ae, struct
 	return 0;
 }
 
-static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
+	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
+	struct adb_trust *trust = apk_ctx_get_trust(ac);
 	struct adb odb, tmpdb;
 	struct adb_obj oroot, opkgs, ndx, tmpl;
 	struct apk_file_info fi;
@@ -214,7 +216,7 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 		apk_fileinfo_get(AT_FDCWD, ctx->index, APK_CHECKSUM_NONE, &fi, 0);
 		index_mtime = fi.mtime;
 
-		r = adb_m_map(&odb, open(ctx->index, O_RDONLY), ADB_SCHEMA_INDEX, &db->trust);
+		r = adb_m_map(&odb, open(ctx->index, O_RDONLY), ADB_SCHEMA_INDEX, trust);
 		if (r) {
 			apk_err(out, "%s: %s", ctx->index, apk_error_str(r));
 			return r;
@@ -274,10 +276,10 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 		}
 		if (!found) {
 		do_file:
-			apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
+			apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, apk_ctx_fd_keys(ac), ac->flags & APK_ALLOW_UNTRUSTED);
 			r = apk_tar_parse(
 				apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, *parg), apk_sign_ctx_mpart_cb, &ctx->sctx),
-				mkndx_parse_v2_tar, ctx, &db->id_cache);
+				mkndx_parse_v2_tar, ctx, idc);
 			apk_sign_ctx_free(&ctx->sctx);
 			if (r < 0 && r != -ECANCELED) goto err_pkg;
 			newpkgs++;
@@ -295,7 +297,7 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 
 	r = adb_c_create(
 		apk_ostream_to_file(AT_FDCWD, ctx->output, 0644),
-		&ctx->db, &db->trust);
+		&ctx->db, trust);
 
 	adb_free(&ctx->db);
 	adb_free(&odb);
@@ -320,7 +322,6 @@ static int mkndx_main(void *pctx, struct apk_database *db, struct apk_string_arr
 
 static struct apk_applet apk_mkndx = {
 	.name = "mkndx",
-	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS,
 	.context_size = sizeof(struct mkndx_ctx),
 	.optgroups = { &optgroup_global, &optgroup_signing, &optgroup_applet },
 	.main = mkndx_main,

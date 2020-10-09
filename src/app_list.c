@@ -226,11 +226,13 @@ static const struct apk_option_group optgroup_applet = {
 	.parse = option_parse_applet,
 };
 
-static int list_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int list_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
 	struct list_ctx *ctx = pctx;
 
-	ctx->verbosity = apk_out_verbosity(&db->ctx->out);
+	ctx->verbosity = apk_out_verbosity(out);
 	ctx->filters = args;
 
 	if (ctx->match_origin)

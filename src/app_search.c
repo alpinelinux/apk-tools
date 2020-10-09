@@ -172,8 +172,9 @@ static int print_pkg(apk_hash_item item, void *pctx)
 	return 0;
 }
 
-static int search_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
+	struct apk_database *db = ac->db;
 	struct search_ctx *ctx = (struct search_ctx *) pctx;
 	char *tmp, **pmatch;
 

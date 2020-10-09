@@ -153,9 +153,10 @@ static void set_upgrade_for_name(struct apk_database *db, const char *match, str
 	apk_solver_set_name_flags(name, uctx->ignore ? APK_SOLVERF_INSTALLED : APK_SOLVERF_UPGRADE, 0);
 }
 
-static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
+static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) ctx;
 	unsigned short solver_flags;
 	struct apk_dependency *dep;

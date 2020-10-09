@@ -307,9 +307,10 @@ static int audit_missing_files(apk_hash_item item, void *pctx)
 	return 0;
 }
 
-static int audit_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
+static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
 	struct audit_tree_ctx atctx;
 	struct audit_ctx *actx = (struct audit_ctx *) ctx;
 	char **parg, *arg;

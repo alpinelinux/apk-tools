@@ -22,9 +22,12 @@ static int list_count(struct list_head *h)
 	return c;
 }
 
-static int stats_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
+static int stats_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	printf(
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
+
+	apk_out(out,
 		"installed:\n"
 		"  packages: %d\n"
 		"  dirs: %d\n"

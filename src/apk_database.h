@@ -21,8 +21,6 @@
 #include "apk_provider_data.h"
 #include "apk_solver_data.h"
 
-#include "adb.h"
-
 struct apk_name;
 APK_ARRAY(apk_name_array, struct apk_name *);
 
@@ -148,13 +146,11 @@ struct apk_database {
 	int compat_newfeatures : 1;
 	int compat_notinstallable : 1;
 
-	struct adb_trust trust;
-
 	struct apk_dependency_array *world;
+	struct apk_id_cache *id_cache;
 	struct apk_protected_path_array *protected_paths;
 	struct apk_repository repos[APK_MAX_REPOS];
 	struct apk_repository_tag repo_tags[APK_MAX_TAGS];
-	struct apk_id_cache id_cache;
 	struct apk_atom_pool atoms;
 
 	struct {
@@ -192,23 +188,6 @@ struct apk_db_dir *apk_db_dir_query(struct apk_database *db, apk_blob_t name);
 struct apk_db_file *apk_db_file_query(struct apk_database *db,
 				      apk_blob_t dir, apk_blob_t name);
 
-#define APK_OPENF_READ			0x0001
-#define APK_OPENF_WRITE			0x0002
-#define APK_OPENF_CREATE		0x0004
-#define APK_OPENF_NO_INSTALLED		0x0010
-#define APK_OPENF_NO_SCRIPTS		0x0020
-#define APK_OPENF_NO_WORLD		0x0040
-#define APK_OPENF_NO_SYS_REPOS		0x0100
-#define APK_OPENF_NO_INSTALLED_REPO	0x0200
-#define APK_OPENF_CACHE_WRITE		0x0400
-#define APK_OPENF_NO_AUTOUPDATE		0x0800
-
-#define APK_OPENF_NO_REPOS	(APK_OPENF_NO_SYS_REPOS |	\
-				 APK_OPENF_NO_INSTALLED_REPO)
-#define APK_OPENF_NO_STATE	(APK_OPENF_NO_INSTALLED |	\
-				 APK_OPENF_NO_SCRIPTS |		\
-				 APK_OPENF_NO_WORLD)
-
 void apk_db_init(struct apk_database *db);
 int apk_db_open(struct apk_database *db, struct apk_ctx *ctx);
 void apk_db_close(struct apk_database *db);
@@ -219,7 +198,7 @@ int apk_db_fire_triggers(struct apk_database *db);
 int apk_db_run_script(struct apk_database *db, char *fn, char **argv);
 void apk_db_update_directory_permissions(struct apk_database *db);
 static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
-	return (db->ctx->force & APK_FORCE_REFRESH) ? APK_ISTREAM_FORCE_REFRESH : since;
+	return apk_ctx_since(db->ctx, since);
 }
 
 struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *pkg);

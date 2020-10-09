@@ -306,9 +306,10 @@ static int purge_package(void *pctx, int dirfd, const char *filename)
 	return 0;
 }
 
-static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
 
 	ctx->db = db;

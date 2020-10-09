@@ -138,8 +138,9 @@ static int foreach_pkg(apk_hash_item item, void *ctx)
 	return 0;
 }
 
-static int dot_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
+static int dot_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
+	struct apk_database *db = ac->db;
 	struct dot_ctx *ctx = (struct dot_ctx *) pctx;
 	struct apk_provider *p;
 	char **parg;

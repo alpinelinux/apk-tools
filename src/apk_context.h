@@ -10,6 +10,8 @@
 #define APK_CONTEXT_H
 
 #include "apk_print.h"
+#include "apk_io.h"
+#include "adb.h"
 
 #define APK_SIMULATE			BIT(0)
 #define APK_CLEAN_PROTECTED		BIT(1)
@@ -30,6 +32,25 @@
 #define APK_FORCE_NON_REPOSITORY	BIT(4)
 #define APK_FORCE_BINARY_STDOUT		BIT(5)
 
+struct apk_database;
+
+#define APK_OPENF_READ			0x0001
+#define APK_OPENF_WRITE			0x0002
+#define APK_OPENF_CREATE		0x0004
+#define APK_OPENF_NO_INSTALLED		0x0010
+#define APK_OPENF_NO_SCRIPTS		0x0020
+#define APK_OPENF_NO_WORLD		0x0040
+#define APK_OPENF_NO_SYS_REPOS		0x0100
+#define APK_OPENF_NO_INSTALLED_REPO	0x0200
+#define APK_OPENF_CACHE_WRITE		0x0400
+#define APK_OPENF_NO_AUTOUPDATE		0x0800
+
+#define APK_OPENF_NO_REPOS	(APK_OPENF_NO_SYS_REPOS |	\
+				 APK_OPENF_NO_INSTALLED_REPO)
+#define APK_OPENF_NO_STATE	(APK_OPENF_NO_INSTALLED |	\
+				 APK_OPENF_NO_SCRIPTS |		\
+				 APK_OPENF_NO_WORLD)
+
 struct apk_ctx {
 	unsigned int flags, force, lock_wait;
 	struct apk_out out;
@@ -43,9 +64,24 @@ struct apk_ctx {
 	const char *repositories_file;
 	struct apk_string_array *repository_list;
 	struct apk_string_array *private_keys;
+
+	struct adb_trust trust;
+	struct apk_id_cache id_cache;
+	struct apk_database *db;
+	int root_fd, keys_fd;
 };
 
 void apk_ctx_init(struct apk_ctx *ac);
 void apk_ctx_free(struct apk_ctx *ac);
+int apk_ctx_prepare(struct apk_ctx *ac);
+
+int apk_ctx_fd_keys(struct apk_ctx *ac);
+struct adb_trust *apk_ctx_get_trust(struct apk_ctx *ac);
+struct apk_id_cache *apk_ctx_get_id_cache(struct apk_ctx *ac);
+
+static inline int apk_ctx_fd_root(struct apk_ctx *ac) { return ac->root_fd; }
+static inline time_t apk_ctx_since(struct apk_ctx *ac, time_t since) {
+	return (ac->force & APK_FORCE_REFRESH) ? APK_ISTREAM_FORCE_REFRESH : since;
+}
 
 #endif

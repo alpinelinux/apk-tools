@@ -61,9 +61,9 @@ zlib1g policy:
 	}
 }
 
-static int policy_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
+static int policy_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	apk_name_foreach_matching(db, args, apk_foreach_genid(), print_policy, NULL);
+	apk_name_foreach_matching(ac->db, args, apk_foreach_genid(), print_policy, NULL);
 	return 0;
 }
 

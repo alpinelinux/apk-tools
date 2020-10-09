@@ -94,6 +94,7 @@ static int read_file_entry(void *ctx, const struct apk_file_info *ae, struct apk
 
 static void process_file(struct apk_database *db, const char *match)
 {
+	struct apk_id_cache *idc = apk_ctx_get_id_cache(db->ctx);
 	struct apk_out *out = &db->ctx->out;
 	struct apk_sign_ctx sctx;
 	struct manifest_file_ctx ctx = {
@@ -112,7 +113,7 @@ static void process_file(struct apk_database *db, const char *match)
 	apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
 	r = apk_tar_parse(
 		apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, match), apk_sign_ctx_mpart_cb, &sctx),
-		read_file_entry, &ctx, &db->id_cache);
+		read_file_entry, &ctx, idc);
 	apk_sign_ctx_free(&sctx);
 	if (r < 0) apk_err(out, "%s: %s", match, apk_error_str(r));
 }
@@ -130,9 +131,9 @@ static void process_match(struct apk_database *db, const char *match, struct apk
 		process_package(db, p->pkg);
 }
 
-static int manifest_main(void *applet_ctx, struct apk_database *db, struct apk_string_array *args)
+static int manifest_main(void *applet_ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	apk_name_foreach_matching(db, args, apk_foreach_genid(), process_match, NULL);
+	apk_name_foreach_matching(ac->db, args, apk_foreach_genid(), process_match, NULL);
 	return 0;
 }
 
