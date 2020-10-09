@@ -6,9 +6,12 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <openssl/pem.h>
+#include <openssl/err.h>
 
 #include "adb.h"
 #include "apk_blob.h"
+#include "apk_trust.h"
 
 /* Block enumeration */
 static inline struct adb_block *adb_block_validate(struct adb_block *blk, apk_blob_t b)
@@ -60,7 +63,7 @@ void adb_reset(struct adb *db)
 	db->adb.len = 0;
 }
 
-static int __adb_m_parse(struct adb *db, struct adb_trust *t)
+static int __adb_m_parse(struct adb *db, struct apk_trust *t)
 {
 	struct adb_verify_ctx vfy = {};
 	struct adb_block *blk;
@@ -95,13 +98,13 @@ static int __adb_m_parse(struct adb *db, struct adb_trust *t)
 	return r;
 }
 
-int adb_m_blob(struct adb *db, apk_blob_t blob, struct adb_trust *t)
+int adb_m_blob(struct adb *db, apk_blob_t blob, struct apk_trust *t)
 {
 	*db = (struct adb) { .data = blob };
 	return __adb_m_parse(db, t);
 }
 
-int adb_m_map(struct adb *db, int fd, uint32_t expected_schema, struct adb_trust *t)
+int adb_m_map(struct adb *db, int fd, uint32_t expected_schema, struct apk_trust *t)
 {
 	struct stat st;
 	struct adb_header *hdr;
@@ -810,7 +813,7 @@ int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_ist
 	return r;
 }
 
-int adb_c_create(struct apk_ostream *os, struct adb *db, struct adb_trust *t)
+int adb_c_create(struct apk_ostream *os, struct adb *db, struct apk_trust *t)
 {
 	if (IS_ERR(os)) return PTR_ERR(os);
 	if (db->hdr.magic != htole32(ADB_FORMAT_MAGIC)) {
@@ -822,6 +825,117 @@ int adb_c_create(struct apk_ostream *os, struct adb *db, struct adb_trust *t)
 	if (t) adb_trust_write_signatures(t, db, NULL, os);
 ret:
 	return apk_ostream_close(os);
+}
+
+/* Signatures */
+static int adb_verify_ctx_calc(struct adb_verify_ctx *vfy, unsigned int hash_alg, apk_blob_t data, apk_blob_t *pmd)
+{
+	const EVP_MD *evp;
+	apk_blob_t md;
+
+	switch (hash_alg) {
+	case ADB_HASH_SHA512:
+		evp = EVP_sha512();
+		*pmd = md = APK_BLOB_BUF(vfy->sha512);
+		break;
+	default:
+		return -ENOTSUP;
+	}
+
+	if (!(vfy->calc & (1 << hash_alg))) {
+		unsigned int sz = md.len;
+		if (APK_BLOB_IS_NULL(data)) return -ENOMSG;
+		if (EVP_Digest(data.ptr, data.len, (unsigned char*) md.ptr, &sz, evp, NULL) != 1 ||
+		    sz != md.len)
+			return -EIO;
+		vfy->calc |= (1 << hash_alg);
+	}
+	return 0;
+}
+
+int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, struct apk_ostream *os)
+{
+	union {
+		struct adb_sign_hdr hdr;
+		struct adb_sign_v0 v0;
+		unsigned char buf[8192];
+	} sig;
+	struct apk_trust_key *tkey;
+	apk_blob_t md;
+	size_t siglen;
+	int r;
+
+	if (!vfy) {
+		vfy = alloca(sizeof *vfy);
+		memset(vfy, 0, sizeof *vfy);
+	}
+
+	r = adb_verify_ctx_calc(vfy, ADB_HASH_SHA512, db->adb, &md);
+	if (r) return r;
+
+	list_for_each_entry(tkey, &trust->private_key_list, key_node) {
+		sig.v0 = (struct adb_sign_v0) {
+			.hdr.sign_ver = 0,
+			.hdr.hash_alg = ADB_HASH_SHA512,
+		};
+		memcpy(sig.v0.id, tkey->key.id, sizeof(sig.v0.id));
+
+		siglen = sizeof sig.buf - sizeof sig.v0;
+		EVP_MD_CTX_set_pkey_ctx(trust->mdctx, NULL);
+		if (EVP_DigestSignInit(trust->mdctx, NULL, EVP_sha512(), NULL, tkey->key.key) != 1 ||
+		    EVP_DigestUpdate(trust->mdctx, &db->hdr, sizeof db->hdr) != 1 ||
+		    EVP_DigestUpdate(trust->mdctx, &sig.hdr.sign_ver, sizeof sig.hdr.sign_ver) != 1 ||
+		    EVP_DigestUpdate(trust->mdctx, &sig.hdr.hash_alg, sizeof sig.hdr.hash_alg) != 1 ||
+		    EVP_DigestUpdate(trust->mdctx, md.ptr, md.len) != 1 ||
+		    EVP_DigestSignFinal(trust->mdctx, sig.v0.sig, &siglen) != 1) {
+			ERR_print_errors_fp(stdout);
+			goto err_io;
+		}
+
+		r = adb_c_block(os, ADB_BLOCK_SIG, APK_BLOB_PTR_LEN((char*) &sig, sizeof(sig.v0) + siglen));
+		if (r < 0) goto err;
+	}
+	return 0;
+err_io:
+	r = -EIO;
+err:
+	apk_ostream_cancel(os, r);
+	return r;
+}
+
+int adb_trust_verify_signature(struct apk_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, apk_blob_t sigb)
+{
+	struct apk_trust_key *tkey;
+	struct adb_sign_hdr *sig;
+	struct adb_sign_v0 *sig0;
+	apk_blob_t md;
+
+	if (APK_BLOB_IS_NULL(db->adb)) return -ENOMSG;
+	if (sigb.len < sizeof(struct adb_sign_hdr)) return -EBADMSG;
+
+	sig  = (struct adb_sign_hdr *) sigb.ptr;
+	sig0 = (struct adb_sign_v0 *) sigb.ptr;
+	if (sig->sign_ver != 0) return -ENOSYS;
+
+	list_for_each_entry(tkey, &trust->trusted_key_list, key_node) {
+		if (memcmp(sig0->id, tkey->key.id, sizeof sig0->id) != 0) continue;
+		if (adb_verify_ctx_calc(vfy, sig->hash_alg, db->adb, &md) != 0) continue;
+
+		EVP_MD_CTX_set_pkey_ctx(trust->mdctx, NULL);
+		if (EVP_DigestVerifyInit(trust->mdctx, NULL, EVP_sha512(), NULL, tkey->key.key) != 1 ||
+		    EVP_DigestUpdate(trust->mdctx, &db->hdr, sizeof db->hdr) != 1 ||
+		    EVP_DigestUpdate(trust->mdctx, &sig->sign_ver, sizeof sig->sign_ver) != 1 ||
+		    EVP_DigestUpdate(trust->mdctx, &sig->hash_alg, sizeof sig->hash_alg) != 1 ||
+		    EVP_DigestUpdate(trust->mdctx, md.ptr, md.len) != 1 ||
+		    EVP_DigestVerifyFinal(trust->mdctx, sig0->sig, sigb.len - sizeof(*sig0)) != 1) {
+			ERR_clear_error();
+			continue;
+		}
+
+		return 0;
+	}
+
+	return -EKEYREJECTED;
 }
 
 /* Container transformation interface */

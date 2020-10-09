@@ -7,7 +7,7 @@
 
 struct adb_dump_ctx {
 	struct adb *db;
-	struct adb_trust *trust;
+	struct apk_trust *trust;
 	char prefix[128], *pfx;
 };
 
@@ -203,7 +203,7 @@ static void dump_adb(struct adb_dump_ctx *ctx)
 	if (IS_ERR(blk)) fprintf(stdout, "%s# block enumeration error: corrupt data area\n", ctx->prefix);
 }
 
-static int mmap_and_dump_adb(struct adb_trust *trust, int fd)
+static int mmap_and_dump_adb(struct apk_trust *trust, int fd)
 {
 	struct adb db;
 	struct adb_dump_ctx ctx = {

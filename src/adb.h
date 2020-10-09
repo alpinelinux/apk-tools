@@ -5,10 +5,10 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include "apk_io.h"
+#include "apk_trust.h"
 
 struct adb;
 struct adb_obj;
-struct adb_trust;
 struct adb_verify_ctx;
 
 typedef uint32_t adb_val_t;
@@ -154,8 +154,8 @@ struct adb_obj {
 int adb_free(struct adb *);
 void adb_reset(struct adb *);
 
-int adb_m_blob(struct adb *, apk_blob_t, struct adb_trust *);
-int adb_m_map(struct adb *, int fd, uint32_t expected_schema, struct adb_trust *);
+int adb_m_blob(struct adb *, apk_blob_t, struct apk_trust *);
+int adb_m_map(struct adb *, int fd, uint32_t expected_schema, struct apk_trust *);
 #define adb_w_init_alloca(db, schema, num_buckets) adb_w_init_dynamic(db, schema, alloca(sizeof(struct list_head[num_buckets])), num_buckets)
 #define adb_w_init_tmp(db, size) adb_w_init_static(db, alloca(size), size)
 int adb_w_init_dynamic(struct adb *db, uint32_t schema, void *buckets, size_t num_buckets);
@@ -216,35 +216,16 @@ int adb_s_field_by_name(const struct adb_object_schema *, const char *);
 int adb_c_header(struct apk_ostream *os, struct adb *db);
 int adb_c_block(struct apk_ostream *os, uint32_t type, apk_blob_t);
 int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_istream *is, struct adb_verify_ctx *);
-int adb_c_create(struct apk_ostream *os, struct adb *db, struct adb_trust *t);
+int adb_c_create(struct apk_ostream *os, struct adb *db, struct apk_trust *t);
 
 /* Trust */
-#include <openssl/evp.h>
-
-struct adb_pkey {
-	uint8_t		id[16];
-	EVP_PKEY	*key;
-};
-
-int adb_pkey_init(struct adb_pkey *pkey, EVP_PKEY *key);
-void adb_pkey_free(struct adb_pkey *pkey);
-int adb_pkey_load(struct adb_pkey *pkey, int dirfd, const char *fn);
-
-struct adb_trust {
-	EVP_MD_CTX *mdctx;
-	struct list_head trusted_key_list;
-	struct list_head private_key_list;
-};
-
 struct adb_verify_ctx {
 	uint32_t calc;
 	uint8_t sha512[64];
 };
 
-int adb_trust_init(struct adb_trust *trust, int keysfd, struct apk_string_array *);
-void adb_trust_free(struct adb_trust *trust);
-int adb_trust_write_signatures(struct adb_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, struct apk_ostream *os);
-int adb_trust_verify_signature(struct adb_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, apk_blob_t sigb);
+int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, struct apk_ostream *os);
+int adb_trust_verify_signature(struct apk_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, apk_blob_t sigb);
 
 /* Transform existing file */
 struct adb_xfrm {

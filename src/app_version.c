@@ -86,7 +86,7 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 		break;
 	case OPT_VERSION_check:
 		ictx->action = ver_validate;
-		ac->open_flags |= APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
+		ac->open_flags = 0;
 		break;
 	case OPT_VERSION_indexes:
 		ictx->action = ver_indexes;
@@ -96,7 +96,7 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 		break;
 	case OPT_VERSION_test:
 		ictx->action = ver_test;
-		ac->open_flags |= APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
+		ac->open_flags = 0;
 		break;
 	default:
 		return -ENOTSUP;

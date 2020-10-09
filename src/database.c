@@ -638,7 +638,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 	if (cb) cb(cb_ctx, 0);
 
 	if (verify != APK_SIGN_NONE) {
-		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
+		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, apk_ctx_get_trust(db->ctx));
 		is = apk_istream_from_url(url, apk_db_url_since(db, st.st_mtime));
 		is = apk_istream_tee(is, db->cache_fd, tmpcacheitem, !autoupdate, cb, cb_ctx);
 		is = apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx);
@@ -1645,8 +1645,6 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		}
 	}
 
-	db->keys_fd = openat(db->root_fd, ac->keys_dir, O_RDONLY | O_CLOEXEC);
-
 	if (db->ctx->flags & APK_OVERLAY_FROM_STDIN) {
 		db->ctx->flags &= ~APK_OVERLAY_FROM_STDIN;
 		apk_db_read_overlay(db, apk_istream_from_fd(STDIN_FILENO));
@@ -1810,7 +1808,6 @@ void apk_db_close(struct apk_database *db)
 		db->cache_remount_dir = NULL;
 	}
 
-	if (db->keys_fd) close(db->keys_fd);
 	if (db->cache_fd) close(db->cache_fd);
 	if (db->lock_fd) close(db->lock_fd);
 }
@@ -2165,7 +2162,7 @@ static int load_index(struct apk_database *db, struct apk_istream *is,
 		ctx.db = db;
 		ctx.repo = repo;
 		ctx.found = 0;
-		apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
+		apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY, NULL, apk_ctx_get_trust(db->ctx));
 		r = apk_tar_parse(apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx), load_apkindex, &ctx, db->id_cache);
 		apk_sign_ctx_free(&ctx.sctx);
 
@@ -2793,7 +2790,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 		.cb = cb,
 		.cb_ctx = cb_ctx,
 	};
-	apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY_IDENTITY, &pkg->csum, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
+	apk_sign_ctx_init(&ctx.sctx, APK_SIGN_VERIFY_IDENTITY, &pkg->csum, apk_ctx_get_trust(db->ctx));
 	r = apk_tar_parse(apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx.sctx), apk_db_install_archive_entry, &ctx, db->id_cache);
 	apk_sign_ctx_free(&ctx.sctx);
 

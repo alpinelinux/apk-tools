@@ -1,7 +1,6 @@
 libapk_so_version = '2.99.0'
 libapk_src = [
 	'adb.c',
-	'adb_trust.c',
 	'apk_adb.c',
 	'atom.c',
 	'blob.c',
@@ -17,6 +16,7 @@ libapk_src = [
 	'package.c',
 	'print.c',
 	'solver.c',
+	'trust.c',
 	'version.c',
 ]
 

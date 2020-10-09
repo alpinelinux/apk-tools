@@ -41,7 +41,7 @@ static const struct apk_option_group optgroup_applet = {
 static int update_signatures(struct adb_xfrm *xfrm, struct adb_block *blk, struct apk_istream *is)
 {
 	struct sign_ctx *ctx = container_of(xfrm, struct sign_ctx, xfrm);
-	struct adb_trust *trust = apk_ctx_get_trust(ctx->ac);
+	struct apk_trust *trust = apk_ctx_get_trust(ctx->ac);
 	int r;
 
 	switch (blk ? ADB_BLOCK_TYPE(blk) : -1) {

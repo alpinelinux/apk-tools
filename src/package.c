@@ -465,13 +465,12 @@ int apk_script_type(const char *name)
 }
 
 void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action,
-		       struct apk_checksum *identity, int keys_fd,
-		       int allow_untrusted)
+		       struct apk_checksum *identity, struct apk_trust *trust)
 {
 	memset(ctx, 0, sizeof(struct apk_sign_ctx));
-	ctx->keys_fd = keys_fd;
+	ctx->trust = trust;
 	ctx->action = action;
-	ctx->allow_untrusted = !!allow_untrusted;
+	ctx->allow_untrusted = trust->allow_untrusted;
 	switch (action) {
 	case APK_SIGN_VERIFY:
 		/* If we're only verifing, we're going to start with a
@@ -505,8 +504,6 @@ void apk_sign_ctx_free(struct apk_sign_ctx *ctx)
 {
 	if (ctx->signature.data.ptr != NULL)
 		free(ctx->signature.data.ptr);
-	if (ctx->signature.pkey != NULL)
-		EVP_PKEY_free(ctx->signature.pkey);
 	EVP_MD_CTX_free(ctx->mdctx);
 }
 
@@ -539,8 +536,8 @@ int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
 	};
 	const EVP_MD *md = NULL;
 	const char *name = NULL;
-	BIO *bio;
-	int r, i, fd;
+	struct apk_pkey *pkey;
+	int r, i;
 
 	if (ctx->data_started)
 		return 1;
@@ -580,9 +577,6 @@ int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
 	    ctx->signature.pkey != NULL)
 		return 0;
 
-	if (ctx->keys_fd < 0)
-		return 0;
-
 	for (i = 0; i < ARRAY_SIZE(signature_type); i++) {
 		size_t slen = strlen(signature_type[i].type);
 		if (strncmp(&fi->name[6], signature_type[i].type, slen) == 0 &&
@@ -594,17 +588,12 @@ int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
 	}
 	if (!md) return 0;
 
-	fd = openat(ctx->keys_fd, name, O_RDONLY|O_CLOEXEC);
-	if (fd < 0) return 0;
-
-	bio = BIO_new_fp(fdopen(fd, "r"), BIO_CLOSE);
-	ctx->signature.pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
-	if (ctx->signature.pkey != NULL) {
+	pkey = apk_trust_key_by_name(ctx->trust, name);
+	if (pkey) {
 		ctx->md = md;
+		ctx->signature.pkey = pkey->key;
 		ctx->signature.data = apk_blob_from_istream(is, fi->size);
 	}
-	BIO_free(bio);
-
 	return 0;
 }
 

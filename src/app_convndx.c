@@ -52,16 +52,15 @@ static int load_apkindex(void *sctx, const struct apk_file_info *fi,
 
 static int load_index(struct conv_ctx *ctx, struct apk_istream *is)
 {
-	struct apk_id_cache *idc = apk_ctx_get_id_cache(ctx->ac);
 	int r = 0;
 
 	if (IS_ERR_OR_NULL(is)) return is ? PTR_ERR(is) : -EINVAL;
 
 	ctx->found = 0;
-	apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, apk_ctx_fd_keys(ctx->ac), ctx->ac->flags & APK_ALLOW_UNTRUSTED);
+	apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, apk_ctx_get_trust(ctx->ac));
 	r = apk_tar_parse(
 		apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx->sctx),
-		load_apkindex, ctx, idc);
+		load_apkindex, ctx, apk_ctx_get_id_cache(ctx->ac));
 	apk_sign_ctx_free(&ctx->sctx);
 	if (r >= 0 && ctx->found == 0) r = -ENOMSG;
 
@@ -72,7 +71,7 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 {
 	char **arg;
 	struct conv_ctx *ctx = pctx;
-	struct adb_trust *trust = apk_ctx_get_trust(ac);
+	struct apk_trust *trust = apk_ctx_get_trust(ac);
 	struct adb_obj ndx;
 	int r;
 

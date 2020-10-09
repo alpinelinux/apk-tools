@@ -110,7 +110,7 @@ static void process_file(struct apk_database *db, const char *match)
 		ctx.prefix2 = ": ";
 	}
 
-	apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
+	apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, apk_ctx_get_trust(db->ctx));
 	r = apk_tar_parse(
 		apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, match), apk_sign_ctx_mpart_cb, &sctx),
 		read_file_entry, &ctx, idc);

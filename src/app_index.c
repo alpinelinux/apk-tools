@@ -186,7 +186,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 
 		if (!found) {
 			struct apk_sign_ctx sctx;
-			apk_sign_ctx_init(&sctx, ictx->method, NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
+			apk_sign_ctx_init(&sctx, ictx->method, NULL, apk_ctx_get_trust(ac));
 			r = apk_pkg_read(db, *parg, &sctx, &pkg);
 			if (r < 0) {
 				apk_err(out, "%s: %s", *parg, apk_error_str(r));

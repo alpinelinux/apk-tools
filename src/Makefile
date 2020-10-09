@@ -19,9 +19,8 @@ ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 libapk_soname		:= 3.12.0
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
-	adb.o adb_trust.o \
-	common.o context.o database.o package.o commit.o solver.o \
-	version.o atom.o blob.o hash.o print.o \
+	adb.o common.o context.o database.o package.o commit.o solver.o \
+	trust.o version.o atom.o blob.o hash.o print.o \
 	io.o io_url.o io_gunzip.o io_archive.o
 
 libapk.so.$(libapk_soname)-libs := libfetch/libfetch.a

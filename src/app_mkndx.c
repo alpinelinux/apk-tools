@@ -190,7 +190,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 {
 	struct apk_out *out = &ac->out;
 	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
-	struct adb_trust *trust = apk_ctx_get_trust(ac);
+	struct apk_trust *trust = apk_ctx_get_trust(ac);
 	struct adb odb, tmpdb;
 	struct adb_obj oroot, opkgs, ndx, tmpl;
 	struct apk_file_info fi;
@@ -276,7 +276,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		}
 		if (!found) {
 		do_file:
-			apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, apk_ctx_fd_keys(ac), ac->flags & APK_ALLOW_UNTRUSTED);
+			apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, trust);
 			r = apk_tar_parse(
 				apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, *parg), apk_sign_ctx_mpart_cb, &ctx->sctx),
 				mkndx_parse_v2_tar, ctx, idc);

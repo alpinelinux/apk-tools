@@ -159,7 +159,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 				return -1;
 
 			apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY_AND_GENERATE,
-					  NULL, db->keys_fd, db->ctx->flags & APK_ALLOW_UNTRUSTED);
+					  NULL, apk_ctx_get_trust(ac));
 			r = apk_pkg_read(db, *parg, &sctx, &pkg);
 			apk_sign_ctx_free(&sctx);
 			if (r != 0) {

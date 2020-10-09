@@ -10,6 +10,7 @@
 #define APK_CONTEXT_H
 
 #include "apk_print.h"
+#include "apk_trust.h"
 #include "apk_io.h"
 #include "adb.h"
 
@@ -65,18 +66,17 @@ struct apk_ctx {
 	struct apk_string_array *repository_list;
 	struct apk_string_array *private_keys;
 
-	struct adb_trust trust;
+	struct apk_trust trust;
 	struct apk_id_cache id_cache;
 	struct apk_database *db;
-	int root_fd, keys_fd;
+	int root_fd;
 };
 
 void apk_ctx_init(struct apk_ctx *ac);
 void apk_ctx_free(struct apk_ctx *ac);
 int apk_ctx_prepare(struct apk_ctx *ac);
 
-int apk_ctx_fd_keys(struct apk_ctx *ac);
-struct adb_trust *apk_ctx_get_trust(struct apk_ctx *ac);
+struct apk_trust *apk_ctx_get_trust(struct apk_ctx *ac);
 struct apk_id_cache *apk_ctx_get_id_cache(struct apk_ctx *ac);
 
 static inline int apk_ctx_fd_root(struct apk_ctx *ac) { return ac->root_fd; }

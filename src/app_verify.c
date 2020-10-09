@@ -20,11 +20,14 @@ static int verify_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 	struct apk_out *out = &ac->out;
 	struct apk_sign_ctx sctx;
 	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
+	struct apk_trust *trust = apk_ctx_get_trust(ac);
 	char **parg;
 	int r, ok, rc = 0;
 
+	trust->allow_untrusted = 1;
+
 	foreach_array_item(parg, args) {
-		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, apk_ctx_fd_keys(ac), 1);
+		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, trust);
 		r = apk_tar_parse(
 			apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, *parg),
 						 apk_sign_ctx_mpart_cb, &sctx),

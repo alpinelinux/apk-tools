@@ -26,7 +26,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 void apk_ctx_free(struct apk_ctx *ac)
 {
 	apk_id_cache_free(&ac->id_cache);
-	adb_trust_free(&ac->trust);
+	apk_trust_free(&ac->trust);
 	apk_string_array_free(&ac->repository_list);
 	apk_string_array_free(&ac->private_keys);
 }
@@ -55,17 +55,14 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 	return 0;
 }
 
-int apk_ctx_fd_keys(struct apk_ctx *ac)
-{
-	if (ac->keys_fd <= 0) ac->keys_fd = openat(ac->root_fd, ac->keys_dir, O_RDONLY | O_CLOEXEC);
-	return ac->keys_fd;
-}
-
-struct adb_trust *apk_ctx_get_trust(struct apk_ctx *ac)
+struct apk_trust *apk_ctx_get_trust(struct apk_ctx *ac)
 {
 	if (!ac->trust.mdctx) {
-		int r = adb_trust_init(&ac->trust, dup(apk_ctx_fd_keys(ac)), ac->private_keys);
+		int r = apk_trust_init(&ac->trust,
+			openat(ac->root_fd, ac->keys_dir, O_RDONLY | O_CLOEXEC),
+			ac->private_keys);
 		if (r) return ERR_PTR(r);
+		ac->trust.allow_untrusted = !!(ac->flags & APK_ALLOW_UNTRUSTED);
 	}
 	return &ac->trust;
 }

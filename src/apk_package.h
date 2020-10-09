@@ -18,6 +18,7 @@
 struct apk_database;
 struct apk_name;
 struct apk_provider;
+struct apk_trust;
 
 #define APK_SCRIPT_INVALID		-1
 #define APK_SCRIPT_PRE_INSTALL		0
@@ -45,7 +46,7 @@ struct apk_provider;
 #define APK_FOREACH_GENID_MASK		0xffffff00
 
 struct apk_sign_ctx {
-	int keys_fd;
+	struct apk_trust *trust;
 	int action;
 	const EVP_MD *md;
 	int num_signatures;
@@ -132,7 +133,7 @@ APK_ARRAY(apk_package_array, struct apk_package *);
 extern const char *apk_script_types[];
 
 void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action,
-		       struct apk_checksum *identity, int keys_fd, int allow_untrusted);
+		       struct apk_checksum *identity, struct apk_trust *trust);
 void apk_sign_ctx_free(struct apk_sign_ctx *ctx);
 int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
 			      const struct apk_file_info *fi,
