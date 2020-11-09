@@ -36,7 +36,7 @@ globbing.
 *-d, --depends*
 	List packages by dependency.
 
-*-P, --depends*
+*-P, --provides*
 	List packages by provider.
 
 # AUTHORS
