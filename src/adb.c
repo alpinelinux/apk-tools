@@ -503,10 +503,12 @@ adb_val_t adb_w_blob(struct adb *db, apk_blob_t b)
 		val.u16 = htole16(n);
 		vec[0].iov_len = sizeof val.u16;
 		o = ADB_TYPE_BLOB_16;
-	} else {
+	} else if (n > 0) {
 		val.u8 = n;
 		vec[0].iov_len = sizeof val.u8;
 		o = ADB_TYPE_BLOB_8;
+	} else {
+		return ADB_VAL_NULL;
 	}
 
 	return ADB_VAL(o, adb_w_data(db, vec, ARRAY_SIZE(vec), vec[0].iov_len));
@@ -712,7 +714,7 @@ adb_val_t adb_wa_append(struct adb_obj *o, adb_val_t v)
 	assert(o->schema->kind == ADB_KIND_ARRAY);
 	if (o->num >= o->obj[ADBI_NUM_ENTRIES]) return adb_w_error(o->db, E2BIG);
 	if (ADB_IS_ERROR(v)) return adb_w_error(o->db, ADB_VAL_VALUE(v));
-	o->obj[o->num++] = v;
+	if (v != ADB_VAL_NULL) o->obj[o->num++] = v;
 	return v;
 }
 

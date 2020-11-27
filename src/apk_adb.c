@@ -160,7 +160,7 @@ static adb_val_t int_fromstring(struct adb *db, apk_blob_t val)
 {
 	uint32_t n = apk_blob_pull_uint(&val, 10);
 	if (val.len) return ADB_ERROR(EINVAL);
-	return adb_w_int(db, n);
+	return adb_w_int(db, n) ?: ADB_VAL_NULL;
 }
 
 static int int_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2)

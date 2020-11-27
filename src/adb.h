@@ -236,4 +236,39 @@ struct adb_xfrm {
 };
 int adb_c_xfrm(struct adb_xfrm *, int (*cb)(struct adb_xfrm *, struct adb_block *, struct apk_istream *));
 
+/* SAX style event based handling of ADB */
+
+struct adb_db_schema {
+	unsigned long magic;
+	const struct adb_object_schema *root;
+};
+
+struct adb_walk;
+struct adb_walk_ops {
+	int (*schema)(struct adb_walk *, uint32_t schema_id);
+	int (*comment)(struct adb_walk *, apk_blob_t comment);
+	int (*start_array)(struct adb_walk *, unsigned int num_items);
+	int (*start_object)(struct adb_walk *);
+	int (*end)(struct adb_walk *);
+	int (*key)(struct adb_walk *, apk_blob_t key_name);
+	int (*scalar)(struct adb_walk *, apk_blob_t scalar, int multiline);
+};
+
+extern const struct adb_walk_ops adb_walk_gentext_ops;
+
+struct adb_walk {
+	const struct adb_walk_ops *ops;
+	const struct adb_db_schema *schemas;
+};
+
+struct adb_walk_gentext {
+	struct adb_walk d;
+	FILE *out;
+	int nest;
+	int line_started : 1;
+	int key_printed : 1;
+};
+
+int adb_walk_adb(struct adb_walk *d, struct adb *db, struct apk_trust *trust);
+
 #endif
