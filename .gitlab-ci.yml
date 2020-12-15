@@ -1,5 +1,6 @@
 stages:
     - test
+    - build
 
 test:alpine:
     image: alpine
@@ -36,3 +37,28 @@ test:debian:
     tags:
         - docker-alpine
         - x86_64
+
+build-static:
+    stage: build
+    image: alpinelinux/build-base
+    script:
+        - abuild-apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib zlib-static openssl-libs-static
+        - make -j$(nproc) static
+        - cp src/apk.static src/apk.static-$ARCH
+    parallel:
+      matrix:
+        - ARCH:
+            - x86_64
+            - x86
+            - armv7
+            - armhf
+            - aarch64
+            - s390x
+            - ppc64le
+            - riscv64
+    artifacts:
+      paths:
+        - src/apk.static-*
+    tags:
+      - docker-alpine
+      - $ARCH
