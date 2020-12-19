@@ -19,6 +19,7 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 	struct apk_out *out = &ac->out;
 	struct apk_database *db = ac->db;
 	struct apk_repository *repo;
+	struct apk_url_print urlp;
 	int i;
 	char buf[32] = "OK:";
 
@@ -31,9 +32,10 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 		if (APK_BLOB_IS_NULL(repo->description))
 			continue;
 
-		apk_msg(out, BLOB_FMT " [%s]",
+		apk_url_parse(&urlp, db->repos[i].url);
+		apk_msg(out, BLOB_FMT " [" URL_FMT "]",
 			BLOB_PRINTF(repo->description),
-			db->repos[i].url);
+			URL_PRINTF(urlp));
 	}
 
 	if (db->repo_update_errors != 0)
