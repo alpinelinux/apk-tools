@@ -60,7 +60,7 @@ struct apk_ostream;
 struct apk_istream_ops {
 	void (*get_meta)(struct apk_istream *is, struct apk_file_meta *meta);
 	ssize_t (*read)(struct apk_istream *is, void *ptr, size_t size);
-	void (*close)(struct apk_istream *is);
+	int (*close)(struct apk_istream *is);
 };
 
 #define APK_ISTREAM_SINGLE_READ			0x0001
@@ -103,9 +103,9 @@ static inline void apk_istream_get_meta(struct apk_istream *is, struct apk_file_
 {
 	is->ops->get_meta(is, meta);
 }
-static inline void apk_istream_close(struct apk_istream *is)
+static inline int apk_istream_close(struct apk_istream *is)
 {
-	is->ops->close(is);
+	return is->ops->close(is);
 }
 
 #define APK_MPART_DATA		1 /* data processed so far */

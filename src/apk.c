@@ -517,8 +517,9 @@ int main(int argc, char **argv)
 			name = spec;
 		}
 
-		if (apk_db_index_read(&db, apk_istream_from_file(AT_FDCWD, name.ptr), repo) != 0) {
-			apk_err(out, "Failed to open repository: " BLOB_FMT, BLOB_PRINTF(name));
+		r = apk_db_index_read(&db, apk_istream_from_file(AT_FDCWD, name.ptr), repo);
+		if (r != 0) {
+			apk_err(out, "Failed to open repository " BLOB_FMT " : %s", BLOB_PRINTF(name), apk_error_str(r));
 			goto err;
 		}
 

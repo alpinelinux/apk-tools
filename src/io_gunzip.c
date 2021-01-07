@@ -118,13 +118,15 @@ ret:
 	return size - gis->zs.avail_out;
 }
 
-static void gzi_close(struct apk_istream *is)
+static int gzi_close(struct apk_istream *is)
 {
+	int r;
 	struct apk_gzip_istream *gis = container_of(is, struct apk_gzip_istream, is);
 
 	inflateEnd(&gis->zs);
-	apk_istream_close(gis->zis);
+	r = apk_istream_close(gis->zis);
 	free(gis);
+	return r;
 }
 
 static const struct apk_istream_ops gunzip_istream_ops = {
