@@ -32,7 +32,7 @@
 #define HAVE_FGETGRENT_R
 #endif
 
-size_t apk_io_bufsize = 8*1024;
+size_t apk_io_bufsize = 16*1024;
 
 static void apk_file_meta_from_fd(int fd, struct apk_file_meta *meta)
 {
