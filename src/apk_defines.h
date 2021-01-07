@@ -34,6 +34,7 @@
 
 #define EAPKBADURL		1024
 #define EAPKSTALEINDEX		1025
+#define EAPKFORMAT		1026
 
 static inline void *ERR_PTR(long error) { return (void*) error; }
 static inline void *ERR_CAST(const void *ptr) { return (void*) ptr; }

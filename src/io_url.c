@@ -85,12 +85,14 @@ static ssize_t fetch_read(struct apk_istream *is, void *ptr, size_t size)
 	return r;
 }
 
-static void fetch_close(struct apk_istream *is)
+static int fetch_close(struct apk_istream *is)
 {
+	int r = is->err;
 	struct apk_fetch_istream *fis = container_of(is, struct apk_fetch_istream, is);
 
 	fetchIO_close(fis->fetchIO);
 	free(fis);
+	return r < 0 ? r : 0;
 }
 
 static const struct apk_istream_ops fetch_istream_ops = {

@@ -895,17 +895,18 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 		}
 		if (APK_BLOB_IS_NULL(l)) goto bad_entry;
 	}
-	apk_istream_close(is);
-	return 0;
+
+	return apk_istream_close(is);
 old_apk_tools:
 	/* Installed db should not have unsupported fields */
 	apk_error("This apk-tools is too old to handle installed packages");
+	is->err = -EAPKFORMAT;
 	goto err;
 bad_entry:
 	apk_error("FDB format error (line %d, entry '%c')", lineno, field);
+	is->err = -EAPKFORMAT;
 err:
-	apk_istream_close(is);
-	return -1;
+	return apk_istream_close(is);
 }
 
 static void apk_blob_push_db_acl(apk_blob_t *b, char field, struct apk_db_acl *acl)
@@ -2192,10 +2193,10 @@ static int load_apkindex(void *sctx, const struct apk_file_info *fi,
 		repo->description = apk_blob_from_istream(is, fi->size);
 	} else if (strcmp(fi->name, "APKINDEX") == 0) {
 		ctx->found = 1;
-		apk_db_index_read(ctx->db, is, ctx->repo);
+		r = apk_db_index_read(ctx->db, is, ctx->repo);
 	}
 
-	return 0;
+	return r;
 }
 
 static int load_index(struct apk_database *db, struct apk_istream *is,

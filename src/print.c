@@ -179,6 +179,8 @@ const char *apk_error_str(int error)
 		return "invalid URL (check your repositories file)";
 	case EAPKSTALEINDEX:
 		return "package mentioned in index not found (try 'apk update')";
+	case EAPKFORMAT:
+		return "package file format error";
 	default:
 		return strerror(error);
 	}

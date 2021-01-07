@@ -207,14 +207,16 @@ static ssize_t segment_read(struct apk_istream *is, void *ptr, size_t size)
 	return r;
 }
 
-static void segment_close(struct apk_istream *is)
+static int segment_close(struct apk_istream *is)
 {
+	int r = is->err;
 	struct apk_segment_istream *sis = container_of(is, struct apk_segment_istream, is);
 
 	if (sis->bytes_left) {
 		apk_istream_read(sis->pis, NULL, sis->bytes_left);
 		sis->bytes_left = 0;
 	}
+	return r < 0 ? r : 0;
 }
 
 static const struct apk_istream_ops segment_istream_ops = {
@@ -283,8 +285,9 @@ static ssize_t tee_read(struct apk_istream *is, void *ptr, size_t size)
 	return __tee_write(tee, ptr, r);
 }
 
-static void tee_close(struct apk_istream *is)
+static int tee_close(struct apk_istream *is)
 {
+	int r;
 	struct apk_tee_istream *tee = container_of(is, struct apk_tee_istream, is);
 	struct apk_file_meta meta;
 
@@ -293,9 +296,10 @@ static void tee_close(struct apk_istream *is)
 		apk_file_meta_to_fd(tee->fd, &meta);
 	}
 
-	apk_istream_close(tee->inner_is);
+	r = apk_istream_close(tee->inner_is);
 	close(tee->fd);
 	free(tee);
+	return r;
 }
 
 static const struct apk_istream_ops tee_istream_ops = {
@@ -368,13 +372,15 @@ static ssize_t mmap_read(struct apk_istream *is, void *ptr, size_t size)
 	return 0;
 }
 
-static void mmap_close(struct apk_istream *is)
+static int mmap_close(struct apk_istream *is)
 {
+	int r = is->err;
 	struct apk_mmap_istream *mis = container_of(is, struct apk_mmap_istream, is);
 
 	munmap(mis->is.buf, mis->is.buf_size);
 	close(mis->fd);
 	free(mis);
+	return r < 0 ? r : 0;
 }
 
 static const struct apk_istream_ops mmap_istream_ops = {
@@ -434,12 +440,14 @@ static ssize_t fdi_read(struct apk_istream *is, void *ptr, size_t size)
 	return r;
 }
 
-static void fdi_close(struct apk_istream *is)
+static int fdi_close(struct apk_istream *is)
 {
+	int r = is->err;
 	struct apk_fd_istream *fis = container_of(is, struct apk_fd_istream, is);
 
 	close(fis->fd);
 	free(fis);
+	return r < 0 ? r : 0;
 }
 
 static const struct apk_istream_ops fd_istream_ops = {
