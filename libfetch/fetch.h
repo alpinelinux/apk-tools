@@ -41,7 +41,7 @@
 #define URL_HOSTLEN 255
 #define URL_SCHEMELEN 16
 #define URL_USERLEN 256
-#define URL_PWDLEN 256
+#define URL_PWDLEN 1024
 
 typedef struct fetchIO fetchIO;
 
