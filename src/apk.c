@@ -20,11 +20,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include <openssl/crypto.h>
-#ifndef OPENSSL_NO_ENGINE
-#include <openssl/engine.h>
-#endif
-
 #include <fetch.h>
 
 #include "apk_defines.h"
@@ -358,25 +353,6 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 	return 0;
 }
 
-static void fini_openssl(void)
-{
-	EVP_cleanup();
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE_cleanup();
-#endif
-	CRYPTO_cleanup_all_ex_data();
-}
-
-static void init_openssl(void)
-{
-	atexit(fini_openssl);
-	OpenSSL_add_all_algorithms();
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE_load_builtin_engines();
-	ENGINE_register_all_complete();
-#endif
-}
-
 static void setup_automatic_flags(struct apk_ctx *ac)
 {
 	const char *tmp;
@@ -449,7 +425,7 @@ int main(int argc, char **argv)
 		ctx.force |= applet->forced_force;
 	}
 
-	init_openssl();
+	apk_openssl_init();
 	setup_automatic_flags(&ctx);
 	fetchConnectionCacheInit(32, 4);
 
