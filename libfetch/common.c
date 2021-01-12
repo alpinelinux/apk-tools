@@ -2,6 +2,7 @@
 /*-
  * Copyright (c) 1998-2004 Dag-Erling Coïdan Smørgrav
  * Copyright (c) 2008, 2010 Joerg Sonnenberger <joerg@NetBSD.org>
+ * Copyright (c) 2020 Noel Kuntze <noel.kuntze@thermi.consulting>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1052,6 +1053,63 @@ fetch_netrc_auth(struct url *url)
 	return (-1);
 }
 
+#define MAX_ADDRESS_BYTES	sizeof(struct in6_addr)
+#define MAX_ADDRESS_STRING	(4*8+1)
+#define MAX_CIDR_STRING		(MAX_ADDRESS_STRING+4)
+
+static size_t host_to_address(uint8_t *buf, size_t buf_len, const char *host, size_t len)
+{
+	char tmp[MAX_ADDRESS_STRING];
+
+	if (len >= sizeof tmp) return 0;
+	if (buf_len < sizeof(struct in6_addr)) return 0;
+
+	/* Make zero terminated copy of the hostname */
+	memcpy(tmp, host, len);
+	tmp[len] = 0;
+
+	if (inet_pton(AF_INET, tmp, (struct in_addr *) buf))
+		return sizeof(struct in_addr);
+	if (inet_pton(AF_INET6, tmp, (struct in6_addr *) buf))
+		return sizeof(struct in6_addr);
+	return 0;
+}
+
+static int bitcmp(const uint8_t *a, const uint8_t *b, int len)
+{
+	int bytes, bits, mask, r;
+
+	bytes = len / 8;
+	bits  = len % 8;
+	if (bytes != 0) {
+		r = memcmp(a, b, bytes);
+		if (r != 0) return r;
+	}
+	if (bits != 0) {
+		mask = (0xff << (8 - bits)) & 0xff;
+		return ((int) (a[bytes] & mask)) - ((int) (b[bytes] & mask));
+	}
+	return 0;
+}
+
+static int cidr_match(const uint8_t *addr, size_t addr_len, const char *cidr, size_t cidr_len)
+{
+	const char *slash;
+	uint8_t cidr_addr[MAX_ADDRESS_BYTES];
+	size_t cidr_addrlen;
+	long bits;
+
+	if (!addr_len || cidr_len > MAX_CIDR_STRING) return 0;
+	slash = memchr(cidr, '/', cidr_len);
+	if (!slash) return 0;
+	bits = strtol(slash + 1, NULL, 10);
+	if (!bits || bits > 128) return 0;
+
+	cidr_addrlen = host_to_address(cidr_addr, sizeof cidr_addr, cidr, slash - cidr);
+	if (cidr_addrlen != addr_len || bits > addr_len*8) return 0;
+	return bitcmp(cidr_addr, addr, bits) == 0;
+}
+
 /*
  * The no_proxy environment variable specifies a set of domains for
  * which the proxy should not be consulted; the contents is a comma-,
@@ -1064,7 +1122,8 @@ int
 fetch_no_proxy_match(const char *host)
 {
 	const char *no_proxy, *p, *q;
-	size_t h_len, d_len;
+	uint8_t addr[MAX_ADDRESS_BYTES];
+	size_t h_len, d_len, addr_len;
 
 	if ((no_proxy = getenv("NO_PROXY")) == NULL &&
 	    (no_proxy = getenv("no_proxy")) == NULL)
@@ -1075,6 +1134,7 @@ fetch_no_proxy_match(const char *host)
 		return (1);
 
 	h_len = strlen(host);
+	addr_len = host_to_address(addr, sizeof addr, host, h_len);
 	p = no_proxy;
 	do {
 		/* position p at the beginning of a domain suffix */
@@ -1091,6 +1151,10 @@ fetch_no_proxy_match(const char *host)
 		    strncasecmp(host + h_len - d_len,
 			p, d_len) == 0) {
 			/* domain name matches */
+			return (1);
+		}
+
+		if (cidr_match(addr, addr_len, p, d_len)) {
 			return (1);
 		}
 
