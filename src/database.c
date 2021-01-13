@@ -2138,6 +2138,7 @@ static int load_apkindex(void *sctx, const struct apk_file_info *fi,
 	if (r <= 0)
 		return r;
 
+	r = 0;
 	repo = &ctx->db->repos[ctx->repo];
 
 	if (strcmp(fi->name, "DESCRIPTION") == 0) {
