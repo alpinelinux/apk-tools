@@ -38,13 +38,6 @@ display the appropriate information, then an empty line terminates that field.
 *-L, --contents*
 	List files included in the package.
 
-*-i, --install-if*
-	List the package's install_if rule. When the dependencies in this list
-	are satisfied, the package will be installed automatically.
-
-*-I, --rinstall-if*
-	List other packages whose install_if rules refer to this package.
-
 *-r, --rdepends*
 	List reverse dependencies of the package (all other packages which
 	depend on the package).
@@ -61,12 +54,19 @@ display the appropriate information, then an empty line terminates that field.
 *-W, --who-owns*
 	Print the package which owns the specified file.
 
+*--install-if*
+	List the package's install_if rule. When the dependencies in this list
+	are satisfied, the package will be installed automatically.
+
 *--license*
 	Print the package SPDX license identifier.
 
 *--replaces*
 	List the other packages for which this package is marked as a
 	replacement.
+
+*--rinstall-if*
+	List other packages whose install_if rules refer to this package.
 
 *--triggers*
 	Print active triggers for the package.
