@@ -725,11 +725,6 @@ http_connect(struct url *URL, struct url *purl, const char *flags, int *cached)
 			http_seterr(conn->err);
 			goto ouch;
 		}
-		/* Read and discard the rest of the proxy response */
-		if (fetch_getln(conn) < 0) {
-			fetch_syserr();
-			goto ouch;
-		}
 		do {
 			switch ((h = http_next_header(conn, &p))) {
 			case hdr_syserror:
@@ -741,7 +736,7 @@ http_connect(struct url *URL, struct url *purl, const char *flags, int *cached)
 			default:
 				/* ignore */ ;
 			}
-		} while (h < hdr_end);
+		} while (h > hdr_end);
 	}
 	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
 	    fetch_ssl(conn, URL, verbose) == -1) {
