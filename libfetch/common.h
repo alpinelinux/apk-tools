@@ -91,7 +91,7 @@ int		 fetch_default_proxy_port(const char *);
 int		 fetch_bind(int, int, const char *);
 conn_t		*fetch_cache_get(const struct url *, int);
 void		 fetch_cache_put(conn_t *, int (*)(conn_t *));
-conn_t		*fetch_connect(struct url *, int, int);
+conn_t		*fetch_connect(struct url *, struct url *, int, int);
 conn_t		*fetch_reopen(int);
 int		 fetch_ssl(conn_t *, const struct url *, int);
 ssize_t		 fetch_read(conn_t *, char *, size_t);

@@ -250,7 +250,7 @@ fetch_bind(int sd, int af, const char *addr)
  * Establish a TCP connection to the specified port on the specified host.
  */
 conn_t *
-fetch_connect(struct url *url, int af, int verbose)
+fetch_connect(struct url *cache_url, struct url *url, int af, int verbose)
 {
 	conn_t *conn;
 	char pbuf[10];
@@ -302,7 +302,7 @@ fetch_connect(struct url *url, int af, int verbose)
 		close(sd);
 		return (NULL);
 	}
-	conn->cache_url = fetchCopyURL(url);
+	conn->cache_url = fetchCopyURL(cache_url);
 	conn->cache_af = af;
 	return (conn);
 }
