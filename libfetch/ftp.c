@@ -1020,7 +1020,7 @@ ftp_connect(struct url *url, struct url *purl, const char *flags)
 		if (!purl->port)
 			purl->port = fetch_default_port(purl->scheme);
 
-		conn = fetch_connect(purl, af, verbose);
+		conn = fetch_connect(purl, purl, af, verbose);
 	} else {
 		/* no proxy, go straight to target */
 		if (!url->port)
@@ -1032,7 +1032,7 @@ ftp_connect(struct url *url, struct url *purl, const char *flags)
 				return conn;
 			fetch_close(conn);
 		}
-		conn = fetch_connect(url, af, verbose);
+		conn = fetch_connect(url, url, af, verbose);
 		purl = NULL;
 	}
 

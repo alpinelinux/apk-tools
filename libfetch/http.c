@@ -690,33 +690,33 @@ http_cork(conn_t *conn, int val)
 static conn_t *
 http_connect(struct url *URL, struct url *purl, const char *flags, int *cached)
 {
-	struct url *curl;
+	struct url *cache_url;
 	conn_t *conn;
 	hdr_t h;
 	const char *p;
-	int af, verbose;
+	int af, verbose, is_https;
 
 	*cached = 0;
-
 	af = AF_UNSPEC;
-
 	verbose = CHECK_FLAG('v');
 	if (CHECK_FLAG('4'))
 		af = AF_INET;
 	else if (CHECK_FLAG('6'))
 		af = AF_INET6;
 
-	curl = (purl != NULL) ? purl : URL;
+	is_https = strcasecmp(URL->scheme, SCHEME_HTTPS) == 0;
+	cache_url = (is_https || !purl) ? URL : purl;
 
-	if ((conn = fetch_cache_get(URL, af)) != NULL) {
+	if ((conn = fetch_cache_get(cache_url, af)) != NULL) {
 		*cached = 1;
 		return (conn);
 	}
 
-	if ((conn = fetch_connect(curl, af, verbose)) == NULL)
+	if ((conn = fetch_connect(cache_url, purl ?: URL, af, verbose)) == NULL)
 		/* fetch_connect() has already set an error code */
 		return (NULL);
-	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 && purl) {
+
+	if (is_https && purl) {
 		http_cork(conn, 1);
 		http_cmd(conn, "CONNECT %s:%d HTTP/1.1\r\nHost: %s:%d\r\n\r\n",
 			 URL->host, URL->port, URL->host, URL->port);
@@ -738,8 +738,7 @@ http_connect(struct url *URL, struct url *purl, const char *flags, int *cached)
 			}
 		} while (h > hdr_end);
 	}
-	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
-	    fetch_ssl(conn, URL, verbose) == -1) {
+	if (is_https && fetch_ssl(conn, URL, verbose) == -1) {
 		/* grrr */
 #ifdef EAUTH
 		errno = EAUTH;
