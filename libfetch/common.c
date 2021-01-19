@@ -381,7 +381,7 @@ fetch_cache_get(const struct url *url, int af)
 void
 fetch_cache_put(conn_t *conn, int (*closecb)(conn_t *))
 {
-	conn_t *iter, *last;
+	conn_t *iter, *last, *next_cached;
 	int global_count, host_count;
 
 	if (conn->cache_url == NULL || cache_global_limit == 0) {
@@ -391,8 +391,8 @@ fetch_cache_put(conn_t *conn, int (*closecb)(conn_t *))
 
 	global_count = host_count = 0;
 	last = NULL;
-	for (iter = connection_cache; iter;
-	    last = iter, iter = iter->next_cached) {
+	for (iter = connection_cache; iter; last = iter, iter = next_cached) {
+		next_cached = iter->next_cached;
 		++global_count;
 		if (strcmp(conn->cache_url->host, iter->cache_url->host) == 0)
 			++host_count;
