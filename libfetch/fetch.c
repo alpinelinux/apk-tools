@@ -55,10 +55,14 @@ int	 fetchDebug;
 #define URL_MALFORMED		1
 #define URL_BAD_SCHEME		2
 #define URL_BAD_PORT		3
+#define URL_BAD_HOST		4
+#define URL_BAD_AUTH		5
 static struct fetcherr url_errlist[] = {
 	{ URL_MALFORMED,	FETCH_URL,	"Malformed URL" },
 	{ URL_BAD_SCHEME,	FETCH_URL,	"Invalid URL scheme" },
 	{ URL_BAD_PORT,		FETCH_URL,	"Invalid server port" },
+	{ URL_BAD_HOST,		FETCH_URL,	"Invalid (or too long) hostname" },
+	{ URL_BAD_AUTH,		FETCH_URL,	"Invalid (or too long) credentials" },
 	{ -1,			FETCH_UNKNOWN,	"Unknown parser error" }
 };
 
@@ -414,7 +418,7 @@ fetchParseURL(const char *URL)
 		}
 		URL += 2;
 		p = URL;
-		goto find_user;			
+		goto find_user;
 	}
 
 	url_seterr(URL_BAD_SCHEME);
@@ -425,15 +429,22 @@ find_user:
 	if (p != NULL && *p == '@') {
 		/* username */
 		for (q = URL, i = 0; (*q != ':') && (*q != '@'); q++) {
-			if (i < URL_USERLEN)
-				u->user[i++] = *q;
+			if (i >= URL_USERLEN) {
+				url_seterr(URL_BAD_AUTH);
+				goto ouch;
+			}
+			u->user[i++] = *q;
 		}
 
 		/* password */
 		if (*q == ':') {
-			for (q++, i = 0; (*q != '@'); q++)
-				if (i < URL_PWDLEN)
-					u->pwd[i++] = *q;
+			for (q++, i = 0; (*q != '@'); q++) {
+				if (i >= URL_PWDLEN) {
+					url_seterr(URL_BAD_AUTH);
+					goto ouch;
+				}
+				u->pwd[i++] = *q;
+			}
 		}
 
 		p++;
@@ -444,14 +455,20 @@ find_user:
 	/* hostname */
 	if (*p == '[' && (q = strchr(p + 1, ']')) != NULL &&
 	    (*++q == '\0' || *q == '/' || *q == ':')) {
-		if ((i = q - p - 2) > URL_HOSTLEN)
-			i = URL_HOSTLEN;
+		if ((i = q - p - 2) >= URL_HOSTLEN) {
+			url_seterr(URL_BAD_HOST);
+			goto ouch;
+		}
 		strncpy(u->host, ++p, i);
 		p = q;
 	} else {
-		for (i = 0; *p && (*p != '/') && (*p != ':'); p++)
-			if (i < URL_HOSTLEN)
-				u->host[i++] = *p;
+		for (i = 0; *p && (*p != '/') && (*p != ':'); p++) {
+			if (i >= URL_HOSTLEN) {
+				url_seterr(URL_BAD_HOST);
+				goto ouch;
+			}
+			u->host[i++] = *p;
+		}
 	}
 
 	/* port */
