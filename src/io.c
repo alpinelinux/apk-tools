@@ -213,7 +213,7 @@ struct apk_istream_bstream {
 	struct apk_bstream bs;
 	struct apk_istream *is;
 	apk_blob_t left;
-	char buffer[8*1024];
+	char buffer[128*1024];
 };
 
 static void is_bs_get_meta(struct apk_bstream *bs, struct apk_file_meta *meta)
