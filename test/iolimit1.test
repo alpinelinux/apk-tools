@@ -1,5 +1,0 @@
-@ARGS
---test-repo iolimit.repo
-add test-f
-@EXPECT
-ERROR: Failed to open repository iolimit.repo : No buffer space available
