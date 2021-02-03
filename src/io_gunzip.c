@@ -104,7 +104,7 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 			inflateEnd(&gis->zs);
 			if (inflateInit2(&gis->zs, 15+32) != Z_OK)
 				return -ENOMEM;
-			if (gis->cb) goto ret;
+			if (gis->cb && gis->zs.avail_out != size) goto ret;
 			break;
 		case Z_OK:
 			break;
