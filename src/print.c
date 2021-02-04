@@ -58,6 +58,8 @@ const char *apk_error_str(int error)
 		return "package file format error";
 	case EAPKDEPFORMAT:
 		return "package dependency format error";
+	case EAPKDBFORMAT:
+		return "database file format error";
 	default:
 		return strerror(error);
 	}
