@@ -519,6 +519,8 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *
 	struct apk_package *idb;
 	struct apk_dependency *dep;
 
+	if (!pkg->name || !pkg->version) return NULL;
+
 	if (!pkg->license) pkg->license = &apk_atom_null;
 
 	/* Set as "cached" if installing from specified file, and
@@ -777,7 +779,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 	while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token))) {
 		lineno++;
 
-		if (l.len < 2 || l.ptr[1] != ':') {
+		if (l.len < 2) {
 			if (pkg == NULL)
 				continue;
 
@@ -792,10 +794,8 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 				ipkg = apk_pkg_install(db, pkg);
 			}
 
-			if (apk_db_pkg_add(db, pkg) == NULL) {
-				apk_error("Installed database load failed");
-				return -1;
-			}
+			if (apk_db_pkg_add(db, pkg) == NULL)
+				goto err_fmt;
 			pkg = NULL;
 			ipkg = NULL;
 			continue;
@@ -803,6 +803,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 
 		/* Get field */
 		field = l.ptr[0];
+		if (l.ptr[1] != ':') goto err_fmt;
 		l.ptr += 2;
 		l.len -= 2;
 
@@ -900,12 +901,11 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 old_apk_tools:
 	/* Installed db should not have unsupported fields */
 	apk_error("This apk-tools is too old to handle installed packages");
-	is->err = -EAPKFORMAT;
-	goto err;
+	goto err_fmt;
 bad_entry:
 	apk_error("FDB format error (line %d, entry '%c')", lineno, field);
-	is->err = -EAPKFORMAT;
-err:
+err_fmt:
+	is->err = -EAPKDBFORMAT;
 	return apk_istream_close(is);
 }
 
@@ -1738,7 +1738,7 @@ ret_errno:
 	r = -errno;
 ret_r:
 	if (msg != NULL)
-		apk_error("%s: %s", msg, strerror(-r));
+		apk_error("%s: %s", msg, apk_error_str(-r));
 	apk_db_close(db);
 
 	return r;
@@ -2404,6 +2404,14 @@ static const char *format_tmpname(struct apk_package *pkg, struct apk_db_file *f
 	return tmpname;
 }
 
+static int contains_control_character(const char *str)
+{
+	for (; *str; str++) {
+		if (*str < 0x20 || *str == 0x7f) return 1;
+	}
+	return 0;
+}
+
 static int apk_db_install_archive_entry(void *_ctx,
 					const struct apk_file_info *ae,
 					struct apk_istream *is)
@@ -2450,7 +2458,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 		return 0;
 
 	/* Sanity check the file name */
-	if (ae->name[0] == '/' ||
+	if (ae->name[0] == '/' || contains_control_character(ae->name) ||
 	    strncmp(ae->name, &dot1[1], 2) == 0 ||
 	    strncmp(ae->name, &dot2[1], 3) == 0 ||
 	    strstr(ae->name, dot1) || strstr(ae->name, dot2)) {
