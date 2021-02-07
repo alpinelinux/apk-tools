@@ -2358,8 +2358,8 @@ static const char *format_tmpname(struct apk_package *pkg, struct apk_db_file *f
 
 static int contains_control_character(const char *str)
 {
-	for (; *str; str++) {
-		if (*str < 0x20 || *str == 0x7f) return 1;
+	for (const uint8_t *p = (const uint8_t *) str; *p; p++) {
+		if (*p < 0x20 || *p == 0x7f) return 1;
 	}
 	return 0;
 }
