@@ -29,6 +29,7 @@ void apk_ctx_free(struct apk_ctx *ac)
 	apk_trust_free(&ac->trust);
 	apk_string_array_free(&ac->repository_list);
 	apk_string_array_free(&ac->private_keys);
+	if (ac->out.log) fclose(ac->out.log);
 }
 
 int apk_ctx_prepare(struct apk_ctx *ac)
@@ -52,6 +53,21 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 	if (ac->root_fd < 0) {
 		apk_err(&ac->out, "Unable to open root: %s", apk_error_str(errno));
 		return -errno;
+	}
+
+	if (ac->open_flags & APK_OPENF_WRITE) {
+		const char *log_path = "var/log/apk.log", *log_dir = "var/log";
+		const int lflags = O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC;
+		int fd = openat(ac->root_fd, log_path, lflags, 0644);
+		if (fd < 0 && (ac->open_flags & APK_OPENF_CREATE)) {
+			mkdirat(ac->root_fd, log_dir, 0755);
+			fd = openat(ac->root_fd, log_path, lflags, 0644);
+		}
+		if (fd < 0) {
+			apk_err(&ac->out, "Unable to open log: %s", apk_error_str(errno));
+			return -errno;
+		}
+		ac->out.log = fdopen(fd, "a");
 	}
 	return 0;
 }

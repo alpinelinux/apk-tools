@@ -136,10 +136,35 @@ static void log_internal(FILE *dest, const char *prefix, const char *format, va_
 void apk_out_fmt(struct apk_out *out, const char *prefix, const char *format, ...)
 {
 	va_list va;
-	va_start(va, format);
-	log_internal(prefix ? out->err : out->out, prefix, format, va);
-	out->last_change++;
-	va_end(va);
+	if (prefix != APK_OUT_LOG_ONLY) {
+		va_start(va, format);
+		log_internal(prefix ? out->err : out->out, prefix, format, va);
+		out->last_change++;
+		va_end(va);
+	}
+
+	if (out->log) {
+		va_start(va, format);
+		log_internal(out->log, prefix, format, va);
+		va_end(va);
+	}
+}
+
+void apk_out_log_argv(struct apk_out *out, char **argv)
+{
+	char when[32];
+	struct tm tm;
+	time_t now = time(NULL);
+
+	if (!out->log) return;
+	fprintf(out->log, "\nRunning `");
+	for (int i = 0; argv[i]; ++i) {
+		fprintf(out->log, "%s%s", argv[i], argv[i+1] ? " " : "");
+	}
+
+	gmtime_r(&now, &tm);
+	strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", &tm);
+	fprintf(out->log, "` at %s\n", when);
 }
 
 void apk_print_progress(struct apk_progress *p, size_t done, size_t total)

@@ -15,6 +15,8 @@ to install is called the _world_ (see *apk-world*(5)). *apk* supports various
 sub-commands to query and manipulate _world_ and local & remote package
 repositories.
 
+All apk commands which modify the database are logged to /var/log/apk.log.
+
 # COMMANDS
 
 Each command is documented in detail on its manual page.

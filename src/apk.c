@@ -46,11 +46,11 @@ time_t time(time_t *tloc)
 }
 #endif
 
-static void version(struct apk_out *out)
+static void version(struct apk_out *out, const char *prefix)
 {
-	apk_out(out, "apk-tools " APK_VERSION ", compiled for " APK_DEFAULT_ARCH ".");
+	apk_out_fmt(out, prefix, "apk-tools " APK_VERSION ", compiled for " APK_DEFAULT_ARCH ".");
 #ifdef TEST_MODE
-	apk_out(out, "TEST MODE BUILD. NOT FOR PRODUCTION USE.");
+	apk_out_fmt(out, prefix, "TEST MODE BUILD. NOT FOR PRODUCTION USE.");
 #endif
 }
 
@@ -122,7 +122,7 @@ static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const cha
 		ac->out.verbosity++;
 		break;
 	case OPT_GLOBAL_version:
-		version(out);
+		version(out, NULL);
 		return -ESHUTDOWN;
 	case OPT_GLOBAL_force:
 		ac->force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
@@ -260,7 +260,7 @@ const struct apk_option_group optgroup_commit = {
 
 static int usage(struct apk_out *out, struct apk_applet *applet)
 {
-	version(out);
+	version(out, NULL);
 	apk_applet_help(applet, out);
 	return 1;
 }
@@ -459,6 +459,9 @@ int main(int argc, char **argv)
 
 	r = apk_ctx_prepare(&ctx);
 	if (r != 0) goto err;
+
+	apk_out_log_argv(&ctx.out, apk_argv);
+	version(&ctx.out, APK_OUT_LOG_ONLY);
 
 	if (ctx.open_flags) {
 		r = apk_db_open(&db, &ctx);

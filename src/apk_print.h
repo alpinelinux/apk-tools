@@ -30,10 +30,14 @@ void apk_url_parse(struct apk_url_print *, const char *);
 struct apk_out {
 	int verbosity;
 	unsigned int width, last_change;
-	FILE *out, *err;
+	FILE *out, *err, *log;
 };
 
 static inline int apk_out_verbosity(struct apk_out *out) { return out->verbosity; }
+
+// Pass this as the prefix to skip logging to the console (but still write to
+// the log file).
+#define APK_OUT_LOG_ONLY ((const char*)-1)
 
 #define apk_err(out, args...)	do { apk_out_fmt(out, "ERROR: ", args); } while (0)
 #define apk_out(out, args...)	do { apk_out_fmt(out, NULL, args); } while (0)
@@ -44,6 +48,7 @@ static inline int apk_out_verbosity(struct apk_out *out) { return out->verbosity
 
 void apk_out_reset(struct apk_out *);
 void apk_out_fmt(struct apk_out *, const char *prefix, const char *format, ...);
+void apk_out_log_argv(struct apk_out *, char **argv);
 
 struct apk_progress {
 	struct apk_out *out;
