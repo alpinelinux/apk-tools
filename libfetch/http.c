@@ -1065,7 +1065,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 					goto ouch;
 				}
 				if (!new->port)
-					new->port = fetch_default_port(url->scheme);
+					new->port = fetch_default_port(new->scheme);
 				if (!new->user[0] && !new->pwd[0] &&
 				    new->port == url->port &&
 				    strcmp(new->scheme, url->scheme) == 0 &&
