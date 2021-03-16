@@ -663,6 +663,22 @@ http_authorize(conn_t *conn, const char *hdr, const char *p)
 	return (-1);
 }
 
+/*
+ * Send a Proxy authorization header
+ */
+static void
+http_proxy_authorize(conn_t *conn, struct url *purl)
+{
+	const char *p;
+
+	if (!purl) return;
+	if (*purl->user || *purl->pwd)
+		http_basic_auth(conn, "Proxy-Authorization",
+		    purl->user, purl->pwd);
+	else if ((p = getenv("HTTP_PROXY_AUTH")) != NULL && *p != '\0')
+		http_authorize(conn, "Proxy-Authorization", p);
+}
+
 /*****************************************************************************
  * Helper functions for connecting to a server or proxy
  */
@@ -718,8 +734,10 @@ http_connect(struct url *URL, struct url *purl, const char *flags, int *cached)
 
 	if (is_https && purl) {
 		http_cork(conn, 1);
-		http_cmd(conn, "CONNECT %s:%d HTTP/1.1\r\nHost: %s:%d\r\n\r\n",
+		http_cmd(conn, "CONNECT %s:%d HTTP/1.1\r\nHost: %s:%d\r\n",
 			 URL->host, URL->port, URL->host, URL->port);
+		http_proxy_authorize(conn, purl);
+		http_cmd(conn, "\r\n");
 		http_cork(conn, 0);
 		if (http_get_reply(conn) != HTTP_OK) {
 			http_seterr(conn->err);
@@ -920,13 +938,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		http_cmd(conn, "Host: %s\r\n", host);
 
 		/* proxy authorization */
-		if (purl) {
-			if (*purl->user || *purl->pwd)
-				http_basic_auth(conn, "Proxy-Authorization",
-				    purl->user, purl->pwd);
-			else if ((p = getenv("HTTP_PROXY_AUTH")) != NULL && *p != '\0')
-				http_authorize(conn, "Proxy-Authorization", p);
-		}
+		http_proxy_authorize(conn, purl);
 
 		/* server authorization */
 		if (need_auth || *url->user || *url->pwd) {
