@@ -42,6 +42,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 	if (!ac->keys_dir) ac->keys_dir = "etc/apk/keys";
 	if (!ac->root) ac->root = "/";
 	if (!ac->cache_max_age) ac->cache_max_age = 4*60*60; /* 4 hours default */
+	if (!strcmp(ac->root, "/")) ac->flags |= APK_NO_CHROOT; /* skip chroot if root is default */
 
 	ac->root_fd = openat(AT_FDCWD, ac->root, O_RDONLY | O_CLOEXEC);
 	if (ac->root_fd < 0 && (ac->open_flags & APK_OPENF_CREATE)) {

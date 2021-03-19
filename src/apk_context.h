@@ -25,6 +25,7 @@
 #define APK_NO_SCRIPTS			BIT(8)
 #define APK_NO_CACHE			BIT(9)
 #define APK_NO_COMMIT_HOOKS		BIT(10)
+#define APK_NO_CHROOT			BIT(11)
 
 #define APK_FORCE_OVERWRITE		BIT(0)
 #define APK_FORCE_OLD_APK		BIT(1)

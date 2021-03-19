@@ -1906,8 +1906,18 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 	}
 	if (pid == 0) {
 		umask(0022);
-		if (fchdir(db->root_fd) == 0 && chroot(".") == 0)
-			execve(fn, argv, environment);
+
+		if (fchdir(db->root_fd) != 0) {
+			apk_err(out, "%s: fchdir: %s", basename(fn), strerror(errno));
+			exit(127);
+		}
+
+		if (!(db->ctx->flags & APK_NO_CHROOT) && chroot(".") != 0) {
+			apk_err(out, "%s: chroot: %s", basename(fn), strerror(errno));
+			exit(127);
+		}
+
+		execve(fn, argv, environment);
 		exit(127); /* should not get here */
 	}
 	waitpid(pid, &status, 0);
