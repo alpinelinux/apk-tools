@@ -159,6 +159,7 @@ struct apk_database {
 	int permanent : 1;
 	int autoupdate : 1;
 	int open_complete : 1;
+	int no_chroot : 1;
 	int compat_newfeatures : 1;
 	int compat_notinstallable : 1;
 

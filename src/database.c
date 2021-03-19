@@ -1552,6 +1552,7 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 
 	db->cache_max_age = dbopts->cache_max_age ?: 4*60*60; /* 4 hours default */
 	db->root = strdup(dbopts->root ?: "/");
+	if (!strcmp(db->root, "/")) db->no_chroot = 1; /* skip chroot if root is default */
 	db->root_fd = openat(AT_FDCWD, db->root, O_RDONLY | O_CLOEXEC);
 	if (db->root_fd < 0 && (dbopts->open_flags & APK_OPENF_CREATE)) {
 		mkdirat(AT_FDCWD, db->root, 0755);
@@ -1957,8 +1958,18 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 	}
 	if (pid == 0) {
 		umask(0022);
-		if (fchdir(db->root_fd) == 0 && chroot(".") == 0)
-			execve(fn, argv, environment);
+
+		if (fchdir(db->root_fd) != 0) {
+			apk_error("%s: fchdir: %s", basename(fn), strerror(errno));
+			exit(127);
+		}
+
+		if (!db->no_chroot && chroot(".") != 0) {
+			apk_error("%s: chroot: %s", basename(fn), strerror(errno));
+			exit(127);
+		}
+
+		execve(fn, argv, environment);
 		exit(127); /* should not get here */
 	}
 	waitpid(pid, &status, 0);
