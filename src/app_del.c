@@ -50,6 +50,11 @@ struct not_deleted_ctx {
 	int header;
 };
 
+static inline int name_in_world(struct apk_name *n)
+{
+	return n->state_int == 1;
+}
+
 static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependency *dep0,
 				  struct apk_package *pkg, void *pctx)
 {
@@ -57,17 +62,21 @@ static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependenc
 	struct apk_dependency *d;
 	struct apk_provider *p;
 
-	if (pkg0->name != ctx->name) {
-		if (!ctx->header) {
-			apk_message("World updated, but the following packages are not removed due to:");
-			ctx->header = 1;
-		}
-		if (!ctx->indent.indent) {
-			ctx->indent.x = printf("  %s:", ctx->name->name);
-			ctx->indent.indent = ctx->indent.x + 1;
-		}
+	if (!ctx->header) {
+		apk_message("World updated, but the following packages are not removed due to:");
+		ctx->header = 1;
+	}
+	if (!ctx->indent.indent) {
+		ctx->indent.x = printf("  %s:", ctx->name->name);
+		ctx->indent.indent = ctx->indent.x + 1;
+	}
 
+	if (name_in_world(pkg0->name)) {
 		apk_print_indented(&ctx->indent, APK_BLOB_STR(pkg0->name->name));
+	}
+	foreach_array_item(d, pkg0->provides) {
+		if (!name_in_world(d->name)) continue;
+		apk_print_indented(&ctx->indent, APK_BLOB_STR(d->name->name));
 	}
 
 	apk_pkg_foreach_reverse_dependency(pkg0, ctx->matches, print_not_deleted_pkg, pctx);
@@ -133,6 +142,7 @@ static int del_main(void *pctx, struct apk_database *db, struct apk_string_array
 	struct not_deleted_ctx ndctx = {};
 	struct apk_changeset changeset = {};
 	struct apk_change *change;
+	struct apk_dependency *d;
 	int r = 0;
 
 	apk_dependency_array_copy(&ctx->world, db->world);
@@ -145,6 +155,8 @@ static int del_main(void *pctx, struct apk_database *db, struct apk_string_array
 		foreach_array_item(change, changeset.changes)
 			if (change->new_pkg != NULL)
 				change->new_pkg->marked = 1;
+		foreach_array_item(d, ctx->world)
+			d->name->state_int = 1;
 		apk_name_foreach_matching(
 			db, args,
 			apk_foreach_genid() | APK_FOREACH_MARKED | APK_DEP_SATISFIES,
