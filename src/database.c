@@ -520,6 +520,8 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *
 	struct apk_package *idb;
 	struct apk_dependency *dep;
 
+	if (!pkg->name || !pkg->version) return NULL;
+
 	if (pkg->license == NULL)
 		pkg->license = apk_blob_atomize(APK_BLOB_NULL);
 
@@ -780,7 +782,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_bstream *bs, int repo)
 	while (!APK_BLOB_IS_NULL(l = apk_bstream_read(bs, token))) {
 		lineno++;
 
-		if (l.len < 2 || l.ptr[1] != ':') {
+		if (l.len < 2) {
 			if (pkg == NULL)
 				continue;
 
@@ -795,10 +797,8 @@ int apk_db_index_read(struct apk_database *db, struct apk_bstream *bs, int repo)
 				ipkg = apk_pkg_install(db, pkg);
 			}
 
-			if (apk_db_pkg_add(db, pkg) == NULL) {
-				apk_error("Installed database load failed");
-				return -1;
-			}
+			if (apk_db_pkg_add(db, pkg) == NULL)
+				goto err_fmt;
 			pkg = NULL;
 			ipkg = NULL;
 			continue;
@@ -806,6 +806,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_bstream *bs, int repo)
 
 		/* Get field */
 		field = l.ptr[0];
+		if (l.ptr[1] != ':') goto err_fmt;
 		l.ptr += 2;
 		l.len -= 2;
 
@@ -905,6 +906,9 @@ old_apk_tools:
 	return -1;
 bad_entry:
 	apk_error("FDB format error (line %d, entry '%c')", lineno, field);
+	return -1;
+err_fmt:
+	apk_error("FDB format error (line %d)", lineno);
 	return -1;
 }
 
@@ -1737,7 +1741,7 @@ ret_errno:
 	r = -errno;
 ret_r:
 	if (msg != NULL)
-		apk_error("%s: %s", msg, strerror(-r));
+		apk_error("%s: %s", msg, apk_error_str(-r));
 	apk_db_close(db);
 
 	return r;
@@ -2418,6 +2422,14 @@ static const char *format_tmpname(struct apk_package *pkg, struct apk_db_file *f
 	return tmpname;
 }
 
+static int contains_control_character(const char *str)
+{
+	for (; *str; str++) {
+		if (*str < 0x20 || *str == 0x7f) return 1;
+	}
+	return 0;
+}
+
 static int apk_db_install_archive_entry(void *_ctx,
 					const struct apk_file_info *ae,
 					struct apk_istream *is)
@@ -2440,7 +2452,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 	r = 0;
 
 	/* Sanity check the file name */
-	if (ae->name[0] == '/' ||
+	if (ae->name[0] == '/' || contains_control_character(ae->name) ||
 	    strncmp(ae->name, "/./"+1, 3) == 0 ||
 	    strncmp(ae->name, "/../"+1, 3) == 0 ||
 	    strstr(ae->name, "/./") ||
