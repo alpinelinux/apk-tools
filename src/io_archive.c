@@ -49,6 +49,7 @@ struct tar_header {
 	char padding[12];   /* 500-511 */
 };
 
+#define TAR_BLOB(s)	APK_BLOB_PTR_LEN(s, strnlen(s, sizeof(s)))
 #define GET_OCTAL(s)	get_octal(s, sizeof(s))
 #define PUT_OCTAL(s,v)	put_octal(s, sizeof(s), v)
 
@@ -149,8 +150,8 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 
 		entry = (struct apk_file_info){
 			.size  = GET_OCTAL(buf.size),
-			.uid   = apk_resolve_uid(idc, buf.uname, GET_OCTAL(buf.uid)),
-			.gid   = apk_resolve_gid(idc, buf.gname, GET_OCTAL(buf.gid)),
+			.uid   = apk_resolve_uid(idc, TAR_BLOB(buf.uname), GET_OCTAL(buf.uid)),
+			.gid   = apk_resolve_gid(idc, TAR_BLOB(buf.gname), GET_OCTAL(buf.gid)),
 			.mode  = GET_OCTAL(buf.mode) & 07777,
 			.mtime = GET_OCTAL(buf.mtime),
 			.name  = entry.name,
