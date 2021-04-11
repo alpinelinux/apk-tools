@@ -725,8 +725,10 @@ int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx)
 		return -1;
 
 	dir = fdopendir(dirfd);
-	if (dir == NULL)
+	if (!dir) {
+		close(dirfd);
 		return -1;
+	}
 
 	/* We get called here with dup():ed fd. Since they all refer to
 	 * same object, we need to rewind so subsequent calls work. */
@@ -1012,6 +1014,19 @@ void apk_id_cache_reset(struct apk_id_cache *idc)
 		idc->genid = 1;
 }
 
+static FILE *fopenat(int dirfd, const char *pathname)
+{
+	FILE *f;
+	int fd;
+
+	fd = openat(dirfd, pathname, O_RDONLY|O_CLOEXEC);
+	if (fd < 0) return NULL;
+
+	f = fdopen(fd, "r");
+	if (!f) close(fd);
+	return f;
+}
+
 uid_t apk_resolve_uid(struct apk_id_cache *idc, const char *username, uid_t default_uid)
 {
 #ifdef HAVE_FGETPWENT_R
@@ -1030,8 +1045,8 @@ uid_t apk_resolve_uid(struct apk_id_cache *idc, const char *username, uid_t defa
 		ci->genid = idc->genid;
 		ci->uid = -1;
 
-		in = fdopen(openat(idc->root_fd, "etc/passwd", O_RDONLY|O_CLOEXEC), "r");
-		if (in != NULL) {
+		in = fopenat(idc->root_fd, "etc/passwd");
+		if (in) {
 			do {
 #ifdef HAVE_FGETPWENT_R
 				fgetpwent_r(in, &pwent, buf, sizeof(buf), &pwd);
@@ -1073,8 +1088,8 @@ uid_t apk_resolve_gid(struct apk_id_cache *idc, const char *groupname, uid_t def
 		ci->genid = idc->genid;
 		ci->gid = -1;
 
-		in = fdopen(openat(idc->root_fd, "etc/group", O_RDONLY|O_CLOEXEC), "r");
-		if (in != NULL) {
+		in = fopenat(idc->root_fd, "etc/group");
+		if (in) {
 			do {
 #ifdef HAVE_FGETGRENT_R
 				fgetgrent_r(in, &grent, buf, sizeof(buf), &grp);
