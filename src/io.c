@@ -1027,7 +1027,7 @@ static FILE *fopenat(int dirfd, const char *pathname)
 	return f;
 }
 
-uid_t apk_resolve_uid(struct apk_id_cache *idc, const char *username, uid_t default_uid)
+uid_t apk_resolve_uid(struct apk_id_cache *idc, apk_blob_t username, uid_t default_uid)
 {
 #ifdef HAVE_FGETPWENT_R
 	char buf[1024];
@@ -1037,7 +1037,7 @@ uid_t apk_resolve_uid(struct apk_id_cache *idc, const char *username, uid_t defa
 	struct passwd *pwd;
 	FILE *in;
 
-	ci = resolve_cache_item(&idc->uid_cache, APK_BLOB_STR(username));
+	ci = resolve_cache_item(&idc->uid_cache, username);
 	if (ci == NULL)
 		return default_uid;
 
@@ -1055,7 +1055,7 @@ uid_t apk_resolve_uid(struct apk_id_cache *idc, const char *username, uid_t defa
 #endif
 				if (pwd == NULL)
 					break;
-				if (strcmp(pwd->pw_name, username) == 0) {
+				if (apk_blob_compare(APK_BLOB_STR(pwd->pw_name), username) == 0) {
 					ci->uid = pwd->pw_uid;
 					break;
 				}
@@ -1070,7 +1070,7 @@ uid_t apk_resolve_uid(struct apk_id_cache *idc, const char *username, uid_t defa
 	return default_uid;
 }
 
-uid_t apk_resolve_gid(struct apk_id_cache *idc, const char *groupname, uid_t default_gid)
+uid_t apk_resolve_gid(struct apk_id_cache *idc, apk_blob_t groupname, uid_t default_gid)
 {
 #ifdef HAVE_FGETGRENT_R
 	char buf[1024];
@@ -1080,7 +1080,7 @@ uid_t apk_resolve_gid(struct apk_id_cache *idc, const char *groupname, uid_t def
 	struct group *grp;
 	FILE *in;
 
-	ci = resolve_cache_item(&idc->gid_cache, APK_BLOB_STR(groupname));
+	ci = resolve_cache_item(&idc->gid_cache, groupname);
 	if (ci == NULL)
 		return default_gid;
 
@@ -1098,7 +1098,7 @@ uid_t apk_resolve_gid(struct apk_id_cache *idc, const char *groupname, uid_t def
 #endif
 				if (grp == NULL)
 					break;
-				if (strcmp(grp->gr_name, groupname) == 0) {
+				if (apk_blob_compare(APK_BLOB_STR(grp->gr_name), groupname) == 0) {
 					ci->gid = grp->gr_gid;
 					break;
 				}

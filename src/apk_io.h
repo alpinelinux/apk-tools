@@ -209,7 +209,7 @@ const char *apk_url_local_file(const char *url);
 void apk_id_cache_init(struct apk_id_cache *idc, int root_fd);
 void apk_id_cache_free(struct apk_id_cache *idc);
 void apk_id_cache_reset(struct apk_id_cache *idc);
-uid_t apk_resolve_uid(struct apk_id_cache *idc, const char *username, uid_t default_uid);
-uid_t apk_resolve_gid(struct apk_id_cache *idc, const char *groupname, uid_t default_gid);
+uid_t apk_resolve_uid(struct apk_id_cache *idc, apk_blob_t username, uid_t default_uid);
+uid_t apk_resolve_gid(struct apk_id_cache *idc, apk_blob_t groupname, uid_t default_gid);
 
 #endif
