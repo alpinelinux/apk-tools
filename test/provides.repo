@@ -111,3 +111,25 @@ V:0.1
 S:1
 I:1
 D:conflicted-provider-2
+
+C:Q1inqy40xXhjHaXUlG+qIshN+TIvA=
+P:pulseaudio-alsa
+V:1
+S:1
+I:1
+k:10
+
+c:a79b3f751d72fd4bdb6729139660d0b4f5b87a33
+P:pulseaudio
+V:1
+S:1
+I:1
+k:10
+
+C:Q1FAFBeAhWPV1XXEdoW+TSjrUghxU=
+P:pipewire-pulse
+V:1
+S:1
+I:1
+k:1
+p:pulseaudio=1 pulseaudio-alsa=1
