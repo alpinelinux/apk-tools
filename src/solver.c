@@ -493,17 +493,6 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 		name->name, name->ss.has_options, name->ss.reverse_deps_done);
 }
 
-static int count_requirers(const struct apk_package *pkg)
-{
-	int cnt = pkg->name->ss.requirers;
-	struct apk_dependency *p;
-
-	foreach_array_item(p, pkg->provides)
-		cnt += p->name->ss.requirers;
-
-	return cnt;
-}
-
 static int compare_providers(struct apk_solver_state *ss,
 			     struct apk_provider *pA, struct apk_provider *pB)
 {
@@ -594,13 +583,6 @@ static int compare_providers(struct apk_solver_state *ss,
 		r = (int)pkgA->ss.tag_preferred - (int)pkgB->ss.tag_preferred;
 		if (r) {
 			dbg_printf("    prefer preferred pinning\n");
-			return r;
-		}
-
-		/* Prefer highest requirer count. */
-		r = count_requirers(pkgA) - count_requirers(pkgB);
-		if (r) {
-			dbg_printf("    prefer highest requirer count\n");
 			return r;
 		}
 
