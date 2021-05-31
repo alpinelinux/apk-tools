@@ -368,7 +368,10 @@ static void setup_automatic_flags(struct apk_ctx *ac)
 	    !isatty(STDIN_FILENO))
 		return;
 
-	ac->progress.out = &ac->out;
+	/* Enable progress bar by default, except on dumb terminals. */
+	if (!(tmp = getenv("TERM")) || strcmp(tmp, "dumb") != 0)
+		ac->progress.out = &ac->out;
+
 	if (!(ac->flags & APK_SIMULATE) &&
 	    access("/etc/apk/interactive", F_OK) == 0)
 		ac->flags |= APK_INTERACTIVE;
