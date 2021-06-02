@@ -53,3 +53,37 @@ static struct apk_applet apk_adbdump = {
 };
 APK_DEFINE_APPLET(apk_adbdump);
 
+
+static int adbgen_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
+{
+	struct apk_out *out = &ac->out;
+	char **arg;
+	int r;
+	struct adb_walk_genadb genadb = {
+		.d.ops = &adb_walk_genadb_ops,
+		.d.schemas = dbschemas,
+	};
+
+	adb_w_init_alloca(&genadb.db, 0, 1000);
+	adb_w_init_alloca(&genadb.idb[0], 0, 100);
+	foreach_array_item(arg, args) {
+		adb_reset(&genadb.db);
+		r = adb_walk_istream(&genadb.d, apk_istream_from_file(AT_FDCWD, *arg));
+		if (!r) {
+			r = adb_c_create(apk_ostream_to_fd(STDOUT_FILENO), &genadb.db,
+				apk_ctx_get_trust(ac));
+		}
+		adb_free(&genadb.db);
+		adb_free(&genadb.idb[0]);
+		if (r) apk_err(out, "%s: %s", *arg, apk_error_str(r));
+	}
+
+	return 0;
+}
+
+static struct apk_applet apk_adbgen = {
+	.name = "adbgen",
+	.main = adbgen_main,
+};
+APK_DEFINE_APPLET(apk_adbgen);
+

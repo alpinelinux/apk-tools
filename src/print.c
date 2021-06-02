@@ -65,9 +65,18 @@ const char *apk_error_str(int error)
 	}
 }
 
+static const char *size_units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
+
+int apk_get_human_size_unit(apk_blob_t b)
+{
+	for (int i = 0, s = 1; i < ARRAY_SIZE(size_units); i++, s *= 1024)
+		if (apk_blob_compare(b, APK_BLOB_STR(size_units[i])) == 0)
+			return s;
+	return 1;
+}
+
 const char *apk_get_human_size(off_t size, off_t *dest)
 {
-	static const char *size_units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
 	size_t i;
 	off_t s;
 

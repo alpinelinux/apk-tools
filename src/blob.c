@@ -263,6 +263,12 @@ int apk_blob_sort(apk_blob_t a, apk_blob_t b)
 	return a.len - b.len;
 }
 
+int apk_blob_starts_with(apk_blob_t a, apk_blob_t b)
+{
+	if (a.len < b.len) return 0;
+	return memcmp(a.ptr, b.ptr, b.len) == 0;
+}
+
 int apk_blob_ends_with(apk_blob_t a, apk_blob_t b)
 {
 	if (a.len < b.len) return 0;

@@ -81,6 +81,7 @@ struct apk_istream *apk_istream_from_file(int atfd, const char *file);
 struct apk_istream *apk_istream_from_file_gz(int atfd, const char *file);
 struct apk_istream *apk_istream_from_fd(int fd);
 struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *url, time_t since);
+static inline int apk_istream_error(struct apk_istream *is, int err) { if (!is->err) is->err = err; return err; }
 ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size);
 apk_blob_t apk_istream_get(struct apk_istream *is, size_t len);
 apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t size);

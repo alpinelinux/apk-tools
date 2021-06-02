@@ -13,6 +13,7 @@
 #include "apk_blob.h"
 
 const char *apk_error_str(int error);
+int apk_get_human_size_unit(apk_blob_t b);
 const char *apk_get_human_size(off_t size, off_t *dest);
 
 struct apk_url_print {

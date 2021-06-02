@@ -51,10 +51,15 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 		d->ops->end(d);
 		ctx->db = origdb;
 		break;
-	case ADB_KIND_OBJECT:
-		d->ops->start_object(d);
-		dump_object(ctx, container_of(kind, struct adb_object_schema, kind), v);
-		d->ops->end(d);
+	case ADB_KIND_OBJECT:;
+		struct adb_object_schema *object = container_of(kind, struct adb_object_schema, kind);
+		if (!object->tostring) {
+			d->ops->start_object(d);
+			dump_object(ctx, object, v);
+			d->ops->end(d);
+		} else {
+			dump_object(ctx, object, v);
+		}
 		break;
 	case ADB_KIND_BLOB:
 	case ADB_KIND_INT:;
@@ -162,5 +167,6 @@ int adb_walk_adb(struct adb_walk *d, struct adb *db, struct apk_trust *trust)
 		.db = db,
 		.trust = trust,
 	};
+	d->ops->schema(d, db->hdr.schema);
 	return dump_adb(&ctx);
 }

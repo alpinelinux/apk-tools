@@ -111,6 +111,7 @@ static int adb_walk_gentext_scalar(struct adb_walk *d, apk_blob_t scalar, int mu
 
 		fprintf(out, "|\n");
 		adb_walk_gentext_newline(dt);
+
 		dt->nest++;
 		while (apk_blob_split(scalar, nl, &l, &scalar)) {
 			adb_walk_gentext_indent(dt);

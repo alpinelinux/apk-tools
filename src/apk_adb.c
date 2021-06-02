@@ -146,9 +146,27 @@ static apk_blob_t hexblob_tostring(struct adb *db, adb_val_t val, char *buf, siz
 	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "(%ld bytes)", b.len));
 }
 
+static adb_val_t hexblob_fromstring(struct adb *db, apk_blob_t val)
+{
+	char buf[256];
+
+	if (val.len & 1)
+		return ADB_ERROR(EINVAL);
+	if (val.len > sizeof buf)
+		return ADB_ERROR(E2BIG);
+
+	apk_blob_t b = APK_BLOB_PTR_LEN(buf, val.len / 2);
+	apk_blob_pull_hexdump(&val, b);
+	if (APK_BLOB_IS_NULL(val))
+		return ADB_ERROR(EINVAL);
+
+	return adb_w_blob(db, b);
+}
+
 static struct adb_scalar_schema scalar_hexblob = {
 	.kind = ADB_KIND_BLOB,
 	.tostring = hexblob_tostring,
+	.fromstring = hexblob_fromstring,
 };
 
 static apk_blob_t int_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
@@ -184,9 +202,17 @@ static apk_blob_t oct_tostring(struct adb *db, adb_val_t val, char *buf, size_t 
 	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%o", adb_r_int(db, val)));
 }
 
+static adb_val_t oct_fromstring(struct adb *db, apk_blob_t val)
+{
+	uint32_t n = apk_blob_pull_uint(&val, 8);
+	if (val.len) return ADB_ERROR(EINVAL);
+	return adb_w_int(db, n) ?: ADB_VAL_NULL;
+}
+
 static struct adb_scalar_schema scalar_oct = {
 	.kind = ADB_KIND_INT,
 	.tostring = oct_tostring,
+	.fromstring = oct_fromstring,
 };
 
 static apk_blob_t hsize_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
@@ -197,10 +223,23 @@ static apk_blob_t hsize_tostring(struct adb *db, adb_val_t val, char *buf, size_
 	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%jd %s", (intmax_t)v, unit));
 }
 
+static adb_val_t hsize_fromstring(struct adb *db, apk_blob_t val)
+{
+	apk_blob_t l, r;
+
+	if (!apk_blob_split(val, APK_BLOB_STR(" "), &l, &r))
+		return int_fromstring(db, val);
+
+	uint64_t n = apk_blob_pull_uint(&l, 10);
+	int sz = apk_get_human_size_unit(r);
+	n *= sz;
+	return adb_w_int(db, n);
+}
+
 static struct adb_scalar_schema scalar_hsize = {
 	.kind = ADB_KIND_INT,
 	.tostring = hsize_tostring,
-	.fromstring = int_fromstring,
+	.fromstring = hsize_fromstring,
 	.compare = int_compare,
 };
 

@@ -252,6 +252,14 @@ struct adb_obj *adb_r_rootobj(struct adb *db, struct adb_obj *obj, const struct 
 	return adb_r_obj(db, adb_r_root(db), obj, schema);
 }
 
+const uint8_t *adb_ro_kind(const struct adb_obj *o, unsigned i)
+{
+	if (o->schema->kind == ADB_KIND_ADB ||
+	    o->schema->kind == ADB_KIND_ARRAY)
+		i = 1;
+	return o->schema->fields[i-1].kind;
+}
+
 adb_val_t adb_ro_val(const struct adb_obj *o, unsigned i)
 {
 	if (i >= o->num) return ADB_NULL;
@@ -593,6 +601,7 @@ adb_val_t adb_w_fromstring(struct adb *db, const uint8_t *kind, apk_blob_t val)
 		struct adb_obj obj;
 		struct adb_object_schema *schema = container_of(kind, struct adb_object_schema, kind);
 		adb_wo_alloca(&obj, schema, db);
+		if (!schema->fromstring) return ADB_ERROR(EAPKDBFORMAT);
 		r = schema->fromstring(&obj, val);
 		if (r) return ADB_ERROR(r);
 		return adb_w_obj(&obj);
@@ -616,6 +625,25 @@ struct adb_obj *adb_wo_init(struct adb_obj *o, adb_val_t *p, const struct adb_ob
 		.num = 1,
 	};
 	return o;
+}
+
+struct adb_obj *adb_wo_init_val(struct adb_obj *o, adb_val_t *p, const struct adb_obj *parent, unsigned i)
+{
+	const uint8_t *kind = adb_ro_kind(parent, i);
+	const struct adb_object_schema *schema = 0;
+	switch (*kind) {
+	case ADB_KIND_OBJECT:
+	case ADB_KIND_ARRAY:
+		schema = container_of(kind, struct adb_object_schema, kind);
+		break;
+	case ADB_KIND_ADB:
+		schema = container_of(kind, struct adb_adb_schema, kind)->schema;
+		break;
+	default:
+		assert(1);
+	}
+
+	return adb_wo_init(o, p, schema, parent->db);
 }
 
 void adb_wo_reset(struct adb_obj *o)
@@ -765,9 +793,17 @@ void adb_wa_sort_unique(struct adb_obj *arr)
 }
 
 /* Schema helpers */
+int adb_s_field_by_name_blob(const struct adb_object_schema *schema, apk_blob_t blob)
+{
+	for (int i = 0; i < schema->num_fields-1 && schema->fields[i].name; i++)
+		if (apk_blob_compare(APK_BLOB_STR(schema->fields[i].name), blob) == 0)
+			return i + 1;
+	return 0;
+}
+
 int adb_s_field_by_name(const struct adb_object_schema *schema, const char *name)
 {
-	for (int i = 0; i < schema->num_fields; i++)
+	for (int i = 0; i < schema->num_fields-1 && schema->fields[i].name; i++)
 		if (strcmp(schema->fields[i].name, name) == 0)
 			return i + 1;
 	return 0;

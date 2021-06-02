@@ -172,6 +172,7 @@ struct adb_obj *adb_r_obj(struct adb *, adb_val_t, struct adb_obj *o, const stru
 static inline uint32_t adb_ro_num(const struct adb_obj *o) { return o->num; }
 static inline uint32_t adb_ra_num(const struct adb_obj *o) { return (o->num ?: 1) - 1; }
 
+const uint8_t *adb_ro_kind(const struct adb_obj *o, unsigned i);
 adb_val_t adb_ro_val(const struct adb_obj *o, unsigned i);
 uint32_t adb_ro_int(const struct adb_obj *o, unsigned i);
 apk_blob_t adb_ro_blob(const struct adb_obj *o, unsigned i);
@@ -192,6 +193,7 @@ adb_val_t adb_w_fromstring(struct adb *, const uint8_t *kind, apk_blob_t);
 #define adb_wo_alloca(o, schema, db) adb_wo_init(o, alloca(sizeof(adb_val_t[(schema)->num_fields])), schema, db)
 
 struct adb_obj *adb_wo_init(struct adb_obj *, adb_val_t *, const struct adb_object_schema *, struct adb *);
+struct adb_obj *adb_wo_init_val(struct adb_obj *, adb_val_t *, const struct adb_obj *, unsigned i);
 void adb_wo_reset(struct adb_obj *);
 void adb_wo_resetdb(struct adb_obj *);
 adb_val_t adb_w_obj(struct adb_obj *);
@@ -210,6 +212,7 @@ void adb_wa_sort(struct adb_obj *);
 void adb_wa_sort_unique(struct adb_obj *);
 
 /* Schema helpers */
+int adb_s_field_by_name_blob(const struct adb_object_schema *schema, apk_blob_t blob);
 int adb_s_field_by_name(const struct adb_object_schema *, const char *);
 
 /* Creation */
@@ -254,7 +257,7 @@ struct adb_walk_ops {
 	int (*scalar)(struct adb_walk *, apk_blob_t scalar, int multiline);
 };
 
-extern const struct adb_walk_ops adb_walk_gentext_ops;
+extern const struct adb_walk_ops adb_walk_gentext_ops, adb_walk_genadb_ops;
 
 struct adb_walk {
 	const struct adb_walk_ops *ops;
@@ -269,6 +272,20 @@ struct adb_walk_gentext {
 	int key_printed : 1;
 };
 
+#define ADB_WALK_GENADB_MAX_NESTING	32
+#define ADB_WALK_GENADB_MAX_VALUES	100000
+
+struct adb_walk_genadb {
+	struct adb_walk d;
+	struct adb db;
+	struct adb idb[2];
+	int nest, nestdb, num_vals;
+	struct adb_obj objs[ADB_WALK_GENADB_MAX_NESTING];
+	unsigned int curkey[ADB_WALK_GENADB_MAX_NESTING];
+	adb_val_t vals[ADB_WALK_GENADB_MAX_VALUES];
+};
+
 int adb_walk_adb(struct adb_walk *d, struct adb *db, struct apk_trust *trust);
+int adb_walk_istream(struct adb_walk *d, struct apk_istream *is);
 
 #endif
