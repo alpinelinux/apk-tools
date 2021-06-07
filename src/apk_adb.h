@@ -33,15 +33,27 @@
 #define ADBI_PI_RECOMMENDS	0x13
 #define ADBI_PI_MAX		0x14
 
+/* ACL entries */
+#define ADBI_ACL_MODE		0x01
+#define ADBI_ACL_USER		0x02
+#define ADBI_ACL_GROUP		0x03
+#define ADBI_ACL_XATTRS		0x04
+#define ADBI_ACL_MAX		0x05
+
 /* File Info */
 #define ADBI_FI_NAME		0x01
-#define ADBI_FI_HASHES		0x02
-#define ADBI_FI_FILES		0x02
-#define ADBI_FI_MODE		0x03
-#define ADBI_FI_UID		0x04
-#define ADBI_FI_GID		0x05
-#define ADBI_FI_XATTRS		0x06
+#define ADBI_FI_ACL		0x02
+#define ADBI_FI_SIZE		0x03
+#define ADBI_FI_MTIME		0x04
+#define ADBI_FI_HASHES		0x05
+#define ADBI_FI_TARGET		0x06
 #define ADBI_FI_MAX		0x07
+
+/* Directory Info */
+#define ADBI_DI_NAME		0x01
+#define ADBI_DI_ACL		0x02
+#define ADBI_DI_FILES		0x03
+#define ADBI_DI_MAX		0x04
 
 /* Scripts */
 #define ADBI_SCRPT_TRIGGER	0x01
@@ -81,7 +93,7 @@
 extern const struct adb_object_schema
 	schema_dependency, schema_dependency_array,
 	schema_pkginfo, schema_pkginfo_array,
-	schema_file, schema_file_array, schema_path, schema_path_array,
+	schema_acl, schema_file, schema_file_array, schema_dir, schema_dir_array,
 	schema_string_array, schema_scripts, schema_package, schema_package_adb_array,
 	schema_index, schema_idb;
 

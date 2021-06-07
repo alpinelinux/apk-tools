@@ -150,8 +150,8 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 
 		entry = (struct apk_file_info){
 			.size  = GET_OCTAL(buf.size),
-			.uid   = apk_resolve_uid(idc, TAR_BLOB(buf.uname), GET_OCTAL(buf.uid)),
-			.gid   = apk_resolve_gid(idc, TAR_BLOB(buf.gname), GET_OCTAL(buf.gid)),
+			.uid   = apk_id_cache_resolve_uid(idc, TAR_BLOB(buf.uname), GET_OCTAL(buf.uid)),
+			.gid   = apk_id_cache_resolve_gid(idc, TAR_BLOB(buf.gname), GET_OCTAL(buf.gid)),
 			.mode  = GET_OCTAL(buf.mode) & 07777,
 			.mtime = GET_OCTAL(buf.mtime),
 			.name  = entry.name,

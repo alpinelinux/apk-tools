@@ -68,8 +68,10 @@ static int adbgen_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 	adb_w_init_alloca(&genadb.idb[0], 0, 100);
 	foreach_array_item(arg, args) {
 		adb_reset(&genadb.db);
+		adb_reset(&genadb.idb[0]);
 		r = adb_walk_istream(&genadb.d, apk_istream_from_file(AT_FDCWD, *arg));
 		if (!r) {
+			adb_w_root(&genadb.db, genadb.stored_object);
 			r = adb_c_create(apk_ostream_to_fd(STDOUT_FILENO), &genadb.db,
 				apk_ctx_get_trust(ac));
 		}

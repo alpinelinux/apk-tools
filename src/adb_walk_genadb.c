@@ -74,7 +74,7 @@ static int adb_walk_genadb_end(struct adb_walk *d)
 	dt->num_vals -= dt->objs[dt->nest].schema->num_fields;
 
 	if (dt->nest == 0) {
-		adb_w_root(&dt->db, val);
+		dt->stored_object = val;
 		return 0;
 	}
 

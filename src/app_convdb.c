@@ -18,6 +18,7 @@ struct conv_script {
 };
 
 struct conv_ctx {
+	struct apk_ctx *ac;
 	struct apk_atom_pool atoms;
 	struct adb_obj pkgs;
 
@@ -100,8 +101,9 @@ static int read_triggers(struct conv_ctx *ctx, struct apk_istream *is)
 
 static void convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 {
+	struct apk_id_cache *idc = apk_ctx_get_id_cache(ctx->ac);
 	struct apk_checksum csum;
-	struct adb_obj pkg, pkginfo, files, file, paths, path, scripts, triggers;
+	struct adb_obj pkg, pkginfo, files, file, paths, path, scripts, triggers, acl;
 	apk_blob_t l, val, spc = APK_BLOB_STR(" "), nl = APK_BLOB_STR("\n");
 	struct conv_script *s;
 	int i;
@@ -111,14 +113,15 @@ static void convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 	adb_wo_alloca(&pkginfo, &schema_pkginfo, &ctx->dbp);
 	adb_wo_alloca(&files, &schema_file_array, &ctx->dbp);
 	adb_wo_alloca(&file, &schema_file, &ctx->dbp);
-	adb_wo_alloca(&paths, &schema_path_array, &ctx->dbp);
-	adb_wo_alloca(&path, &schema_path, &ctx->dbp);
+	adb_wo_alloca(&paths, &schema_dir_array, &ctx->dbp);
+	adb_wo_alloca(&path, &schema_dir, &ctx->dbp);
 	adb_wo_alloca(&pkg, &schema_package, &ctx->dbp);
+	adb_wo_alloca(&acl, &schema_acl, &ctx->dbp);
 
 	while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, nl))) {
 		if (l.len < 2) {
 			adb_wa_append_obj(&files, &file);
-			adb_wo_obj(&path, ADBI_FI_FILES, &files);
+			adb_wo_obj(&path, ADBI_DI_FILES, &files);
 			adb_wa_append_obj(&paths, &path);
 
 			adb_wo_obj(&pkg, ADBI_PKG_PKGINFO, &pkginfo);
@@ -152,28 +155,30 @@ static void convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 			break;
 		case 'F': // directory name
 			adb_wa_append_obj(&files, &file);
-			adb_wo_obj(&path, ADBI_FI_FILES, &files);
+			adb_wo_obj(&path, ADBI_DI_FILES, &files);
 			adb_wa_append_obj(&paths, &path);
 
-			adb_wo_blob(&path, ADBI_FI_NAME, val);
+			adb_wo_blob(&path, ADBI_DI_NAME, val);
 			break;
 		case 'M': // directory mode: uid:gid:mode:xattrcsum
-			adb_wo_int(&path, ADBI_FI_UID, apk_blob_pull_uint(&val, 10));
+			adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, apk_blob_pull_uint(&val, 10)));
 			apk_blob_pull_char(&val, ':');
-			adb_wo_int(&path, ADBI_FI_GID, apk_blob_pull_uint(&val, 10));
+			adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, apk_blob_pull_uint(&val, 10)));
 			apk_blob_pull_char(&val, ':');
-			adb_wo_int(&path, ADBI_FI_MODE, apk_blob_pull_uint(&val, 8));
+			adb_wo_int(&acl, ADBI_ACL_MODE, apk_blob_pull_uint(&val, 8));
+			adb_wo_obj(&path, ADBI_DI_ACL, &acl);
 			break;
 		case 'R': // file name
 			adb_wa_append_obj(&files, &file);
 			adb_wo_blob(&file, ADBI_FI_NAME, val);
 			break;
 		case 'a': // file mode: uid:gid:mode:xattrcsum
-			adb_wo_int(&file, ADBI_FI_UID, apk_blob_pull_uint(&val, 10));
+			adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, apk_blob_pull_uint(&val, 10)));
 			apk_blob_pull_char(&val, ':');
-			adb_wo_int(&file, ADBI_FI_GID, apk_blob_pull_uint(&val, 10));
+			adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, apk_blob_pull_uint(&val, 10)));
 			apk_blob_pull_char(&val, ':');
-			adb_wo_int(&file, ADBI_FI_MODE, apk_blob_pull_uint(&val, 8));
+			adb_wo_int(&acl, ADBI_ACL_MODE, apk_blob_pull_uint(&val, 8));
+			adb_wo_obj(&file, ADBI_FI_ACL, &acl);
 			break;
 		case 'Z': // file content hash
 			apk_blob_pull_csum(&val, &csum);
@@ -196,6 +201,7 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 	int r;
 	int root_fd = apk_ctx_fd_root(ac);
 
+	ctx->ac = ac;
 	list_init(&ctx->script_head);
 	apk_atom_init(&ctx->atoms);
 

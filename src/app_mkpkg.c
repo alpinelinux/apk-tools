@@ -1,0 +1,284 @@
+/* app_mkpkg.c - Alpine Package Keeper (APK)
+ *
+ * Copyright (C) 2008-2021 Timo Teräs <timo.teras@iki.fi>
+ * All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published
+ * by the Free Software Foundation. See http://www.gnu.org/ for details.
+ */
+
+#include <errno.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <assert.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
+#include "apk_defines.h"
+#include "apk_adb.h"
+#include "apk_applet.h"
+#include "apk_database.h"
+#include "apk_pathbuilder.h"
+#include "apk_print.h"
+
+#define BLOCK_SIZE 4096
+
+struct mkpkg_ctx {
+	struct apk_ctx *ac;
+	const char *files_dir, *output;
+	struct adb db;
+	struct adb_obj paths, *files;
+	struct apk_sign_ctx sctx;
+	apk_blob_t info[ADBI_PI_MAX];
+	uint64_t installed_size;
+	struct apk_pathbuilder pb;
+};
+
+#define MKPKG_OPTIONS(OPT) \
+	OPT(OPT_MKPKG_files,	APK_OPT_ARG APK_OPT_SH("f") "files") \
+	OPT(OPT_MKPKG_info,	APK_OPT_ARG APK_OPT_SH("i") "info") \
+	OPT(OPT_MKPKG_output,	APK_OPT_ARG APK_OPT_SH("o") "output") \
+
+APK_OPT_APPLET(option_desc, MKPKG_OPTIONS);
+
+static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
+{
+	struct apk_out *out = &ac->out;
+	struct mkpkg_ctx *ictx = ctx;
+	apk_blob_t l, r;
+	int i;
+
+	switch (optch) {
+	case OPT_MKPKG_info:
+		apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r);
+		i = adb_s_field_by_name_blob(&schema_pkginfo, l);
+		if (!i || i == ADBI_PI_FILE_SIZE || i == ADBI_PI_INSTALLED_SIZE) {
+			apk_err(out, "invalid pkginfo field: " BLOB_FMT, BLOB_PRINTF(l));
+			return -EINVAL;
+		}
+		ictx->info[i] = r;
+		break;
+	case OPT_MKPKG_files:
+		ictx->files_dir = optarg;
+		break;
+	case OPT_MKPKG_output:
+		ictx->output = optarg;
+		break;
+	default:
+		return -ENOTSUP;
+	}
+	return 0;
+}
+
+static const struct apk_option_group optgroup_applet = {
+	.desc = option_desc,
+	.parse = option_parse_applet,
+};
+
+static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry);
+
+static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int dirfd, struct apk_file_info *fi)
+{
+	struct apk_ctx *ac = ctx->ac;
+	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
+	struct apk_out *out = &ac->out;
+	struct adb_obj acl, fio, files, *prev_files;
+	apk_blob_t dirname = apk_pathbuilder_get(&ctx->pb);
+	int r;
+
+	adb_wo_alloca(&fio, &schema_dir, &ctx->db);
+	adb_wo_alloca(&acl, &schema_acl, &ctx->db);
+	adb_wo_blob(&fio, ADBI_DI_NAME, dirname);
+	adb_wo_int(&acl, ADBI_ACL_MODE, fi->mode & ~S_IFMT);
+	adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi->uid));
+	adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi->gid));
+	adb_wo_obj(&fio, ADBI_DI_ACL, &acl);
+
+	adb_wo_alloca(&files, &schema_file_array, &ctx->db);
+	prev_files = ctx->files;
+	ctx->files = &files;
+	r = apk_dir_foreach_file(dirfd, mkpkg_process_dirent, ctx);
+	ctx->files = prev_files;
+	if (r) {
+		apk_err(out, "failed to process directory '%s': %d",
+			apk_pathbuilder_cstr(&ctx->pb), r);
+		return r;
+	}
+
+	adb_wo_obj(&fio, ADBI_DI_FILES, &files);
+	adb_wa_append_obj(&ctx->paths, &fio);
+	return 0;
+}
+
+static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
+{
+	struct mkpkg_ctx *ctx = pctx;
+	struct apk_ctx *ac = ctx->ac;
+	struct apk_out *out = &ac->out;
+	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
+	struct apk_file_info fi;
+	struct adb_obj fio, acl;
+	int r;
+
+	r = apk_fileinfo_get(dirfd, entry, APK_FI_NOFOLLOW | APK_FI_CSUM(APK_CHECKSUM_SHA1), &fi, NULL);
+	if (r) return r;
+
+	switch (fi.mode & S_IFMT) {
+	case S_IFDIR:
+		apk_pathbuilder_push(&ctx->pb, entry);
+		r = mkpkg_process_directory(ctx, openat(dirfd, entry, O_RDONLY), &fi);
+		apk_pathbuilder_pop(&ctx->pb);
+		break;
+	case S_IFREG:
+		adb_wo_alloca(&fio, &schema_file, &ctx->db);
+		adb_wo_alloca(&acl, &schema_acl, &ctx->db);
+		adb_wo_blob(&fio, ADBI_FI_NAME, APK_BLOB_STR(entry));
+		adb_wo_blob(&fio, ADBI_FI_HASHES, APK_BLOB_PTR_LEN((char*) fi.csum.data, fi.csum.type));
+		adb_wo_int(&fio, ADBI_FI_MTIME, fi.mtime);
+		adb_wo_int(&fio, ADBI_FI_SIZE, fi.size);
+		ctx->installed_size += (fi.size + BLOCK_SIZE - 1) & ~(BLOCK_SIZE-1);
+
+		adb_wo_int(&acl, ADBI_ACL_MODE, fi.mode & 07777);
+		adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi.uid));
+		adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi.gid));
+		adb_wo_obj(&fio, ADBI_FI_ACL, &acl);
+
+		adb_wa_append_obj(ctx->files, &fio);
+		break;
+	default:
+		apk_pathbuilder_push(&ctx->pb, entry);
+		apk_err(out, "special file '%s' not supported",
+			apk_pathbuilder_cstr(&ctx->pb), entry);
+		apk_pathbuilder_pop(&ctx->pb);
+		r = -EINVAL;
+		break;
+	}
+	return r;
+}
+
+static char *pkgi_filename(struct adb_obj *pkgi, char *buf, size_t n)
+{
+	apk_blob_t to = APK_BLOB_PTR_LEN(buf, n);
+	apk_blob_push_blob(&to, adb_ro_blob(pkgi, ADBI_PI_NAME));
+	apk_blob_push_blob(&to, APK_BLOB_STR("-"));
+	apk_blob_push_blob(&to, adb_ro_blob(pkgi, ADBI_PI_VERSION));
+	apk_blob_push_blob(&to, APK_BLOB_STR(".apk"));
+	apk_blob_push_blob(&to, APK_BLOB_PTR_LEN("", 1));
+	if (APK_BLOB_IS_NULL(to)) return 0;
+	return buf;
+}
+
+static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
+{
+	struct apk_out *out = &ac->out;
+	struct apk_trust *trust = apk_ctx_get_trust(ac);
+	struct adb_obj pkg, pkgi;
+	int i, j, r;
+	struct mkpkg_ctx *ctx = pctx;
+	struct apk_ostream *os;
+	char outbuf[PATH_MAX];
+
+	ctx->ac = ac;
+	adb_w_init_alloca(&ctx->db, ADB_SCHEMA_PACKAGE, 40);
+	adb_wo_alloca(&pkg, &schema_package, &ctx->db);
+	adb_wo_alloca(&pkgi, &schema_pkginfo, &ctx->db);
+	adb_wo_alloca(&ctx->paths, &schema_dir_array, &ctx->db);
+
+	// prepare package info
+	for (i = 0; i < ARRAY_SIZE(ctx->info); i++) {
+		apk_blob_t val = ctx->info[i];
+		if (APK_BLOB_IS_NULL(val)) {
+			switch (i) {
+			case ADBI_PI_NAME:
+			case ADBI_PI_VERSION:
+				r = -EINVAL;
+				apk_err(out, "required pkginfo field '%s' not provided",
+					schema_pkginfo.fields[i-1].name);
+				goto err;
+			}
+			continue;
+		}
+		adb_wo_val_fromstring(&pkgi, i, val);
+	}
+	if (adb_ro_val(&pkgi, ADBI_PI_ARCH) == ADB_VAL_NULL)
+		adb_wo_blob(&pkgi, ADBI_PI_ARCH, APK_BLOB_STRLIT(APK_DEFAULT_ARCH));
+
+	// scan and add all files
+	if (ctx->files_dir) {
+		struct apk_file_info fi;
+		r = apk_fileinfo_get(AT_FDCWD, ctx->files_dir, APK_FI_NOFOLLOW, &fi, 0);
+		if (r) {
+			apk_err(out, "file directory '%s': %s",
+				ctx->files_dir, apk_error_str(r));
+			goto err;
+		}
+		r = mkpkg_process_directory(ctx, openat(AT_FDCWD, ctx->files_dir, O_RDONLY), &fi);
+		if (r) goto err;
+		if (!ctx->installed_size) ctx->installed_size = BLOCK_SIZE;
+	}
+
+	adb_wo_int(&pkgi, ADBI_PI_INSTALLED_SIZE, ctx->installed_size);
+	adb_wo_obj(&pkg, ADBI_PKG_PKGINFO, &pkgi);
+	adb_wo_obj(&pkg, ADBI_PKG_PATHS, &ctx->paths);
+	adb_w_rootobj(&pkg);
+
+	// re-read since object resets
+	adb_r_rootobj(&ctx->db, &pkg, &schema_package);
+	adb_ro_obj(&pkg, ADBI_PKG_PKGINFO, &pkgi);
+	adb_ro_obj(&pkg, ADBI_PKG_PATHS, &ctx->paths);
+
+	if (!ctx->output) {
+		ctx->output = pkgi_filename(&pkgi, outbuf, sizeof outbuf);
+	}
+
+	// construct package with ADB as header, and the file data in
+	// concatenated data blocks
+	os = apk_ostream_gzip(apk_ostream_to_file(AT_FDCWD, ctx->output, 0644));
+	adb_c_adb(os, &ctx->db, trust);
+	int files_fd = openat(AT_FDCWD, ctx->files_dir, O_RDONLY);
+	for (i = ADBI_FIRST; i <= adb_ra_num(&ctx->paths); i++) {
+		struct adb_obj path, files, file;
+		adb_ro_obj(&ctx->paths, i, &path);
+		adb_ro_obj(&path, ADBI_DI_FILES, &files);
+		apk_blob_t dirname = adb_ro_blob(&path, ADBI_DI_NAME);
+
+		apk_pathbuilder_setb(&ctx->pb, dirname);
+		for (j = ADBI_FIRST; j <= adb_ra_num(&files); j++) {
+			adb_ro_obj(&files, j, &file);
+			apk_blob_t filename = adb_ro_blob(&file, ADBI_FI_NAME);
+			apk_blob_t target = adb_ro_blob(&file, ADBI_FI_TARGET);
+			size_t sz = adb_ro_int(&file, ADBI_FI_SIZE);
+			if (!APK_BLOB_IS_NULL(target)) continue;
+			if (!sz) continue;
+			struct {
+				uint32_t path_idx;
+				uint32_t file_idx;
+			} hdr = { i, j };
+
+			apk_pathbuilder_pushb(&ctx->pb, filename);
+			adb_c_block_data(
+				os, APK_BLOB_STRUCT(hdr), sz,
+				apk_istream_from_fd(openat(files_fd,
+					apk_pathbuilder_cstr(&ctx->pb),
+					O_RDONLY)));
+			apk_pathbuilder_pop(&ctx->pb);
+		}
+	}
+	close(files_fd);
+	r = apk_ostream_close(os);
+
+err:
+	adb_free(&ctx->db);
+	if (r) apk_err(out, "failed to create package: %s", apk_error_str(r));
+	return r;
+}
+
+static struct apk_applet apk_mkpkg = {
+	.name = "mkpkg",
+	.context_size = sizeof(struct mkpkg_ctx),
+	.optgroups = { &optgroup_global, &optgroup_signing, &optgroup_applet },
+	.main = mkpkg_main,
+};
+
+APK_DEFINE_APPLET(apk_mkpkg);

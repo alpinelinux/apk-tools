@@ -107,11 +107,10 @@ static int dump_object(struct adb_walk_ctx *ctx, const struct adb_object_schema 
 
 static int dump_adb(struct adb_walk_ctx *ctx)
 {
-	char tmp[256];
+	char tmp[512];
 	struct adb_block *blk;
 	struct adb_sign_hdr *s;
 	struct adb_verify_ctx vfy = {};
-	unsigned char *id;
 	uint32_t schema_magic = ctx->db->hdr.schema;
 	const struct adb_db_schema *ds;
 	struct adb_walk *d = ctx->d;
@@ -121,10 +120,10 @@ static int dump_adb(struct adb_walk_ctx *ctx)
 		if (ds->magic == schema_magic) break;
 
 	adb_foreach_block(blk, ctx->db->data) {
-		apk_blob_t b = APK_BLOB_PTR_LEN((char*)(blk+1), ADB_BLOCK_SIZE(blk));
-		switch (ADB_BLOCK_TYPE(blk)) {
+		apk_blob_t b = adb_block_blob(blk);
+		switch (adb_block_type(blk)) {
 		case ADB_BLOCK_ADB:
-			len = snprintf(tmp, sizeof tmp, "ADB block, size: %u", ADB_BLOCK_SIZE(blk));
+			len = snprintf(tmp, sizeof tmp, "ADB block, size: %u", adb_block_length(blk));
 			d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
 			if (ds->root) {
 				ctx->db->adb = b;
@@ -134,23 +133,19 @@ static int dump_adb(struct adb_walk_ctx *ctx)
 		case ADB_BLOCK_SIG:
 			s = (struct adb_sign_hdr*) b.ptr;
 			r = adb_trust_verify_signature(ctx->trust, ctx->db, &vfy, b);
-
-			len = snprintf(tmp, sizeof tmp, "signature: v%d ", s->sign_ver);
-			switch (s->sign_ver) {
-			case 0:
-				id = (unsigned char*)(s + 1);
-				for (size_t j = 0; j < 16; j++)
-					len += snprintf(&tmp[len], sizeof tmp - len, "%02x", id[j]);
-				break;
-			default:
-				break;
-			}
+			len = snprintf(tmp, sizeof tmp, "sig v%02x h%02x ", s->sign_ver, s->hash_alg);
+			for (size_t j = sizeof *s; j < b.len; j++)
+				len += snprintf(&tmp[len], sizeof tmp - len, "%02x", (uint8_t)b.ptr[j]);
 			len += snprintf(&tmp[len], sizeof tmp - len, ": %s", r ? apk_error_str(r) : "OK");
+			d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
+			break;
+		case ADB_BLOCK_DATA:
+			len = snprintf(tmp, sizeof tmp, "data block, size: %d", adb_block_length(blk));
 			d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
 			break;
 		default:
 			len = snprintf(tmp, sizeof tmp, "unknown block %d, size: %d",
-				ADB_BLOCK_TYPE(blk), ADB_BLOCK_SIZE(blk));
+				adb_block_type(blk), adb_block_length(blk));
 			d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
 		}
 	}

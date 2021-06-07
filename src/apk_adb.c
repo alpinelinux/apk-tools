@@ -422,17 +422,16 @@ const struct adb_object_schema schema_index = {
 	},
 };
 
-static uint32_t file_get_default_int(unsigned i)
-{
-	switch (i) {
-	case ADBI_FI_UID:
-	case ADBI_FI_GID:
-		return 0;
-	case ADBI_FI_MODE:
-		return 0644;
-	}
-	return -1;
-}
+const struct adb_object_schema schema_acl = {
+	.kind = ADB_KIND_OBJECT,
+	.num_fields = ADBI_ACL_MAX,
+	.fields = {
+		ADB_FIELD(ADBI_ACL_MODE,	"mode",		scalar_oct),
+		ADB_FIELD(ADBI_ACL_USER,	"user",		scalar_string),
+		ADB_FIELD(ADBI_ACL_GROUP,	"group",	scalar_string),
+		//ADB_FIELD(ADBI_ACL_XATTRS,	"xattr",	schema_string_array),
+	},
+};
 
 static int file_cmp(const struct adb_obj *o1, const struct adb_obj *o2)
 {
@@ -442,15 +441,14 @@ static int file_cmp(const struct adb_obj *o1, const struct adb_obj *o2)
 const struct adb_object_schema schema_file = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_FI_MAX,
-	.get_default_int = file_get_default_int,
 	.compare = file_cmp,
 	.fields = {
 		ADB_FIELD(ADBI_FI_NAME,		"name",		scalar_string),
+		ADB_FIELD(ADBI_FI_ACL,		"acl",		schema_acl),
+		ADB_FIELD(ADBI_FI_SIZE,		"size",		scalar_int),
+		ADB_FIELD(ADBI_FI_MTIME,	"mtime",	scalar_int),
 		ADB_FIELD(ADBI_FI_HASHES,	"hash",		scalar_hexblob),
-		ADB_FIELD(ADBI_FI_UID,		"uid",		scalar_int),
-		ADB_FIELD(ADBI_FI_GID,		"gid",		scalar_int),
-		ADB_FIELD(ADBI_FI_MODE,		"mode",		scalar_oct),
-		ADB_FIELD(ADBI_FI_XATTRS,	"xattr",	scalar_hexblob),
+		ADB_FIELD(ADBI_FI_TARGET,	"target",	scalar_string),
 	},
 };
 
@@ -461,38 +459,22 @@ const struct adb_object_schema schema_file_array = {
 	.fields = ADB_ARRAY_ITEM(schema_file),
 };
 
-static uint32_t path_get_default_int(unsigned i)
-{
-	switch (i) {
-	case ADBI_FI_UID:
-	case ADBI_FI_GID:
-		return 0;
-	case ADBI_FI_MODE:
-		return 0755;
-	}
-	return -1;
-}
-
-const struct adb_object_schema schema_path = {
+const struct adb_object_schema schema_dir = {
 	.kind = ADB_KIND_OBJECT,
-	.num_fields = ADBI_FI_MAX,
-	.get_default_int = path_get_default_int,
+	.num_fields = ADBI_DI_MAX,
 	.compare = file_cmp,
 	.fields = {
-		ADB_FIELD(ADBI_FI_NAME,		"name",		scalar_string),
-		ADB_FIELD(ADBI_FI_FILES,	"files",	schema_file_array),
-		ADB_FIELD(ADBI_FI_UID,		"uid",		scalar_int),
-		ADB_FIELD(ADBI_FI_GID,		"gid",		scalar_int),
-		ADB_FIELD(ADBI_FI_MODE,		"mode",		scalar_oct),
-		ADB_FIELD(ADBI_FI_XATTRS,	"xattr",	scalar_hexblob),
+		ADB_FIELD(ADBI_DI_NAME,		"name",		scalar_string),
+		ADB_FIELD(ADBI_DI_ACL,		"acl",		schema_acl),
+		ADB_FIELD(ADBI_DI_FILES,	"files",	schema_file_array),
 	},
 };
 
-const struct adb_object_schema schema_path_array = {
+const struct adb_object_schema schema_dir_array = {
 	.kind = ADB_KIND_ARRAY,
 	.pre_commit = adb_wa_sort,
 	.num_fields = APK_MAX_MANIFEST_PATHS,
-	.fields = ADB_ARRAY_ITEM(schema_path),
+	.fields = ADB_ARRAY_ITEM(schema_dir),
 };
 
 const struct adb_object_schema schema_scripts = {
@@ -520,7 +502,7 @@ const struct adb_object_schema schema_package = {
 	.compare = package_cmp,
 	.fields = {
 		ADB_FIELD(ADBI_PKG_PKGINFO,	"info",		schema_pkginfo),
-		ADB_FIELD(ADBI_PKG_PATHS,	"paths",	schema_path_array),
+		ADB_FIELD(ADBI_PKG_PATHS,	"paths",	schema_dir_array),
 		ADB_FIELD(ADBI_PKG_SCRIPTS,	"scripts",	schema_scripts),
 		ADB_FIELD(ADBI_PKG_TRIGGERS,	"triggers",	schema_string_array),
 		//ADB_FIELD(ADBI_PKG_PASSWD,	"passwd",	schema_string_array),

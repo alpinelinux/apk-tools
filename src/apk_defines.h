@@ -191,12 +191,12 @@ APK_ARRAY(apk_string_array, char *);
 #define LIST_POISON1 (void *) 0xdeadbeef
 #define LIST_POISON2 (void *) 0xabbaabba
 
-struct hlist_head {
-	struct hlist_node *first;
-};
-
 struct hlist_node {
 	struct hlist_node *next;
+};
+
+struct hlist_head {
+	struct hlist_node *first;
 };
 
 static inline int hlist_empty(const struct hlist_head *h)

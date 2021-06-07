@@ -15,14 +15,17 @@
 
 #include "apk_defines.h"
 #include "apk_blob.h"
-#include "apk_hash.h"
 #include "apk_atom.h"
+
+struct apk_id_hash {
+	int empty;
+	struct hlist_head by_id[16], by_name[16];
+};
 
 struct apk_id_cache {
 	int root_fd;
-	unsigned int genid;
-	struct apk_hash uid_cache;
-	struct apk_hash gid_cache;
+	struct apk_id_hash uid_cache;
+	struct apk_id_hash gid_cache;
 };
 
 struct apk_xattr {
@@ -148,6 +151,7 @@ struct apk_ostream *apk_ostream_to_fd(int fd);
 struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode);
 struct apk_ostream *apk_ostream_to_file_gz(int atfd, const char *file, const char *tmpfile, mode_t mode);
 size_t apk_ostream_write_string(struct apk_ostream *ostream, const char *string);
+static inline int apk_ostream_error(struct apk_ostream *os) { return os->rc; }
 static inline int apk_ostream_cancel(struct apk_ostream *os, int rc) { if (!os->rc) os->rc = rc; return rc; }
 static inline ssize_t apk_ostream_write(struct apk_ostream *os, const void *buf, size_t size)
 {
@@ -181,7 +185,9 @@ const char *apk_url_local_file(const char *url);
 void apk_id_cache_init(struct apk_id_cache *idc, int root_fd);
 void apk_id_cache_free(struct apk_id_cache *idc);
 void apk_id_cache_reset(struct apk_id_cache *idc);
-uid_t apk_resolve_uid(struct apk_id_cache *idc, apk_blob_t username, uid_t default_uid);
-uid_t apk_resolve_gid(struct apk_id_cache *idc, apk_blob_t groupname, uid_t default_gid);
+uid_t apk_id_cache_resolve_uid(struct apk_id_cache *idc, apk_blob_t username, uid_t default_uid);
+gid_t apk_id_cache_resolve_gid(struct apk_id_cache *idc, apk_blob_t groupname, gid_t default_gid);
+apk_blob_t apk_id_cache_resolve_user(struct apk_id_cache *idc, uid_t uid);
+apk_blob_t apk_id_cache_resolve_group(struct apk_id_cache *idc, gid_t gid);
 
 #endif

@@ -1033,72 +1033,86 @@ size_t apk_ostream_write_string(struct apk_ostream *os, const char *string)
 }
 
 struct cache_item {
-	apk_hash_node hash_node;
-	unsigned int genid;
-	union {
-		uid_t uid;
-		gid_t gid;
-	};
+	struct hlist_node by_id, by_name;
+	unsigned long id;
 	unsigned short len;
 	char name[];
 };
 
-static apk_blob_t cache_item_get_key(apk_hash_item item)
+static void idhash_init(struct apk_id_hash *idh)
 {
-	struct cache_item *ci = (struct cache_item *) item;
-	return APK_BLOB_PTR_LEN(ci->name, ci->len);
+	memset(idh, 0, sizeof *idh);
+	idh->empty = 1;
 }
 
-static const struct apk_hash_ops id_hash_ops = {
-	.node_offset = offsetof(struct cache_item, hash_node),
-	.get_key = cache_item_get_key,
-	.hash_key = apk_blob_hash,
-	.compare = apk_blob_compare,
-	.delete_item = (apk_hash_delete_f) free,
-};
+static void idhash_reset(struct apk_id_hash *idh)
+{
+	struct hlist_node *iter, *next;
+	struct cache_item *ci;
+	int i;
 
-static struct cache_item *resolve_cache_item(struct apk_hash *hash, apk_blob_t name)
+	for (i = 0; i < ARRAY_SIZE(idh->by_id); i++)
+		hlist_for_each_entry_safe(ci, iter, next, &idh->by_id[i], by_id)
+			free(ci);
+	idhash_init(idh);
+}
+
+static void idcache_add(struct apk_id_hash *hash, apk_blob_t name, unsigned long id)
 {
 	struct cache_item *ci;
 	unsigned long h;
 
-	h = id_hash_ops.hash_key(name);
-	ci = (struct cache_item *) apk_hash_get_hashed(hash, name, h);
-	if (ci != NULL)
-		return ci;
-
 	ci = calloc(1, sizeof(struct cache_item) + name.len);
-	if (ci == NULL)
-		return NULL;
+	if (!ci) return;
 
+	ci->id = id;
 	ci->len = name.len;
 	memcpy(ci->name, name.ptr, name.len);
-	apk_hash_insert_hashed(hash, ci, h);
 
-	return ci;
+	h = apk_blob_hash(name);
+	hlist_add_head(&ci->by_id, &hash->by_id[id % ARRAY_SIZE(hash->by_id)]);
+	hlist_add_head(&ci->by_name, &hash->by_name[h % ARRAY_SIZE(hash->by_name)]);
+}
+
+static struct cache_item *idcache_by_name(struct apk_id_hash *hash, apk_blob_t name)
+{
+	struct cache_item *ci;
+	struct hlist_node *pos;
+	unsigned long h = apk_blob_hash(name);
+
+	hlist_for_each_entry(ci, pos, &hash->by_name[h % ARRAY_SIZE(hash->by_name)], by_name)
+		if (apk_blob_compare(name, APK_BLOB_PTR_LEN(ci->name, ci->len)) == 0)
+			return ci;
+	return 0;
+}
+
+static struct cache_item *idcache_by_id(struct apk_id_hash *hash, unsigned long id)
+{
+	struct cache_item *ci;
+	struct hlist_node *pos;
+
+	hlist_for_each_entry(ci, pos, &hash->by_id[id % ARRAY_SIZE(hash->by_name)], by_id)
+		if (ci->id == id) return ci;
+	return 0;
 }
 
 void apk_id_cache_init(struct apk_id_cache *idc, int root_fd)
 {
 	idc->root_fd = root_fd;
-	idc->genid = 1;
-	apk_hash_init(&idc->uid_cache, &id_hash_ops, 256);
-	apk_hash_init(&idc->gid_cache, &id_hash_ops, 256);
-}
-
-void apk_id_cache_free(struct apk_id_cache *idc)
-{
-	if (!idc->root_fd) return;
-	apk_hash_free(&idc->uid_cache);
-	apk_hash_free(&idc->gid_cache);
-	idc->root_fd = 0;
+	idhash_init(&idc->uid_cache);
+	idhash_init(&idc->gid_cache);
 }
 
 void apk_id_cache_reset(struct apk_id_cache *idc)
 {
-	idc->genid++;
-	if (idc->genid == 0)
-		idc->genid = 1;
+	idhash_reset(&idc->uid_cache);
+	idhash_reset(&idc->gid_cache);
+}
+
+void apk_id_cache_free(struct apk_id_cache *idc)
+{
+	apk_id_cache_reset(idc);
+	idc->root_fd = 0;
 }
 
 static FILE *fopenat(int dirfd, const char *pathname)
@@ -1114,86 +1128,94 @@ static FILE *fopenat(int dirfd, const char *pathname)
 	return f;
 }
 
-uid_t apk_resolve_uid(struct apk_id_cache *idc, apk_blob_t username, uid_t default_uid)
+static void idcache_load_users(int root_fd, struct apk_id_hash *idh)
 {
 #ifdef HAVE_FGETPWENT_R
 	char buf[1024];
 	struct passwd pwent;
 #endif
-	struct cache_item *ci;
 	struct passwd *pwd;
 	FILE *in;
 
-	ci = resolve_cache_item(&idc->uid_cache, username);
-	if (ci == NULL) return default_uid;
+	if (!idh->empty) return;
+	idh->empty = 0;
 
-	if (ci->genid != idc->genid) {
-		ci->genid = idc->genid;
-		ci->uid = -1;
+	in = fopenat(root_fd, "etc/passwd");
+	if (!in) return;
 
-		in = fopenat(idc->root_fd, "etc/passwd");
-		if (in) {
-			do {
+	do {
 #ifdef HAVE_FGETPWENT_R
-				fgetpwent_r(in, &pwent, buf, sizeof(buf), &pwd);
+		fgetpwent_r(in, &pwent, buf, sizeof(buf), &pwd);
 #else
-				pwd = fgetpwent(in);
+		pwd = fgetpwent(in);
 #endif
-				if (pwd == NULL)
-					break;
-				if (apk_blob_compare(APK_BLOB_STR(pwd->pw_name), username) == 0) {
-					ci->uid = pwd->pw_uid;
-					break;
-				}
-			} while (1);
-			fclose(in);
-		}
-	}
-
-	if (ci->uid != -1)
-		return ci->uid;
-
-	return default_uid;
+		if (!pwd) break;
+		idcache_add(idh, APK_BLOB_STR(pwd->pw_name), pwd->pw_uid);
+	} while (1);
+	fclose(in);
+#ifndef HAVE_FGETPWENT_R
+	endpwent();
+#endif
 }
 
-uid_t apk_resolve_gid(struct apk_id_cache *idc, apk_blob_t groupname, uid_t default_gid)
+static void idcache_load_groups(int root_fd, struct apk_id_hash *idh)
 {
 #ifdef HAVE_FGETGRENT_R
 	char buf[1024];
 	struct group grent;
 #endif
-	struct cache_item *ci;
 	struct group *grp;
 	FILE *in;
 
-	ci = resolve_cache_item(&idc->gid_cache, groupname);
-	if (ci == NULL) return default_gid;
+	if (!idh->empty) return;
+	idh->empty = 0;
 
-	if (ci->genid != idc->genid) {
-		ci->genid = idc->genid;
-		ci->gid = -1;
+	in = fopenat(root_fd, "etc/group");
+	if (!in) return;
 
-		in = fopenat(idc->root_fd, "etc/group");
-		if (in) {
-			do {
+	do {
 #ifdef HAVE_FGETGRENT_R
-				fgetgrent_r(in, &grent, buf, sizeof(buf), &grp);
+		fgetgrent_r(in, &grent, buf, sizeof(buf), &grp);
 #else
-				grp = fgetgrent(in);
+		grp = fgetgrent(in);
 #endif
-				if (grp == NULL)
-					break;
-				if (apk_blob_compare(APK_BLOB_STR(grp->gr_name), groupname) == 0) {
-					ci->gid = grp->gr_gid;
-					break;
-				}
-			} while (1);
-			fclose(in);
-		}
-	}
+		if (!grp) break;
+		idcache_add(idh, APK_BLOB_STR(grp->gr_name), grp->gr_gid);
+	} while (1);
+	fclose(in);
+#ifndef HAVE_FGETGRENT_R
+	endgrent();
+#endif
+}
 
-	if (ci->gid != -1)
-		return ci->gid;
+uid_t apk_id_cache_resolve_uid(struct apk_id_cache *idc, apk_blob_t username, uid_t default_uid)
+{
+	struct cache_item *ci;
+	idcache_load_users(idc->root_fd, &idc->uid_cache);
+	ci = idcache_by_name(&idc->uid_cache, username);
+	return ci ? ci->id : default_uid;
+}
 
-	return default_gid;
+gid_t apk_id_cache_resolve_gid(struct apk_id_cache *idc, apk_blob_t groupname, gid_t default_gid)
+{
+	struct cache_item *ci;
+	idcache_load_groups(idc->root_fd, &idc->gid_cache);
+	ci = idcache_by_name(&idc->gid_cache, groupname);
+	return ci ? ci->id : default_gid;
+}
+
+apk_blob_t apk_id_cache_resolve_user(struct apk_id_cache *idc, uid_t uid)
+{
+	struct cache_item *ci;
+	idcache_load_users(idc->root_fd, &idc->uid_cache);
+	ci = idcache_by_id(&idc->uid_cache, uid);
+	return ci ? APK_BLOB_PTR_LEN(ci->name, ci->len) : APK_BLOB_STRLIT("nobody");
+}
+
+apk_blob_t apk_id_cache_resolve_group(struct apk_id_cache *idc, gid_t gid)
+{
+	struct cache_item *ci;
+	idcache_load_groups(idc->root_fd, &idc->gid_cache);
+	ci = idcache_by_id(&idc->gid_cache, gid);
+	return ci ? APK_BLOB_PTR_LEN(ci->name, ci->len) : APK_BLOB_STRLIT("nobody");
 }

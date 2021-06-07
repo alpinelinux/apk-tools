@@ -44,7 +44,7 @@ static int update_signatures(struct adb_xfrm *xfrm, struct adb_block *blk, struc
 	struct apk_trust *trust = apk_ctx_get_trust(ctx->ac);
 	int r;
 
-	switch (blk ? ADB_BLOCK_TYPE(blk) : -1) {
+	switch (blk ? adb_block_type(blk) : -1) {
 	case ADB_BLOCK_ADB:
 		return adb_c_block_copy(xfrm->os, blk, is, &xfrm->vfy);
 	case ADB_BLOCK_SIG:
