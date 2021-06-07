@@ -43,6 +43,7 @@ static int adb_walk_genadb_start_object(struct adb_walk *d)
 
 	if (*adb_ro_kind(&dt->objs[dt->nest-1], dt->curkey[dt->nest-1]) == ADB_KIND_ADB) {
 		struct adb_adb_schema *schema = container_of(&dt->objs[dt->nest-1].schema->kind, struct adb_adb_schema, kind);
+		if (dt->nestdb >= ARRAY_SIZE(dt->idb)) return -E2BIG;
 		adb_reset(&dt->idb[dt->nestdb]);
 		dt->idb[dt->nestdb].hdr.schema = htole32(schema->schema_id);
 		dt->objs[dt->nest].db = &dt->idb[dt->nestdb];

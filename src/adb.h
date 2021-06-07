@@ -272,13 +272,14 @@ struct adb_walk_gentext {
 	int key_printed : 1;
 };
 
+#define ADB_WALK_GENADB_MAX_IDB		2
 #define ADB_WALK_GENADB_MAX_NESTING	32
 #define ADB_WALK_GENADB_MAX_VALUES	100000
 
 struct adb_walk_genadb {
 	struct adb_walk d;
 	struct adb db;
-	struct adb idb[2];
+	struct adb idb[ADB_WALK_GENADB_MAX_IDB];
 	int nest, nestdb, num_vals;
 	struct adb_obj objs[ADB_WALK_GENADB_MAX_NESTING];
 	unsigned int curkey[ADB_WALK_GENADB_MAX_NESTING];
