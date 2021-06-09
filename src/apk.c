@@ -428,7 +428,7 @@ int main(int argc, char **argv)
 		ctx.force |= applet->forced_force;
 	}
 
-	apk_openssl_init();
+	apk_crypto_init();
 	setup_automatic_flags(&ctx);
 	fetchConnectionCacheInit(32, 4);
 

@@ -82,8 +82,9 @@ static struct apk_package *create_virtual_package(struct apk_database *db, struc
 {
 	char ver[32];
 	struct apk_package *virtpkg;
+	struct apk_digest_ctx dctx;
+	struct apk_digest d;
 	struct tm tm;
-	EVP_MD_CTX *mdctx;
 	time_t now = time(NULL);
 	pid_t pid = getpid();
 
@@ -98,14 +99,13 @@ static struct apk_package *create_virtual_package(struct apk_database *db, struc
 	virtpkg->description = strdup("virtual meta package");
 	virtpkg->arch = apk_atomize(&db->atoms, APK_BLOB_STR("noarch"));
 
-	mdctx = EVP_MD_CTX_new();
-	EVP_DigestInit_ex(mdctx, apk_checksum_default(), NULL);
-	EVP_DigestUpdate(mdctx, &tm, sizeof tm);
-	EVP_DigestUpdate(mdctx, &pid, sizeof pid);
-	EVP_DigestUpdate(mdctx, virtpkg->name->name, strlen(virtpkg->name->name) + 1);
-	virtpkg->csum.type = EVP_MD_CTX_size(mdctx);
-	EVP_DigestFinal_ex(mdctx, virtpkg->csum.data, NULL);
-	EVP_MD_CTX_free(mdctx);
+	apk_digest_ctx_init(&dctx, APK_DIGEST_SHA1);
+	apk_digest_ctx_update(&dctx, &tm, sizeof tm);
+	apk_digest_ctx_update(&dctx, &pid, sizeof pid);
+	apk_digest_ctx_update(&dctx, virtpkg->name->name, strlen(virtpkg->name->name) + 1);
+	apk_digest_ctx_final(&dctx, &d);
+	apk_digest_ctx_free(&dctx);
+	apk_checksum_from_digest(&virtpkg->csum, &d);
 
 	return virtpkg;
 }

@@ -300,6 +300,12 @@ void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
 	};
 }
 
+static const int apk_checksum_compare(const struct apk_checksum *a, const struct apk_checksum *b)
+{
+	return apk_blob_compare(APK_BLOB_PTR_LEN((char *) a->data, a->type),
+				APK_BLOB_PTR_LEN((char *) b->data, b->type));
+}
+
 static int apk_dep_match_checksum(struct apk_dependency *dep, struct apk_package *pkg)
 {
 	struct apk_checksum csum;
@@ -912,7 +918,7 @@ int apk_pkg_read(struct apk_database *db, const char *file,
 	struct apk_file_info fi;
 	int r;
 
-	r = apk_fileinfo_get(AT_FDCWD, file, APK_CHECKSUM_NONE, &fi, &db->atoms);
+	r = apk_fileinfo_get(AT_FDCWD, file, 0, &fi, &db->atoms);
 	if (r != 0)
 		return r;
 

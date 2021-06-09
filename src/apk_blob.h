@@ -112,13 +112,6 @@ static inline char *apk_blob_chr(apk_blob_t b, unsigned char ch)
 	return memchr(b.ptr, ch, b.len);
 }
 
-static inline const int apk_checksum_compare(const struct apk_checksum *a,
-					     const struct apk_checksum *b)
-{
-	return apk_blob_compare(APK_BLOB_PTR_LEN((char *) a->data, a->type),
-				APK_BLOB_PTR_LEN((char *) b->data, b->type));
-}
-
 void apk_blob_push_blob(apk_blob_t *to, apk_blob_t literal);
 void apk_blob_push_uint(apk_blob_t *to, unsigned int value, int radix);
 void apk_blob_push_csum(apk_blob_t *to, struct apk_checksum *csum);

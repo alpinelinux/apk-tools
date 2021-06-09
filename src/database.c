@@ -212,16 +212,33 @@ struct apk_name *apk_db_get_name(struct apk_database *db, apk_blob_t name)
 	return pn;
 }
 
-static struct apk_db_acl *apk_db_acl_atomize(struct apk_database *db, mode_t mode, uid_t uid, gid_t gid, const struct apk_checksum *xattr_csum)
+static struct apk_db_acl *__apk_db_acl_atomize(struct apk_database *db, mode_t mode, uid_t uid, gid_t gid, uint8_t csum_type, const uint8_t *csum_data)
 {
 	struct apk_db_acl acl = { .mode = mode & 07777, .uid = uid, .gid = gid };
 	apk_blob_t *b;
 
-	if (xattr_csum && xattr_csum->type != APK_CHECKSUM_NONE)
-		acl.xattr_csum = *xattr_csum;
+	if (csum_data && csum_type != APK_CHECKSUM_NONE) {
+		acl.xattr_csum.type = csum_type;
+		memcpy(acl.xattr_csum.data, csum_data, csum_type);
+	}
 
 	b = apk_atomize_dup(&db->atoms, APK_BLOB_STRUCT(acl));
 	return (struct apk_db_acl *) b->ptr;
+}
+
+static struct apk_db_acl *apk_db_acl_atomize(struct apk_database *db, mode_t mode, uid_t uid, gid_t gid)
+{
+	return __apk_db_acl_atomize(db, mode, uid, gid, 0, 0);
+}
+
+static struct apk_db_acl *apk_db_acl_atomize_csum(struct apk_database *db, mode_t mode, uid_t uid, gid_t gid, const struct apk_checksum *xattr_csum)
+{
+	return __apk_db_acl_atomize(db, mode, uid, gid, xattr_csum->type, xattr_csum->data);
+}
+
+static struct apk_db_acl *apk_db_acl_atomize_digest(struct apk_database *db, mode_t mode, uid_t uid, gid_t gid, const struct apk_digest *dig)
+{
+	return __apk_db_acl_atomize(db, mode, uid, gid, dig->len, dig->data);
 }
 
 static void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir, mode_t newmode)
@@ -840,7 +857,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 			else
 				xattr_csum.type = APK_CHECKSUM_NONE;
 
-			acl = apk_db_acl_atomize(db, mode, uid, gid, &xattr_csum);
+			acl = apk_db_acl_atomize_csum(db, mode, uid, gid, &xattr_csum);
 			if (field == 'M')
 				diri->acl = acl;
 			else
@@ -1517,8 +1534,8 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	apk_blob_t blob;
 	int r, fd, write_arch = FALSE;
 
-	apk_default_acl_dir = apk_db_acl_atomize(db, 0755, 0, 0, NULL);
-	apk_default_acl_file = apk_db_acl_atomize(db, 0644, 0, 0, NULL);
+	apk_default_acl_dir = apk_db_acl_atomize(db, 0755, 0, 0);
+	apk_default_acl_file = apk_db_acl_atomize(db, 0644, 0, 0);
 
 	db->ctx = ac;
 	if (ac->open_flags == 0) {
@@ -2337,22 +2354,20 @@ static struct apk_db_dir_instance *apk_db_install_directory_entry(struct install
 
 static const char *format_tmpname(struct apk_package *pkg, struct apk_db_file *f, char tmpname[static TMPNAME_MAX])
 {
-	EVP_MD_CTX *mdctx;
-	unsigned char md[EVP_MAX_MD_SIZE];
+	struct apk_digest_ctx dctx;
+	struct apk_digest d;
 	apk_blob_t b = APK_BLOB_PTR_LEN(tmpname, TMPNAME_MAX);
 
 	if (!f) return NULL;
 
-	mdctx = EVP_MD_CTX_new();
-	if (!mdctx) return NULL;
+	if (apk_digest_ctx_init(&dctx, APK_DIGEST_SHA256) != 0) return NULL;
 
-	EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL);
-	EVP_DigestUpdate(mdctx, pkg->name->name, strlen(pkg->name->name) + 1);
-	EVP_DigestUpdate(mdctx, f->diri->dir->name, f->diri->dir->namelen);
-	EVP_DigestUpdate(mdctx, "/", 1);
-	EVP_DigestUpdate(mdctx, f->name, f->namelen);
-	EVP_DigestFinal_ex(mdctx, md, NULL);
-	EVP_MD_CTX_free(mdctx);
+	apk_digest_ctx_update(&dctx, pkg->name->name, strlen(pkg->name->name) + 1);
+	apk_digest_ctx_update(&dctx, f->diri->dir->name, f->diri->dir->namelen);
+	apk_digest_ctx_update(&dctx, "/", 1);
+	apk_digest_ctx_update(&dctx, f->name, f->namelen);
+	apk_digest_ctx_final(&dctx, &d);
+	apk_digest_ctx_free(&dctx);
 
 	apk_blob_push_blob(&b, APK_BLOB_PTR_LEN(f->diri->dir->name, f->diri->dir->namelen));
 	if (f->diri->dir->namelen > 0) {
@@ -2360,7 +2375,7 @@ static const char *format_tmpname(struct apk_package *pkg, struct apk_db_file *f
 	} else {
 		apk_blob_push_blob(&b, APK_BLOB_STR(".apk."));
 	}
-	apk_blob_push_hexdump(&b, APK_BLOB_PTR_LEN((char *)md, 24));
+	apk_blob_push_hexdump(&b, APK_BLOB_PTR_LEN((char *)d.data, 24));
 	apk_blob_push_blob(&b, APK_BLOB_PTR_LEN("", 1));
 
 	return tmpname;
@@ -2546,7 +2561,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 		apk_dbg2(out, "%s", ae->name);
 
 		/* Extract the file with temporary name */
-		file->acl = apk_db_acl_atomize(db, ae->mode, ae->uid, ae->gid, &ae->xattr_csum);
+		file->acl = apk_db_acl_atomize_digest(db, ae->mode, ae->uid, ae->gid, &ae->xattr_digest);
 		r = apk_archive_entry_extract(
 				db->root_fd, ae,
 				format_tmpname(pkg, file, tmpname_file),
@@ -2559,7 +2574,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 			if (link_target_file)
 				memcpy(&file->csum, &link_target_file->csum, sizeof file->csum);
 			else
-				memcpy(&file->csum, &ae->csum, sizeof file->csum);
+				apk_checksum_from_digest(&file->csum, &ae->digest);
 			/* only warn once per package */
 			if (file->csum.type == APK_CHECKSUM_NONE && !ctx->missing_checksum) {
 				apk_warn(out,
@@ -2590,7 +2605,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 			diri = apk_db_install_directory_entry(ctx, name);
 			apk_db_dir_prepare(db, diri->dir, ae->mode);
 		}
-		apk_db_diri_set(diri, apk_db_acl_atomize(db, ae->mode, ae->uid, ae->gid, &ae->xattr_csum));
+		apk_db_diri_set(diri, apk_db_acl_atomize_digest(db, ae->mode, ae->uid, ae->gid, &ae->xattr_digest));
 	}
 	ctx->installed_size += ctx->current_file_size;
 
@@ -2627,8 +2642,8 @@ static void apk_db_purge_pkg(struct apk_database *db,
 			if ((diri->dir->protect_mode == APK_PROTECT_NONE) ||
 			    (db->ctx->flags & APK_PURGE) ||
 			    (file->csum.type != APK_CHECKSUM_NONE &&
-			     apk_fileinfo_get(db->root_fd, name, APK_FI_NOFOLLOW | file->csum.type, &fi, &db->atoms) == 0 &&
-			     apk_checksum_compare(&file->csum, &fi.csum) == 0))
+			     apk_fileinfo_get(db->root_fd, name, APK_FI_NOFOLLOW | APK_FI_CSUM(file->csum.type), &fi, &db->atoms) == 0 &&
+			     apk_digest_cmp_csum(&fi.digest, &file->csum) == 0))
 				unlinkat(db->root_fd, name, 0);
 			apk_dbg2(out, "%s", name);
 			__hlist_del(fc, &diri->owned_files.first);
@@ -2680,7 +2695,7 @@ static void apk_db_migrate_files(struct apk_database *db,
 			 * in db, and the file is in a protected path */
 			cstype = APK_CHECKSUM_NONE;
 			if (ofile != NULL && diri->dir->protect_mode != APK_PROTECT_NONE)
-				cstype = ofile->csum.type;
+				cstype = APK_FI_CSUM(ofile->csum.type);
 			cstype |= APK_FI_NOFOLLOW;
 
 			r = apk_fileinfo_get(db->root_fd, name, cstype, &fi, &db->atoms);
@@ -2692,7 +2707,7 @@ static void apk_db_migrate_files(struct apk_database *db,
 				   (r == 0) &&
 				   (ofile == NULL ||
 				    ofile->csum.type == APK_CHECKSUM_NONE ||
-				    apk_checksum_compare(&ofile->csum, &fi.csum) != 0)) {
+				    apk_digest_cmp_csum(&fi.digest, &ofile->csum) != 0)) {
 				/* Protected directory, with file without
 				 * db entry, or local modifications.
 				 *
@@ -2701,11 +2716,11 @@ static void apk_db_migrate_files(struct apk_database *db,
 				if (ofile == NULL ||
 				    ofile->csum.type != file->csum.type)
 					apk_fileinfo_get(db->root_fd, name,
-						APK_FI_NOFOLLOW | file->csum.type,
+						APK_FI_NOFOLLOW |APK_FI_CSUM(file->csum.type),
 						&fi, &db->atoms);
 				if ((db->ctx->flags & APK_CLEAN_PROTECTED) ||
 				    (file->csum.type != APK_CHECKSUM_NONE &&
-				     apk_checksum_compare(&file->csum, &fi.csum) == 0)) {
+				     apk_digest_cmp_csum(&fi.digest, &file->csum) == 0)) {
 					unlinkat(db->root_fd, tmpname, 0);
 				} else {
 					snprintf(name, sizeof name,

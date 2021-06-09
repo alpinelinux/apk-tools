@@ -74,7 +74,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 
 struct apk_trust *apk_ctx_get_trust(struct apk_ctx *ac)
 {
-	if (!ac->trust.mdctx) {
+	if (!ac->trust.initialized) {
 		int r = apk_trust_init(&ac->trust,
 			openat(ac->root_fd, ac->keys_dir, O_RDONLY | O_CLOEXEC),
 			ac->private_keys);

@@ -213,7 +213,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	adb_wo_alloca(&ctx->pkgs, &schema_pkginfo_array, &ctx->db);
 
 	if (ctx->index) {
-		apk_fileinfo_get(AT_FDCWD, ctx->index, APK_CHECKSUM_NONE, &fi, 0);
+		apk_fileinfo_get(AT_FDCWD, ctx->index, 0, &fi, 0);
 		index_mtime = fi.mtime;
 
 		r = adb_m_map(&odb, open(ctx->index, O_RDONLY), ADB_SCHEMA_INDEX, trust);
@@ -225,7 +225,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	}
 
 	foreach_array_item(parg, args) {
-		r = apk_fileinfo_get(AT_FDCWD, *parg, APK_CHECKSUM_NONE, &fi, 0);
+		r = apk_fileinfo_get(AT_FDCWD, *parg, 0, &fi, 0);
 		if (r < 0) {
 		err_pkg:
 			apk_err(out, "%s: %s", *parg, apk_error_str(r));

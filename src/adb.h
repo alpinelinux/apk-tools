@@ -84,12 +84,6 @@ struct adb_sign_v0 {
 	uint8_t sig[0];
 };
 
-/* Hash algorithms */
-#define ADB_HASH_NONE		0x00
-#define ADB_HASH_SHA1		0x01
-#define ADB_HASH_SHA256		0x02
-#define ADB_HASH_SHA512		0x03
-
 /* Block enumeration */
 struct adb_block *adb_block_first(apk_blob_t b);
 struct adb_block *adb_block_next(struct adb_block *cur, apk_blob_t b);
@@ -237,7 +231,7 @@ int adb_c_create(struct apk_ostream *os, struct adb *db, struct apk_trust *t);
 /* Trust */
 struct adb_verify_ctx {
 	uint32_t calc;
-	uint8_t sha512[64];
+	struct apk_digest sha512;
 };
 
 int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, struct apk_ostream *os);

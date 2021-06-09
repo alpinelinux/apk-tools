@@ -112,15 +112,15 @@ static void handle_extended_header(struct apk_file_info *fi, apk_blob_t hdr)
 				.value = value,
 			};
 		} else if (apk_blob_pull_blob_match(&name, APK_BLOB_STR("APK-TOOLS.checksum."))) {
-			int type = APK_CHECKSUM_NONE;
+			int alg = APK_DIGEST_NONE;
 			if (apk_blob_compare(name, APK_BLOB_STR("SHA1")) == 0)
-				type = APK_CHECKSUM_SHA1;
+				alg = APK_DIGEST_SHA1;
 			else if (apk_blob_compare(name, APK_BLOB_STR("MD5")) == 0)
-				type = APK_CHECKSUM_MD5;
-			if (type > fi->csum.type) {
-				fi->csum.type = type;
-				apk_blob_pull_hexdump(&value, APK_BLOB_CSUM(fi->csum));
-				if (APK_BLOB_IS_NULL(value)) fi->csum.type = APK_CHECKSUM_NONE;
+				alg = APK_DIGEST_MD5;
+			if (alg > fi->digest.alg) {
+				apk_digest_set(&fi->digest, alg);
+				apk_blob_pull_hexdump(&value, APK_DIGEST_BLOB(fi->digest));
+				if (APK_BLOB_IS_NULL(value)) apk_digest_reset(&fi->digest);
 			}
 		}
 	}
@@ -175,7 +175,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 
 		if (paxlen) {
 			handle_extended_header(&entry, APK_BLOB_PTR_LEN(pax.ptr, paxlen));
-			apk_fileinfo_hash_xattr(&entry);
+			apk_fileinfo_hash_xattr(&entry, APK_DIGEST_SHA1);
 		}
 
 		toskip = (entry.size + 511) & -512;

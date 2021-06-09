@@ -49,10 +49,10 @@ static int verify_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 	return rc;
 }
 
-static struct apk_applet apk_verify = {
+static struct apk_applet apk_verify_applet = {
 	.name = "verify",
 	.main = verify_main,
 };
 
-APK_DEFINE_APPLET(apk_verify);
+APK_DEFINE_APPLET(apk_verify_applet);
 

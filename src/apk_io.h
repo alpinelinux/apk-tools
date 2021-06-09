@@ -16,6 +16,7 @@
 #include "apk_defines.h"
 #include "apk_blob.h"
 #include "apk_atom.h"
+#include "apk_crypto.h"
 
 struct apk_id_hash {
 	int empty;
@@ -50,8 +51,8 @@ struct apk_file_info {
 	mode_t mode;
 	time_t mtime;
 	dev_t device;
-	struct apk_checksum csum;
-	struct apk_checksum xattr_csum;
+	struct apk_digest digest;
+	struct apk_digest xattr_digest;
 	struct apk_xattr_array *xattrs;
 };
 
@@ -93,7 +94,7 @@ static inline apk_blob_t apk_istream_get_all(struct apk_istream *is) { return ap
 ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 			   apk_progress_cb cb, void *cb_ctx);
 ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size,
-			apk_progress_cb cb, void *cb_ctx, EVP_MD_CTX *mdctx);
+			apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx);
 
 static inline struct apk_istream *apk_istream_from_url(const char *url, time_t since)
 {
@@ -170,11 +171,13 @@ apk_blob_t apk_blob_from_file(int atfd, const char *file);
 int apk_blob_to_file(int atfd, const char *file, apk_blob_t b, unsigned int flags);
 
 #define APK_FI_NOFOLLOW		0x80000000
-#define APK_FI_XATTR_CSUM(x)	(((x) & 0xff) << 8)
-#define APK_FI_CSUM(x)		(((x) & 0xff))
+#define APK_FI_XATTR_DIGEST(x)	(((x) & 0xff) << 8)
+#define APK_FI_XATTR_CSUM(x)	APK_FI_XATTR_DIGEST(apk_digest_alg_from_csum(x))
+#define APK_FI_DIGEST(x)	(((x) & 0xff))
+#define APK_FI_CSUM(x)		APK_FI_DIGEST(apk_digest_alg_from_csum(x))
 int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		     struct apk_file_info *fi, struct apk_atom_pool *atoms);
-void apk_fileinfo_hash_xattr(struct apk_file_info *fi);
+void apk_fileinfo_hash_xattr(struct apk_file_info *fi, uint8_t alg);
 void apk_fileinfo_free(struct apk_file_info *fi);
 
 typedef int apk_dir_file_cb(void *ctx, int dirfd, const char *entry);

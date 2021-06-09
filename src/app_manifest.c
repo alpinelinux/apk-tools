@@ -83,11 +83,12 @@ static int read_file_entry(void *ctx, const struct apk_file_info *ae, struct apk
 		return 0;
 
 	memset(csum_buf, '\0', sizeof(csum_buf));
-	apk_blob_push_hexdump(&csum_blob, APK_BLOB_CSUM(ae->csum));
+	apk_blob_push_hexdump(&csum_blob, APK_DIGEST_BLOB(ae->digest));
 
-	apk_out(out, "%s%s%s:%s  %s\n",
+	apk_out(out, "%s%s%s:%s  %s",
 		mctx->prefix1, mctx->prefix2,
-		csum_types[ae->csum.type], csum_buf, ae->name);
+		apk_digest_alg_str(ae->digest.alg), csum_buf,
+		ae->name);
 
 	return 0;
 }

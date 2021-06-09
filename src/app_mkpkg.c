@@ -121,7 +121,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 	struct adb_obj fio, acl;
 	int r;
 
-	r = apk_fileinfo_get(dirfd, entry, APK_FI_NOFOLLOW | APK_FI_CSUM(APK_CHECKSUM_SHA1), &fi, NULL);
+	r = apk_fileinfo_get(dirfd, entry, APK_FI_NOFOLLOW | APK_FI_DIGEST(APK_DIGEST_SHA256), &fi, NULL);
 	if (r) return r;
 
 	switch (fi.mode & S_IFMT) {
@@ -134,7 +134,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 		adb_wo_alloca(&fio, &schema_file, &ctx->db);
 		adb_wo_alloca(&acl, &schema_acl, &ctx->db);
 		adb_wo_blob(&fio, ADBI_FI_NAME, APK_BLOB_STR(entry));
-		adb_wo_blob(&fio, ADBI_FI_HASHES, APK_BLOB_PTR_LEN((char*) fi.csum.data, fi.csum.type));
+		adb_wo_blob(&fio, ADBI_FI_HASHES, APK_DIGEST_BLOB(fi.digest));
 		adb_wo_int(&fio, ADBI_FI_MTIME, fi.mtime);
 		adb_wo_int(&fio, ADBI_FI_SIZE, fi.size);
 		ctx->installed_size += (fi.size + BLOCK_SIZE - 1) & ~(BLOCK_SIZE-1);

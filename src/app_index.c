@@ -80,7 +80,7 @@ static int index_read_file(struct apk_database *db, struct index_ctx *ictx)
 
 	if (ictx->index == NULL)
 		return 0;
-	if (apk_fileinfo_get(AT_FDCWD, ictx->index, APK_CHECKSUM_NONE, &fi, &db->atoms) < 0)
+	if (apk_fileinfo_get(AT_FDCWD, ictx->index, 0, &fi, &db->atoms) < 0)
 		return 0;
 
 	ictx->index_mtime = fi.mtime;
@@ -138,7 +138,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		rewrite_arch = apk_atomize(&db->atoms, APK_BLOB_STR(ictx->rewrite_arch));
 
 	foreach_array_item(parg, args) {
-		if (apk_fileinfo_get(AT_FDCWD, *parg, APK_CHECKSUM_NONE, &fi, &db->atoms) < 0) {
+		if (apk_fileinfo_get(AT_FDCWD, *parg, 0, &fi, &db->atoms) < 0) {
 			apk_warn(out, "File '%s' is unaccessible", *parg);
 			continue;
 		}

@@ -9,17 +9,8 @@
 #ifndef APK_TRUST
 #define APK_TRUST
 
-#include <openssl/evp.h>
 #include "apk_blob.h"
-
-struct apk_pkey {
-	uint8_t		id[16];
-	EVP_PKEY	*key;
-};
-
-int apk_pkey_init(struct apk_pkey *pkey, EVP_PKEY *key);
-void apk_pkey_free(struct apk_pkey *pkey);
-int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn);
+#include "apk_crypto.h"
 
 struct apk_trust_key {
 	struct list_head key_node;
@@ -29,10 +20,11 @@ struct apk_trust_key {
 };
 
 struct apk_trust {
-	EVP_MD_CTX *mdctx;
+	struct apk_digest_ctx dctx;
 	struct list_head trusted_key_list;
 	struct list_head private_key_list;
 	int allow_untrusted : 1;
+	int initialized : 1;
 };
 
 int apk_trust_init(struct apk_trust *trust, int keysfd, struct apk_string_array *);

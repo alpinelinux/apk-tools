@@ -866,21 +866,22 @@ int adb_c_block_data(struct apk_ostream *os, apk_blob_t hdr, uint32_t size, stru
 
 int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_istream *is, struct adb_verify_ctx *vfy)
 {
-	EVP_MD_CTX *mdctx = NULL;
 	int r;
 
 	r = apk_ostream_write(os, b, sizeof *b);
 	if (r < 0) return r;
 
 	if (vfy) {
-		mdctx = EVP_MD_CTX_new();
-		EVP_DigestInit_ex(mdctx, EVP_sha512(), 0);
-	}
-	r = apk_stream_copy(is, os, adb_block_size(b), 0, 0, mdctx);
-	if (vfy) {
-		EVP_DigestFinal_ex(mdctx, vfy->sha512, 0);
-		EVP_MD_CTX_free(mdctx);
-		vfy->calc |= (1 << ADB_HASH_SHA512);
+		struct apk_digest_ctx dctx;
+		const uint8_t alg = APK_DIGEST_SHA512;
+
+		apk_digest_ctx_init(&dctx, alg);
+		r = apk_stream_copy(is, os, adb_block_size(b), 0, 0, &dctx);
+		apk_digest_ctx_final(&dctx, &vfy->sha512);
+		vfy->calc |= (1 << alg);
+		apk_digest_ctx_free(&dctx);
+	} else {
+		r = apk_stream_copy(is, os, adb_block_size(b), 0, 0, 0);
 	}
 	return r;
 }
@@ -906,28 +907,38 @@ int adb_c_create(struct apk_ostream *os, struct adb *db, struct apk_trust *t)
 }
 
 /* Signatures */
-static int adb_verify_ctx_calc(struct adb_verify_ctx *vfy, unsigned int hash_alg, apk_blob_t data, apk_blob_t *pmd)
+static int adb_digest_adb(struct adb_verify_ctx *vfy, unsigned int hash_alg, apk_blob_t data, apk_blob_t *pmd)
 {
-	const EVP_MD *evp;
-	apk_blob_t md;
+	struct apk_digest *d;
+	int r;
 
 	switch (hash_alg) {
-	case ADB_HASH_SHA512:
-		evp = EVP_sha512();
-		*pmd = md = APK_BLOB_BUF(vfy->sha512);
+	case APK_DIGEST_SHA512:
+		d = &vfy->sha512;
 		break;
 	default:
 		return -ENOTSUP;
 	}
 
 	if (!(vfy->calc & (1 << hash_alg))) {
-		unsigned int sz = md.len;
 		if (APK_BLOB_IS_NULL(data)) return -ENOMSG;
-		if (EVP_Digest(data.ptr, data.len, (unsigned char*) md.ptr, &sz, evp, NULL) != 1 ||
-		    sz != md.len)
-			return -EIO;
+		r = apk_digest_calc(d, hash_alg, data.ptr, data.len);
+		if (r != 0) return r;
 		vfy->calc |= (1 << hash_alg);
 	}
+
+	*pmd = APK_DIGEST_BLOB(*d);
+	return 0;
+}
+
+static int adb_digest_v0_signature(struct apk_digest_ctx *dctx, struct adb_header *hdr, struct adb_sign_v0 *sig0, apk_blob_t md)
+{
+	int r;
+
+	if ((r = apk_digest_ctx_update(dctx, hdr, sizeof *hdr)) != 0 ||
+	    (r = apk_digest_ctx_update(dctx, sig0, sizeof *sig0)) != 0 ||
+	    (r = apk_digest_ctx_update(dctx, md.ptr, md.len)) != 0)
+		return r;
 	return 0;
 }
 
@@ -948,33 +959,27 @@ int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct a
 		memset(vfy, 0, sizeof *vfy);
 	}
 
-	r = adb_verify_ctx_calc(vfy, ADB_HASH_SHA512, db->adb, &md);
+	r = adb_digest_adb(vfy, APK_DIGEST_SHA512, db->adb, &md);
 	if (r) return r;
 
 	list_for_each_entry(tkey, &trust->private_key_list, key_node) {
 		sig.v0 = (struct adb_sign_v0) {
 			.hdr.sign_ver = 0,
-			.hdr.hash_alg = ADB_HASH_SHA512,
+			.hdr.hash_alg = APK_DIGEST_SHA512,
 		};
 		memcpy(sig.v0.id, tkey->key.id, sizeof(sig.v0.id));
 
 		siglen = sizeof sig.buf - sizeof sig.v0;
-		EVP_MD_CTX_set_pkey_ctx(trust->mdctx, NULL);
-		if (EVP_DigestSignInit(trust->mdctx, NULL, EVP_sha512(), NULL, tkey->key.key) != 1 ||
-		    EVP_DigestUpdate(trust->mdctx, &db->hdr, sizeof db->hdr) != 1 ||
-		    EVP_DigestUpdate(trust->mdctx, &sig.v0, sizeof sig.v0) != 1 ||
-		    EVP_DigestUpdate(trust->mdctx, md.ptr, md.len) != 1 ||
-		    EVP_DigestSignFinal(trust->mdctx, sig.v0.sig, &siglen) != 1) {
-			ERR_print_errors_fp(stdout);
-			goto err_io;
-		}
+
+		if ((r = apk_sign_start(&trust->dctx, &tkey->key)) != 0 ||
+		    (r = adb_digest_v0_signature(&trust->dctx, &db->hdr, &sig.v0, md)) != 0 ||
+		    (r = apk_sign(&trust->dctx, sig.v0.sig, &siglen)) != 0)
+			goto err;
 
 		r = adb_c_block(os, ADB_BLOCK_SIG, APK_BLOB_PTR_LEN((char*) &sig, sizeof(sig.v0) + siglen));
 		if (r < 0) goto err;
 	}
 	return 0;
-err_io:
-	r = -EIO;
 err:
 	apk_ostream_cancel(os, r);
 	return r;
@@ -996,17 +1001,12 @@ int adb_trust_verify_signature(struct apk_trust *trust, struct adb *db, struct a
 
 	list_for_each_entry(tkey, &trust->trusted_key_list, key_node) {
 		if (memcmp(sig0->id, tkey->key.id, sizeof sig0->id) != 0) continue;
-		if (adb_verify_ctx_calc(vfy, sig->hash_alg, db->adb, &md) != 0) continue;
+		if (adb_digest_adb(vfy, sig->hash_alg, db->adb, &md) != 0) continue;
 
-		EVP_MD_CTX_set_pkey_ctx(trust->mdctx, NULL);
-		if (EVP_DigestVerifyInit(trust->mdctx, NULL, EVP_sha512(), NULL, tkey->key.key) != 1 ||
-		    EVP_DigestUpdate(trust->mdctx, &db->hdr, sizeof db->hdr) != 1 ||
-		    EVP_DigestUpdate(trust->mdctx, sig0, sizeof *sig0) != 1 ||
-		    EVP_DigestUpdate(trust->mdctx, md.ptr, md.len) != 1 ||
-		    EVP_DigestVerifyFinal(trust->mdctx, sig0->sig, sigb.len - sizeof(*sig0)) != 1) {
-			ERR_clear_error();
+		if (apk_verify_start(&trust->dctx, &tkey->key) != 0 ||
+		    adb_digest_v0_signature(&trust->dctx, &db->hdr, sig0, md) != 0 ||
+		    apk_verify(&trust->dctx, sig0->sig, sigb.len - sizeof *sig0) != 0)
 			continue;
-		}
 
 		return 0;
 	}
