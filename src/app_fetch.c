@@ -176,7 +176,7 @@ static int fetch_package(apk_hash_item item, void *pctx)
 		goto err;
 	}
 
-	r = apk_istream_splice(is, fd, pkg->size, progress_cb, ctx);
+	r = apk_istream_splice(is, fd, pkg->size, progress_cb, ctx, 0);
 	if (fd != STDOUT_FILENO) {
 		struct apk_file_meta meta;
 		apk_istream_get_meta(is, &meta);

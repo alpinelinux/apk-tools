@@ -251,11 +251,10 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			size_t sz = adb_ro_int(&file, ADBI_FI_SIZE);
 			if (!APK_BLOB_IS_NULL(target)) continue;
 			if (!sz) continue;
-			struct {
-				uint32_t path_idx;
-				uint32_t file_idx;
-			} hdr = { i, j };
-
+			struct adb_data_package hdr = {
+				.path_idx = i,
+				.file_idx = j,
+			};
 			apk_pathbuilder_pushb(&ctx->pb, filename);
 			adb_c_block_data(
 				os, APK_BLOB_STRUCT(hdr), sz,

@@ -41,10 +41,10 @@ struct apk_file_meta {
 void apk_file_meta_to_fd(int fd, struct apk_file_meta *meta);
 
 struct apk_file_info {
-	char *name;
-	char *link_target;
-	char *uname;
-	char *gname;
+	const char *name;
+	const char *link_target;
+	const char *uname;
+	const char *gname;
 	off_t size;
 	uid_t uid;
 	gid_t gid;
@@ -77,6 +77,10 @@ struct apk_istream {
 	const struct apk_istream_ops *ops;
 };
 
+typedef int (*apk_archive_entry_parser)(void *ctx,
+					const struct apk_file_info *ae,
+					struct apk_istream *istream);
+
 #define APK_IO_ALL ((size_t)-1)
 
 #define APK_ISTREAM_FORCE_REFRESH		((time_t) -1)
@@ -87,12 +91,12 @@ struct apk_istream *apk_istream_from_fd(int fd);
 struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *url, time_t since);
 static inline int apk_istream_error(struct apk_istream *is, int err) { if (!is->err) is->err = err; return err; }
 ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size);
-apk_blob_t apk_istream_get(struct apk_istream *is, size_t len);
+void *apk_istream_get(struct apk_istream *is, size_t len);
 apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t size);
 apk_blob_t apk_istream_get_delim(struct apk_istream *is, apk_blob_t token);
 static inline apk_blob_t apk_istream_get_all(struct apk_istream *is) { return apk_istream_get_max(is, APK_IO_ALL); }
 ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
-			   apk_progress_cb cb, void *cb_ctx);
+			   apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx);
 ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size,
 			apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx);
 
@@ -172,9 +176,9 @@ int apk_blob_to_file(int atfd, const char *file, apk_blob_t b, unsigned int flag
 
 #define APK_FI_NOFOLLOW		0x80000000
 #define APK_FI_XATTR_DIGEST(x)	(((x) & 0xff) << 8)
-#define APK_FI_XATTR_CSUM(x)	APK_FI_XATTR_DIGEST(apk_digest_alg_from_csum(x))
+#define APK_FI_XATTR_CSUM(x)	APK_FI_XATTR_DIGEST(apk_digest_alg_by_len(x))
 #define APK_FI_DIGEST(x)	(((x) & 0xff))
-#define APK_FI_CSUM(x)		APK_FI_DIGEST(apk_digest_alg_from_csum(x))
+#define APK_FI_CSUM(x)		APK_FI_DIGEST(apk_digest_alg_by_len(x))
 int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		     struct apk_file_info *fi, struct apk_atom_pool *atoms);
 void apk_fileinfo_hash_xattr(struct apk_file_info *fi, uint8_t alg);

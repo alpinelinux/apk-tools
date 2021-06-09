@@ -15,12 +15,6 @@
 #include "apk_print.h"
 #include "apk_io.h"
 
-#define APK_EXTRACTF_NO_CHOWN	0x0001
-
-typedef int (*apk_archive_entry_parser)(void *ctx,
-					const struct apk_file_info *ae,
-					struct apk_istream *istream);
-
 int apk_tar_parse(struct apk_istream *,
 		  apk_archive_entry_parser parser, void *ctx,
 		  struct apk_id_cache *);
@@ -28,10 +22,13 @@ int apk_tar_write_entry(struct apk_ostream *, const struct apk_file_info *ae,
 			const char *data);
 int apk_tar_write_padding(struct apk_ostream *, const struct apk_file_info *ae);
 
+#define APK_EXTRACTF_NO_CHOWN		0x0001
+#define APK_EXTRACTF_NO_OVERWRITE	0x0002
+
 int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 			      const char *extract_name, const char *hardlink_name,
 			      struct apk_istream *is,
-			      apk_progress_cb cb, void *cb_ctx,
+			      apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx,
 			      unsigned int extract_flags,
 			      struct apk_out *out);
 

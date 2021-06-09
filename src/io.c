@@ -114,27 +114,21 @@ static int __apk_istream_fill(struct apk_istream *is)
 	return 0;
 }
 
-apk_blob_t apk_istream_get(struct apk_istream *is, size_t len)
+void *apk_istream_get(struct apk_istream *is, size_t len)
 {
-	apk_blob_t ret = APK_BLOB_NULL;
-
 	do {
 		if (is->end - is->ptr >= len) {
-			ret = APK_BLOB_PTR_LEN((char*)is->ptr, len);
-			break;
-		}
-		if (is->err>0 || is->end-is->ptr == is->buf_size) {
-			ret = APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr);
-			break;
+			void *ptr = is->ptr;
+			is->ptr += len;
+			return ptr;
 		}
 	} while (!__apk_istream_fill(is));
 
-	if (!APK_BLOB_IS_NULL(ret)) {
-		is->ptr = (uint8_t*)ret.ptr + ret.len;
-		return ret;
-	}
-
-	return (struct apk_blob) { .len = is->err < 0 ? is->err : 0 };
+	if (is->end-is->ptr == is->buf_size)
+		return ERR_PTR(-ENOBUFS);
+	if (is->err > 0)
+		return ERR_PTR(-ENOMSG);
+	return ERR_PTR(-EIO);
 }
 
 apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t max)
@@ -518,7 +512,7 @@ ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t s
 }
 
 ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
-			   apk_progress_cb cb, void *cb_ctx)
+			   apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx)
 {
 	static void *splice_buffer = NULL;
 	unsigned char *buf, *mmapbase = MAP_FAILED;
@@ -558,6 +552,7 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 			}
 			break;
 		}
+		if (dctx) apk_digest_ctx_update(dctx, buf, r);
 
 		if (mmapbase == MAP_FAILED) {
 			if (write(fd, buf, r) != r) {

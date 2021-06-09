@@ -73,6 +73,11 @@
 #define ADBI_PKG_PASSWD		0x05
 #define ADBI_PKG_MAX		0x06
 
+struct adb_data_package {
+	uint32_t path_idx;
+	uint32_t file_idx;
+};
+
 /* Index */
 #define ADBI_NDX_DESCRIPTION	0x01
 #define ADBI_NDX_PACKAGES	0x02

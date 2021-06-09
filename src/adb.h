@@ -74,6 +74,8 @@ static inline apk_blob_t adb_block_blob(struct adb_block *b) {
 	return APK_BLOB_PTR_LEN(adb_block_payload(b), adb_block_length(b));
 }
 
+#define ADB_MAX_SIGNATURE_LEN 256
+
 struct adb_sign_hdr {
 	uint8_t sign_ver, hash_alg;
 };
@@ -161,6 +163,7 @@ void adb_reset(struct adb *);
 
 int adb_m_blob(struct adb *, apk_blob_t, struct apk_trust *);
 int adb_m_map(struct adb *, int fd, uint32_t expected_schema, struct apk_trust *);
+int adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expected_schema, struct apk_trust *trust, int (*datacb)(struct adb *, size_t, struct apk_istream *));
 #define adb_w_init_alloca(db, schema, num_buckets) adb_w_init_dynamic(db, schema, alloca(sizeof(struct list_head[num_buckets])), num_buckets)
 #define adb_w_init_tmp(db, size) adb_w_init_static(db, alloca(size), size)
 int adb_w_init_dynamic(struct adb *db, uint32_t schema, void *buckets, size_t num_buckets);

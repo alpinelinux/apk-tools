@@ -44,7 +44,6 @@ int adb_free(struct adb *db)
 	} else {
 		struct adb_w_bucket *bucket, *nxt;
 		int i;
-
 		for (i = 0; i < db->num_buckets; i++)
 			list_for_each_entry_safe(bucket, nxt, &db->bucket[i], node)
 				free(bucket);
@@ -132,6 +131,79 @@ int adb_m_map(struct adb *db, int fd, uint32_t expected_schema, struct apk_trust
 	return 0;
 err:
 	adb_free(db);
+	return r;
+}
+
+int adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expected_schema,
+	struct apk_trust *t, int (*datacb)(struct adb *, size_t, struct apk_istream *))
+{
+	struct adb_verify_ctx vfy = {};
+	struct adb_block blk;
+	struct apk_segment_istream seg;
+	void *sig;
+	int r, block_no = 0;
+	int trusted = t ? 0 : 1;
+	size_t sz;
+
+	if (IS_ERR(is)) return PTR_ERR(is);
+	if ((r = apk_istream_read(is, &db->hdr, sizeof db->hdr)) != sizeof db->hdr) goto err;
+	if (db->hdr.magic != htole32(ADB_FORMAT_MAGIC)) goto bad_msg;
+
+	do {
+		r = apk_istream_read(is, &blk, sizeof blk);
+		if (r == 0) {
+			if (!trusted) r = -ENOKEY;
+			else if (!db->adb.ptr) r = -ENOMSG;
+			goto done;
+		}
+		if (r < 0 || r != sizeof blk) goto err;
+
+		if ((block_no++ == 0) != (adb_block_type(&blk) == ADB_BLOCK_ADB))
+			goto bad_msg;
+
+		sz = adb_block_size(&blk) - sizeof blk;
+		switch (adb_block_type(&blk)) {
+		case ADB_BLOCK_ADB:
+			if (!APK_BLOB_IS_NULL(db->adb)) goto bad_msg;
+			db->adb.ptr = malloc(sz);
+			db->adb.len = adb_block_length(&blk);
+			if ((r = apk_istream_read(is, db->adb.ptr, sz)) != sz) goto err;
+			break;
+		case ADB_BLOCK_SIG:
+			if (APK_BLOB_IS_NULL(db->adb)) goto bad_msg;
+			sig = apk_istream_get(is, sz);
+			if (IS_ERR(sig)) {
+				r = PTR_ERR(sig);
+				goto err;
+			}
+			if (!trusted &&
+			    adb_trust_verify_signature(t, db, &vfy, APK_BLOB_PTR_LEN(sig, adb_block_length(&blk))) == 0)
+				trusted = 1;
+			break;
+		case ADB_BLOCK_DATA:
+			if (APK_BLOB_IS_NULL(db->adb)) goto bad_msg;
+			if (!trusted) {
+				r = -ENOKEY;
+				goto err;
+			}
+			r = datacb(db, adb_block_length(&blk),
+				apk_istream_segment(&seg, is, adb_block_size(&blk) - sizeof blk, 0));
+			if (r < 0) goto err;
+			if (seg.bytes_left) {
+				r = apk_istream_read(is, NULL, seg.bytes_left);
+				if (r < 0) goto err;
+			}
+			break;
+		default:
+			goto bad_msg;
+		}
+	} while (1);
+bad_msg:
+	r = -EBADMSG;
+err:
+	if (r >= 0) r = -EBADMSG;
+done:
+	apk_istream_close(is);
 	return r;
 }
 
@@ -947,7 +1019,7 @@ int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct a
 	union {
 		struct adb_sign_hdr hdr;
 		struct adb_sign_v0 v0;
-		unsigned char buf[8192];
+		unsigned char buf[ADB_MAX_SIGNATURE_LEN];
 	} sig;
 	struct apk_trust_key *tkey;
 	apk_blob_t md;
@@ -1023,7 +1095,7 @@ int adb_c_xfrm(struct adb_xfrm *x, int (*cb)(struct adb_xfrm *, struct adb_block
 	size_t sz;
 
 	r = apk_istream_read(x->is, &x->db.hdr, sizeof x->db.hdr);
-	if (r < 0) goto err;
+	if (r != sizeof x->db.hdr) goto err;
 
 	if (x->db.hdr.magic != htole32(ADB_FORMAT_MAGIC)) goto bad_msg;
 	r = apk_ostream_write(x->os, &x->db.hdr, sizeof x->db.hdr);
@@ -1031,9 +1103,9 @@ int adb_c_xfrm(struct adb_xfrm *x, int (*cb)(struct adb_xfrm *, struct adb_block
 
 	do {
 		r = apk_istream_read(x->is, &blk, sizeof blk);
-		if (r <= 0) {
-			if (r == 0) r = cb(x, NULL, NULL);
-			goto err;
+		if (r != sizeof blk) {
+			if (r != 0) goto err;
+			return cb(x, NULL, NULL);
 		}
 
 		if ((block_no++ == 0) != (adb_block_type(&blk) == ADB_BLOCK_ADB)) goto bad_msg;
@@ -1048,13 +1120,14 @@ int adb_c_xfrm(struct adb_xfrm *x, int (*cb)(struct adb_xfrm *, struct adb_block
 			r = apk_stream_copy(x->is, x->os, sz, 0, 0, 0);
 			if (r < 0) goto err;
 		} else if (seg.bytes_left > 0) {
-			r = apk_istream_read(x->is, NULL, sz - seg.bytes_left);
-			if (r < 0) goto err;
+			r = apk_istream_read(x->is, NULL, seg.bytes_left);
+			if (r != seg.bytes_left) goto err;
 		}
 	} while (1);
 bad_msg:
 	r = -EBADMSG;
 err:
+	if (r >= 0) r = -EBADMSG;
 	apk_ostream_cancel(x->os, r);
 	return r;
 }

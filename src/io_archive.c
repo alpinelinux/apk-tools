@@ -184,8 +184,8 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 			if ((r = blob_realloc(&longname, entry.size+1)) != 0 ||
 			    (r = apk_istream_read(is, longname.ptr, entry.size)) != entry.size)
 				goto err;
+			longname.ptr[entry.size] = 0;
 			entry.name = longname.ptr;
-			entry.name[entry.size] = 0;
 			toskip -= entry.size;
 			break;
 		case 'K': /* GNU long link target extension - ignored */
@@ -336,15 +336,16 @@ int apk_tar_write_padding(struct apk_ostream *os, const struct apk_file_info *ae
 int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 			      const char *extract_name, const char *link_target,
 			      struct apk_istream *is,
-			      apk_progress_cb cb, void *cb_ctx,
-			      unsigned int apk_extract_flags,
-			      struct apk_out *out)
+			      apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx,
+			      unsigned int extract_flags, struct apk_out *out)
 {
 	struct apk_xattr *xattr;
 	const char *fn = extract_name ?: ae->name;
 	int fd, r = -1, atflags = 0, ret = 0;
 
-	if (unlinkat(atfd, fn, 0) != 0 && errno != ENOENT) return -errno;
+	if (!(extract_flags & APK_EXTRACTF_NO_OVERWRITE)) {
+		if (unlinkat(atfd, fn, 0) != 0 && errno != ENOENT) return -errno;
+	}
 
 	switch (ae->mode & S_IFMT) {
 	case S_IFDIR:
@@ -361,7 +362,7 @@ int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 				ret = -errno;
 				break;
 			}
-			r = apk_istream_splice(is, fd, ae->size, cb, cb_ctx);
+			r = apk_istream_splice(is, fd, ae->size, cb, cb_ctx, dctx);
 			if (r != ae->size) ret = r < 0 ? r : -ENOSPC;
 			close(fd);
 		} else {
@@ -386,7 +387,7 @@ int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 		return ret;
 	}
 
-	if (!(apk_extract_flags & APK_EXTRACTF_NO_CHOWN)) {
+	if (!(extract_flags & APK_EXTRACTF_NO_CHOWN)) {
 		r = fchownat(atfd, fn, ae->uid, ae->gid, atflags);
 		if (r < 0) {
 			apk_err(out, "Failed to set ownership on %s: %s",

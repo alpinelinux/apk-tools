@@ -23,6 +23,29 @@ const char *apk_digest_alg_str(uint8_t alg)
 	return alg_str;
 }
 
+int apk_digest_alg_len(uint8_t alg)
+{
+	switch (alg) {
+	case APK_DIGEST_MD5:	return 16;
+	case APK_DIGEST_SHA1:	return 20;
+	case APK_DIGEST_SHA256:	return 32;
+	case APK_DIGEST_SHA512:	return 64;
+	default:		return 0;
+	}
+}
+
+uint8_t apk_digest_alg_by_len(int len)
+{
+	switch (len) {
+	case 0:	 return APK_DIGEST_NONE;
+	case 16: return APK_DIGEST_MD5;
+	case 20: return APK_DIGEST_SHA1;
+	case 32: return APK_DIGEST_SHA256;
+	case 64: return APK_DIGEST_SHA512;
+	default: return APK_DIGEST_NONE;
+	}
+}
+
 uint8_t apk_digest_alg_from_csum(int csum)
 {
 	switch (csum) {
@@ -31,6 +54,17 @@ uint8_t apk_digest_alg_from_csum(int csum)
 	case APK_CHECKSUM_SHA1:		return APK_DIGEST_SHA1;
 	default:			return APK_DIGEST_NONE;
 	}
+}
+
+uint8_t apk_digest_from_blob(struct apk_digest *d, apk_blob_t b)
+{
+	d->alg = apk_digest_alg_by_len(b.len);
+	d->len = 0;
+	if (d->alg != APK_DIGEST_NONE) {
+		d->len = b.len;
+		memcpy(d->data, b.ptr, d->len);
+	}
+	return d->alg;
 }
 
 int apk_pkey_init(struct apk_pkey *pkey, EVP_PKEY *key)

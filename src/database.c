@@ -672,7 +672,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 
 		if (fd >= 0) {
 			struct apk_file_meta meta;
-			r = apk_istream_splice(is, fd, APK_IO_ALL, cb, cb_ctx);
+			r = apk_istream_splice(is, fd, APK_IO_ALL, cb, cb_ctx, 0);
 			if (!autoupdate) {
 				apk_istream_get_meta(is, &meta);
 				apk_file_meta_to_fd(fd, &meta);
@@ -2566,7 +2566,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 				db->root_fd, ae,
 				format_tmpname(pkg, file, tmpname_file),
 				format_tmpname(pkg, link_target_file, tmpname_link_target),
-				is, extract_cb, ctx, db->extract_flags, out);
+				is, extract_cb, ctx, 0, db->extract_flags, out);
 
 		switch (r) {
 		case 0:

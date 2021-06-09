@@ -52,21 +52,17 @@ static inline const EVP_MD *apk_digest_alg_to_evp(uint8_t alg) {
 	}
 }
 
-static inline int apk_digest_alg_len(uint8_t alg) {
-	switch (alg) {
-	case APK_DIGEST_MD5:	return 16;
-	case APK_DIGEST_SHA1:	return 20;
-	case APK_DIGEST_SHA256:	return 32;
-	case APK_DIGEST_SHA512:	return 64;
-	default:
-		assert(alg);
-		return 0;
-	}
+int apk_digest_alg_len(uint8_t alg);
+uint8_t apk_digest_alg_by_len(int len);
+
+static inline int apk_digest_cmp(struct apk_digest *a, struct apk_digest *b) {
+	if (a->alg != b->alg) return b->alg - a->alg;
+	return memcmp(a->data, b->data, a->len);
 }
 
 static inline void apk_digest_reset(struct apk_digest *d) {
-	d->len = 0;
 	d->alg = APK_DIGEST_NONE;
+	d->len = 0;
 }
 
 static inline void apk_digest_set(struct apk_digest *d, uint8_t alg) {
@@ -114,6 +110,7 @@ static inline int apk_digest_ctx_final(struct apk_digest_ctx *dctx, struct apk_d
 }
 
 #include "apk_blob.h"
+uint8_t apk_digest_from_blob(struct apk_digest *d, apk_blob_t b);
 static inline int apk_digest_cmp_csum(const struct apk_digest *d, const struct apk_checksum *csum)
 {
 	return apk_blob_compare(APK_DIGEST_BLOB(*d), APK_BLOB_CSUM(*csum));

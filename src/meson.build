@@ -57,6 +57,7 @@ apk_src = [
 	'app_convndx.c',
 	'app_del.c',
 	'app_dot.c',
+	'app_extract.c',
 	'app_fetch.c',
 	'app_fix.c',
 	'app_index.c',
