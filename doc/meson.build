@@ -15,6 +15,7 @@ man_files = files(
     'apk-manifest.8.scd',
     'apk-policy.8.scd',
     'apk-repositories.5.scd',
+    'apk-search.8.scd',
     'apk-stats.8.scd',
     'apk-update.8.scd',
     'apk-upgrade.8.scd',

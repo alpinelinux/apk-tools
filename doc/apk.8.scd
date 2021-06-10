@@ -49,6 +49,8 @@ Each command is documented in detail on its manual page.
 :  Render dependencies as graphviz graphs
 |  *apk-policy*(8)
 :  Show repository policy for packages
+|  *apk-search*(8)
+:  Search for packages by name or description
 
 ## REPOSITORY MAINTENANCE
 
