@@ -64,6 +64,7 @@ struct apk_ctx {
 	const char *keys_dir;
 	const char *cache_dir;
 	const char *repositories_file;
+	const char *uvol;
 	struct apk_string_array *repository_list;
 	struct apk_string_array *private_keys;
 
@@ -84,5 +85,6 @@ static inline int apk_ctx_fd_root(struct apk_ctx *ac) { return ac->root_fd; }
 static inline time_t apk_ctx_since(struct apk_ctx *ac, time_t since) {
 	return (ac->force & APK_FORCE_REFRESH) ? APK_ISTREAM_FORCE_REFRESH : since;
 }
+static inline const char *apk_ctx_get_uvol(struct apk_ctx *ac) { return ac->uvol; }
 
 #endif

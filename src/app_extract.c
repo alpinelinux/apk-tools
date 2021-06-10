@@ -9,8 +9,10 @@
 #include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <spawn.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include "apk_applet.h"
 #include "apk_print.h"
@@ -29,6 +31,7 @@ struct extract_ctx {
 	unsigned int cur_path, cur_file;
 
 	struct apk_pathbuilder pb;
+	unsigned int is_uvol : 1;
 };
 
 
@@ -67,6 +70,93 @@ static void apk_extract_acl(struct apk_file_info *fi, struct adb_obj *o, struct 
 	fi->gid = apk_id_cache_resolve_gid(idc, adb_ro_blob(o, ADBI_ACL_GROUP), 65534);
 }
 
+static int uvol_detect(struct apk_ctx *ac, struct apk_pathbuilder *pb)
+{
+	apk_blob_t b = apk_pathbuilder_get(pb);
+	if (!apk_ctx_get_uvol(ac)) return 0;
+	return apk_blob_starts_with(b, APK_BLOB_STRLIT("uvol")) &&
+		(b.len == 4 || b.ptr[4] == '/');
+}
+
+static int uvol_run(struct apk_ctx *ac, char *action, char *volname, char *arg1, char *arg2)
+{
+	struct apk_out *out = &ac->out;
+	pid_t pid;
+	int r, status;
+	char *argv[] = { (char*)apk_ctx_get_uvol(ac), action, volname, arg1, arg2, 0 };
+	posix_spawn_file_actions_t act;
+
+	posix_spawn_file_actions_init(&act);
+	posix_spawn_file_actions_addclose(&act, STDIN_FILENO);
+	r = posix_spawn(&pid, apk_ctx_get_uvol(ac), &act, 0, argv, environ);
+	posix_spawn_file_actions_destroy(&act);
+	if (r != 0) {
+		apk_err(out, "%s: uvol exec error: %s", volname, apk_error_str(r));
+		return r;
+	}
+	waitpid(pid, &status, 0);
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		apk_err(out, "%s: uvol exited with error %d", volname, WEXITSTATUS(status));
+		return -EIO;
+	}
+	return 0;
+}
+
+static int uvol_extract(struct apk_ctx *ac, char *action, char *volname, char *arg1, off_t sz, struct apk_istream *is, struct apk_digest_ctx *dctx)
+{
+	struct apk_out *out = &ac->out;
+	pid_t pid;
+	int r, status, pipefds[2];
+	char *argv[] = { (char*)apk_ctx_get_uvol(ac), action, volname, arg1, 0 };
+	posix_spawn_file_actions_t act;
+
+	if (pipe2(pipefds, O_CLOEXEC) != 0) return -errno;
+
+	posix_spawn_file_actions_init(&act);
+	posix_spawn_file_actions_adddup2(&act, pipefds[0], STDIN_FILENO);
+	r = posix_spawn(&pid, apk_ctx_get_uvol(ac), &act, 0, argv, environ);
+	posix_spawn_file_actions_destroy(&act);
+	if (r != 0) {
+		apk_err(out, "%s: uvol exec error: %s", volname, apk_error_str(r));
+		return r;
+	}
+	close(pipefds[0]);
+	r = apk_istream_splice(is, pipefds[1], sz, 0, 0, dctx);
+	close(pipefds[1]);
+	if (r != sz) {
+		if (r >= 0) r = -EIO;
+		apk_err(out, "%s: uvol write error: %s", volname, apk_error_str(r));
+		return r;
+	}
+
+	waitpid(pid, &status, 0);
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		apk_err(out, "%s: uvol exited with error %d", volname, WEXITSTATUS(status));
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int apk_extract_volume(struct apk_ctx *ac, struct apk_file_info *fi, struct apk_istream *is, struct apk_digest_ctx *dctx)
+{
+	char *volname = (char*) fi->name, size[64];
+	int r;
+
+	snprintf(size, sizeof size, "%ju", fi->size);
+
+	r = uvol_run(ac, "create", volname, (fi->mode & S_IWUSR) ? "rw" : "ro", size);
+	if (r != 0) return r;
+	r = uvol_extract(ac, "write", volname, size, fi->size, is, dctx);
+	if (r != 0) goto err;
+	r = uvol_run(ac, "up", volname, 0, 0);
+	if (r != 0) goto err;
+	return 0;
+err:
+	uvol_run(ac, "remove", volname, 0, 0);
+	return r;
+}
+
 static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istream *is)
 {
 	struct apk_ctx *ac = ctx->ac;
@@ -87,9 +177,13 @@ static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istrea
 	fi.mode |= S_IFREG;
 
 	apk_digest_ctx_init(&dctx, fi.digest.alg);
-	r = apk_archive_entry_extract(
-		ctx->root_fd, &fi, 0, 0, is, 0, 0, &dctx,
-		ctx->extract_flags, out);
+	if (ctx->is_uvol) {
+		r = apk_extract_volume(ac, &fi, is, &dctx);
+	} else {
+		r = apk_archive_entry_extract(
+			ctx->root_fd, &fi, 0, 0, is, 0, 0, &dctx,
+			ctx->extract_flags, out);
+	}
 	apk_digest_ctx_final(&dctx, &d);
 	apk_digest_ctx_free(&dctx);
 	if (r != 0) return r;
@@ -106,6 +200,8 @@ static int apk_extract_directory(struct extract_ctx *ctx)
 	};
 	struct adb_obj acl;
 
+	if (ctx->is_uvol) return 0;
+
 	apk_extract_acl(&fi, adb_ro_obj(&ctx->path, ADBI_DI_ACL, &acl), apk_ctx_get_id_cache(ctx->ac));
 	fi.mode |= S_IFDIR;
 
@@ -116,6 +212,7 @@ static int apk_extract_directory(struct extract_ctx *ctx)
 
 static int apk_extract_next_file(struct extract_ctx *ctx)
 {
+	struct apk_ctx *ac = ctx->ac;
 	apk_blob_t target;
 	int r;
 
@@ -137,6 +234,7 @@ static int apk_extract_next_file(struct extract_ctx *ctx)
 			if (ctx->cur_path > adb_ra_num(&ctx->paths)) return 1;
 			adb_ro_obj(&ctx->paths, ctx->cur_path, &ctx->path);
 			apk_pathbuilder_setb(&ctx->pb, adb_ro_blob(&ctx->path, ADBI_DI_NAME));
+			ctx->is_uvol = uvol_detect(ac, &ctx->pb);
 			adb_ro_obj(&ctx->path, ADBI_DI_FILES, &ctx->files);
 			r = apk_extract_directory(ctx);
 			if (r != 0) return r;
