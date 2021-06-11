@@ -11,6 +11,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <string.h>
 #include <openssl/evp.h>
 #include "apk_openssl.h"
 
