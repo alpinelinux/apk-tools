@@ -85,7 +85,9 @@ static inline int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg) 
 	dctx->mdctx = EVP_MD_CTX_new();
 	if (!dctx->mdctx) return -ENOMEM;
 	dctx->alg = alg;
+#ifdef EVP_MD_CTX_FLAG_FINALISE
 	EVP_MD_CTX_set_flags(dctx->mdctx, EVP_MD_CTX_FLAG_FINALISE);
+#endif
 	EVP_DigestInit_ex(dctx->mdctx, apk_digest_alg_to_evp(alg), 0);
 	return 0;
 }
