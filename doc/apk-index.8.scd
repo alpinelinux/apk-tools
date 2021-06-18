@@ -34,3 +34,6 @@ will accept it. See *abuild-sign*(1) for details.
 	Disable the warning about missing dependencies. This happens when A,
 	depends on package B, that does not have a provider in the indexed
 	repository.
+
+*--rewrite-arch* _ARCH_
+	Set all package's architecture to _ARCH_.
