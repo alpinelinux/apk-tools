@@ -38,6 +38,9 @@ display the appropriate information, then an empty line terminates that field.
 *-L, --contents*
 	List files included in the package.
 
+*-P, --provides*
+	List what the package provides.
+
 *-r, --rdepends*
 	List reverse dependencies of the package (all other packages which
 	depend on the package).

@@ -25,16 +25,7 @@ considered. Otherwise, the comparison is limited to the explicitly listed
 packages. A summary is printed on stdout, with the difference between package
 versions being represented as *>*, *=*, or *<*.
 
-*apk version -c* tests the specified version string(s) for validity and prints
-a list of _invalid_ version strings. If all version strings are valid, nothing
-is printed and *apk version* exits with status code zero. If one or more
-version strings are invalid, the exit code is nonzero.
-
-*apk version -t* accepts two arbitrary version strings and compares them
-without consulting the database, then prints the result as *>*, *=*, or *<*.
-
-*apk version -I* prints the versions and descriptions of each repository's
-index. See *apk-repositories*(5) for more information.
+Options *-c*, *-I*, and *-t* are mutually exclusive.
 
 # OPTIONS
 
@@ -42,9 +33,23 @@ These options only apply when checking installed package versions against
 packages available from the repositories (when neither *-c*, *-t*, nor *-I* are
 specified).
 
-*-a*
+*-a, --all*
 	Consider packages from all repository tags.
 
-*-l* _operand_
+*-c, --check* _versions_...
+	Check versions for validity. If a given version is invalid, it is
+	printed. Exits with status code zero if all versions are valid, and
+	non-zero otherwise.
+
+*-I, --indexes*
+	Print the version and description for each repository's index. See
+	*apk-repositories*(5) for more information.
+
+*-l, --limit* _operand_
 	Limit to packages with output matching given _operand_. The _operand_
 	can be specified as any combination of *>*, *=*, and *<*.
+
+*-t, --test* _version1_ _version2_
+	Compare two version strings. Does not consult the database. Prints one
+	of *>*, *=*, or *<*, if _version1_ is, respectively, greater than,
+	equal to, or lesser than _version2_.
