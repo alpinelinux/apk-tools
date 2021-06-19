@@ -148,10 +148,9 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 		break;
 	default:
 		apk_pathbuilder_push(&ctx->pb, entry);
-		apk_err(out, "special file '%s' not supported",
+		apk_out(out, "%s: special file ignored",
 			apk_pathbuilder_cstr(&ctx->pb), entry);
 		apk_pathbuilder_pop(&ctx->pb);
-		r = -EINVAL;
 		break;
 	}
 	return r;
