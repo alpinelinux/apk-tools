@@ -37,8 +37,3 @@ specified.
 
 	*Note*: this option is unreliable if needed indexes are not up-to-date
 	as this omits refresing or downloading of missing indexes.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

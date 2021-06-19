@@ -39,8 +39,3 @@ depended on by packages in _world_.
 	avoid changing installed package unless it is required by the newly
 	added _packages_ or their dependencies. This changes the default
 	preference to upgrading the package to the latest installable version.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

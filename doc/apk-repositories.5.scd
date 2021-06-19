@@ -33,8 +33,3 @@ those signatures.
 *apk*(8) fetches and stores the index for each package repository at
 /var/lib/cache. To fetch fresh indicies for all configured repositories, use
 *apk-update*(8).
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

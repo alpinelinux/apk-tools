@@ -23,8 +23,3 @@ known package if unspecified (this will generate a large and unwieldy graph).
 
 *--installed*
 	Consider only installed packages.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

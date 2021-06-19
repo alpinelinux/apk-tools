@@ -64,8 +64,3 @@ then the affected path. The changes detected are:
 
 *-r, --recursive*
 	Descend into directories and audit them as well.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

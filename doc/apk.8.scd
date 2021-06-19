@@ -195,8 +195,3 @@ The following options are available for all commands which commit the database.
 # NOTES
 
 This apk has coffee making abilities.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

@@ -33,8 +33,3 @@ following options:
 
 *--directory-permissions*
 	Reset all directory permissions.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

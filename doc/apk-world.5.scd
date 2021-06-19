@@ -52,8 +52,3 @@ not constrain any unspecified version numbers.
 *busybox~=1.6*
 	Install any busybox version between 1.6.0 (inclusive) and 1.7.0
 	(exclusive).
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

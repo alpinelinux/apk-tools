@@ -38,8 +38,3 @@ globbing.
 
 *-P, --providers*
 	List packages by provider.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>
