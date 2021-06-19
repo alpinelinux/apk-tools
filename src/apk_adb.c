@@ -28,7 +28,7 @@ int apk_dep_split(apk_blob_t *b, apk_blob_t *bdep)
 adb_val_t adb_wo_pkginfo(struct adb_obj *obj, unsigned int f, apk_blob_t val)
 {
 	struct apk_checksum csum;
-	adb_val_t v = ADB_ERROR(EAPKFORMAT);
+	adb_val_t v = ADB_ERROR(APKE_ADB_PACKAGE_FORMAT);
 
 	/* FIXME: get rid of this function, and handle the conversion via schema? */
 	switch (f) {
@@ -325,7 +325,7 @@ static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)
 	return 0;
 
 fail:
-	return -EAPKDEPFORMAT;
+	return -APKE_ADB_DEPENDENCY_FORMAT;
 }
 
 static int dependency_cmp(const struct adb_obj *o1, const struct adb_obj *o2)

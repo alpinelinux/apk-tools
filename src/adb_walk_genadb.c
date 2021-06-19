@@ -10,11 +10,11 @@ static int adb_walk_genadb_schema(struct adb_walk *d, uint32_t schema_id)
 	dt->db.hdr.schema = htole32(schema_id);
 	for (s = d->schemas; s->magic; s++)
 		if (s->magic == schema_id) break;
-	if (!s) return -EAPKDBFORMAT;
+	if (!s) return -APKE_ADB_SCHEMA;
 
 	adb_wo_init(&dt->objs[0], &dt->vals[0], s->root, &dt->db);
 	dt->num_vals += s->root->num_fields;
-	if (dt->num_vals >= ARRAY_SIZE(dt->vals)) return -E2BIG;
+	if (dt->num_vals >= ARRAY_SIZE(dt->vals)) return -APKE_ADB_LIMIT;
 	dt->nest = 0;
 
 	return 0;
@@ -29,12 +29,12 @@ static int adb_walk_genadb_start_object(struct adb_walk *d)
 {
 	struct adb_walk_genadb *dt = container_of(d, struct adb_walk_genadb, d);
 
-	if (!dt->db.hdr.schema) return -EAPKDBFORMAT;
-	if (dt->nest >= ARRAY_SIZE(dt->objs)) return -EAPKDBFORMAT;
+	if (!dt->db.hdr.schema) return -APKE_ADB_SCHEMA;
+	if (dt->nest >= ARRAY_SIZE(dt->objs)) return -APKE_ADB_LIMIT;
 
 	if (dt->curkey[dt->nest] == 0 &&
 	    dt->objs[dt->nest].schema->kind == ADB_KIND_OBJECT)
-		return -EAPKDBFORMAT;
+		return -APKE_ADB_SCHEMA;
 
 	dt->nest++;
 	adb_wo_init_val(
@@ -43,7 +43,7 @@ static int adb_walk_genadb_start_object(struct adb_walk *d)
 
 	if (*adb_ro_kind(&dt->objs[dt->nest-1], dt->curkey[dt->nest-1]) == ADB_KIND_ADB) {
 		struct adb_adb_schema *schema = container_of(&dt->objs[dt->nest-1].schema->kind, struct adb_adb_schema, kind);
-		if (dt->nestdb >= ARRAY_SIZE(dt->idb)) return -E2BIG;
+		if (dt->nestdb >= ARRAY_SIZE(dt->idb)) return -APKE_ADB_LIMIT;
 		adb_reset(&dt->idb[dt->nestdb]);
 		dt->idb[dt->nestdb].hdr.schema = htole32(schema->schema_id);
 		dt->objs[dt->nest].db = &dt->idb[dt->nestdb];
@@ -51,7 +51,7 @@ static int adb_walk_genadb_start_object(struct adb_walk *d)
 	}
 
 	dt->num_vals += dt->objs[dt->nest].schema->num_fields;
-	if (dt->num_vals >= ARRAY_SIZE(dt->vals)) return -E2BIG;
+	if (dt->num_vals >= ARRAY_SIZE(dt->vals)) return -APKE_ADB_LIMIT;
 
 	return 0;
 }
@@ -102,11 +102,11 @@ static int adb_walk_genadb_key(struct adb_walk *d, apk_blob_t key)
 	uint8_t kind = dt->objs[dt->nest].schema->kind;
 
 	if (kind != ADB_KIND_OBJECT && kind != ADB_KIND_ADB)
-		return -EAPKDBFORMAT;
+		return -APKE_ADB_SCHEMA;
 
 	dt->curkey[dt->nest] = adb_s_field_by_name_blob(dt->objs[dt->nest].schema, key);
 	if (dt->curkey[dt->nest] == 0)
-		return -EAPKDBFORMAT;
+		return -APKE_ADB_SCHEMA;
 
 	return 0;
 }

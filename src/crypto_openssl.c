@@ -73,7 +73,7 @@ int apk_pkey_init(struct apk_pkey *pkey, EVP_PKEY *key)
 	unsigned int dlen = sizeof dig;
 	int len;
 
-	if ((len = i2d_PublicKey(key, &pub)) < 0) return -EIO;
+	if ((len = i2d_PublicKey(key, &pub)) < 0) return -APKE_CRYPTO_ERROR;
 	EVP_Digest(pub, len, dig, &dlen, EVP_sha512(), NULL);
 	memcpy(pkey->id, dig, sizeof pkey->id);
 	OPENSSL_free(pub);
@@ -107,7 +107,7 @@ int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn)
 	ERR_clear_error();
 
 	BIO_free(bio);
-	if (!key) return -EBADMSG;
+	if (!key) return -APKE_CRYPTO_KEY_FORMAT;
 
 	apk_pkey_init(pkey, key);
 	return 0;
@@ -117,7 +117,7 @@ int apk_sign_start(struct apk_digest_ctx *dctx, struct apk_pkey *pkey)
 {
 	if (EVP_MD_CTX_reset(dctx->mdctx) != 1 ||
 	    EVP_DigestSignInit(dctx->mdctx, NULL, EVP_sha512(), NULL, pkey->key) != 1)
-		return -EIO;
+		return -APKE_CRYPTO_ERROR;
 	return 0;
 }
 
@@ -125,7 +125,7 @@ int apk_sign(struct apk_digest_ctx *dctx, void *sig, size_t *len)
 {
 	if (EVP_DigestSignFinal(dctx->mdctx, sig, len) != 1) {
 		ERR_print_errors_fp(stderr);
-		return -EBADMSG;
+		return -APKE_SIGNATURE_FAIL;
 	}
 	return 0;
 }
@@ -134,7 +134,7 @@ int apk_verify_start(struct apk_digest_ctx *dctx, struct apk_pkey *pkey)
 {
 	if (EVP_MD_CTX_reset(dctx->mdctx) != 1 ||
 	    EVP_DigestVerifyInit(dctx->mdctx, NULL, EVP_sha512(), NULL, pkey->key) != 1)
-		return -EIO;
+		return -APKE_CRYPTO_ERROR;
 	return 0;
 }
 
@@ -142,7 +142,7 @@ int apk_verify(struct apk_digest_ctx *dctx, void *sig, size_t len)
 {
 	if (EVP_DigestVerifyFinal(dctx->mdctx, sig, len) != 1) {
 		ERR_print_errors_fp(stderr);
-		return -EBADMSG;
+		return -APKE_SIGNATURE_INVALID;
 	}
 	return 0;
 }

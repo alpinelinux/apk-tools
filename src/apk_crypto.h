@@ -10,9 +10,9 @@
 #define APK_CRYPTO_H
 
 #include <assert.h>
-#include <errno.h>
 #include <string.h>
 #include <openssl/evp.h>
+#include "apk_defines.h"
 #include "apk_openssl.h"
 
 // Digest
@@ -75,7 +75,7 @@ static inline int apk_digest_calc(struct apk_digest *d, uint8_t alg, const void 
 {
 	unsigned int md_sz = sizeof d->data;
 	if (EVP_Digest(ptr, sz, d->data, &md_sz, apk_digest_alg_to_evp(alg), 0) != 1)
-		return -EIO;
+		return -APKE_CRYPTO_ERROR;
 	d->alg = alg;
 	d->len = md_sz;
 	return 0;
@@ -98,14 +98,14 @@ static inline void apk_digest_ctx_free(struct apk_digest_ctx *dctx) {
 }
 
 static inline int apk_digest_ctx_update(struct apk_digest_ctx *dctx, const void *ptr, size_t sz) {
-	return EVP_DigestUpdate(dctx->mdctx, ptr, sz) == 1 ? 0 : -EIO;
+	return EVP_DigestUpdate(dctx->mdctx, ptr, sz) == 1 ? 0 : -APKE_CRYPTO_ERROR;
 }
 
 static inline int apk_digest_ctx_final(struct apk_digest_ctx *dctx, struct apk_digest *d) {
 	unsigned int mdlen = sizeof d->data;
 	if (EVP_DigestFinal_ex(dctx->mdctx, d->data, &mdlen) != 1) {
 		apk_digest_reset(d);
-		return -EIO;
+		return -APKE_CRYPTO_ERROR;
 	}
 	d->alg = dctx->alg;
 	d->len = mdlen;

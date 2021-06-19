@@ -20,9 +20,9 @@ static inline struct adb_block *adb_block_validate(struct adb_block *blk, apk_bl
 {
 	size_t pos = (char *)blk - b.ptr;
 	if (pos == b.len) return NULL;
-	if (sizeof(struct adb_block) > b.len - pos) return ERR_PTR(-EBADMSG);
-	if (adb_block_rawsize(blk) < sizeof(struct adb_block)) return ERR_PTR(-EBADMSG);
-	if (adb_block_size(blk) > b.len - pos) return ERR_PTR(-EBADMSG);
+	if (sizeof(struct adb_block) > b.len - pos) return ERR_PTR(-APKE_ADB_BLOCK);
+	if (adb_block_rawsize(blk) < sizeof(struct adb_block)) return ERR_PTR(-APKE_ADB_BLOCK);
+	if (adb_block_size(blk) > b.len - pos) return ERR_PTR(-APKE_ADB_BLOCK);
 	return blk;
 }
 
@@ -69,7 +69,7 @@ static int __adb_m_parse(struct adb *db, struct apk_trust *t)
 {
 	struct adb_verify_ctx vfy = {};
 	struct adb_block *blk;
-	int r = -EBADMSG;
+	int r = -APKE_ADB_BLOCK;
 	int trusted = t ? 0 : 1;
 
 	adb_foreach_block(blk, db->data) {
@@ -91,7 +91,7 @@ static int __adb_m_parse(struct adb *db, struct apk_trust *t)
 		}
 	}
 	if (IS_ERR(blk)) r = PTR_ERR(blk);
-	else if (!trusted) r = -ENOKEY;
+	else if (!trusted) r = -APKE_SIGNATURE_UNTRUSTED;
 	else if (db->adb.ptr) r = 0;
 
 	if (r != 0) {
@@ -110,7 +110,7 @@ int adb_m_map(struct adb *db, int fd, uint32_t expected_schema, struct apk_trust
 {
 	struct stat st;
 	struct adb_header *hdr;
-	int r = -EBADMSG;
+	int r = -APKE_ADB_HEADER;
 
 	if (fstat(fd, &st) != 0) return -errno;
 	if (st.st_size < sizeof *hdr) return -EIO;
@@ -152,8 +152,8 @@ int adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expected_schem
 	do {
 		r = apk_istream_read(is, &blk, sizeof blk);
 		if (r == 0) {
-			if (!trusted) r = -ENOKEY;
-			else if (!db->adb.ptr) r = -ENOMSG;
+			if (!trusted) r = -APKE_SIGNATURE_UNTRUSTED;
+			else if (!db->adb.ptr) r = -APKE_ADB_BLOCK;
 			goto done;
 		}
 		if (r < 0 || r != sizeof blk) goto err;
@@ -183,7 +183,7 @@ int adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expected_schem
 		case ADB_BLOCK_DATA:
 			if (APK_BLOB_IS_NULL(db->adb)) goto bad_msg;
 			if (!trusted) {
-				r = -ENOKEY;
+				r = -APKE_SIGNATURE_UNTRUSTED;
 				goto err;
 			}
 			r = datacb(db, adb_block_length(&blk),
@@ -199,9 +199,9 @@ int adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expected_schem
 		}
 	} while (1);
 bad_msg:
-	r = -EBADMSG;
+	r = -APKE_ADB_BLOCK;
 err:
-	if (r >= 0) r = -EBADMSG;
+	if (r >= 0) r = -APKE_ADB_BLOCK;
 done:
 	apk_istream_close(is);
 	return r;
@@ -675,13 +675,13 @@ adb_val_t adb_w_fromstring(struct adb *db, const uint8_t *kind, apk_blob_t val)
 		struct adb_obj obj;
 		struct adb_object_schema *schema = container_of(kind, struct adb_object_schema, kind);
 		adb_wo_alloca(&obj, schema, db);
-		if (!schema->fromstring) return ADB_ERROR(EAPKDBFORMAT);
+		if (!schema->fromstring) return ADB_ERROR(APKE_ADB_NO_FROMSTRING);
 		r = schema->fromstring(&obj, val);
 		if (r) return ADB_ERROR(r);
 		return adb_w_obj(&obj);
 		}
 	default:
-		return ADB_ERROR(ENOSYS);
+		return ADB_ERROR(APKE_ADB_NO_FROMSTRING);
 	}
 }
 
@@ -938,6 +938,8 @@ int adb_c_block_data(struct apk_ostream *os, apk_blob_t hdr, uint32_t size, stru
 
 int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_istream *is, struct adb_verify_ctx *vfy)
 {
+	size_t blk_sz = adb_block_length(b);
+	size_t padding = adb_block_padding(b);
 	int r;
 
 	r = apk_ostream_write(os, b, sizeof *b);
@@ -948,12 +950,16 @@ int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_ist
 		const uint8_t alg = APK_DIGEST_SHA512;
 
 		apk_digest_ctx_init(&dctx, alg);
-		r = apk_stream_copy(is, os, adb_block_size(b), 0, 0, &dctx);
+		r = apk_stream_copy(is, os, blk_sz, 0, 0, &dctx);
 		apk_digest_ctx_final(&dctx, &vfy->sha512);
 		vfy->calc |= (1 << alg);
 		apk_digest_ctx_free(&dctx);
 	} else {
-		r = apk_stream_copy(is, os, adb_block_size(b), 0, 0, 0);
+		r = apk_stream_copy(is, os, blk_sz, 0, 0, 0);
+	}
+	if (padding) {
+		r = apk_ostream_write(os, padding_zeroes, padding);
+		if (r < 0) return r;
 	}
 	return r;
 }
@@ -963,7 +969,7 @@ int adb_c_adb(struct apk_ostream *os, struct adb *db, struct apk_trust *t)
 	if (IS_ERR(os))
 		return apk_ostream_cancel(os, PTR_ERR(os));
 	if (db->hdr.magic != htole32(ADB_FORMAT_MAGIC))
-		return apk_ostream_cancel(os, -EAPKFORMAT);
+		return apk_ostream_cancel(os, -APKE_ADB_HEADER);
 
 	adb_c_header(os, db);
 	adb_c_block(os, ADB_BLOCK_ADB, db->adb);
@@ -989,11 +995,11 @@ static int adb_digest_adb(struct adb_verify_ctx *vfy, unsigned int hash_alg, apk
 		d = &vfy->sha512;
 		break;
 	default:
-		return -ENOTSUP;
+		return -APKE_CRYPTO_NOT_SUPPORTED;
 	}
 
 	if (!(vfy->calc & (1 << hash_alg))) {
-		if (APK_BLOB_IS_NULL(data)) return -ENOMSG;
+		if (APK_BLOB_IS_NULL(data)) return -APKE_ADB_BLOCK;
 		r = apk_digest_calc(d, hash_alg, data.ptr, data.len);
 		if (r != 0) return r;
 		vfy->calc |= (1 << hash_alg);
@@ -1064,12 +1070,12 @@ int adb_trust_verify_signature(struct apk_trust *trust, struct adb *db, struct a
 	struct adb_sign_v0 *sig0;
 	apk_blob_t md;
 
-	if (APK_BLOB_IS_NULL(db->adb)) return -ENOMSG;
-	if (sigb.len < sizeof(struct adb_sign_hdr)) return -EBADMSG;
+	if (APK_BLOB_IS_NULL(db->adb)) return -APKE_ADB_BLOCK;
+	if (sigb.len < sizeof(struct adb_sign_hdr)) return -APKE_ADB_SIGNATURE;
 
 	sig  = (struct adb_sign_hdr *) sigb.ptr;
 	sig0 = (struct adb_sign_v0 *) sigb.ptr;
-	if (sig->sign_ver != 0) return -ENOSYS;
+	if (sig->sign_ver != 0) return -APKE_ADB_SIGNATURE;
 
 	list_for_each_entry(tkey, &trust->trusted_key_list, key_node) {
 		if (memcmp(sig0->id, tkey->key.id, sizeof sig0->id) != 0) continue;
@@ -1083,7 +1089,7 @@ int adb_trust_verify_signature(struct apk_trust *trust, struct adb *db, struct a
 		return 0;
 	}
 
-	return -EKEYREJECTED;
+	return -APKE_SIGNATURE_UNTRUSTED;
 }
 
 /* Container transformation interface */
@@ -1125,9 +1131,9 @@ int adb_c_xfrm(struct adb_xfrm *x, int (*cb)(struct adb_xfrm *, struct adb_block
 		}
 	} while (1);
 bad_msg:
-	r = -EBADMSG;
+	r = -APKE_ADB_BLOCK;
 err:
-	if (r >= 0) r = -EBADMSG;
+	if (r >= 0) r = -APKE_ADB_BLOCK;
 	apk_ostream_cancel(x->os, r);
 	return r;
 }

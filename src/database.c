@@ -910,7 +910,7 @@ old_apk_tools:
 bad_entry:
 	apk_err(out, "FDB format error (line %d, entry '%c')", lineno, field);
 err_fmt:
-	is->err = -EAPKDBFORMAT;
+	is->err = -APKE_V2DB_FORMAT;
 	return apk_istream_close(is);
 }
 
@@ -2196,7 +2196,7 @@ static int load_index(struct apk_database *db, struct apk_istream *is,
 		apk_sign_ctx_free(&ctx.sctx);
 
 		if (r >= 0 && ctx.found == 0)
-			r = -ENOMSG;
+			r = -APKE_V2NDX_FORMAT;
 	} else {
 		apk_db_index_read(db, apk_istream_gunzip(is), repo);
 	}
@@ -2778,7 +2778,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	if (pkg->filename == NULL) {
 		repo = apk_db_select_repo(db, pkg);
 		if (repo == NULL) {
-			r = -ENOPKG;
+			r = -APKE_PACKAGE_NOT_FOUND;
 			goto err_msg;
 		}
 		r = apk_repo_format_item(db, repo, pkg, &filefd, file, sizeof(file));
@@ -2800,7 +2800,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	if (IS_ERR_OR_NULL(is)) {
 		r = PTR_ERR(is);
 		if (r == -ENOENT && pkg->filename == NULL)
-			r = -EAPKSTALEINDEX;
+			r = -APKE_INDEX_STALE;
 		goto err_msg;
 	}
 	if (need_copy) {

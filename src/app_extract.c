@@ -97,7 +97,7 @@ static int uvol_run(struct apk_ctx *ac, char *action, char *volname, char *arg1,
 	waitpid(pid, &status, 0);
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
 		apk_err(out, "%s: uvol exited with error %d", volname, WEXITSTATUS(status));
-		return -EIO;
+		return -APKE_UVOL;
 	}
 	return 0;
 }
@@ -124,7 +124,7 @@ static int uvol_extract(struct apk_ctx *ac, char *action, char *volname, char *a
 	r = apk_istream_splice(is, pipefds[1], sz, 0, 0, dctx);
 	close(pipefds[1]);
 	if (r != sz) {
-		if (r >= 0) r = -EIO;
+		if (r >= 0) r = -APKE_UVOL;
 		apk_err(out, "%s: uvol write error: %s", volname, apk_error_str(r));
 		return r;
 	}
@@ -132,7 +132,7 @@ static int uvol_extract(struct apk_ctx *ac, char *action, char *volname, char *a
 	waitpid(pid, &status, 0);
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
 		apk_err(out, "%s: uvol exited with error %d", volname, WEXITSTATUS(status));
-		return -EIO;
+		return -APKE_UVOL;
 	}
 
 	return 0;
@@ -172,7 +172,7 @@ static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istrea
 	int r;
 
 	apk_digest_from_blob(&fi.digest, adb_ro_blob(&ctx->file, ADBI_FI_HASHES));
-	if (fi.digest.alg == APK_DIGEST_NONE) return -EAPKFORMAT;
+	if (fi.digest.alg == APK_DIGEST_NONE) return -APKE_ADB_SCHEMA;
 	apk_extract_acl(&fi, adb_ro_obj(&ctx->file, ADBI_FI_ACL, &acl), apk_ctx_get_id_cache(ctx->ac));
 	fi.mode |= S_IFREG;
 
@@ -187,7 +187,7 @@ static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istrea
 	apk_digest_ctx_final(&dctx, &d);
 	apk_digest_ctx_free(&dctx);
 	if (r != 0) return r;
-	if (apk_digest_cmp(&fi.digest, &d) != 0) return -EAPKDBFORMAT;
+	if (apk_digest_cmp(&fi.digest, &d) != 0) return -APKE_FILE_INTEGRITY;
 	return 0;
 }
 
@@ -260,7 +260,7 @@ static int apk_extract_data_block(struct adb *db, size_t sz, struct apk_istream 
 
 	r = apk_extract_next_file(ctx);
 	if (r != 0) {
-		if (r > 0) r = -EAPKFORMAT;
+		if (r > 0) r = -APKE_ADB_BLOCK;
 		return r;
 	}
 
@@ -272,7 +272,7 @@ static int apk_extract_data_block(struct adb *db, size_t sz, struct apk_istream 
 	    hdr->file_idx != ctx->cur_file ||
 	    sz != adb_ro_int(&ctx->file, ADBI_FI_SIZE)) {
 		// got data for some unexpected file
-		return -EAPKFORMAT;
+		return -APKE_ADB_BLOCK;
 	}
 
 	return apk_extract_file(ctx, sz, is);
@@ -289,7 +289,7 @@ static int apk_extract_pkg(struct extract_ctx *ctx, const char *fn)
 		ADB_SCHEMA_PACKAGE, trust, apk_extract_data_block);
 	if (r == 0) {
 		r = apk_extract_next_file(ctx);
-		if (r == 0) r = -EAPKFORMAT;
+		if (r == 0) r = -APKE_ADB_BLOCK;
 		if (r == 1) r = 0;
 	}
 	adb_free(&ctx->db);

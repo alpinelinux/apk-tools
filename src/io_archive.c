@@ -258,7 +258,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 	if (r == 0) goto ok;
 err:
 	/* Check that there was no partial (or non-zero) record */
-	if (r >= 0) r = -EBADMSG;
+	if (r >= 0) r = -APKE_EOF;
 ok:
 	free(pax.ptr);
 	free(longname.ptr);

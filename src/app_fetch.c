@@ -130,7 +130,7 @@ static int fetch_package(apk_hash_item item, void *pctx)
 
 	repo = apk_db_select_repo(db, pkg);
 	if (repo == NULL) {
-		r = -ENOPKG;
+		r = -APKE_PACKAGE_NOT_FOUND;
 		goto err;
 	}
 

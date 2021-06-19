@@ -51,13 +51,13 @@ static int fetch_maperror(int ec)
 		[FETCH_NETWORK] = -ENETUNREACH,
 		/* [FETCH_OK] = , */
 		[FETCH_PROTO] = -EPROTO,
-		[FETCH_RESOLV] = -ENXIO,
+		[FETCH_RESOLV] = -APKE_DNS,
 		[FETCH_SERVER] = -EREMOTEIO,
 		[FETCH_TEMP] = -EAGAIN,
 		[FETCH_TIMEOUT] = -ETIMEDOUT,
 		[FETCH_UNAVAIL] = -ENOENT,
 		[FETCH_UNKNOWN] = -EIO,
-		[FETCH_URL] = -EAPKBADURL,
+		[FETCH_URL] = -APKE_URL_FORMAT,
 		[FETCH_UNCHANGED] = -EALREADY,
 	};
 
@@ -111,7 +111,7 @@ static struct apk_istream *apk_istream_fetch(const char *url, time_t since)
 
 	u = fetchParseURL(url);
 	if (!u) {
-		rc = -EAPKBADURL;
+		rc = -APKE_URL_FORMAT;
 		goto err;
 	}
 	fis = malloc(sizeof *fis + apk_io_bufsize);

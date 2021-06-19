@@ -127,7 +127,7 @@ void *apk_istream_get(struct apk_istream *is, size_t len)
 	if (is->end-is->ptr == is->buf_size)
 		return ERR_PTR(-ENOBUFS);
 	if (is->err > 0)
-		return ERR_PTR(-ENOMSG);
+		return ERR_PTR(-APKE_EOF);
 	return ERR_PTR(-EIO);
 }
 
@@ -498,7 +498,7 @@ ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t s
 		d = apk_istream_get_max(is, size - done);
 		if (APK_BLOB_IS_NULL(d)) {
 			if (d.len) return d.len;
-			if (size != APK_IO_ALL) return -EBADMSG;
+			if (size != APK_IO_ALL) return -APKE_EOF;
 			break;
 		}
 		if (dctx) apk_digest_ctx_update(dctx, d.ptr, d.len);
@@ -547,7 +547,7 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 		if (r <= 0) {
 			if (r) goto err;
 			if (size != APK_IO_ALL && done != size) {
-				r = -EBADMSG;
+				r = -APKE_EOF;
 				goto err;
 			}
 			break;

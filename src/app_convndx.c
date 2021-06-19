@@ -61,7 +61,7 @@ static int load_index(struct conv_ctx *ctx, struct apk_istream *is)
 		apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx->sctx),
 		load_apkindex, ctx, apk_ctx_get_id_cache(ctx->ac));
 	apk_sign_ctx_free(&ctx->sctx);
-	if (r >= 0 && ctx->found == 0) r = -ENOMSG;
+	if (r >= 0 && ctx->found == 0) r = -APKE_V2NDX_FORMAT;
 
 	return r;
 }

@@ -13,6 +13,7 @@
 #include <endian.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 #include <time.h>
 
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
@@ -32,11 +33,33 @@
 #define NULL 0L
 #endif
 
-#define EAPKBADURL		1024
-#define EAPKSTALEINDEX		1025
-#define EAPKFORMAT		1026
-#define EAPKDEPFORMAT		1027
-#define EAPKDBFORMAT		1028
+enum {
+	APKE_EOF = 1024,
+	APKE_DNS,
+	APKE_URL_FORMAT,
+	APKE_CRYPTO_ERROR,
+	APKE_CRYPTO_NOT_SUPPORTED,
+	APKE_CRYPTO_KEY_FORMAT,
+	APKE_SIGNATURE_FAIL,
+	APKE_SIGNATURE_UNTRUSTED,
+	APKE_SIGNATURE_INVALID,
+	APKE_ADB_HEADER,
+	APKE_ADB_SCHEMA,
+	APKE_ADB_BLOCK,
+	APKE_ADB_SIGNATURE,
+	APKE_ADB_NO_FROMSTRING,
+	APKE_ADB_LIMIT,
+	APKE_ADB_DEPENDENCY_FORMAT,
+	APKE_ADB_PACKAGE_FORMAT,
+	APKE_V2DB_FORMAT,
+	APKE_V2PKG_FORMAT,
+	APKE_V2PKG_INTEGRITY,
+	APKE_V2NDX_FORMAT,
+	APKE_PACKAGE_NOT_FOUND,
+	APKE_INDEX_STALE,
+	APKE_FILE_INTEGRITY,
+	APKE_UVOL
+};
 
 static inline void *ERR_PTR(long error) { return (void*) error; }
 static inline void *ERR_CAST(const void *ptr) { return (void*) ptr; }

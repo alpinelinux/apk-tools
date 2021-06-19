@@ -129,7 +129,7 @@ static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, s
 		if (adb_ro_val(&pkginfo, f->ndx) != ADB_NULL) {
 			/* Workaround abuild bug that emitted multiple license lines */
 			if (f->ndx == ADBI_PI_LICENSE) continue;
-			 e = ADB_ERROR(EAPKFORMAT);
+			 e = ADB_ERROR(APKE_ADB_PACKAGE_FORMAT);
 			 continue;
 		}
 

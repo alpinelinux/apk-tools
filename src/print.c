@@ -24,42 +24,36 @@ const char *apk_error_str(int error)
 	if (error < 0)
 		error = -error;
 	switch (error) {
-	case ENOKEY:
-		return "UNTRUSTED signature";
-	case EKEYREJECTED:
-		return "BAD signature";
-	case EIO:
-		return "IO ERROR";
-	case EBADMSG:
-		return "BAD archive";
-	case ENOMSG:
-		return "archive does not contain expected data";
-	case ENOPKG:
-		return "could not find a repo which provides this package (check repositories file and run 'apk update')";
-	case ECONNABORTED:
-		return "network connection aborted";
-	case ECONNREFUSED:
-		return "could not connect to server (check repositories file)";
-	case ENETUNREACH:
-		return "network error (check Internet connection and firewall)";
-	case ENXIO:
-		return "DNS lookup error";
-	case EREMOTEIO:
-		return "remote server returned error (try 'apk update')";
-	case ETIMEDOUT:
-		return "operation timed out";
-	case EAGAIN:
-		return "temporary error (try again later)";
-	case EAPKBADURL:
-		return "invalid URL (check your repositories file)";
-	case EAPKSTALEINDEX:
-		return "package mentioned in index not found (try 'apk update')";
-	case EAPKFORMAT:
-		return "package file format error";
-	case EAPKDEPFORMAT:
-		return "package dependency format error";
-	case EAPKDBFORMAT:
-		return "database file format error";
+	case ECONNABORTED:			return "network connection aborted";
+	case ECONNREFUSED:			return "could not connect to server (check repositories file)";
+	case ENETUNREACH:			return "network error (check Internet connection and firewall)";
+	case EREMOTEIO:				return "remote server returned error (try 'apk update')";
+	case EAGAIN:				return "temporary error (try again later)";
+	case APKE_EOF:				return "unexpected end of file";
+	case APKE_DNS:				return "DNS error (try again later)";
+	case APKE_URL_FORMAT:			return "invalid URL (check your repositories file)";
+	case APKE_CRYPTO_ERROR:			return "crypto error";
+	case APKE_CRYPTO_NOT_SUPPORTED:		return "cryptographic algorithm not supported";
+	case APKE_CRYPTO_KEY_FORMAT:		return "cryptographic key format not recognized";
+	case APKE_SIGNATURE_FAIL:		return "signing failure";
+	case APKE_SIGNATURE_UNTRUSTED:		return "UNTRUSTED signature";
+	case APKE_SIGNATURE_INVALID:		return "BAD signature";
+	case APKE_ADB_HEADER:			return "ADB header error";
+	case APKE_ADB_SCHEMA:			return "ADB schema error";
+	case APKE_ADB_BLOCK:			return "ADB block error";
+	case APKE_ADB_SIGNATURE:		return "ADB signature block error";
+	case APKE_ADB_NO_FROMSTRING:		return "ADB schema error (no fromstring)";
+	case APKE_ADB_LIMIT:			return "ADB schema limit reached";
+	case APKE_ADB_DEPENDENCY_FORMAT:	return "ADB dependency format";
+	case APKE_ADB_PACKAGE_FORMAT:		return "ADB package format";
+	case APKE_V2DB_FORMAT:			return "v2 database format error";
+	case APKE_V2PKG_FORMAT:			return "v2 package format error";
+	case APKE_V2PKG_INTEGRITY:		return "v2 package integrity error";
+	case APKE_V2NDX_FORMAT:			return "v2 index format error";
+	case APKE_PACKAGE_NOT_FOUND:		return "could not find a repo which provides this package (check repositories file and run 'apk update')";
+	case APKE_INDEX_STALE:			return "package mentioned in index not found (try 'apk update')";
+	case APKE_FILE_INTEGRITY:		return "file integrity error";
+	case APKE_UVOL:				return "uvol error";
 	default:
 		return strerror(error);
 	}

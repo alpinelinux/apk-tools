@@ -521,7 +521,7 @@ static int check_signing_key_trust(struct apk_sign_ctx *sctx)
 		if (sctx->signature.pkey == NULL) {
 			if (sctx->allow_untrusted)
 				break;
-			return -ENOKEY;
+			return -APKE_SIGNATURE_UNTRUSTED;
 		}
 	}
 	return 0;
@@ -554,10 +554,10 @@ int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
 		 * This does not make any sense if the file has v2.0
 		 * style .PKGINFO */
 		if (ctx->has_data_checksum)
-			return -ENOMSG;
+			return -APKE_V2PKG_FORMAT;
 		/* Error out early if identity part is missing */
 		if (ctx->action == APK_SIGN_VERIFY_IDENTITY)
-			return -EKEYREJECTED;
+			return -APKE_V2PKG_FORMAT;
 		ctx->data_started = 1;
 		ctx->control_started = 1;
 		r = check_signing_key_trust(ctx);
@@ -669,7 +669,7 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 	/* Still in signature blocks? */
 	if (!sctx->control_started) {
 		if (part == APK_MPART_END)
-			return -EKEYREJECTED;
+			return -APKE_V2PKG_FORMAT;
 		goto reset_digest;
 	}
 
@@ -692,10 +692,10 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 		if (EVP_MD_CTX_size(sctx->mdctx) == 0 ||
 		    memcmp(calculated, sctx->data_checksum,
 		           EVP_MD_CTX_size(sctx->mdctx)) != 0)
-			return -EKEYREJECTED;
+			return -APKE_V2PKG_INTEGRITY;
 		sctx->data_verified = 1;
 		if (!sctx->allow_untrusted && !sctx->control_verified)
-			return -ENOKEY;
+			return -APKE_SIGNATURE_UNTRUSTED;
 		return 0;
 	}
 
@@ -715,11 +715,11 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 				sctx->signature.data.len,
 				sctx->signature.pkey);
 			if (r != 1 && !sctx->allow_untrusted)
-				return -EKEYREJECTED;
+				return -APKE_SIGNATURE_INVALID;
 		} else {
 			r = 0;
 			if (!sctx->allow_untrusted)
-				return -ENOKEY;
+				return -APKE_SIGNATURE_UNTRUSTED;
 		}
 		if (r == 1) {
 			sctx->control_verified = 1;
@@ -736,7 +736,7 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 		EVP_DigestFinal_ex(sctx->mdctx, calculated, NULL);
 		if (memcmp(calculated, sctx->identity.data,
 			   sctx->identity.type) != 0)
-			return -EKEYREJECTED;
+			return -APKE_V2PKG_INTEGRITY;
 		sctx->control_verified = 1;
 		if (!sctx->has_data_checksum && part == APK_MPART_END)
 			sctx->data_verified = 1;

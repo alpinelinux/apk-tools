@@ -13,7 +13,7 @@ static struct apk_trust_key *apk_trust_load_key(int dirfd, const char *filename)
 	r = apk_pkey_load(&key->key, dirfd, filename);
 	if (r) {
 		free(key);
-		return ERR_PTR(-ENOKEY);
+		return ERR_PTR(r);
 	}
 
 	list_init(&key->key_node);
