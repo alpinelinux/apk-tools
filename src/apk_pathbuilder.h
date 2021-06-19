@@ -9,6 +9,7 @@
 #ifndef APK_PATHBUILDER_H
 #define APK_PATHBUILDER_H
 
+#include <limits.h>
 #include "apk_blob.h"
 
 struct apk_pathbuilder {

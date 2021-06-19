@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <assert.h>
 
 #include "apk_adb.h"
 #include "apk_applet.h"
