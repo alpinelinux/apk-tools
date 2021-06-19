@@ -74,7 +74,7 @@ static inline apk_blob_t adb_block_blob(struct adb_block *b) {
 	return APK_BLOB_PTR_LEN(adb_block_payload(b), adb_block_length(b));
 }
 
-#define ADB_MAX_SIGNATURE_LEN 256
+#define ADB_MAX_SIGNATURE_LEN 2048
 
 struct adb_sign_hdr {
 	uint8_t sign_ver, hash_alg;

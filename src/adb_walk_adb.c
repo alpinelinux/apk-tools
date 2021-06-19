@@ -106,7 +106,7 @@ static int dump_object(struct adb_walk_ctx *ctx, const struct adb_object_schema 
 
 static int dump_adb(struct adb_walk_ctx *ctx)
 {
-	char tmp[512];
+	char tmp[16+ADB_MAX_SIGNATURE_LEN*2];
 	struct adb_block *blk;
 	struct adb_sign_hdr *s;
 	struct adb_verify_ctx vfy = {};

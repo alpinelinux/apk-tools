@@ -115,23 +115,25 @@ int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn)
 
 int apk_sign_start(struct apk_digest_ctx *dctx, struct apk_pkey *pkey)
 {
-	EVP_MD_CTX_set_pkey_ctx(dctx->mdctx, NULL);
-	if (EVP_DigestSignInit(dctx->mdctx, NULL, EVP_sha512(), NULL, pkey->key) != 1)
+	if (EVP_MD_CTX_reset(dctx->mdctx) != 1 ||
+	    EVP_DigestSignInit(dctx->mdctx, NULL, EVP_sha512(), NULL, pkey->key) != 1)
 		return -EIO;
 	return 0;
 }
 
 int apk_sign(struct apk_digest_ctx *dctx, void *sig, size_t *len)
 {
-	if (EVP_DigestSignFinal(dctx->mdctx, sig, len) != 1)
+	if (EVP_DigestSignFinal(dctx->mdctx, sig, len) != 1) {
+		ERR_print_errors_fp(stderr);
 		return -EBADMSG;
+	}
 	return 0;
 }
 
 int apk_verify_start(struct apk_digest_ctx *dctx, struct apk_pkey *pkey)
 {
-	EVP_MD_CTX_set_pkey_ctx(dctx->mdctx, NULL);
-	if (EVP_DigestVerifyInit(dctx->mdctx, NULL, EVP_sha512(), NULL, pkey->key) != 1)
+	if (EVP_MD_CTX_reset(dctx->mdctx) != 1 ||
+	    EVP_DigestVerifyInit(dctx->mdctx, NULL, EVP_sha512(), NULL, pkey->key) != 1)
 		return -EIO;
 	return 0;
 }
