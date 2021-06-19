@@ -11,8 +11,3 @@ to verify cryptographic signatures for packages. To trust a new key, simply add
 the armored public key to this directory. See *abuild-keygen*(1) for
 information on generating new keys, *abuild-sign*(1) for using these keys to
 sign files, and *apk-verify*(8) for verifying keys against the apk trust store.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

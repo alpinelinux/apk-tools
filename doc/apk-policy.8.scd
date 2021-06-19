@@ -18,8 +18,3 @@ repositories (see *apk-repositories*(5)), in order of installation preference.
 
 *apk policy* does not support any specific options. See *apk*(8) for global
 options.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

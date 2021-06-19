@@ -53,8 +53,3 @@ following options:
 	ownership when running as root. However, this option is turned on when
 	running as non-root user, as changing file ownership is not permitted
 	by the system then.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

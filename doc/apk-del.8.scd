@@ -20,8 +20,3 @@ following options:
 
 *-r, --rdepends*
 	Recursively delete all top-level reverse dependencies, too.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

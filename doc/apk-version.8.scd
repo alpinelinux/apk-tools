@@ -48,8 +48,3 @@ specified).
 *-l* _operand_
 	Limit to packages with output matching given _operand_. The _operand_
 	can be specified as any combination of *>*, *=*, and *<*.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

@@ -21,8 +21,3 @@ verify* exits with a nonzero status.
 
 *apk verify* does not support any specific options. See *apk*(8) for global
 options.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

@@ -48,8 +48,3 @@ following options:
 
 *--self-upgrade-only*
 	Only perform a self-upgrade of the 'apk-tools' package.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

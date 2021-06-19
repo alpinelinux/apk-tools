@@ -70,8 +70,3 @@ display the appropriate information, then an empty line terminates that field.
 
 *--triggers*
 	Print active triggers for the package.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

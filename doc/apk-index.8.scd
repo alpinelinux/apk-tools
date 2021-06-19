@@ -34,8 +34,3 @@ will accept it. See *abuild-sign*(1) for details.
 	Disable the warning about missing dependencies. This happens when A,
 	depends on package B, that does not have a provider in the indexed
 	repository.
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>

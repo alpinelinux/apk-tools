@@ -16,8 +16,3 @@ mkdir -p /var/cache/apk++
 ln -s /var/cache/apk /etc/apk/cache
 
 For information on cache maintenance, see *apk-cache*(8).
-
-# AUTHORS
-
-Natanael Copa <ncopa@alpinelinux.org>++
-Timo Teräs <timo.teras@iki.fi>
