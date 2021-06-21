@@ -18,6 +18,8 @@
 #include "apk_atom.h"
 #include "apk_crypto.h"
 
+ssize_t apk_write_fully(int fd, const void *ptr, size_t size);
+
 struct apk_id_hash {
 	int empty;
 	struct hlist_head by_id[16], by_name[16];

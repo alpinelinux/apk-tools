@@ -33,6 +33,22 @@
 
 size_t apk_io_bufsize = 128*1024;
 
+ssize_t apk_write_fully(int fd, const void *ptr, size_t size)
+{
+	ssize_t i = 0, r;
+
+	while (i < size) {
+		r = write(fd, ptr + i, size - i);
+		if (r <= 0) {
+			if (r == 0) return i;
+			return -errno;
+		}
+		i += r;
+	}
+
+	return i;
+}
+
 static void apk_file_meta_from_fd(int fd, struct apk_file_meta *meta)
 {
 	struct stat st;
@@ -828,22 +844,6 @@ struct apk_fd_ostream {
 	char buffer[1024];
 };
 
-static ssize_t safe_write(int fd, const void *ptr, size_t size)
-{
-	ssize_t i = 0, r;
-
-	while (i < size) {
-		r = write(fd, ptr + i, size - i);
-		if (r < 0)
-			return -errno;
-		if (r == 0)
-			return i;
-		i += r;
-	}
-
-	return i;
-}
-
 static ssize_t fdo_flush(struct apk_fd_ostream *fos)
 {
 	ssize_t r;
@@ -851,7 +851,7 @@ static ssize_t fdo_flush(struct apk_fd_ostream *fos)
 	if (fos->bytes == 0)
 		return 0;
 
-	if ((r = safe_write(fos->fd, fos->buffer, fos->bytes)) != fos->bytes) {
+	if ((r = apk_write_fully(fos->fd, fos->buffer, fos->bytes)) != fos->bytes) {
 		apk_ostream_cancel(&fos->os, r < 0 ? r : -EIO);
 		return r;
 	}
@@ -870,7 +870,7 @@ static ssize_t fdo_write(struct apk_ostream *os, const void *ptr, size_t size)
 		if (r != 0)
 			return r;
 		if (size >= sizeof(fos->buffer) / 2) {
-			r = safe_write(fos->fd, ptr, size);
+			r = apk_write_fully(fos->fd, ptr, size);
 			if (r != size) apk_ostream_cancel(&fos->os, r < 0 ? r : -EIO);
 			return r;
 		}

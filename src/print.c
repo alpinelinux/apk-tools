@@ -18,6 +18,7 @@
 
 #include "apk_defines.h"
 #include "apk_print.h"
+#include "apk_io.h"
 
 const char *apk_error_str(int error)
 {
@@ -181,7 +182,10 @@ void apk_print_progress(struct apk_progress *p, size_t done, size_t total)
 	if (p->last_done == done && (!p->out || p->last_out_change == p->out->last_change)) return;
 	if (p->fd != 0) {
 		i = snprintf(buf, sizeof(buf), "%zu/%zu\n", done, total);
-		write(p->fd, buf, i);
+		if (apk_write_fully(p->fd, buf, i) != i) {
+			close(p->fd);
+			p->fd = 0;
+		}
 	}
 	p->last_done = done;
 
