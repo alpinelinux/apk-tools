@@ -1982,9 +1982,15 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 	return 0;
 }
 
-static int update_permissions(apk_hash_item item, void *ctx)
+struct update_permissions_ctx {
+	struct apk_database *db;
+	unsigned int errors;
+};
+
+static int update_permissions(apk_hash_item item, void *pctx)
 {
-	struct apk_database *db = (struct apk_database *) ctx;
+	struct update_permissions_ctx *ctx = pctx;
+	struct apk_database *db = ctx->db;
 	struct apk_db_dir *dir = (struct apk_db_dir *) item;
 	struct stat st;
 	int r;
@@ -1995,9 +2001,11 @@ static int update_permissions(apk_hash_item item, void *ctx)
 
 	r = fstatat(db->root_fd, dir->name, &st, AT_SYMLINK_NOFOLLOW);
 	if (r < 0 || (st.st_mode & 07777) != (dir->mode & 07777))
-		fchmodat(db->root_fd, dir->name, dir->mode, 0);
+		if (fchmodat(db->root_fd, dir->name, dir->mode, 0) < 0)
+			ctx->errors++;
 	if (r < 0 || st.st_uid != dir->uid || st.st_gid != dir->gid)
-		fchownat(db->root_fd, dir->name, dir->uid, dir->gid, 0);
+		if (fchownat(db->root_fd, dir->name, dir->uid, dir->gid, 0) < 0)
+			ctx->errors++;
 
 	return 0;
 }
@@ -2008,6 +2016,9 @@ void apk_db_update_directory_permissions(struct apk_database *db)
 	struct apk_db_dir_instance *diri;
 	struct apk_db_dir *dir;
 	struct hlist_node *dc, *dn;
+	struct update_permissions_ctx ctx = {
+		.db = db,
+	};
 
 	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
 		hlist_for_each_entry_safe(diri, dc, dn, &ipkg->owned_dirs, pkg_dirs_list) {
@@ -2022,7 +2033,8 @@ void apk_db_update_directory_permissions(struct apk_database *db)
 			apk_db_dir_apply_diri_permissions(diri);
 		}
 	}
-	apk_hash_foreach(&db->installed.dirs, update_permissions, db);
+	apk_hash_foreach(&db->installed.dirs, update_permissions, &ctx);
+	if (ctx.errors) apk_error("%d errors updating directory permissions", ctx.errors);
 }
 
 int apk_db_cache_active(struct apk_database *db)
