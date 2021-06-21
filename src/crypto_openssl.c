@@ -101,7 +101,7 @@ int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn)
 
 	key = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
 	if (!key) {
-		BIO_reset(bio);
+		(void)BIO_reset(bio);
 		key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
 	}
 	ERR_clear_error();
