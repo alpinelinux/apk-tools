@@ -169,25 +169,62 @@ static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istrea
 	struct adb_obj acl;
 	struct apk_digest_ctx dctx;
 	struct apk_digest d;
+	apk_blob_t target;
 	int r;
 
-	apk_digest_from_blob(&fi.digest, adb_ro_blob(&ctx->file, ADBI_FI_HASHES));
-	if (fi.digest.alg == APK_DIGEST_NONE) return -APKE_ADB_SCHEMA;
 	apk_extract_acl(&fi, adb_ro_obj(&ctx->file, ADBI_FI_ACL, &acl), apk_ctx_get_id_cache(ctx->ac));
-	fi.mode |= S_IFREG;
 
-	apk_digest_ctx_init(&dctx, fi.digest.alg);
-	if (ctx->is_uvol) {
-		r = apk_extract_volume(ac, &fi, is, &dctx);
-	} else {
-		r = apk_archive_entry_extract(
-			ctx->root_fd, &fi, 0, 0, is, 0, 0, &dctx,
+	target = adb_ro_blob(&ctx->file, ADBI_FI_TARGET);
+	if (!APK_BLOB_IS_NULL(target)) {
+		char *target_path;
+		uint16_t mode;
+
+		if (target.len < 2) return -APKE_ADB_SCHEMA;
+		mode = *(uint16_t*)target.ptr;
+		target.ptr += 2;
+		target.len -= 2;
+		switch (mode) {
+		case S_IFBLK:
+		case S_IFCHR:
+		case S_IFIFO:
+			if (target.len != sizeof(uint64_t)) return -APKE_ADB_SCHEMA;
+			struct unaligned64 {
+				uint64_t value;
+			} __attribute__((packed));
+			fi.device = ((struct unaligned64 *)target.ptr)->value;
+			break;
+		case S_IFLNK:
+			target_path = alloca(target.len + 1);
+			memcpy(target_path, target.ptr, target.len);
+			target_path[target.len] = 0;
+			fi.link_target = target_path;
+			break;
+		default:
+			return -APKE_ADB_SCHEMA;
+		}
+		fi.mode |= mode;
+		return apk_archive_entry_extract(
+			ctx->root_fd, &fi, 0, 0, is, 0, 0, 0,
 			ctx->extract_flags, out);
+	} else {
+		apk_digest_from_blob(&fi.digest, adb_ro_blob(&ctx->file, ADBI_FI_HASHES));
+		if (fi.digest.alg == APK_DIGEST_NONE) return -APKE_ADB_SCHEMA;
+
+		fi.mode |= S_IFREG;
+		apk_digest_ctx_init(&dctx, fi.digest.alg);
+		if (ctx->is_uvol) {
+			r = apk_extract_volume(ac, &fi, is, &dctx);
+		} else {
+			r = apk_archive_entry_extract(
+				ctx->root_fd, &fi, 0, 0, is, 0, 0, &dctx,
+				ctx->extract_flags, out);
+		}
+		apk_digest_ctx_final(&dctx, &d);
+		apk_digest_ctx_free(&dctx);
+		if (r != 0) return r;
+		if (apk_digest_cmp(&fi.digest, &d) != 0) return -APKE_FILE_INTEGRITY;
 	}
-	apk_digest_ctx_final(&dctx, &d);
-	apk_digest_ctx_free(&dctx);
-	if (r != 0) return r;
-	if (apk_digest_cmp(&fi.digest, &d) != 0) return -APKE_FILE_INTEGRITY;
+
 	return 0;
 }
 

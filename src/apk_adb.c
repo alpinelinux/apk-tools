@@ -448,7 +448,7 @@ const struct adb_object_schema schema_file = {
 		ADB_FIELD(ADBI_FI_SIZE,		"size",		scalar_int),
 		ADB_FIELD(ADBI_FI_MTIME,	"mtime",	scalar_int),
 		ADB_FIELD(ADBI_FI_HASHES,	"hash",		scalar_hexblob),
-		ADB_FIELD(ADBI_FI_TARGET,	"target",	scalar_string),
+		ADB_FIELD(ADBI_FI_TARGET,	"target",	scalar_hexblob),
 	},
 };
 

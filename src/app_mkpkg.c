@@ -119,40 +119,71 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
 	struct apk_file_info fi;
 	struct adb_obj fio, acl;
+	apk_blob_t target = APK_BLOB_NULL;
+	union {
+		uint16_t mode;
+		struct {
+			uint16_t mode;
+			uint64_t dev;
+		} __attribute__((packed)) dev;
+		struct {
+			uint16_t mode;
+			char target[1022];
+		} symlink;
+	} ft;
 	int r;
 
 	r = apk_fileinfo_get(dirfd, entry, APK_FI_NOFOLLOW | APK_FI_DIGEST(APK_DIGEST_SHA256), &fi, NULL);
 	if (r) return r;
 
 	switch (fi.mode & S_IFMT) {
+	case S_IFREG:
+		ctx->installed_size += (fi.size + BLOCK_SIZE - 1) & ~(BLOCK_SIZE-1);
+		break;
+	case S_IFBLK:
+	case S_IFCHR:
+	case S_IFIFO:
+		ft.dev.mode = fi.mode & S_IFMT;
+		ft.dev.dev = fi.device;
+		target = APK_BLOB_STRUCT(ft.dev);
+		break;
+	case S_IFLNK:
+		ft.symlink.mode = fi.mode & S_IFMT;
+		r = readlinkat(dirfd, entry, ft.symlink.target, sizeof ft.symlink.target);
+		if (r < 0) return r;
+		target = APK_BLOB_PTR_LEN((void*)&ft.symlink, sizeof(ft.symlink.mode) + r);
+		r = 0;
+		break;
 	case S_IFDIR:
 		apk_pathbuilder_push(&ctx->pb, entry);
 		r = mkpkg_process_directory(ctx, openat(dirfd, entry, O_RDONLY), &fi);
 		apk_pathbuilder_pop(&ctx->pb);
-		break;
-	case S_IFREG:
-		adb_wo_alloca(&fio, &schema_file, &ctx->db);
-		adb_wo_alloca(&acl, &schema_acl, &ctx->db);
-		adb_wo_blob(&fio, ADBI_FI_NAME, APK_BLOB_STR(entry));
-		adb_wo_blob(&fio, ADBI_FI_HASHES, APK_DIGEST_BLOB(fi.digest));
-		adb_wo_int(&fio, ADBI_FI_MTIME, fi.mtime);
-		adb_wo_int(&fio, ADBI_FI_SIZE, fi.size);
-		ctx->installed_size += (fi.size + BLOCK_SIZE - 1) & ~(BLOCK_SIZE-1);
-
-		adb_wo_int(&acl, ADBI_ACL_MODE, fi.mode & 07777);
-		adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi.uid));
-		adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi.gid));
-		adb_wo_obj(&fio, ADBI_FI_ACL, &acl);
-
-		adb_wa_append_obj(ctx->files, &fio);
-		break;
+		return r;
 	default:
 		apk_pathbuilder_push(&ctx->pb, entry);
 		apk_out(out, "%s: special file ignored",
 			apk_pathbuilder_cstr(&ctx->pb), entry);
 		apk_pathbuilder_pop(&ctx->pb);
-		break;
+		return 0;
 	}
+
+	adb_wo_alloca(&fio, &schema_file, &ctx->db);
+	adb_wo_alloca(&acl, &schema_acl, &ctx->db);
+	adb_wo_blob(&fio, ADBI_FI_NAME, APK_BLOB_STR(entry));
+	if (APK_BLOB_IS_NULL(target))
+		adb_wo_blob(&fio, ADBI_FI_HASHES, APK_DIGEST_BLOB(fi.digest));
+	else
+		adb_wo_blob(&fio, ADBI_FI_TARGET, target);
+	adb_wo_int(&fio, ADBI_FI_MTIME, fi.mtime);
+	adb_wo_int(&fio, ADBI_FI_SIZE, fi.size);
+
+	adb_wo_int(&acl, ADBI_ACL_MODE, fi.mode & 07777);
+	adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi.uid));
+	adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi.gid));
+	adb_wo_obj(&fio, ADBI_FI_ACL, &acl);
+
+	adb_wa_append_obj(ctx->files, &fio);
+
 	return r;
 }
 

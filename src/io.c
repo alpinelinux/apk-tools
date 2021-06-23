@@ -724,7 +724,7 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		.gid = st.st_gid,
 		.mode = st.st_mode,
 		.mtime = st.st_mtime,
-		.device = st.st_dev,
+		.device = st.st_rdev,
 	};
 
 	if (xattr_hash_alg != APK_DIGEST_NONE) {
