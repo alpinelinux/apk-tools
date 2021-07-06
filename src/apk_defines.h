@@ -125,6 +125,12 @@ static inline int IS_ERR_OR_NULL(const void *ptr) { return IS_ERR(ptr) || !ptr; 
 #define APK_DEFAULT_ARCH	"riscv32"
 #elif defined(__riscv) && __riscv_xlen == 64
 #define APK_DEFAULT_ARCH	"riscv64"
+#elif defined(__loongarch__) && defined(__loongarch32) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define APK_DEFAULT_ARCH	"loongarch32"
+#elif defined(__loongarch__) && defined(__loongarchx32) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define APK_DEFAULT_ARCH	"loongarchx32"
+#elif defined(__loongarch__) && defined(__loongarch64) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define APK_DEFAULT_ARCH	"loongarch64"
 #else
 #error APK_DEFAULT_ARCH not detected for this architecture
 #endif
