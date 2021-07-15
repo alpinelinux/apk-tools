@@ -973,7 +973,7 @@ int adb_c_adb(struct apk_ostream *os, struct adb *db, struct apk_trust *t)
 
 	adb_c_header(os, db);
 	adb_c_block(os, ADB_BLOCK_ADB, db->adb);
-	if (t) adb_trust_write_signatures(t, db, NULL, os);
+	adb_trust_write_signatures(t, db, NULL, os);
 
 	return apk_ostream_error(os);
 }
@@ -1031,6 +1031,8 @@ int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct a
 	apk_blob_t md;
 	size_t siglen;
 	int r;
+
+	if (IS_ERR_OR_NULL(trust)) return PTR_ERR(trust);
 
 	if (!vfy) {
 		vfy = alloca(sizeof *vfy);
