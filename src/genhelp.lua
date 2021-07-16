@@ -198,12 +198,12 @@ end
 function scdoc:render_optgroups(out)
 	for _, options in ipairs(self.optgroup) do
 		if #options > 0 then
-			table.insert(out, options.name .. "\x00")
+			table.insert(out, options.name .. "\0")
 			self:render_options(out, options)
 			if options.name == self.applet then
 				self:render_footer(out)
 			end
-			table.insert(out, "\x00")
+			table.insert(out, "\0")
 		end
 	end
 end
@@ -216,7 +216,7 @@ function scdoc:render(out)
 	local width = self.width
 
 	if not self.applet then return end
-	table.insert(out, self.applet .. "\x00")
+	table.insert(out, self.applet .. "\0")
 	table.insert(out, table.concat(self.usage, "\n"))
 	table.insert(out, "\n")
 	if #self.commands > 0 then
@@ -239,7 +239,7 @@ function scdoc:render(out)
 		if self.manpage == "apk" then self:render_footer(out)
 		else table.insert(out, "\n") end
 	end
-	table.insert(out, "\x00")
+	table.insert(out, "\0")
 end
 
 local function compress(data)
@@ -293,7 +293,7 @@ local out = {}
 for _, doc in ipairs(f) do doc:render(out) end
 for _, doc in ipairs(f) do doc:render_optgroups(out) end
 
-table.insert(out, "\x00")
+table.insert(out, "\0")
 
 local help = table.concat(out)
 --io.stderr:write(help)
