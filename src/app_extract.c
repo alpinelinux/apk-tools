@@ -146,7 +146,7 @@ static int apk_extract_volume(struct apk_ctx *ac, struct apk_file_info *fi, stru
 	int r;
 
 	snprintf(size, sizeof size, "%ju", fi->size);
-	r = uvol_run(ac, "create", fi->name, "ro", size);
+	r = uvol_run(ac, "create", fi->name, size, "ro");
 	if (r != 0) return r;
 	return  uvol_extract(ac, fi->name, size, fi->size, is, dctx);
 }
