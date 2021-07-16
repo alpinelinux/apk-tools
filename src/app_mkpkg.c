@@ -264,7 +264,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 	// construct package with ADB as header, and the file data in
 	// concatenated data blocks
-	os = apk_ostream_gzip(apk_ostream_to_file(AT_FDCWD, ctx->output, 0644));
+	os = adb_compress(apk_ostream_to_file(AT_FDCWD, ctx->output, 0644), ADB_COMP_DEFLATE);
 	adb_c_adb(os, &ctx->db, trust);
 	int files_fd = openat(AT_FDCWD, ctx->files_dir, O_RDONLY);
 	for (i = ADBI_FIRST; i <= adb_ra_num(&ctx->paths); i++) {

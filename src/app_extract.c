@@ -320,7 +320,7 @@ static int apk_extract_pkg(struct extract_ctx *ctx, const char *fn)
 	int r;
 
 	r = adb_m_stream(&ctx->db,
-		apk_istream_gunzip(apk_istream_from_fd_url(AT_FDCWD, fn, apk_ctx_since(ac, 0))),
+		adb_decompress(apk_istream_from_fd_url(AT_FDCWD, fn, apk_ctx_since(ac, 0)), 0),
 		ADB_SCHEMA_PACKAGE, trust, apk_extract_data_block);
 	if (r == 0) {
 		r = apk_extract_next_file(ctx);
