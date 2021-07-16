@@ -134,29 +134,19 @@ struct httpio
 static int
 http_new_chunk(struct httpio *io)
 {
-	char *p;
+	const char *p;
 
 	if (fetch_getln(io->conn) == -1)
-		return (-1);
+		return -1;
 
-	if (io->conn->buflen < 2 || !isxdigit((unsigned char)*io->conn->buf))
-		return (-1);
+	if (io->conn->buflen < 2)
+		return -1;
 
-	for (p = io->conn->buf; *p && !isspace((unsigned char)*p); ++p) {
-		if (*p == ';')
-			break;
-		if (!isxdigit((unsigned char)*p))
-			return (-1);
-		if (isdigit((unsigned char)*p)) {
-			io->chunksize = io->chunksize * 16 +
-			    *p - '0';
-		} else {
-			io->chunksize = io->chunksize * 16 +
-			    10 + tolower((unsigned char)*p) - 'a';
-		}
-	}
+	io->chunksize = fetch_parseuint(io->conn->buf, &p, 16, SIZE_MAX);
+	if (*p && *p != ';' && !isspace(*p))
+		return -1;
 
-	return (io->chunksize);
+	return io->chunksize;
 }
 
 /*
@@ -502,22 +492,6 @@ http_parse_mtime(const char *p, time_t *mtime)
 }
 
 /*
- * Parse a content-length header
- */
-static int
-http_parse_length(const char *p, off_t *length)
-{
-	off_t len;
-
-	for (len = 0; *p && isdigit((unsigned char)*p); ++p)
-		len = len * 10 + (*p - '0');
-	if (*p)
-		return (-1);
-	*length = len;
-	return (0);
-}
-
-/*
  * Parse a content-range header
  */
 static int
@@ -532,17 +506,14 @@ http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
 		first = last = -1;
 		++p;
 	} else {
-		for (first = 0; *p && isdigit((unsigned char)*p); ++p)
-			first = first * 10 + *p - '0';
+		first = fetch_parseuint(p, &p, 10, OFF_MAX);
 		if (*p != '-')
 			return (-1);
-		for (last = 0, ++p; *p && isdigit((unsigned char)*p); ++p)
-			last = last * 10 + *p - '0';
+		last = fetch_parseuint(p+1, &p, 10, OFF_MAX);
 	}
 	if (first > last || *p != '/')
 		return (-1);
-	for (len = 0, ++p; *p && isdigit((unsigned char)*p); ++p)
-		len = len * 10 + *p - '0';
+	len = fetch_parseuint(p+1, &p, 10, OFF_MAX);
 	if (*p || len < last - first + 1)
 		return (-1);
 	if (first == -1)
@@ -850,7 +821,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 	int e, i, n;
 	off_t offset, clength, length, size;
 	time_t mtime;
-	const char *p;
+	const char *p, *q;
 	fetchIO *f;
 	hdr_t h;
 	char hbuf[URL_HOSTLEN + 7], *host;
@@ -1050,13 +1021,16 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 				keep_alive = (strcasecmp(p, "keep-alive") == 0);
 				break;
 			case hdr_content_length:
-				http_parse_length(p, &clength);
+				clength = fetch_parseuint(p, &q, 10, OFF_MAX);
+				if (*q) goto protocol_error;
 				break;
 			case hdr_content_range:
-				http_parse_range(p, &offset, &length, &size);
+				if (http_parse_range(p, &offset, &length, &size) < 0)
+					goto protocol_error;
 				break;
 			case hdr_last_modified:
-				http_parse_mtime(p, &mtime);
+				if (http_parse_mtime(p, &mtime) < 0)
+					goto protocol_error;
 				break;
 			case hdr_location:
 				if (!HTTP_REDIRECT(conn->err))

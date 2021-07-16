@@ -38,6 +38,8 @@
 #define FTP_DEFAULT_PROXY_PORT	21
 #define HTTP_DEFAULT_PROXY_PORT	3128
 
+#include <sys/types.h>
+#include <limits.h>
 #include "openssl-compat.h"
 
 #if defined(__GNUC__) && __GNUC__ >= 3
@@ -51,6 +53,14 @@
     !defined(__digital__) && !defined(__linux) && !defined(__MINT__) && \
     !defined(__sgi) && !defined(__minix) && !defined(__CYGWIN__)
 #define HAVE_SA_LEN
+#endif
+
+#ifndef IPPORT_MAX
+# define IPPORT_MAX 65535
+#endif
+
+#ifndef OFF_MAX
+# define OFF_MAX (((((off_t)1 << (sizeof(off_t) * CHAR_BIT - 2)) - 1) << 1) + 1)
 #endif
 
 /* Connection */
@@ -86,6 +96,7 @@ struct fetcherr {
 void		 fetch_seterr(struct fetcherr *, int);
 void		 fetch_syserr(void);
 void		 fetch_info(const char *, ...)  LIBFETCH_PRINTFLIKE(1, 2);
+uintmax_t	 fetch_parseuint(const char *p, const char **endptr, int radix, uintmax_t max);
 int		 fetch_default_port(const char *);
 int		 fetch_default_proxy_port(const char *);
 int		 fetch_bind(int, int, const char *);
@@ -124,7 +135,6 @@ fetchIO		*http_request(struct url *, const char *,
 		     struct url_stat *, struct url *, const char *);
 fetchIO		*ftp_request(struct url *, const char *, const char *,
 		     struct url_stat *, struct url *, const char *);
-
 
 /*
  * Check whether a particular flag is set
