@@ -473,15 +473,12 @@ find_user:
 
 	/* port */
 	if (*p == ':') {
-		for (q = ++p; *q && (*q != '/'); q++)
-			if (isdigit((unsigned char)*q))
-				u->port = u->port * 10 + (*q - '0');
-			else {
-				/* invalid port */
-				url_seterr(URL_BAD_PORT);
-				goto ouch;
-			}
-		p = q;
+		u->port = fetch_parseuint(p + 1, &p, 10, IPPORT_MAX);
+		if (*p && *p != '/') {
+			/* invalid port */
+			url_seterr(URL_BAD_PORT);
+			goto ouch;
+		}
 	}
 
 	/* document */

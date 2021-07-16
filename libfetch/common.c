@@ -171,6 +171,30 @@ fetch_info(const char *fmt, ...)
 
 /*** Network-related utility functions ***************************************/
 
+uintmax_t
+fetch_parseuint(const char *str, const char **endptr, int radix, uintmax_t max)
+{
+	uintmax_t val = 0, maxx = max / radix, d;
+	const char *p;
+
+	for (p = str; isxdigit((unsigned char)*p); p++) {
+		unsigned char ch = (unsigned char)*p;
+		if (isdigit(ch))
+			d = ch - '0';
+		else	d = tolower(ch - 'a');
+		if (d > radix || val > maxx) goto err;
+		val *= radix;
+		if (val > max-d) goto err;
+		val += d;
+	}
+	if (p == str || val > max) goto err;
+	*endptr = p;
+	return val;
+err:
+	*endptr = "\xff";
+	return 0;
+}
+
 /*
  * Return the default port for a scheme
  */

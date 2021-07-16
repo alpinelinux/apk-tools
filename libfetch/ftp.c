@@ -471,8 +471,7 @@ ftp_stat(conn_t *conn, const char *file, struct url_stat *us)
 	}
 	for (ln = conn->buf + 4; *ln && isspace((unsigned char)*ln); ln++)
 		/* nothing */ ;
-	for (us->size = 0; *ln && isdigit((unsigned char)*ln); ln++)
-		us->size = us->size * 10 + *ln - '0';
+	us->size = fetch_parseuint(ln, (const char **) &ln, 10, OFF_MAX);
 	if (*ln && !isspace((unsigned char)*ln)) {
 		ftp_seterr(FTP_PROTOCOL_ERROR);
 		us->size = -1;
@@ -700,7 +699,7 @@ retry_mode:
 
 	if (pasv) {
 		unsigned char addr[64];
-		char *ln, *p;
+		const char *ln, *p;
 		unsigned int i;
 		int port;
 
@@ -737,10 +736,15 @@ retry_mode:
 			for (p = ln + 3; *p && !isdigit((unsigned char)*p); p++)
 				/* nothing */ ;
 			if (!*p) goto protocol_error;
-			l = (e == FTP_PASSIVE_MODE ? 6 : 21);
-			for (i = 0; *p && i < l; i++, p++)
-				addr[i] = strtol(p, &p, 10);
-			if (i < l) goto protocol_error;
+			l = (e == FTP_PASSIVE_MODE ? 6 : 21) - 1;
+			for (i = 0; *p && i < l; i++, p++) {
+				while (isspace((unsigned char)*p)) p++;
+				addr[i] = fetch_parseuint(p, &p, 10, UCHAR_MAX);
+				if (*p != ',') goto protocol_error;
+			}
+			while (isspace((unsigned char)*p)) p++;
+			addr[i] = fetch_parseuint(p, &p, 10, UCHAR_MAX);
+			if (*p && *p != ')') goto protocol_error;
 			break;
 		case FTP_EPASSIVE_MODE:
 			for (p = ln + 3; *p && *p != '('; p++)
