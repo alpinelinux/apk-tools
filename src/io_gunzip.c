@@ -135,7 +135,13 @@ static const struct apk_istream_ops gunzip_istream_ops = {
 	.close = gzi_close,
 };
 
-struct apk_istream *apk_istream_gunzip_mpart(struct apk_istream *is, apk_multipart_cb cb, void *ctx)
+static int window_bits(int window_bits, int raw)
+{
+	if (raw) return -window_bits;	// raw mode
+	return window_bits | 16;	// gzip mode
+}
+
+struct apk_istream *apk_istream_zlib(struct apk_istream *is, int raw, apk_multipart_cb cb, void *ctx)
 {
 	struct apk_gzip_istream *gis;
 
@@ -153,7 +159,7 @@ struct apk_istream *apk_istream_gunzip_mpart(struct apk_istream *is, apk_multipa
 		.cbctx = ctx,
 	};
 
-	if (inflateInit2(&gis->zs, 15+32) != Z_OK) {
+	if (inflateInit2(&gis->zs, window_bits(15, raw)) != Z_OK) {
 		free(gis);
 		goto err;
 	}
@@ -225,7 +231,7 @@ static const struct apk_ostream_ops gzip_ostream_ops = {
 	.close = gzo_close,
 };
 
-struct apk_ostream *apk_ostream_gzip(struct apk_ostream *output)
+struct apk_ostream *apk_ostream_zlib(struct apk_ostream *output, int raw)
 {
 	struct apk_gzip_ostream *gos;
 
@@ -239,7 +245,7 @@ struct apk_ostream *apk_ostream_gzip(struct apk_ostream *output)
 		.output = output,
 	};
 
-	if (deflateInit2(&gos->zs, 9, Z_DEFLATED, 15 | 16, 8,
+	if (deflateInit2(&gos->zs, 9, Z_DEFLATED, window_bits(15, raw), 8,
 			 Z_DEFAULT_STRATEGY) != Z_OK) {
 		free(gos);
 		goto err;

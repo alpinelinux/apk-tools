@@ -93,6 +93,7 @@ struct apk_istream *apk_istream_from_fd(int fd);
 struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *url, time_t since);
 static inline int apk_istream_error(struct apk_istream *is, int err) { if (!is->err) is->err = err; return err; }
 ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size);
+void *apk_istream_peek(struct apk_istream *is, size_t len);
 void *apk_istream_get(struct apk_istream *is, size_t len);
 apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t size);
 apk_blob_t apk_istream_get_delim(struct apk_istream *is, apk_blob_t token);
@@ -119,19 +120,6 @@ static inline int apk_istream_close(struct apk_istream *is)
 	return is->ops->close(is);
 }
 
-#define APK_MPART_DATA		1 /* data processed so far */
-#define APK_MPART_BOUNDARY	2 /* final part of data, before boundary */
-#define APK_MPART_END		3 /* signals end of stream */
-
-typedef int (*apk_multipart_cb)(void *ctx, int part, apk_blob_t data);
-
-struct apk_istream *apk_istream_gunzip_mpart(struct apk_istream *,
-					     apk_multipart_cb cb, void *ctx);
-static inline struct apk_istream *apk_istream_gunzip(struct apk_istream *is)
-{
-	return apk_istream_gunzip_mpart(is, NULL, NULL);
-}
-
 struct apk_segment_istream {
 	struct apk_istream is;
 	struct apk_istream *pis;
@@ -152,7 +140,6 @@ struct apk_ostream {
 	int rc;
 };
 
-struct apk_ostream *apk_ostream_gzip(struct apk_ostream *);
 struct apk_ostream *apk_ostream_counter(off_t *);
 struct apk_ostream *apk_ostream_to_fd(int fd);
 struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode);
@@ -198,5 +185,34 @@ uid_t apk_id_cache_resolve_uid(struct apk_id_cache *idc, apk_blob_t username, ui
 gid_t apk_id_cache_resolve_gid(struct apk_id_cache *idc, apk_blob_t groupname, gid_t default_gid);
 apk_blob_t apk_id_cache_resolve_user(struct apk_id_cache *idc, uid_t uid);
 apk_blob_t apk_id_cache_resolve_group(struct apk_id_cache *idc, gid_t gid);
+
+// Gzip support
+
+#define APK_MPART_DATA		1 /* data processed so far */
+#define APK_MPART_BOUNDARY	2 /* final part of data, before boundary */
+#define APK_MPART_END		3 /* signals end of stream */
+
+typedef int (*apk_multipart_cb)(void *ctx, int part, apk_blob_t data);
+
+struct apk_istream *apk_istream_zlib(struct apk_istream *, int,
+				     apk_multipart_cb cb, void *ctx);
+static inline struct apk_istream *apk_istream_gunzip_mpart(struct apk_istream *is,
+					     apk_multipart_cb cb, void *ctx) {
+	return apk_istream_zlib(is, 0, cb, ctx);
+}
+static inline struct apk_istream *apk_istream_gunzip(struct apk_istream *is) {
+	return apk_istream_zlib(is, 0, NULL, NULL);
+}
+static inline struct apk_istream *apk_istream_deflate(struct apk_istream *is) {
+	return apk_istream_zlib(is, 1, NULL, NULL);
+}
+
+struct apk_ostream *apk_ostream_zlib(struct apk_ostream *, int);
+static inline struct apk_ostream *apk_ostream_gzip(struct apk_ostream *os) {
+	return apk_ostream_zlib(os, 0);
+}
+static inline struct apk_ostream *apk_ostream_deflate(struct apk_ostream *os) {
+	return apk_ostream_zlib(os, 1);
+}
 
 #endif

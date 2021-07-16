@@ -300,4 +300,14 @@ struct adb_walk_genadb {
 int adb_walk_adb(struct adb_walk *d, struct adb *db, struct apk_trust *trust);
 int adb_walk_istream(struct adb_walk *d, struct apk_istream *is);
 
+// Seamless compression support
+
+typedef unsigned int adb_comp_t;
+
+#define ADB_COMP_NONE		0
+#define ADB_COMP_DEFLATE	1
+
+struct apk_istream *adb_decompress(struct apk_istream *is, adb_comp_t *compression);
+struct apk_ostream *adb_compress(struct apk_ostream *os, adb_comp_t compression);
+
 #endif

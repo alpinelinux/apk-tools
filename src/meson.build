@@ -1,6 +1,7 @@
 libapk_so_version = '2.99.0'
 libapk_src = [
 	'adb.c',
+	'adb_comp.c',
 	'adb_walk_adb.c',
 	'adb_walk_genadb.c',
 	'adb_walk_gentext.c',

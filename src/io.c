@@ -130,12 +130,11 @@ static int __apk_istream_fill(struct apk_istream *is)
 	return 0;
 }
 
-void *apk_istream_get(struct apk_istream *is, size_t len)
+void *apk_istream_peek(struct apk_istream *is, size_t len)
 {
 	do {
 		if (is->end - is->ptr >= len) {
 			void *ptr = is->ptr;
-			is->ptr += len;
 			return ptr;
 		}
 	} while (!__apk_istream_fill(is));
@@ -145,6 +144,13 @@ void *apk_istream_get(struct apk_istream *is, size_t len)
 	if (is->err > 0)
 		return ERR_PTR(-APKE_EOF);
 	return ERR_PTR(-EIO);
+}
+
+void *apk_istream_get(struct apk_istream *is, size_t len)
+{
+	void *p = apk_istream_peek(is, len);
+	if (!IS_ERR_OR_NULL(p)) is->ptr += len;
+	return p;
 }
 
 apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t max)
