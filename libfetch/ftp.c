@@ -722,8 +722,8 @@ retry_mode:
 			}
 			break;
 		default:
-			e = FTP_PROTOCOL_ERROR; /* XXX: error code should be prepared */
-			goto ouch;
+			/* XXX: error code should be prepared */
+			goto protocol_error;
 		}
 
 		/*
@@ -736,33 +736,22 @@ retry_mode:
 		case FTP_LPASSIVE_MODE:
 			for (p = ln + 3; *p && !isdigit((unsigned char)*p); p++)
 				/* nothing */ ;
-			if (!*p) {
-				e = FTP_PROTOCOL_ERROR;
-				goto ouch;
-			}
+			if (!*p) goto protocol_error;
 			l = (e == FTP_PASSIVE_MODE ? 6 : 21);
 			for (i = 0; *p && i < l; i++, p++)
 				addr[i] = strtol(p, &p, 10);
-			if (i < l) {
-				e = FTP_PROTOCOL_ERROR;
-				goto ouch;
-			}
+			if (i < l) goto protocol_error;
 			break;
 		case FTP_EPASSIVE_MODE:
 			for (p = ln + 3; *p && *p != '('; p++)
 				/* nothing */ ;
-			if (!*p) {
-				e = FTP_PROTOCOL_ERROR;
-				goto ouch;
-			}
+			if (!*p) goto protocol_error;
 			++p;
 			if (sscanf(p, "%c%c%c%d%c", &addr[0], &addr[1], &addr[2],
 				&port, &addr[3]) != 5 ||
 			    addr[0] != addr[1] ||
-			    addr[0] != addr[2] || addr[0] != addr[3]) {
-				e = FTP_PROTOCOL_ERROR;
-				goto ouch;
-			}
+			    addr[0] != addr[2] || addr[0] != addr[3])
+				goto protocol_error;
 			break;
 		case FTP_SYNTAX_ERROR:
 			if (verbose)
@@ -803,8 +792,8 @@ retry_mode:
 			}
 			break;
 		default:
-			e = FTP_PROTOCOL_ERROR; /* XXX: error code should be prepared */
-			break;
+			/* XXX: error code should be prepared */
+			goto protocol_error;
 		}
 
 		/* connect to data port */
@@ -907,8 +896,8 @@ retry_mode:
 			}
 			break;
 		default:
-			e = FTP_PROTOCOL_ERROR; /* XXX: error code should be prepared */
-			goto ouch;
+			/* XXX: error code should be prepared */
+			goto protocol_error;
 		}
 		if (e != FTP_OK)
 			goto ouch;
@@ -946,6 +935,8 @@ sysouch:
 		close(sd);
 	return (NULL);
 
+protocol_error:
+	e = FTP_PROTOCOL_ERROR;
 ouch:
 	if (e != -1)
 		ftp_seterr(e);

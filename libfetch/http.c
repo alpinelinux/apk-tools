@@ -1044,8 +1044,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 				fetch_syserr();
 				goto ouch;
 			case hdr_error:
-				http_seterr(HTTP_PROTOCOL_ERROR);
-				goto ouch;
+				goto protocol_error;
 			case hdr_connection:
 				/* XXX too weak? */
 				keep_alive = (strcasecmp(p, "keep-alive") == 0);
@@ -1154,18 +1153,14 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 	}
 
 	/* check for inconsistencies */
-	if (clength != -1 && length != -1 && clength != length) {
-		http_seterr(HTTP_PROTOCOL_ERROR);
-		goto ouch;
-	}
+	if (clength != -1 && length != -1 && clength != length)
+		goto protocol_error;
 	if (clength == -1)
 		clength = length;
 	if (clength != -1)
 		length = offset + clength;
-	if (length != -1 && size != -1 && length != size) {
-		http_seterr(HTTP_PROTOCOL_ERROR);
-		goto ouch;
-	}
+	if (length != -1 && size != -1 && length != size)
+		goto protocol_error;
 	if (size == -1)
 		size = length;
 
@@ -1176,10 +1171,8 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 	}
 
 	/* too far? */
-	if (URL->offset > 0 && offset > URL->offset) {
-		http_seterr(HTTP_PROTOCOL_ERROR);
-		goto ouch;
-	}
+	if (URL->offset > 0 && offset > URL->offset)
+		goto protocol_error;
 
 	/* report back real offset and size */
 	URL->offset = offset;
@@ -1222,6 +1215,8 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 
 	return (f);
 
+protocol_error:
+	http_seterr(HTTP_PROTOCOL_ERROR);
 ouch:
 	if (url != URL)
 		fetchFreeURL(url);
