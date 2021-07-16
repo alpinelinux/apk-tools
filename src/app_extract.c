@@ -78,12 +78,12 @@ static int uvol_detect(struct apk_ctx *ac, struct apk_pathbuilder *pb)
 		(b.len == 4 || b.ptr[4] == '/');
 }
 
-static int uvol_run(struct apk_ctx *ac, char *action, char *volname, char *arg1, char *arg2)
+static int uvol_run(struct apk_ctx *ac, char *action, const char *volname, char *arg1, char *arg2)
 {
 	struct apk_out *out = &ac->out;
 	pid_t pid;
 	int r, status;
-	char *argv[] = { (char*)apk_ctx_get_uvol(ac), action, volname, arg1, arg2, 0 };
+	char *argv[] = { (char*)apk_ctx_get_uvol(ac), action, (char*) volname, arg1, arg2, 0 };
 	posix_spawn_file_actions_t act;
 
 	posix_spawn_file_actions_init(&act);
@@ -102,12 +102,12 @@ static int uvol_run(struct apk_ctx *ac, char *action, char *volname, char *arg1,
 	return 0;
 }
 
-static int uvol_extract(struct apk_ctx *ac, char *action, char *volname, char *arg1, off_t sz, struct apk_istream *is, struct apk_digest_ctx *dctx)
+static int uvol_extract(struct apk_ctx *ac, char *action, const char *volname, char *arg1, off_t sz, struct apk_istream *is, struct apk_digest_ctx *dctx)
 {
 	struct apk_out *out = &ac->out;
 	pid_t pid;
 	int r, status, pipefds[2];
-	char *argv[] = { (char*)apk_ctx_get_uvol(ac), action, volname, arg1, 0 };
+	char *argv[] = { (char*)apk_ctx_get_uvol(ac), action, (char*) volname, arg1, 0 };
 	posix_spawn_file_actions_t act;
 
 	if (pipe2(pipefds, O_CLOEXEC) != 0) return -errno;
@@ -140,21 +140,13 @@ static int uvol_extract(struct apk_ctx *ac, char *action, char *volname, char *a
 
 static int apk_extract_volume(struct apk_ctx *ac, struct apk_file_info *fi, struct apk_istream *is, struct apk_digest_ctx *dctx)
 {
-	char *volname = (char*) fi->name, size[64];
+	char size[64];
 	int r;
 
 	snprintf(size, sizeof size, "%ju", fi->size);
-
-	r = uvol_run(ac, "create", volname, (fi->mode & S_IWUSR) ? "rw" : "ro", size);
+	r = uvol_run(ac, "create", fi->name, "ro", size);
 	if (r != 0) return r;
-	r = uvol_extract(ac, "write", volname, size, fi->size, is, dctx);
-	if (r != 0) goto err;
-	r = uvol_run(ac, "up", volname, 0, 0);
-	if (r != 0) goto err;
-	return 0;
-err:
-	uvol_run(ac, "remove", volname, 0, 0);
-	return r;
+	return  uvol_extract(ac, "write", fi->name, size, fi->size, is, dctx);
 }
 
 static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istream *is)
@@ -206,26 +198,32 @@ static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istrea
 		return apk_archive_entry_extract(
 			ctx->root_fd, &fi, 0, 0, is, 0, 0, 0,
 			ctx->extract_flags, out);
-	} else {
-		apk_digest_from_blob(&fi.digest, adb_ro_blob(&ctx->file, ADBI_FI_HASHES));
-		if (fi.digest.alg == APK_DIGEST_NONE) return -APKE_ADB_SCHEMA;
-
-		fi.mode |= S_IFREG;
-		apk_digest_ctx_init(&dctx, fi.digest.alg);
-		if (ctx->is_uvol) {
-			r = apk_extract_volume(ac, &fi, is, &dctx);
-		} else {
-			r = apk_archive_entry_extract(
-				ctx->root_fd, &fi, 0, 0, is, 0, 0, &dctx,
-				ctx->extract_flags, out);
-		}
-		apk_digest_ctx_final(&dctx, &d);
-		apk_digest_ctx_free(&dctx);
-		if (r != 0) return r;
-		if (apk_digest_cmp(&fi.digest, &d) != 0) return -APKE_FILE_INTEGRITY;
 	}
 
-	return 0;
+	apk_digest_from_blob(&fi.digest, adb_ro_blob(&ctx->file, ADBI_FI_HASHES));
+	if (fi.digest.alg == APK_DIGEST_NONE) return -APKE_ADB_SCHEMA;
+
+	fi.mode |= S_IFREG;
+	apk_digest_ctx_init(&dctx, fi.digest.alg);
+	if (ctx->is_uvol) {
+		r = apk_extract_volume(ac, &fi, is, &dctx);
+	} else {
+		r = apk_archive_entry_extract(
+			ctx->root_fd, &fi, 0, 0, is, 0, 0, &dctx,
+			ctx->extract_flags, out);
+	}
+	apk_digest_ctx_final(&dctx, &d);
+	apk_digest_ctx_free(&dctx);
+	if (r == 0 && apk_digest_cmp(&fi.digest, &d) != 0)
+		r = -APKE_FILE_INTEGRITY;
+	if (ctx->is_uvol) {
+		if (r == 0)
+			r = uvol_run(ac, "up", fi.name, 0, 0);
+		else
+			uvol_run(ac, "remove", fi.name, 0, 0);
+	} else if (r != 0)
+		unlinkat(ctx->root_fd, fi.name, 0);
+	return r;
 }
 
 static int apk_extract_directory(struct extract_ctx *ctx)
