@@ -44,6 +44,7 @@ typedef uint32_t adb_val_t;
 
 /* File Header */
 #define ADB_FORMAT_MAGIC	0x2e424441	// ADB.
+#define ADB_SCHEMA_IMPLIED	0x80000000
 
 struct adb_header {
 	uint32_t magic;
@@ -52,7 +53,6 @@ struct adb_header {
 
 /* Blocks */
 #define ADB_BLOCK_ALIGNMENT	8
-#define ADB_BLOCK_END		-1
 #define ADB_BLOCK_ADB		0
 #define ADB_BLOCK_SIG		2
 #define ADB_BLOCK_DATA		3
@@ -85,12 +85,6 @@ struct adb_sign_v0 {
 	uint8_t id[16];
 	uint8_t sig[0];
 };
-
-/* Block enumeration */
-struct adb_block *adb_block_first(apk_blob_t b);
-struct adb_block *adb_block_next(struct adb_block *cur, apk_blob_t b);
-#define adb_foreach_block(__blk, __adb) \
-	for (__blk = adb_block_first(__adb); !IS_ERR_OR_NULL(__blk); __blk = adb_block_next(__blk, __adb))
 
 /* Schema */
 #define ADB_KIND_ADB	1
@@ -144,9 +138,11 @@ struct adb_w_bucket {
 };
 
 struct adb {
-	apk_blob_t mmap, data, adb;
+	struct apk_istream *is;
+	apk_blob_t adb;
 	struct adb_header hdr;
 	size_t num_buckets;
+	size_t alloc_len;
 	struct list_head *bucket;
 };
 
@@ -158,12 +154,15 @@ struct adb_obj {
 };
 
 /* Container read interface */
+static inline void adb_init(struct adb *db) { memset(db, 0, sizeof *db); }
 int adb_free(struct adb *);
 void adb_reset(struct adb *);
 
 int adb_m_blob(struct adb *, apk_blob_t, struct apk_trust *);
-int adb_m_map(struct adb *, int fd, uint32_t expected_schema, struct apk_trust *);
-int adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expected_schema, struct apk_trust *trust, int (*datacb)(struct adb *, size_t, struct apk_istream *));
+int adb_m_process(struct adb *db, struct apk_istream *is, uint32_t expected_schema, struct apk_trust *trust, int (*cb)(struct adb *, struct adb_block *, struct apk_istream *));
+static inline int adb_m_open(struct adb *db, struct apk_istream *is, uint32_t expected_schema, struct apk_trust *trust) {
+	return adb_m_process(db, is, expected_schema, trust, 0);
+}
 #define adb_w_init_alloca(db, schema, num_buckets) adb_w_init_dynamic(db, schema, alloca(sizeof(struct list_head[num_buckets])), num_buckets)
 #define adb_w_init_tmp(db, size) adb_w_init_static(db, alloca(size), size)
 int adb_w_init_dynamic(struct adb *db, uint32_t schema, void *buckets, size_t num_buckets);
@@ -240,15 +239,6 @@ struct adb_verify_ctx {
 int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, struct apk_ostream *os);
 int adb_trust_verify_signature(struct apk_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, apk_blob_t sigb);
 
-/* Transform existing file */
-struct adb_xfrm {
-	struct apk_istream *is;
-	struct apk_ostream *os;
-	struct adb db;
-	struct adb_verify_ctx vfy;
-};
-int adb_c_xfrm(struct adb_xfrm *, int (*cb)(struct adb_xfrm *, struct adb_block *, struct apk_istream *));
-
 /* SAX style event based handling of ADB */
 
 struct adb_db_schema {
@@ -297,8 +287,8 @@ struct adb_walk_genadb {
 	adb_val_t vals[ADB_WALK_GENADB_MAX_VALUES];
 };
 
-int adb_walk_adb(struct adb_walk *d, struct adb *db, struct apk_trust *trust);
-int adb_walk_istream(struct adb_walk *d, struct apk_istream *is);
+int adb_walk_adb(struct adb_walk *d, struct apk_istream *is, struct apk_trust *trust);
+int adb_walk_text(struct adb_walk *d, struct apk_istream *is);
 
 // Seamless compression support
 

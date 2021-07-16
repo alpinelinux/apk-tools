@@ -11,24 +11,6 @@ static const struct adb_db_schema dbschemas[] = {
 	{},
 };
 
-static int mmap_and_dump_adb(struct apk_trust *trust, int fd, struct apk_out *out)
-{
-	struct adb db;
-	struct adb_walk_gentext td = {
-		.d.ops = &adb_walk_gentext_ops,
-		.d.schemas = dbschemas,
-		.out = out->out,
-	};
-	int r;
-
-	r = adb_m_map(&db, fd, 0, NULL);
-	if (r) return r;
-
-	adb_walk_adb(&td.d, &db, trust);
-	adb_free(&db);
-	return 0;
-}
-
 static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
@@ -36,7 +18,15 @@ static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	int r;
 
 	foreach_array_item(arg, args) {
-		r = mmap_and_dump_adb(apk_ctx_get_trust(ac), open(*arg, O_RDONLY), out);
+		struct adb_walk_gentext td = {
+			.d.ops = &adb_walk_gentext_ops,
+			.d.schemas = dbschemas,
+			.out = out->out,
+		};
+
+		r = adb_walk_adb(&td.d,
+			adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, *arg), 0),
+			apk_ctx_get_trust(ac));
 		if (r) {
 			apk_err(out, "%s: %s", *arg, apk_error_str(r));
 			return r;
@@ -68,7 +58,7 @@ static int adbgen_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 	foreach_array_item(arg, args) {
 		adb_reset(&genadb.db);
 		adb_reset(&genadb.idb[0]);
-		r = adb_walk_istream(&genadb.d, apk_istream_from_file(AT_FDCWD, *arg));
+		r = adb_walk_text(&genadb.d, apk_istream_from_file(AT_FDCWD, *arg));
 		if (!r) {
 			adb_w_root(&genadb.db, genadb.stored_object);
 			r = adb_c_create(apk_ostream_to_fd(STDOUT_FILENO), &genadb.db,

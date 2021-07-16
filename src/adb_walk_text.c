@@ -9,7 +9,7 @@
 #define dbg_printf(args...)
 #endif
 
-int adb_walk_istream(struct adb_walk *d, struct apk_istream *is)
+int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 {
 	const apk_blob_t token = APK_BLOB_STR("\n");
 	const apk_blob_t comment = APK_BLOB_STR(" #");

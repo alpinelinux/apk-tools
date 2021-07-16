@@ -87,11 +87,14 @@ typedef int (*apk_archive_entry_parser)(void *ctx,
 
 #define APK_ISTREAM_FORCE_REFRESH		((time_t) -1)
 
-struct apk_istream *apk_istream_from_file(int atfd, const char *file);
-struct apk_istream *apk_istream_from_file_gz(int atfd, const char *file);
+struct apk_istream *apk_istream_from_blob(struct apk_istream *, apk_blob_t);
+struct apk_istream *__apk_istream_from_file(int atfd, const char *file, int try_mmap);
+static inline struct apk_istream *apk_istream_from_file(int atfd, const char *file) { return __apk_istream_from_file(atfd, file, 0); }
+static inline struct apk_istream *apk_istream_from_file_mmap(int atfd, const char *file) { return __apk_istream_from_file(atfd, file, 1); }
 struct apk_istream *apk_istream_from_fd(int fd);
 struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *url, time_t since);
 static inline int apk_istream_error(struct apk_istream *is, int err) { if (!is->err) is->err = err; return err; }
+apk_blob_t apk_istream_mmap(struct apk_istream *is);
 ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size);
 void *apk_istream_peek(struct apk_istream *is, size_t len);
 void *apk_istream_get(struct apk_istream *is, size_t len);

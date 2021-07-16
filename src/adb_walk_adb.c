@@ -8,19 +8,21 @@
 
 struct adb_walk_ctx {
 	struct adb_walk *d;
-	struct adb *db;
 	struct apk_trust *trust;
+	struct adb db;
+	struct adb_verify_ctx vfy;
 };
 
+static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istream *is);
 static int dump_object(struct adb_walk_ctx *ctx, const struct adb_object_schema *schema, adb_val_t v);
-static int dump_adb(struct adb_walk_ctx *ctx);
 
 static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *kind, adb_val_t v)
 {
 	struct adb_walk *d = ctx->d;
-	struct adb db, *origdb;
+	struct adb origdb;
 	struct adb_obj o;
 	struct adb_object_schema *obj_schema;
+	struct apk_istream is;
 	char tmp[256];
 	apk_blob_t b;
 
@@ -31,7 +33,7 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 	switch (*kind) {
 	case ADB_KIND_ARRAY:
 		obj_schema = container_of(kind, struct adb_object_schema, kind);
-		adb_r_obj(ctx->db, v, &o, obj_schema);
+		adb_r_obj(&ctx->db, v, &o, obj_schema);
 		//if (!adb_ra_num(&o)) return 0;
 
 		d->ops->start_array(d, adb_ra_num(&o));
@@ -41,12 +43,12 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 		d->ops->end(d);
 		break;
 	case ADB_KIND_ADB:
-		db.hdr.schema = container_of(kind, struct adb_adb_schema, kind)->schema_id;
-		db.data = adb_r_blob(ctx->db, v);
+		apk_istream_from_blob(&is, adb_r_blob(&ctx->db, v));
 		origdb = ctx->db;
-		ctx->db = &db;
 		d->ops->start_object(d);
-		dump_adb(ctx);
+		adb_m_process(&ctx->db, &is,
+			container_of(kind, struct adb_adb_schema, kind)->schema_id | ADB_SCHEMA_IMPLIED,
+			0, adb_walk_block);
 		d->ops->end(d);
 		ctx->db = origdb;
 		break;
@@ -64,7 +66,7 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 	case ADB_KIND_INT:;
 		struct adb_scalar_schema *scalar = container_of(kind, struct adb_scalar_schema, kind);
 		if (scalar->tostring) {
-			b = scalar->tostring(ctx->db, v, tmp, sizeof tmp);
+			b = scalar->tostring(&ctx->db, v, tmp, sizeof tmp);
 		} else {
 			b = APK_BLOB_STR("(unknown)");
 		}
@@ -83,7 +85,7 @@ static int dump_object(struct adb_walk_ctx *ctx, const struct adb_object_schema 
 	apk_blob_t b;
 	struct adb_walk *d = ctx->d;
 
-	adb_r_obj(ctx->db, v, &o, schema);
+	adb_r_obj(&ctx->db, v, &o, schema);
 	if (schema) {
 		if (schema->tostring) {
 			b = schema->tostring(&o, tmp, sizeof tmp);
@@ -104,63 +106,60 @@ static int dump_object(struct adb_walk_ctx *ctx, const struct adb_object_schema 
 	return 0;
 }
 
-static int dump_adb(struct adb_walk_ctx *ctx)
+static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istream *is)
 {
-	char tmp[16+ADB_MAX_SIGNATURE_LEN*2];
-	struct adb_block *blk;
-	struct adb_sign_hdr *s;
-	struct adb_verify_ctx vfy = {};
-	uint32_t schema_magic = ctx->db->hdr.schema;
-	const struct adb_db_schema *ds;
+	struct adb_walk_ctx *ctx = container_of(db, struct adb_walk_ctx, db);
 	struct adb_walk *d = ctx->d;
+	char tmp[16+ADB_MAX_SIGNATURE_LEN*2];
+	struct adb_sign_hdr *s;
+	uint32_t schema_magic = ctx->db.hdr.schema;
+	const struct adb_db_schema *ds;
 	int r, len;
+	size_t sz = adb_block_length(b);
+	apk_blob_t data;
 
-	for (ds = d->schemas; ds->magic; ds++)
-		if (ds->magic == schema_magic) break;
-
-	adb_foreach_block(blk, ctx->db->data) {
-		apk_blob_t b = adb_block_blob(blk);
-		switch (adb_block_type(blk)) {
-		case ADB_BLOCK_ADB:
-			len = snprintf(tmp, sizeof tmp, "ADB block, size: %u", adb_block_length(blk));
-			d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
-			if (ds->root) {
-				ctx->db->adb = b;
-				dump_object(ctx, ds->root, adb_r_root(ctx->db));
-			}
-			break;
-		case ADB_BLOCK_SIG:
-			s = (struct adb_sign_hdr*) b.ptr;
-			r = adb_trust_verify_signature(ctx->trust, ctx->db, &vfy, b);
-			len = snprintf(tmp, sizeof tmp, "sig v%02x h%02x ", s->sign_ver, s->hash_alg);
-			for (size_t j = sizeof *s; j < b.len; j++)
-				len += snprintf(&tmp[len], sizeof tmp - len, "%02x", (uint8_t)b.ptr[j]);
-			len += snprintf(&tmp[len], sizeof tmp - len, ": %s", r ? apk_error_str(r) : "OK");
-			d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
-			break;
-		case ADB_BLOCK_DATA:
-			len = snprintf(tmp, sizeof tmp, "data block, size: %d", adb_block_length(blk));
-			d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
-			break;
-		default:
-			len = snprintf(tmp, sizeof tmp, "unknown block %d, size: %d",
-				adb_block_type(blk), adb_block_length(blk));
-			d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
-		}
-	}
-	if (IS_ERR(blk)) {
-		d->ops->comment(d, APK_BLOB_STRLIT("block enumeration error: corrupt data area"));
+	switch (adb_block_type(b)) {
+	case ADB_BLOCK_ADB:
+		d->ops->schema(d, db->hdr.schema);
+		for (ds = d->schemas; ds->magic; ds++)
+			if (ds->magic == schema_magic) break;
+		len = snprintf(tmp, sizeof tmp, "ADB block, size: %zu", sz);
+		d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
+		if (ds->root) dump_object(ctx, ds->root, adb_r_root(db));
+		break;
+	case ADB_BLOCK_SIG:
+		s = (struct adb_sign_hdr*) apk_istream_get(is, sz);
+		data = APK_BLOB_PTR_LEN((char*)s, sz);
+		r = adb_trust_verify_signature(ctx->trust, db, &ctx->vfy, data);
+		len = snprintf(tmp, sizeof tmp, "sig v%02x h%02x ", s->sign_ver, s->hash_alg);
+		for (size_t j = sizeof *s; j < data.len; j++)
+			len += snprintf(&tmp[len], sizeof tmp - len, "%02x", (uint8_t)data.ptr[j]);
+		len += snprintf(&tmp[len], sizeof tmp - len, ": %s", r ? apk_error_str(r) : "OK");
+		d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
+		break;
+	case ADB_BLOCK_DATA:
+		len = snprintf(tmp, sizeof tmp, "data block, size: %zu", sz);
+		d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
+		break;
+	default:
+		len = snprintf(tmp, sizeof tmp, "unknown block %d, size: %zu",
+			adb_block_type(b), sz);
+		d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
 	}
 	return 0;
 }
 
-int adb_walk_adb(struct adb_walk *d, struct adb *db, struct apk_trust *trust)
+int adb_walk_adb(struct adb_walk *d, struct apk_istream *is, struct apk_trust *trust)
 {
 	struct adb_walk_ctx ctx = {
 		.d = d,
-		.db = db,
 		.trust = trust,
 	};
-	d->ops->schema(d, db->hdr.schema);
-	return dump_adb(&ctx);
+	int r;
+
+	if (IS_ERR(is)) return PTR_ERR(is);
+
+	r = adb_m_process(&ctx.db, is, 0, 0, adb_walk_block);
+	adb_free(&ctx.db);
+	return r;
 }

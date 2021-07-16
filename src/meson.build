@@ -5,7 +5,7 @@ libapk_src = [
 	'adb_walk_adb.c',
 	'adb_walk_genadb.c',
 	'adb_walk_gentext.c',
-	'adb_walk_istream.c',
+	'adb_walk_text.c',
 	'apk_adb.c',
 	'atom.c',
 	'blob.c',

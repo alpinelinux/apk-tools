@@ -287,11 +287,14 @@ static int apk_extract_next_file(struct extract_ctx *ctx)
 	} while (1);
 }
 
-static int apk_extract_data_block(struct adb *db, size_t sz, struct apk_istream *is)
+static int apk_extract_data_block(struct adb *db, struct adb_block *b, struct apk_istream *is)
 {
 	struct extract_ctx *ctx = container_of(db, struct extract_ctx, db);
 	struct adb_data_package *hdr;
+	size_t sz = adb_block_length(b);
 	int r;
+
+	if (adb_block_type(b) != ADB_BLOCK_DATA) return 0;
 
 	r = apk_extract_next_file(ctx);
 	if (r != 0) {
@@ -319,7 +322,7 @@ static int apk_extract_pkg(struct extract_ctx *ctx, const char *fn)
 	struct apk_trust *trust = apk_ctx_get_trust(ac);
 	int r;
 
-	r = adb_m_stream(&ctx->db,
+	r = adb_m_process(&ctx->db,
 		adb_decompress(apk_istream_from_fd_url(AT_FDCWD, fn, apk_ctx_since(ac, 0)), 0),
 		ADB_SCHEMA_PACKAGE, trust, apk_extract_data_block);
 	if (r == 0) {

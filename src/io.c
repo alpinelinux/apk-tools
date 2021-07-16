@@ -70,6 +70,13 @@ void apk_file_meta_to_fd(int fd, struct apk_file_meta *meta)
 	futimens(fd, times);
 }
 
+apk_blob_t apk_istream_mmap(struct apk_istream *is)
+{
+	if (is->flags & APK_ISTREAM_SINGLE_READ)
+		return APK_BLOB_PTR_LEN((char*)is->buf, is->buf_size);
+	return APK_BLOB_NULL;
+}
+
 ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size)
 {
 	ssize_t left = size, r = 0;
@@ -160,7 +167,7 @@ apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t max)
 
 	if (is->ptr != is->end) {
 		apk_blob_t ret = APK_BLOB_PTR_LEN((char*)is->ptr, min((size_t)(is->end - is->ptr), max));
-		is->ptr = is->end = 0;
+		is->ptr += ret.len;
 		return ret;
 	}
 
@@ -191,6 +198,41 @@ apk_blob_t apk_istream_get_delim(struct apk_istream *is, apk_blob_t token)
 		return ret;
 	}
 	return (struct apk_blob) { .len = is->err < 0 ? is->err : 0 };
+}
+
+static void blob_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
+{
+	*meta = (struct apk_file_meta) { };
+}
+
+static ssize_t blob_read(struct apk_istream *is, void *ptr, size_t size)
+{
+	return 0;
+}
+
+static int blob_close(struct apk_istream *is)
+{
+	return is->err < 0 ? is->err : 0;
+}
+
+static const struct apk_istream_ops blob_istream_ops = {
+	.get_meta = blob_get_meta,
+	.read = blob_read,
+	.close = blob_close,
+};
+
+struct apk_istream *apk_istream_from_blob(struct apk_istream *is, apk_blob_t blob)
+{
+	*is = (struct apk_istream) {
+		.ops = &blob_istream_ops,
+		.buf = (uint8_t*) blob.ptr,
+		.buf_size = blob.len,
+		.ptr = (uint8_t*) blob.ptr,
+		.end = (uint8_t*) blob.ptr + blob.len,
+		.flags = APK_ISTREAM_SINGLE_READ,
+		.err = 1,
+	};
+	return is;
 }
 
 static void segment_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
@@ -493,14 +535,14 @@ struct apk_istream *apk_istream_from_fd(int fd)
 	return &fis->is;
 }
 
-struct apk_istream *apk_istream_from_file(int atfd, const char *file)
+struct apk_istream *__apk_istream_from_file(int atfd, const char *file, int try_mmap)
 {
 	int fd;
 
 	fd = openat(atfd, file, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) return ERR_PTR(-errno);
 
-	if (0) {
+	if (try_mmap) {
 		struct apk_istream *is = apk_mmap_istream_from_fd(fd);
 		if (!IS_ERR_OR_NULL(is)) return is;
 	}
@@ -832,11 +874,6 @@ int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx)
 	}
 	closedir(dir);
 	return ret;
-}
-
-struct apk_istream *apk_istream_from_file_gz(int atfd, const char *file)
-{
-	return apk_istream_gunzip(apk_istream_from_file(atfd, file));
 }
 
 struct apk_fd_ostream {
