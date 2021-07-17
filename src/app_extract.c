@@ -105,6 +105,7 @@ static int uvol_run(struct apk_ctx *ac, char *action, const char *volname, char 
 static int uvol_extract(struct apk_ctx *ac, char *action, const char *volname, char *arg1, off_t sz, struct apk_istream *is, struct apk_digest_ctx *dctx)
 {
 	struct apk_out *out = &ac->out;
+	struct apk_ostream *os;
 	pid_t pid;
 	int r, status, pipefds[2];
 	char *argv[] = { (char*)apk_ctx_get_uvol(ac), action, (char*) volname, arg1, 0 };
@@ -121,9 +122,10 @@ static int uvol_extract(struct apk_ctx *ac, char *action, const char *volname, c
 		return r;
 	}
 	close(pipefds[0]);
-	r = apk_istream_splice(is, pipefds[1], sz, 0, 0, dctx);
-	close(pipefds[1]);
-	if (r != sz) {
+	os = apk_ostream_to_fd(pipefds[1]);
+	apk_stream_copy(is, os, sz, 0, 0, dctx);
+	r = apk_ostream_close(os);
+	if (r != 0) {
 		if (r >= 0) r = -APKE_UVOL;
 		apk_err(out, "%s: uvol write error: %s", volname, apk_error_str(r));
 		return r;

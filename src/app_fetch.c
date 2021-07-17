@@ -120,10 +120,11 @@ static int fetch_package(apk_hash_item item, void *pctx)
 	struct apk_out *out = &db->ctx->out;
 	struct apk_package *pkg = (struct apk_package *) item;
 	struct apk_istream *is;
+	struct apk_ostream *os;
 	struct apk_repository *repo;
 	struct apk_file_info fi;
 	char url[PATH_MAX], filename[256];
-	int r, fd, urlfd;
+	int r, urlfd;
 
 	if (!pkg->marked)
 		return 0;
@@ -154,7 +155,7 @@ static int fetch_package(apk_hash_item item, void *pctx)
 		goto err;
 
 	if (ctx->flags & FETCH_STDOUT) {
-		fd = STDOUT_FILENO;
+		os = apk_ostream_to_fd(STDOUT_FILENO);
 	} else {
 		if ((ctx->flags & FETCH_LINK) && urlfd >= 0) {
 			if (linkat(urlfd, url,
@@ -162,10 +163,9 @@ static int fetch_package(apk_hash_item item, void *pctx)
 				   AT_SYMLINK_FOLLOW) == 0)
 				return 0;
 		}
-		fd = openat(ctx->outdir_fd, filename,
-			    O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0644);
-		if (fd < 0) {
-			r = -errno;
+		os = apk_ostream_to_file(ctx->outdir_fd, filename, 0644);
+		if (IS_ERR(os)) {
+			r = PTR_ERR(os);
 			goto err;
 		}
 	}
@@ -176,20 +176,11 @@ static int fetch_package(apk_hash_item item, void *pctx)
 		goto err;
 	}
 
-	r = apk_istream_splice(is, fd, pkg->size, progress_cb, ctx, 0);
-	if (fd != STDOUT_FILENO) {
-		struct apk_file_meta meta;
-		apk_istream_get_meta(is, &meta);
-		apk_file_meta_to_fd(fd, &meta);
-		close(fd);
-	}
+	apk_stream_copy(is, os, pkg->size, progress_cb, ctx, 0);
+	apk_ostream_copy_meta(os, is);
 	apk_istream_close(is);
-
-	if (r != pkg->size) {
-		unlinkat(ctx->outdir_fd, filename, 0);
-		if (r >= 0) r = -EIO;
-		goto err;
-	}
+	r = apk_ostream_close(os);
+	if (r) goto err;
 
 	ctx->done += pkg->size;
 	return 0;

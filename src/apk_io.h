@@ -40,7 +40,6 @@ APK_ARRAY(apk_xattr_array, struct apk_xattr);
 struct apk_file_meta {
 	time_t mtime, atime;
 };
-void apk_file_meta_to_fd(int fd, struct apk_file_meta *meta);
 
 struct apk_file_info {
 	const char *name;
@@ -101,8 +100,6 @@ void *apk_istream_get(struct apk_istream *is, size_t len);
 int apk_istream_get_max(struct apk_istream *is, size_t size, apk_blob_t *data);
 int apk_istream_get_delim(struct apk_istream *is, apk_blob_t token, apk_blob_t *data);
 static inline int apk_istream_get_all(struct apk_istream *is, apk_blob_t *data) { return apk_istream_get_max(is, APK_IO_ALL, data); }
-ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
-			   apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx);
 ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size,
 			apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx);
 
@@ -122,6 +119,11 @@ static inline int apk_istream_close(struct apk_istream *is)
 {
 	return is->ops->close(is);
 }
+static inline int apk_istream_close_error(struct apk_istream *is, int r)
+{
+	if (r < 0) apk_istream_error(is, r);
+	return apk_istream_close(is);
+}
 
 struct apk_segment_istream {
 	struct apk_istream is;
@@ -130,10 +132,15 @@ struct apk_segment_istream {
 	time_t mtime;
 };
 struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, size_t len, time_t mtime);
-struct apk_istream *apk_istream_tee(struct apk_istream *from, int atfd, const char *to, int copy_meta,
+
+#define APK_ISTREAM_TEE_COPY_META 1
+#define APK_ISTREAM_TEE_OPTIONAL  2
+
+struct apk_istream *apk_istream_tee(struct apk_istream *from, struct apk_ostream *to, int copy_meta,
 				    apk_progress_cb cb, void *cb_ctx);
 
 struct apk_ostream_ops {
+	void (*set_meta)(struct apk_ostream *os, struct apk_file_meta *meta);
 	ssize_t (*write)(struct apk_ostream *os, const void *buf, size_t size);
 	int (*close)(struct apk_ostream *os);
 };
@@ -146,8 +153,8 @@ struct apk_ostream {
 struct apk_ostream *apk_ostream_counter(off_t *);
 struct apk_ostream *apk_ostream_to_fd(int fd);
 struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode);
-struct apk_ostream *apk_ostream_to_file_gz(int atfd, const char *file, const char *tmpfile, mode_t mode);
-size_t apk_ostream_write_string(struct apk_ostream *ostream, const char *string);
+size_t apk_ostream_write_string(struct apk_ostream *os, const char *string);
+void apk_ostream_copy_meta(struct apk_ostream *os, struct apk_istream *is);
 static inline int apk_ostream_error(struct apk_ostream *os) { return os->rc; }
 static inline int apk_ostream_cancel(struct apk_ostream *os, int rc) { if (!os->rc) os->rc = rc; return rc; }
 static inline ssize_t apk_ostream_write(struct apk_ostream *os, const void *buf, size_t size)

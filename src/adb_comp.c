@@ -26,10 +26,7 @@ struct apk_istream *adb_decompress(struct apk_istream *is, adb_comp_t *compressi
 		is = apk_istream_deflate(is);
 		break;
 	}
-	if (c == -1) {
-		apk_istream_close(is);
-		return ERR_PTR(-APKE_ADB_COMPRESSION);
-	}
+	if (c == -1) return ERR_PTR(apk_istream_close_error(is, -APKE_ADB_COMPRESSION));
 	if (compression) *compression = c;
 	return is;
 }

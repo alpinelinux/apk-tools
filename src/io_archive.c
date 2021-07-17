@@ -263,8 +263,7 @@ ok:
 	free(pax.ptr);
 	free(longname.ptr);
 	apk_fileinfo_free(&entry);
-	apk_istream_close(is);
-	return r;
+	return apk_istream_close_error(is, r);
 }
 
 int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
@@ -356,15 +355,10 @@ int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 	case S_IFREG:
 		if (ae->link_target == NULL) {
 			int flags = O_RDWR | O_CREAT | O_TRUNC | O_CLOEXEC | O_EXCL;
-
-			fd = openat(atfd, fn, flags, ae->mode & 07777);
-			if (fd < 0) {
-				ret = -errno;
-				break;
-			}
-			r = apk_istream_splice(is, fd, ae->size, cb, cb_ctx, dctx);
-			if (r != ae->size) ret = r < 0 ? r : -ENOSPC;
-			close(fd);
+			struct apk_ostream *os = apk_ostream_to_fd(openat(atfd, fn, flags, ae->mode & 07777));
+			apk_stream_copy(is, os, ae->size, cb, cb_ctx, dctx);
+			r = apk_ostream_close(os);
+			if (r < 0) ret = r;
 		} else {
 			r = linkat(atfd, link_target ?: ae->link_target, atfd, fn, 0);
 			if (r < 0) ret = -errno;

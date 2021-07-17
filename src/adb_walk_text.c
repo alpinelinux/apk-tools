@@ -126,6 +126,5 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 	d->ops->end(d);
 
 err:
-	if (r) apk_istream_error(is, r);
-	return apk_istream_close(is);
+	return apk_istream_close_error(is, r);
 }

@@ -220,8 +220,7 @@ bad_msg:
 err:
 	if (r >= 0) r = -APKE_ADB_BLOCK;
 done:
-	apk_istream_close(is);
-	return r;
+	return apk_istream_close_error(is, r);
 }
 
 static int __adb_dummy_cb(struct adb *db, struct adb_block *b, struct apk_istream *is)
