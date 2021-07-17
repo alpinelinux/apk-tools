@@ -986,15 +986,16 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 					apk_blob_push_blob(&bbuf, APK_BLOB_STR("\n"));
 				}
 
-				if (apk_ostream_write(os, buf, bbuf.ptr - buf) != bbuf.ptr - buf)
-					return -EIO;
+				r = apk_ostream_write(os, buf, bbuf.ptr - buf);
+				if (r < 0) return r;
 				bbuf = APK_BLOB_BUF(buf);
 			}
-			if (apk_ostream_write(os, buf, bbuf.ptr - buf) != bbuf.ptr - buf)
-				return -EIO;
+			r = apk_ostream_write(os, buf, bbuf.ptr - buf);
+			if (r < 0) return r;
 			bbuf = APK_BLOB_BUF(buf);
 		}
-		apk_ostream_write(os, "\n", 1);
+		r = apk_ostream_write(os, "\n", 1);
+		if (r < 0) return r;
 	}
 
 	return 0;
@@ -1194,11 +1195,10 @@ static int write_index_entry(apk_hash_item item, void *ctx)
 		return 0;
 
 	r = apk_pkg_write_index_entry(pkg, iwctx->os);
-	if (r < 0)
-		return r;
+	if (r < 0) return r;
 
-	if (apk_ostream_write(iwctx->os, "\n", 1) != 1)
-		return apk_ostream_cancel(iwctx->os, -EIO);
+	r = apk_ostream_write(iwctx->os, "\n", 1);
+	if (r < 0) return r;
 
 	iwctx->count++;
 	return 0;

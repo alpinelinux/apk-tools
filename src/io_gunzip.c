@@ -176,7 +176,7 @@ struct apk_gzip_ostream {
 	z_stream zs;
 };
 
-static ssize_t gzo_write(struct apk_ostream *os, const void *ptr, size_t size)
+static int gzo_write(struct apk_ostream *os, const void *ptr, size_t size)
 {
 	struct apk_gzip_ostream *gos = container_of(os, struct apk_gzip_ostream, os);
 	unsigned char buffer[1024];
@@ -189,16 +189,15 @@ static ssize_t gzo_write(struct apk_ostream *os, const void *ptr, size_t size)
 		gos->zs.next_out = buffer;
 		r = deflate(&gos->zs, Z_NO_FLUSH);
 		if (r == Z_STREAM_ERROR)
-			return -EIO;
+			return apk_ostream_cancel(gos->output, -EIO);
 		have = sizeof(buffer) - gos->zs.avail_out;
 		if (have != 0) {
 			r = apk_ostream_write(gos->output, buffer, have);
-			if (r != have)
-				return -EIO;
+			if (r < 0) return r;
 		}
 	}
 
-	return size;
+	return 0;
 }
 
 static int gzo_close(struct apk_ostream *os)
@@ -206,24 +205,21 @@ static int gzo_close(struct apk_ostream *os)
 	struct apk_gzip_ostream *gos = container_of(os, struct apk_gzip_ostream, os);
 	unsigned char buffer[1024];
 	size_t have;
-	int r, rc = 0;
+	int r, rc = os->rc;
 
 	do {
 		gos->zs.avail_out = sizeof(buffer);
 		gos->zs.next_out = buffer;
 		r = deflate(&gos->zs, Z_FINISH);
 		have = sizeof(buffer) - gos->zs.avail_out;
-		if (apk_ostream_write(gos->output, buffer, have) != have)
-			rc = -EIO;
+		if (apk_ostream_write(gos->output, buffer, have) < 0)
+			break;
 	} while (r == Z_OK);
 	r = apk_ostream_close(gos->output);
-	if (r != 0)
-		rc = r;
-
 	deflateEnd(&gos->zs);
 	free(gos);
 
-	return rc;
+	return rc ?: r;
 }
 
 static const struct apk_ostream_ops gzip_ostream_ops = {

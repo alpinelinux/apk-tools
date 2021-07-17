@@ -314,13 +314,10 @@ static void tee_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
 	apk_istream_get_meta(tee->inner_is, meta);
 }
 
-static ssize_t __tee_write(struct apk_tee_istream *tee, void *ptr, size_t size)
+static int __tee_write(struct apk_tee_istream *tee, void *ptr, size_t size)
 {
-	ssize_t w = apk_ostream_write(tee->to, ptr, size);
-	if (size != w) {
-		if (w < 0) return w;
-		return -ENOSPC;
-	}
+	int r = apk_ostream_write(tee->to, ptr, size);
+	if (r < 0) return r;
 	tee->size += size;
 	if (tee->cb) tee->cb(tee->cb_ctx, tee->size);
 	return size;
@@ -828,11 +825,8 @@ static ssize_t fdo_flush(struct apk_fd_ostream *fos)
 
 	if (fos->os.rc < 0) return fos->os.rc;
 	if (fos->bytes == 0) return 0;
-
-	if ((r = apk_write_fully(fos->fd, fos->buffer, fos->bytes)) != fos->bytes) {
-		apk_ostream_cancel(&fos->os, r < 0 ? r : -ENOSPC);
-		return r;
-	}
+	if ((r = apk_write_fully(fos->fd, fos->buffer, fos->bytes)) != fos->bytes)
+		return apk_ostream_cancel(&fos->os, r < 0 ? r : -ENOSPC);
 
 	fos->bytes = 0;
 	return 0;
@@ -849,7 +843,7 @@ static void fdo_set_meta(struct apk_ostream *os, struct apk_file_meta *meta)
 	futimens(fos->fd, times);
 }
 
-static ssize_t fdo_write(struct apk_ostream *os, const void *ptr, size_t size)
+static int fdo_write(struct apk_ostream *os, const void *ptr, size_t size)
 {
 	struct apk_fd_ostream *fos = container_of(os, struct apk_fd_ostream, os);
 	ssize_t r;
@@ -868,7 +862,7 @@ static ssize_t fdo_write(struct apk_ostream *os, const void *ptr, size_t size)
 	memcpy(&fos->buffer[fos->bytes], ptr, size);
 	fos->bytes += size;
 
-	return size;
+	return 0;
 }
 
 static int fdo_close(struct apk_ostream *os)
@@ -877,12 +871,10 @@ static int fdo_close(struct apk_ostream *os)
 	int rc;
 
 	fdo_flush(fos);
+	if (fos->fd > STDERR_FILENO && close(fos->fd) < 0)
+		apk_ostream_cancel(os, -errno);
+
 	rc = fos->os.rc;
-
-	if (fos->fd > STDERR_FILENO &&
-	    close(fos->fd) < 0)
-		rc = -errno;
-
 	if (fos->file) {
 		char tmpname[PATH_MAX];
 
@@ -895,7 +887,6 @@ static int fdo_close(struct apk_ostream *os)
 			unlinkat(fos->atfd, tmpname, 0);
 		}
 	}
-
 	free(fos);
 
 	return rc;
@@ -954,20 +945,20 @@ struct apk_counter_ostream {
 	off_t *counter;
 };
 
-static ssize_t co_write(struct apk_ostream *os, const void *ptr, size_t size)
+static int co_write(struct apk_ostream *os, const void *ptr, size_t size)
 {
 	struct apk_counter_ostream *cos = container_of(os, struct apk_counter_ostream, os);
-
 	*cos->counter += size;
-	return size;
+	return 0;
 }
 
 static int co_close(struct apk_ostream *os)
 {
 	struct apk_counter_ostream *cos = container_of(os, struct apk_counter_ostream, os);
+	int rc = os->rc;
 
 	free(cos);
-	return 0;
+	return rc;
 }
 
 static const struct apk_ostream_ops counter_ostream_ops = {
@@ -991,14 +982,14 @@ struct apk_ostream *apk_ostream_counter(off_t *counter)
 	return &cos->os;
 }
 
-size_t apk_ostream_write_string(struct apk_ostream *os, const char *string)
+ssize_t apk_ostream_write_string(struct apk_ostream *os, const char *string)
 {
 	size_t len;
+	ssize_t r;
 
 	len = strlen(string);
-	if (apk_ostream_write(os, string, len) != len)
-		return -1;
-
+	r = apk_ostream_write(os, string, len);
+	if (r < 0) return r;
 	return len;
 }
 

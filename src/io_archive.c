@@ -302,15 +302,15 @@ int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
 	        put_octal(buf.chksum, sizeof(buf.chksum)-1, chksum);
 	}
 
-	if (apk_ostream_write(os, &buf, sizeof(buf)) != sizeof(buf))
+	if (apk_ostream_write(os, &buf, sizeof(buf)) < 0)
 		return -1;
 
 	if (ae == NULL) {
 		/* End-of-archive is two empty headers */
-		if (apk_ostream_write(os, &buf, sizeof(buf)) != sizeof(buf))
+		if (apk_ostream_write(os, &buf, sizeof(buf)) < 0)
 			return -1;
 	} else if (data != NULL) {
-		if (apk_ostream_write(os, data, ae->size) != ae->size)
+		if (apk_ostream_write(os, data, ae->size) < 0)
 			return -1;
 		if (apk_tar_write_padding(os, ae) != 0)
 			return -1;
@@ -326,7 +326,7 @@ int apk_tar_write_padding(struct apk_ostream *os, const struct apk_file_info *ae
 
 	pad = 512 - (ae->size & 511);
 	if (pad != 512 &&
-	    apk_ostream_write(os, padding, pad) != pad)
+	    apk_ostream_write(os, padding, pad) < 0)
 		return -1;
 
 	return 0;

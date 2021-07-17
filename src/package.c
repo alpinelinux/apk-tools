@@ -439,7 +439,7 @@ int apk_deps_write(struct apk_database *db, struct apk_dependency_array *deps, s
 
 		blob = apk_blob_pushed(APK_BLOB_BUF(tmp), blob);
 		if (APK_BLOB_IS_NULL(blob) || 
-		    apk_ostream_write(os, blob.ptr, blob.len) != blob.len)
+		    apk_ostream_write(os, blob.ptr, blob.len) < 0)
 			return -1;
 
 		n += blob.len;
@@ -1086,9 +1086,9 @@ static int write_depends(struct apk_ostream *os, const char *field,
 	int r;
 
 	if (deps->num == 0) return 0;
-	if (apk_ostream_write(os, field, 2) != 2) return -1;
+	if (apk_ostream_write(os, field, 2) < 0) return -1;
 	if ((r = apk_deps_write(NULL, deps, os, APK_BLOB_PTR_LEN(" ", 1))) < 0) return r;
-	if (apk_ostream_write(os, "\n", 1) != 1) return -1;
+	if (apk_ostream_write(os, "\n", 1) < 0) return -1;
 	return 0;
 }
 
@@ -1144,7 +1144,7 @@ int apk_pkg_write_index_entry(struct apk_package *info,
 		return apk_ostream_cancel(os, -ENOBUFS);
 
 	bbuf = apk_blob_pushed(APK_BLOB_BUF(buf), bbuf);
-	if (apk_ostream_write(os, bbuf.ptr, bbuf.len) != bbuf.len ||
+	if (apk_ostream_write(os, bbuf.ptr, bbuf.len) ||
 	    write_depends(os, "D:", info->depends) ||
 	    write_depends(os, "p:", info->provides) ||
 	    write_depends(os, "i:", info->install_if))

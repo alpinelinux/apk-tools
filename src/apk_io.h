@@ -141,7 +141,7 @@ struct apk_istream *apk_istream_tee(struct apk_istream *from, struct apk_ostream
 
 struct apk_ostream_ops {
 	void (*set_meta)(struct apk_ostream *os, struct apk_file_meta *meta);
-	ssize_t (*write)(struct apk_ostream *os, const void *buf, size_t size);
+	int (*write)(struct apk_ostream *os, const void *buf, size_t size);
 	int (*close)(struct apk_ostream *os);
 };
 
@@ -153,12 +153,11 @@ struct apk_ostream {
 struct apk_ostream *apk_ostream_counter(off_t *);
 struct apk_ostream *apk_ostream_to_fd(int fd);
 struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode);
-size_t apk_ostream_write_string(struct apk_ostream *os, const char *string);
+ssize_t apk_ostream_write_string(struct apk_ostream *os, const char *string);
 void apk_ostream_copy_meta(struct apk_ostream *os, struct apk_istream *is);
 static inline int apk_ostream_error(struct apk_ostream *os) { return os->rc; }
 static inline int apk_ostream_cancel(struct apk_ostream *os, int rc) { if (!os->rc) os->rc = rc; return rc; }
-static inline ssize_t apk_ostream_write(struct apk_ostream *os, const void *buf, size_t size)
-{
+static inline int apk_ostream_write(struct apk_ostream *os, const void *buf, size_t size) {
 	return os->ops->write(os, buf, size);
 }
 static inline int apk_ostream_close(struct apk_ostream *os)
