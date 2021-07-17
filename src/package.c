@@ -643,7 +643,7 @@ int apk_sign_ctx_verify_tar(void *sctx, const struct apk_file_info *fi,
 
 	if (strcmp(fi->name, ".PKGINFO") == 0) {
 		apk_blob_t l, token = APK_BLOB_STR("\n");
-		while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
+		while (apk_istream_get_delim(is, token, &l) == 0)
 			apk_sign_ctx_parse_pkginfo_line(ctx, l);
 	}
 
@@ -900,7 +900,7 @@ static int read_info_entry(void *ctx, const struct apk_file_info *ae,
 	if (strcmp(ae->name, ".PKGINFO") == 0) {
 		/* APK 2.0 format */
 		apk_blob_t l, token = APK_BLOB_STR("\n");
-		while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
+		while (apk_istream_get_delim(is, token, &l) == 0)
 			read_info_line(ctx, l);
 	} else if (strcmp(ae->name, ".INSTALL") == 0) {
 		apk_warn(&ri->db->ctx->out,

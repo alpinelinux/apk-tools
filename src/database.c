@@ -727,21 +727,26 @@ int apk_db_read_overlay(struct apk_database *db, struct apk_istream *is)
 	struct apk_package *pkg;
 	struct apk_installed_package *ipkg;
 	apk_blob_t token = APK_BLOB_STR("\n"), line, bdir, bfile;
-	int r = -1;
 
-	if (IS_ERR_OR_NULL(is)) return -1;
+	if (IS_ERR_OR_NULL(is)) return PTR_ERR(is);
 
 	pkg = apk_pkg_new();
-	if (pkg == NULL) goto err;
+	if (!pkg) goto no_mem;
 
 	ipkg = apk_pkg_install(db, pkg);
-	if (ipkg == NULL) goto err;
+	if (ipkg == NULL) {
+	no_mem:
+		apk_istream_error(is, -ENOMEM);
+		goto err;
+	}
 
 	diri_node = hlist_tail_ptr(&ipkg->owned_dirs);
 
-	while (!APK_BLOB_IS_NULL(line = apk_istream_get_delim(is, token))) {
-		if (!apk_blob_rsplit(line, '/', &bdir, &bfile))
+	while (apk_istream_get_delim(is, token, &line) == 0) {
+		if (!apk_blob_rsplit(line, '/', &bdir, &bfile)) {
+			apk_istream_error(is, -APKE_V2PKG_FORMAT);
 			break;
+		}
 
 		if (bfile.len == 0) {
 			diri = apk_db_diri_new(db, pkg, bdir, &diri_node);
@@ -756,10 +761,8 @@ int apk_db_read_overlay(struct apk_database *db, struct apk_istream *is)
 			(void) apk_db_file_get(db, diri, bfile, &file_diri_node);
 		}
 	}
-	r = 0;
 err:
-	apk_istream_close(is);
-	return r;
+	return apk_istream_close(is);
 }
 
 int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
@@ -781,7 +784,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 
 	if (IS_ERR_OR_NULL(is)) return PTR_ERR(is);
 
-	while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token))) {
+	while (apk_istream_get_delim(is, token, &l) == 0) {
 		lineno++;
 
 		if (l.len < 2) {
@@ -901,7 +904,6 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 		}
 		if (APK_BLOB_IS_NULL(l)) goto bad_entry;
 	}
-
 	return apk_istream_close(is);
 old_apk_tools:
 	/* Installed db should not have unsupported fields */
@@ -1135,7 +1137,7 @@ static int apk_db_triggers_read(struct apk_database *db, struct apk_istream *is)
 
 	if (IS_ERR(is)) return PTR_ERR(is);
 
-	while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, APK_BLOB_STR("\n")))) {
+	while (apk_istream_get_delim(is, APK_BLOB_STR("\n"), &l) == 0) {
 		apk_blob_pull_csum(&l, &csum);
 		apk_blob_pull_char(&l, ' ');
 
@@ -1150,9 +1152,7 @@ static int apk_db_triggers_read(struct apk_database *db, struct apk_istream *is)
 			list_add_tail(&ipkg->trigger_pkgs_list,
 				      &db->installed.triggers);
 	}
-	apk_istream_close(is);
-
-	return 0;
+	return apk_istream_close(is);
 }
 
 static int apk_db_read_state(struct apk_database *db, int flags)
@@ -2428,7 +2428,7 @@ static int apk_db_install_archive_entry(void *_ctx,
 		if (ae->name[0] != '.') return 0;
 		if (strcmp(ae->name, ".PKGINFO") == 0) {
 			apk_blob_t l, token = APK_BLOB_STR("\n");
-			while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
+			while (apk_istream_get_delim(is, token, &l) == 0)
 				read_info_line(ctx, l);
 			return 0;
 		}

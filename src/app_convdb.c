@@ -86,19 +86,17 @@ static int read_triggers(struct conv_ctx *ctx, struct apk_istream *is)
 
 	if (IS_ERR(is)) return PTR_ERR(is);
 
-	while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, nl))) {
+	while (apk_istream_get_delim(is, nl, &l) == 0) {
 		if (!apk_blob_split(l, spc, &l, &r)) continue;
 		s = find_pkg(ctx, l, ADBI_SCRPT_TRIGGER);
 		if (!s) continue;
 
 		s->triggers = apk_atomize_dup(&ctx->atoms, r);
 	}
-
-	apk_istream_close(is);
-	return 0;
+	return apk_istream_close(is);
 }
 
-static void convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
+static int convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 {
 	struct apk_id_cache *idc = apk_ctx_get_id_cache(ctx->ac);
 	struct apk_checksum csum;
@@ -117,7 +115,7 @@ static void convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 	adb_wo_alloca(&pkg, &schema_package, &ctx->dbp);
 	adb_wo_alloca(&acl, &schema_acl, &ctx->dbp);
 
-	while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, nl))) {
+	while (apk_istream_get_delim(is, nl, &l) == 0) {
 		if (l.len < 2) {
 			adb_wa_append_obj(&files, &file);
 			adb_wo_obj(&path, ADBI_DI_FILES, &files);
@@ -191,6 +189,7 @@ static void convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 			break;
 		}
 	}
+	return apk_istream_close(is);
 }
 
 static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)

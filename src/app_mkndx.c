@@ -109,33 +109,32 @@ static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, s
 	};
 	struct field *f, key;
 	struct adb_obj pkginfo, deps[3];
-	apk_blob_t line, l, r, token = APK_BLOB_STR("\n"), bdep;
-	int e = 0, i = 0;
+	apk_blob_t line, k, v, token = APK_BLOB_STR("\n"), bdep;
+	int r, e = 0, i = 0;
 
 	adb_wo_alloca(&pkginfo, &schema_pkginfo, db);
 	adb_wo_alloca(&deps[0], &schema_dependency_array, db);
 	adb_wo_alloca(&deps[1], &schema_dependency_array, db);
 	adb_wo_alloca(&deps[2], &schema_dependency_array, db);
 
-	while (!APK_BLOB_IS_NULL(line = apk_istream_get_delim(is, token))) {
+	while ((r = apk_istream_get_delim(is, token, &line)) == 0) {
 		if (sctx) apk_sign_ctx_parse_pkginfo_line(sctx, line);
 		if (line.len < 1 || line.ptr[0] == '#') continue;
-		if (!apk_blob_split(line, APK_BLOB_STR(" = "), &l, &r)) continue;
+		if (!apk_blob_split(line, APK_BLOB_STR(" = "), &k, &v)) continue;
 
-		key.str = l;
+		key.str = k;
 		f = bsearch(&key, fields, ARRAY_SIZE(fields), sizeof(fields[0]), cmpfield);
 		if (!f || f->ndx == 0) continue;
 
 		if (adb_ro_val(&pkginfo, f->ndx) != ADB_NULL) {
 			/* Workaround abuild bug that emitted multiple license lines */
 			if (f->ndx == ADBI_PI_LICENSE) continue;
-			 e = ADB_ERROR(APKE_ADB_PACKAGE_FORMAT);
-			 continue;
+			return ADB_ERROR(APKE_ADB_PACKAGE_FORMAT);
 		}
 
 		switch (f->ndx) {
 		case ADBI_PI_ARCH:
-			if (!APK_BLOB_IS_NULL(rewrite_arch)) r = rewrite_arch;
+			if (!APK_BLOB_IS_NULL(rewrite_arch)) v = rewrite_arch;
 			break;
 		case ADBI_PI_DEPENDS:
 			i = 0;
@@ -146,13 +145,15 @@ static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, s
 		case ADBI_PI_REPLACES:
 			i = 2;
 		parse_deps:
-			while (!ADB_IS_ERROR(e) && apk_dep_split(&r, &bdep))
+			while (apk_dep_split(&v, &bdep)) {
 				e = adb_wa_append_fromstring(&deps[i], bdep);
+				if (ADB_IS_ERROR(e)) return e;
+			}
 			continue;
 		}
-		adb_wo_pkginfo(&pkginfo, f->ndx, r);
+		adb_wo_pkginfo(&pkginfo, f->ndx, v);
 	}
-	if (ADB_IS_ERROR(e)) return e;
+	if (r != -APKE_EOF) return ADB_ERROR(-r);
 
 	adb_wo_arr(&pkginfo, ADBI_PI_DEPENDS, &deps[0]);
 	adb_wo_arr(&pkginfo, ADBI_PI_PROVIDES, &deps[1]);

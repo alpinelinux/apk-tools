@@ -20,12 +20,12 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 	uint8_t started[64] = {0};
 
 	if (IS_ERR_OR_NULL(is)) return PTR_ERR(is);
-	l = apk_istream_get_delim(is, token);
+	if (apk_istream_get_delim(is, token, &l) != 0) goto err;
 	apk_blob_pull_blob_match(&l, APK_BLOB_STR("#%SCHEMA: "));
 	if ((r = d->ops->schema(d, apk_blob_pull_uint(&l, 16))) != 0) goto err;
 
 	started[0] = 1;
-	while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token))) {
+	while (apk_istream_get_delim(is, token, &l) == 0) {
 		for (i = 0; l.len >= 2 && l.ptr[0] == ' ' && l.ptr[1] == ' '; i++, l.ptr += 2, l.len -= 2)
 			if (multi_line && i >= multi_line) break;
 

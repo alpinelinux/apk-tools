@@ -67,17 +67,18 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 					APK_BLOB_PTR_LEN(gis->cbprev,
 					(void *)gis->zs.next_in - gis->cbprev));
 			}
-			blob = apk_istream_get_all(gis->zis);
+			r = apk_istream_get_all(gis->zis, &blob);
 			gis->cbprev = blob.ptr;
 			gis->zs.avail_in = blob.len;
 			gis->zs.next_in = (void *) gis->cbprev;
-			if (blob.len < 0) {
-				gis->is.err = blob.len;
-				goto ret;
-			} else if (gis->zs.avail_in == 0) {
-				gis->is.err = 1;
-				gis->cbarg = APK_BLOB_NULL;
-				gzi_boundary_change(gis);
+			if (r < 0) {
+				if (r == -APKE_EOF) {
+					gis->is.err = 1;
+					gis->cbarg = APK_BLOB_NULL;
+					gzi_boundary_change(gis);
+				} else {
+					gis->is.err = r;
+				}
 				goto ret;
 			}
 		}

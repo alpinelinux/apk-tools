@@ -98,9 +98,9 @@ apk_blob_t apk_istream_mmap(struct apk_istream *is);
 ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size);
 void *apk_istream_peek(struct apk_istream *is, size_t len);
 void *apk_istream_get(struct apk_istream *is, size_t len);
-apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t size);
-apk_blob_t apk_istream_get_delim(struct apk_istream *is, apk_blob_t token);
-static inline apk_blob_t apk_istream_get_all(struct apk_istream *is) { return apk_istream_get_max(is, APK_IO_ALL); }
+int apk_istream_get_max(struct apk_istream *is, size_t size, apk_blob_t *data);
+int apk_istream_get_delim(struct apk_istream *is, apk_blob_t token, apk_blob_t *data);
+static inline int apk_istream_get_all(struct apk_istream *is, apk_blob_t *data) { return apk_istream_get_max(is, APK_IO_ALL, data); }
 ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 			   apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx);
 ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size,

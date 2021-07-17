@@ -21,7 +21,7 @@ static void convert_index(struct conv_ctx *ctx, struct apk_istream *is)
 
 	adb_wo_alloca(&pkginfo, &schema_pkginfo, &ctx->dbi);
 
-	while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token))) {
+	while (apk_istream_get_delim(is, token, &l) == 0) {
 		if (l.len < 2) {
 			adb_wa_append_obj(&ctx->pkgs, &pkginfo);
 			continue;

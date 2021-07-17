@@ -160,21 +160,22 @@ void *apk_istream_get(struct apk_istream *is, size_t len)
 	return p;
 }
 
-apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t max)
+int apk_istream_get_max(struct apk_istream *is, size_t max, apk_blob_t *data)
 {
 	if (is->ptr == is->end)
 		__apk_istream_fill(is);
 
 	if (is->ptr != is->end) {
-		apk_blob_t ret = APK_BLOB_PTR_LEN((char*)is->ptr, min((size_t)(is->end - is->ptr), max));
-		is->ptr += ret.len;
-		return ret;
+		*data = APK_BLOB_PTR_LEN((char*)is->ptr, min((size_t)(is->end - is->ptr), max));
+		is->ptr += data->len;
+		return 0;
 	}
 
-	return (struct apk_blob) { .len = is->err < 0 ? is->err : 0 };
+	*data = APK_BLOB_NULL;
+	return is->err < 0 ? is->err : -APKE_EOF;
 }
 
-apk_blob_t apk_istream_get_delim(struct apk_istream *is, apk_blob_t token)
+int apk_istream_get_delim(struct apk_istream *is, apk_blob_t token, apk_blob_t *data)
 {
 	apk_blob_t ret = APK_BLOB_NULL, left = APK_BLOB_NULL;
 
@@ -195,9 +196,11 @@ apk_blob_t apk_istream_get_delim(struct apk_istream *is, apk_blob_t token)
 	if (!APK_BLOB_IS_NULL(ret)) {
 		is->ptr = (uint8_t*)left.ptr;
 		is->end = (uint8_t*)left.ptr + left.len;
-		return ret;
+		*data = ret;
+		return 0;
 	}
-	return (struct apk_blob) { .len = is->err < 0 ? is->err : 0 };
+	*data = APK_BLOB_NULL;
+	return is->err < 0 ? is->err : -APKE_EOF;
 }
 
 static void blob_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
@@ -559,11 +562,10 @@ ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t s
 	while (done < size) {
 		if (cb != NULL) cb(cb_ctx, done);
 
-		d = apk_istream_get_max(is, size - done);
-		if (APK_BLOB_IS_NULL(d)) {
-			if (d.len) return d.len;
-			if (size != APK_IO_ALL) return -APKE_EOF;
-			break;
+		r = apk_istream_get_max(is, size - done, &d);
+		if (r < 0) {
+			if (r == -APKE_EOF && d.len) return d.len;
+			return r;
 		}
 		if (dctx) apk_digest_ctx_update(dctx, d.ptr, d.len);
 
@@ -609,7 +611,7 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 		togo = min(size - done, bufsz);
 		r = apk_istream_read(is, buf, togo);
 		if (r <= 0) {
-			if (r) goto err;
+			if (r && r != -APKE_EOF) goto err;
 			if (size != APK_IO_ALL && done != size) {
 				r = -APKE_EOF;
 				goto err;
@@ -827,12 +829,12 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 			apk_blob_t blob;
 
 			if (apk_digest_ctx_init(&dctx, hash_alg) == 0) {
-				while (!APK_BLOB_IS_NULL(blob = apk_istream_get_all(is)))
+				while (apk_istream_get_all(is, &blob) == 0)
 					apk_digest_ctx_update(&dctx, blob.ptr, blob.len);
 				apk_digest_ctx_final(&dctx, &fi->digest);
 				apk_digest_ctx_free(&dctx);
 			}
-			apk_istream_close(is);
+			return apk_istream_close(is);
 		}
 	}
 
