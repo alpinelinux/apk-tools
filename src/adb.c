@@ -966,8 +966,7 @@ int adb_c_block_data(struct apk_ostream *os, apk_blob_t hdr, uint32_t size, stru
 		if (r < 0) return r;
 	}
 
-	apk_istream_close(is);
-	return 0;
+	return apk_istream_close(is);
 }
 
 int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_istream *is, struct adb_verify_ctx *vfy)

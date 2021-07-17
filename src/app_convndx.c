@@ -43,7 +43,7 @@ static int load_apkindex(void *sctx, const struct apk_file_info *fi,
 	if (strcmp(fi->name, "APKINDEX") == 0) {
 		ctx->found = 1;
 		convert_index(ctx, is);
-		apk_istream_close(is);
+		return apk_istream_close(is);
 	}
 
 	return 0;
