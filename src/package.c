@@ -976,23 +976,13 @@ int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 			struct apk_istream *is,
 			unsigned int type, unsigned int size)
 {
-	void *ptr;
-	int r;
+	apk_blob_t b;
 
-	if (type >= APK_SCRIPT_MAX)
-		return -1;
-
-	ptr = malloc(size);
-	r = apk_istream_read(is, ptr, size);
-	if (r < 0) {
-		free(ptr);
-		return r;
-	}
-
-	if (ipkg->script[type].ptr)
-		free(ipkg->script[type].ptr);
-	ipkg->script[type].ptr = ptr;
-	ipkg->script[type].len = size;
+	if (type >= APK_SCRIPT_MAX) return -1;
+	b = apk_blob_from_istream(is, size);
+	if (APK_BLOB_IS_NULL(b)) return -1;
+	if (ipkg->script[type].ptr) free(ipkg->script[type].ptr);
+	ipkg->script[type] = b;
 	return 0;
 }
 

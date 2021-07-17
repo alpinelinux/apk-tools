@@ -154,7 +154,7 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 	if (IS_ERR(is)) return PTR_ERR(is);
 
 	if (!(expected_schema & ADB_SCHEMA_IMPLIED)) {
-		if ((r = apk_istream_read(is, &db->hdr, sizeof db->hdr)) != sizeof db->hdr) goto err;
+		if ((r = apk_istream_read(is, &db->hdr, sizeof db->hdr)) < 0) goto err;
 		if (db->hdr.magic != htole32(ADB_FORMAT_MAGIC)) {
 			r = -APKE_ADB_HEADER;
 			goto err;
@@ -166,7 +166,7 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 	}
 
 	do {
-		r = apk_istream_read(is, &blk, sizeof blk);
+		r = apk_istream_read_max(is, &blk, sizeof blk);
 		if (r == 0) {
 			if (!trusted) r = -APKE_SIGNATURE_UNTRUSTED;
 			else if (!db->adb.ptr) r = -APKE_ADB_BLOCK;
@@ -183,7 +183,7 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 			if (!APK_BLOB_IS_NULL(db->adb)) goto bad_msg;
 			db->adb.ptr = malloc(sz);
 			db->adb.len = adb_block_length(&blk);
-			if ((r = apk_istream_read(is, db->adb.ptr, sz)) != sz) goto err;
+			if ((r = apk_istream_read(is, db->adb.ptr, sz)) < 0) goto err;
 			r = cb(db, &blk, apk_istream_from_blob(&seg.is, db->adb));
 			if (r < 0) goto err;
 			continue;

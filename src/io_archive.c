@@ -141,7 +141,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 
 	memset(&entry, 0, sizeof(entry));
 	entry.name = buf.name;
-	while ((r = apk_istream_read(is, &buf, 512)) == 512) {
+	while ((r = apk_istream_read_max(is, &buf, 512)) == 512) {
 		if (buf.name[0] == '\0') {
 			if (end) break;
 			end++;
@@ -182,7 +182,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 		switch (buf.typeflag) {
 		case 'L': /* GNU long name extension */
 			if ((r = blob_realloc(&longname, entry.size+1)) != 0 ||
-			    (r = apk_istream_read(is, longname.ptr, entry.size)) != entry.size)
+			    (r = apk_istream_read(is, longname.ptr, entry.size)) < 0)
 				goto err;
 			longname.ptr[entry.size] = 0;
 			entry.name = longname.ptr;
@@ -219,7 +219,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 		case 'x': /* file specific pax header */
 			paxlen = entry.size;
 			if ((r = blob_realloc(&pax, (paxlen + 511) & -512)) != 0 ||
-			    (r = apk_istream_read(is, pax.ptr, paxlen)) != paxlen)
+			    (r = apk_istream_read(is, pax.ptr, paxlen)) < 0)
 				goto err;
 			toskip -= entry.size;
 			break;
@@ -244,14 +244,14 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 			paxlen = 0;
 		}
 
-		if (toskip && (r = apk_istream_read(is, NULL, toskip)) != toskip)
+		if (toskip && (r = apk_istream_read(is, NULL, toskip)) < 0)
 			goto err;
 	}
 
 	/* Read remaining end-of-archive records, to ensure we read all of
 	 * the file. The underlying istream is likely doing checksumming. */
 	if (r == 512) {
-		while ((r = apk_istream_read(is, &buf, 512)) == 512) {
+		while ((r = apk_istream_read_max(is, &buf, 512)) == 512) {
 			if (buf.name[0] != 0) break;
 		}
 	}

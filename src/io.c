@@ -68,7 +68,7 @@ apk_blob_t apk_istream_mmap(struct apk_istream *is)
 	return APK_BLOB_NULL;
 }
 
-ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size)
+ssize_t apk_istream_read_max(struct apk_istream *is, void *ptr, size_t size)
 {
 	ssize_t left = size, r = 0;
 
@@ -100,10 +100,15 @@ ssize_t apk_istream_read(struct apk_istream *is, void *ptr, size_t size)
 		is->end = is->buf + r;
 	}
 
-	if (r < 0) return r;
-	if (size && left == size && !is->err) is->err = 1;
-	if (size == left) return is->err < 0 ? is->err : 0;
+	if (r < 0) return apk_istream_error(is, r);
+	if (left == size) return apk_istream_error(is, (size && !is->err) ? 1 : 0);
 	return size - left;
+}
+
+int apk_istream_read(struct apk_istream *is, void *ptr, size_t size)
+{
+	ssize_t r = apk_istream_read_max(is, ptr, size);
+	return r == size ? 0 : apk_istream_error(is, -APKE_EOF);
 }
 
 static int __apk_istream_fill(struct apk_istream *is)
@@ -117,51 +122,46 @@ static int __apk_istream_fill(struct apk_istream *is)
 		memmove(is->buf, is->ptr, sz);
 		is->ptr = is->buf;
 		is->end = is->buf + sz;
-	}
+	} else if (is->end-is->ptr == is->buf_size)
+		return -ENOBUFS;
 
 	sz = is->ops->read(is, is->end, is->buf + is->buf_size - is->end);
-	if (sz <= 0) {
-		is->err = sz ?: 1;
-		return is->err;
-	}
+	if (sz <= 0) return apk_istream_error(is, sz ?: 1);
 	is->end += sz;
 	return 0;
 }
 
 void *apk_istream_peek(struct apk_istream *is, size_t len)
 {
+	int r;
+
 	do {
 		if (is->end - is->ptr >= len) {
 			void *ptr = is->ptr;
 			return ptr;
 		}
-	} while (!__apk_istream_fill(is));
+		r = __apk_istream_fill(is);
+	} while (r == 0);
 
-	if (is->end-is->ptr == is->buf_size)
-		return ERR_PTR(-ENOBUFS);
-	if (is->err > 0)
-		return ERR_PTR(-APKE_EOF);
-	return ERR_PTR(-EIO);
+	return ERR_PTR(r > 0 ? -APKE_EOF : r);
 }
 
 void *apk_istream_get(struct apk_istream *is, size_t len)
 {
 	void *p = apk_istream_peek(is, len);
 	if (!IS_ERR_OR_NULL(p)) is->ptr += len;
+	else apk_istream_error(is, PTR_ERR(p));
 	return p;
 }
 
 int apk_istream_get_max(struct apk_istream *is, size_t max, apk_blob_t *data)
 {
-	if (is->ptr == is->end)
-		__apk_istream_fill(is);
-
+	if (is->ptr == is->end) __apk_istream_fill(is);
 	if (is->ptr != is->end) {
 		*data = APK_BLOB_PTR_LEN((char*)is->ptr, min((size_t)(is->end - is->ptr), max));
 		is->ptr += data->len;
 		return 0;
 	}
-
 	*data = APK_BLOB_NULL;
 	return is->err < 0 ? is->err : -APKE_EOF;
 }
@@ -169,19 +169,17 @@ int apk_istream_get_max(struct apk_istream *is, size_t max, apk_blob_t *data)
 int apk_istream_get_delim(struct apk_istream *is, apk_blob_t token, apk_blob_t *data)
 {
 	apk_blob_t ret = APK_BLOB_NULL, left = APK_BLOB_NULL;
+	int r;
 
 	do {
 		if (apk_blob_split(APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr), token, &ret, &left))
 			break;
-		if (is->end - is->ptr == is->buf_size) {
-			is->err = -ENOBUFS;
-			break;
-		}
-	} while (!__apk_istream_fill(is));
+		r = __apk_istream_fill(is);
+	} while (r == 0);
 
 	/* Last segment before end-of-file. Return also zero length non-null
 	 * blob if eof comes immediately after the delimiter. */
-	if (is->ptr && is->err > 0)
+	if (is->ptr && r > 0)
 		ret = APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr);
 
 	if (!APK_BLOB_IS_NULL(ret)) {
@@ -190,8 +188,9 @@ int apk_istream_get_delim(struct apk_istream *is, apk_blob_t token, apk_blob_t *
 		*data = ret;
 		return 0;
 	}
+	if (r < 0) apk_istream_error(is, r);
 	*data = APK_BLOB_NULL;
-	return is->err < 0 ? is->err : -APKE_EOF;
+	return r < 0 ? r : -APKE_EOF;
 }
 
 static void blob_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
@@ -571,21 +570,16 @@ ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t s
 apk_blob_t apk_blob_from_istream(struct apk_istream *is, size_t size)
 {
 	void *ptr;
-	ssize_t rsize;
 
 	ptr = malloc(size);
 	if (ptr == NULL)
 		return APK_BLOB_NULL;
 
-	rsize = apk_istream_read(is, ptr, size);
-	if (rsize < 0) {
+	if (apk_istream_read(is, ptr, size) < 0) {
 		free(ptr);
 		return APK_BLOB_NULL;
 	}
-	if (rsize != size)
-		ptr = realloc(ptr, rsize);
-
-	return APK_BLOB_PTR_LEN(ptr, rsize);
+	return APK_BLOB_PTR_LEN(ptr, size);
 }
 
 apk_blob_t apk_blob_from_file(int atfd, const char *file)
