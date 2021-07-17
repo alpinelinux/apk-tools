@@ -102,7 +102,6 @@ struct adb_object_schema {
 
 	apk_blob_t (*tostring)(struct adb_obj *, char *, size_t);
 	int (*fromstring)(struct adb_obj *, apk_blob_t);
-	uint32_t (*get_default_int)(unsigned i);
 	int (*compare)(const struct adb_obj *, const struct adb_obj *);
 	void (*pre_commit)(struct adb_obj *);
 

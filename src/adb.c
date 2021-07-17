@@ -384,10 +384,7 @@ adb_val_t adb_ro_val(const struct adb_obj *o, unsigned i)
 
 uint32_t adb_ro_int(const struct adb_obj *o, unsigned i)
 {
-	adb_val_t val = adb_ro_val(o, i);
-	if (val == ADB_NULL && o->schema && o->schema->get_default_int)
-		return o->schema->get_default_int(i);
-	return adb_r_int(o->db, val);
+	return adb_r_int(o->db, adb_ro_val(o, i));
 }
 
 apk_blob_t adb_ro_blob(const struct adb_obj *o, unsigned i)
@@ -826,9 +823,6 @@ adb_val_t adb_wo_val_fromstring(struct adb_obj *o, unsigned i, apk_blob_t val)
 
 adb_val_t adb_wo_int(struct adb_obj *o, unsigned i, uint32_t v)
 {
-	if (o->schema && o->schema->get_default_int &&
-	    v == o->schema->get_default_int(i))
-		return ADB_NULL;
 	return adb_wo_val(o, i, adb_w_int(o->db, v));
 }
 
