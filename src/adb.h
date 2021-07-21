@@ -46,7 +46,7 @@ typedef uint32_t adb_val_t;
 #define ADB_FORMAT_MAGIC	0x2e424441	// ADB.
 #define ADB_SCHEMA_IMPLIED	0x80000000
 
-struct adb_header {
+struct adb_file_header {
 	uint32_t magic;
 	uint32_t schema;
 };
@@ -140,8 +140,8 @@ struct adb_w_bucket {
 struct adb {
 	struct apk_istream *is;
 	apk_blob_t adb;
-	struct adb_header hdr;
-	size_t num_buckets;
+	uint32_t schema;
+	uint32_t num_buckets;
 	size_t alloc_len;
 	struct list_head *bucket;
 };

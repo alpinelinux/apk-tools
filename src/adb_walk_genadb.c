@@ -7,7 +7,7 @@ static int adb_walk_genadb_schema(struct adb_walk *d, uint32_t schema_id)
 	struct adb_walk_genadb *dt = container_of(d, struct adb_walk_genadb, d);
 	const struct adb_db_schema *s;
 
-	dt->db.hdr.schema = htole32(schema_id);
+	dt->db.schema = schema_id;
 	for (s = d->schemas; s->magic; s++)
 		if (s->magic == schema_id) break;
 	if (!s) return -APKE_ADB_SCHEMA;
@@ -29,7 +29,7 @@ static int adb_walk_genadb_start_object(struct adb_walk *d)
 {
 	struct adb_walk_genadb *dt = container_of(d, struct adb_walk_genadb, d);
 
-	if (!dt->db.hdr.schema) return -APKE_ADB_SCHEMA;
+	if (!dt->db.schema) return -APKE_ADB_SCHEMA;
 	if (dt->nest >= ARRAY_SIZE(dt->objs)) return -APKE_ADB_LIMIT;
 
 	if (dt->curkey[dt->nest] == 0 &&
@@ -45,7 +45,7 @@ static int adb_walk_genadb_start_object(struct adb_walk *d)
 		struct adb_adb_schema *schema = container_of(&dt->objs[dt->nest-1].schema->kind, struct adb_adb_schema, kind);
 		if (dt->nestdb >= ARRAY_SIZE(dt->idb)) return -APKE_ADB_LIMIT;
 		adb_reset(&dt->idb[dt->nestdb]);
-		dt->idb[dt->nestdb].hdr.schema = htole32(schema->schema_id);
+		dt->idb[dt->nestdb].schema = schema->schema_id;
 		dt->objs[dt->nest].db = &dt->idb[dt->nestdb];
 		dt->nestdb++;
 	}

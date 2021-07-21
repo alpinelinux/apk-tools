@@ -112,7 +112,7 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 	struct adb_walk *d = ctx->d;
 	char tmp[16+ADB_MAX_SIGNATURE_LEN*2];
 	struct adb_sign_hdr *s;
-	uint32_t schema_magic = ctx->db.hdr.schema;
+	uint32_t schema_magic = ctx->db.schema;
 	const struct adb_db_schema *ds;
 	int r, len;
 	size_t sz = adb_block_length(b);
@@ -120,7 +120,7 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 
 	switch (adb_block_type(b)) {
 	case ADB_BLOCK_ADB:
-		d->ops->schema(d, db->hdr.schema);
+		d->ops->schema(d, db->schema);
 		for (ds = d->schemas; ds->magic; ds++)
 			if (ds->magic == schema_magic) break;
 		len = snprintf(tmp, sizeof tmp, "ADB block, size: %zu", sz);

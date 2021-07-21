@@ -70,6 +70,11 @@ void adb_reset(struct adb *db)
 	db->adb.len = 0;
 }
 
+static int __adb_dummy_cb(struct adb *db, struct adb_block *b, struct apk_istream *is)
+{
+	return 0;
+}
+
 static int __adb_m_parse(struct adb *db, apk_blob_t data, struct apk_trust *t,
 	int (*cb)(struct adb *, struct adb_block *, struct apk_istream *))
 {
@@ -121,22 +126,22 @@ err:
 int adb_m_blob(struct adb *db, apk_blob_t blob, struct apk_trust *t)
 {
 	adb_init(db);
-	return __adb_m_parse(db, blob, t, 0);
+	return __adb_m_parse(db, blob, t, __adb_dummy_cb);
 }
 
 static int __adb_m_mmap(struct adb *db, apk_blob_t mmap, uint32_t expected_schema, struct apk_trust *t,
 	int (*cb)(struct adb *, struct adb_block *, struct apk_istream *))
 {
-	struct adb_header *hdr;
+	struct adb_file_header *hdr;
 	int r = -APKE_ADB_HEADER;
 	apk_blob_t data = mmap;
 
 	if (!(expected_schema & ADB_SCHEMA_IMPLIED)) {
 		if (mmap.len < sizeof *hdr) return -APKE_ADB_HEADER;
-		hdr = (struct adb_header *) mmap.ptr;
+		hdr = (struct adb_file_header *) mmap.ptr;
 		if (hdr->magic != htole32(ADB_FORMAT_MAGIC)) return -APKE_ADB_HEADER;
 		if (expected_schema && expected_schema != le32toh(hdr->schema)) return -APKE_ADB_SCHEMA;
-		db->hdr = *hdr;
+		db->schema = le32toh(hdr->schema);
 		data = APK_BLOB_PTR_LEN(mmap.ptr + sizeof *hdr, mmap.len - sizeof *hdr);
 	}
 
@@ -151,6 +156,7 @@ err:
 static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expected_schema,
 	struct apk_trust *t, int (*cb)(struct adb *, struct adb_block *, struct apk_istream *))
 {
+	struct adb_file_header hdr;
 	struct adb_verify_ctx vfy = {};
 	struct adb_block blk;
 	struct apk_segment_istream seg;
@@ -162,15 +168,16 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 	if (IS_ERR(is)) return PTR_ERR(is);
 
 	if (!(expected_schema & ADB_SCHEMA_IMPLIED)) {
-		if ((r = apk_istream_read(is, &db->hdr, sizeof db->hdr)) < 0) goto err;
-		if (db->hdr.magic != htole32(ADB_FORMAT_MAGIC)) {
+		if ((r = apk_istream_read(is, &hdr, sizeof hdr)) < 0) goto err;
+		if (hdr.magic != htole32(ADB_FORMAT_MAGIC)) {
 			r = -APKE_ADB_HEADER;
 			goto err;
 		}
-		if (expected_schema && expected_schema != le32toh(db->hdr.schema)) {
+		if (expected_schema && expected_schema != le32toh(hdr.schema)) {
 			r = -APKE_ADB_SCHEMA;
 			goto err;
 		}
+		db->schema = le32toh(hdr.schema);
 	}
 
 	do {
@@ -230,22 +237,13 @@ err:
 	return apk_istream_close_error(is, r);
 }
 
-static int __adb_dummy_cb(struct adb *db, struct adb_block *b, struct apk_istream *is)
-{
-	return 0;
-}
-
 int adb_m_process(struct adb *db, struct apk_istream *is, uint32_t expected_schema,
 	struct apk_trust *t, int (*cb)(struct adb *, struct adb_block *, struct apk_istream *))
 {
 	apk_blob_t mmap = apk_istream_mmap(is);
 	memset(db, 0, sizeof *db);
-	if (expected_schema & ADB_SCHEMA_IMPLIED) {
-		db->hdr = (struct adb_header) {
-			.magic = ADB_FORMAT_MAGIC,
-			.schema = expected_schema & ~ADB_SCHEMA_IMPLIED,
-		};
-	}
+	if (expected_schema & ADB_SCHEMA_IMPLIED)
+		db->schema = expected_schema & ~ADB_SCHEMA_IMPLIED;
 	if (!cb) cb = __adb_dummy_cb;
 	if (!APK_BLOB_IS_NULL(mmap)) {
 		db->is = is;
@@ -259,8 +257,7 @@ int adb_w_init_dynamic(struct adb *db, uint32_t schema, void *buckets, size_t nu
 	size_t i;
 
 	*db = (struct adb) {
-		.hdr.magic = htole32(ADB_FORMAT_MAGIC),
-		.hdr.schema = htole32(schema),
+		.schema = schema,
 		.num_buckets = num_buckets,
 		.bucket = buckets,
 	};
@@ -276,7 +273,6 @@ int adb_w_init_dynamic(struct adb *db, uint32_t schema, void *buckets, size_t nu
 int adb_w_init_static(struct adb *db, void *buf, size_t bufsz)
 {
 	*db = (struct adb) {
-		.hdr.magic = htole32(ADB_FORMAT_MAGIC),
 		.adb.ptr = buf,
 		.alloc_len = bufsz,
 	};
@@ -518,7 +514,7 @@ static unsigned iovec_memcmp(struct iovec *vec, size_t nvec, void *base)
 static adb_val_t adb_w_error(struct adb *db, int rc)
 {
 	assert(0);
-	db->hdr.magic = 0;
+	db->schema = 0;
 	return ADB_ERROR(rc);
 }
 
@@ -927,7 +923,11 @@ int adb_s_field_by_name(const struct adb_object_schema *schema, const char *name
 /* Container creation */
 int adb_c_header(struct apk_ostream *os, struct adb *db)
 {
-	return apk_ostream_write(os, &db->hdr, sizeof db->hdr);
+	struct adb_file_header hdr = {
+		.magic = ADB_FORMAT_MAGIC,
+		.schema = htole32(db->schema),
+	};
+	return apk_ostream_write(os, &hdr, sizeof hdr);
 }
 
 int adb_c_block(struct apk_ostream *os, uint32_t type, apk_blob_t val)
@@ -1010,10 +1010,8 @@ int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_ist
 
 int adb_c_adb(struct apk_ostream *os, struct adb *db, struct apk_trust *t)
 {
-	if (IS_ERR(os))
-		return apk_ostream_cancel(os, PTR_ERR(os));
-	if (db->hdr.magic != htole32(ADB_FORMAT_MAGIC))
-		return apk_ostream_cancel(os, -APKE_ADB_HEADER);
+	if (IS_ERR(os)) return PTR_ERR(os);
+	if (!db->schema) return apk_ostream_cancel(os, -APKE_ADB_HEADER);
 
 	adb_c_header(os, db);
 	adb_c_block(os, ADB_BLOCK_ADB, db->adb);
@@ -1053,11 +1051,11 @@ static int adb_digest_adb(struct adb_verify_ctx *vfy, unsigned int hash_alg, apk
 	return 0;
 }
 
-static int adb_digest_v0_signature(struct apk_digest_ctx *dctx, struct adb_header *hdr, struct adb_sign_v0 *sig0, apk_blob_t md)
+static int adb_digest_v0_signature(struct apk_digest_ctx *dctx, uint32_t schema, struct adb_sign_v0 *sig0, apk_blob_t md)
 {
 	int r;
 
-	if ((r = apk_digest_ctx_update(dctx, hdr, sizeof *hdr)) != 0 ||
+	if ((r = apk_digest_ctx_update(dctx, &schema, sizeof schema)) != 0 ||
 	    (r = apk_digest_ctx_update(dctx, sig0, sizeof *sig0)) != 0 ||
 	    (r = apk_digest_ctx_update(dctx, md.ptr, md.len)) != 0)
 		return r;
@@ -1096,7 +1094,7 @@ int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct a
 		siglen = sizeof sig.buf - sizeof sig.v0;
 
 		if ((r = apk_sign_start(&trust->dctx, &tkey->key)) != 0 ||
-		    (r = adb_digest_v0_signature(&trust->dctx, &db->hdr, &sig.v0, md)) != 0 ||
+		    (r = adb_digest_v0_signature(&trust->dctx, db->schema, &sig.v0, md)) != 0 ||
 		    (r = apk_sign(&trust->dctx, sig.v0.sig, &siglen)) != 0)
 			goto err;
 
@@ -1128,7 +1126,7 @@ int adb_trust_verify_signature(struct apk_trust *trust, struct adb *db, struct a
 		if (adb_digest_adb(vfy, sig->hash_alg, db->adb, &md) != 0) continue;
 
 		if (apk_verify_start(&trust->dctx, &tkey->key) != 0 ||
-		    adb_digest_v0_signature(&trust->dctx, &db->hdr, sig0, md) != 0 ||
+		    adb_digest_v0_signature(&trust->dctx, db->schema, sig0, md) != 0 ||
 		    apk_verify(&trust->dctx, sig0->sig, sigb.len - sizeof *sig0) != 0)
 			continue;
 
