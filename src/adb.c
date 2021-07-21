@@ -76,37 +76,45 @@ static int __adb_m_parse(struct adb *db, apk_blob_t data, struct apk_trust *t,
 	struct adb_verify_ctx vfy = {};
 	struct adb_block *blk;
 	struct apk_istream is;
-	int r = -APKE_ADB_BLOCK;
-	int trusted = t ? 0 : 1;
+	int r = 0, trusted = t ? 0 : 1;
+	uint32_t type, allowed = BIT(ADB_BLOCK_ADB);
 
 	adb_foreach_block(blk, data) {
 		apk_blob_t b = adb_block_blob(blk);
-		switch (adb_block_type(blk)) {
+		type = adb_block_type(blk);
+		if (!(BIT(type) & allowed)) {
+			r = -APKE_ADB_BLOCK;
+			break;
+		}
+		switch (type) {
 		case ADB_BLOCK_ADB:
-			if (!APK_BLOB_IS_NULL(db->adb)) break;
+			allowed = BIT(ADB_BLOCK_SIG) | BIT(ADB_BLOCK_DATA) | BIT(ADB_BLOCK_DATAX);
 			db->adb = b;
 			break;
 		case ADB_BLOCK_SIG:
-			if (APK_BLOB_IS_NULL(db->adb)) break;
 			if (!trusted &&
 			    adb_trust_verify_signature(t, db, &vfy, b) == 0)
 				trusted = 1;
 			break;
-		default:
-			if (APK_BLOB_IS_NULL(db->adb)) break;
+		case ADB_BLOCK_DATA:
+			allowed = BIT(ADB_BLOCK_DATA) | BIT(ADB_BLOCK_DATAX);
+			if (!trusted) goto err;
+			break;
+		case ADB_BLOCK_DATAX:
+			r = -APKE_ADB_BLOCK;
 			break;
 		}
 		r = cb(db, blk, apk_istream_from_blob(&is, b));
-		if (r < 0) goto err;
+		if (r < 0) break;
 	}
-	if (IS_ERR(blk)) r = PTR_ERR(blk);
-	else if (!trusted) r = -APKE_SIGNATURE_UNTRUSTED;
-	else if (db->adb.ptr) r = 0;
-
-	if (r != 0) {
-	err:
-		db->adb = APK_BLOB_NULL;
+err:
+	if (r > 0) r = -APKE_ADB_BLOCK;
+	if (r == 0) {
+		if (IS_ERR(blk)) r = PTR_ERR(blk);
+		else if (!trusted) r = -APKE_SIGNATURE_UNTRUSTED;
+		else if (!db->adb.ptr) r = -APKE_ADB_BLOCK;
 	}
+	if (r != 0) db->adb = APK_BLOB_NULL;
 	return r;
 }
 
@@ -147,8 +155,8 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 	struct adb_block blk;
 	struct apk_segment_istream seg;
 	void *sig;
-	int r, block_no = 0;
-	int trusted = t ? 0 : 1;
+	int r = 0, trusted = t ? 0 : 1;
+	uint32_t type, allowed = BIT(ADB_BLOCK_ADB);
 	size_t sz;
 
 	if (IS_ERR(is)) return PTR_ERR(is);
@@ -167,20 +175,17 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 
 	do {
 		r = apk_istream_read_max(is, &blk, sizeof blk);
-		if (r == 0) {
-			if (!trusted) r = -APKE_SIGNATURE_UNTRUSTED;
-			else if (!db->adb.ptr) r = -APKE_ADB_BLOCK;
-			goto done;
+		if (r != sizeof blk) break;
+
+		type = adb_block_type(&blk);
+		if (!(BIT(type) & allowed)) {
+			r = -APKE_ADB_BLOCK;
+			break;
 		}
-		if (r < 0 || r != sizeof blk) goto err;
-
-		if ((block_no++ == 0) != (adb_block_type(&blk) == ADB_BLOCK_ADB))
-			goto bad_msg;
-
 		sz = adb_block_size(&blk) - sizeof blk;
-		switch (adb_block_type(&blk)) {
+		switch (type) {
 		case ADB_BLOCK_ADB:
-			if (!APK_BLOB_IS_NULL(db->adb)) goto bad_msg;
+			allowed = BIT(ADB_BLOCK_SIG) | BIT(ADB_BLOCK_DATA) | BIT(ADB_BLOCK_DATAX);
 			db->adb.ptr = malloc(sz);
 			db->adb.len = adb_block_length(&blk);
 			if ((r = apk_istream_read(is, db->adb.ptr, sz)) < 0) goto err;
@@ -188,7 +193,6 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 			if (r < 0) goto err;
 			continue;
 		case ADB_BLOCK_SIG:
-			if (APK_BLOB_IS_NULL(db->adb)) goto bad_msg;
 			sig = apk_istream_peek(is, sz);
 			if (IS_ERR(sig)) {
 				r = PTR_ERR(sig);
@@ -199,27 +203,30 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 				trusted = 1;
 			break;
 		case ADB_BLOCK_DATA:
-			if (APK_BLOB_IS_NULL(db->adb)) goto bad_msg;
-			if (!trusted) {
-				r = -APKE_SIGNATURE_UNTRUSTED;
-				goto err;
-			}
+			allowed = BIT(ADB_BLOCK_DATA) | BIT(ADB_BLOCK_DATAX);
+			if (!trusted) goto err;
 			break;
-		default:
-			goto bad_msg;
+		case ADB_BLOCK_DATAX:
+			r = -APKE_ADB_BLOCK;
+			break;
 		}
 
-		apk_istream_segment(&seg, is, adb_block_size(&blk) - sizeof blk, 0);
+		apk_istream_segment(&seg, is, sz, 0);
 		r = cb(db, &blk, &seg.is);
-		if (r < 0) goto err;
+		if (r < 0) break;
 		r = apk_istream_close(&seg.is);
-		if (r < 0) goto err;
+		if (r < 0) break;
 	} while (1);
-bad_msg:
-	r = -APKE_ADB_BLOCK;
 err:
-	if (r >= 0) r = -APKE_ADB_BLOCK;
-done:
+	if (r > 0) r = -APKE_ADB_BLOCK;
+	if (r == 0) {
+		if (!trusted) r = -APKE_SIGNATURE_UNTRUSTED;
+		else if (!db->adb.ptr) r = -APKE_ADB_BLOCK;
+	}
+	if (r != 0) {
+		free(db->adb.ptr);
+		db->adb = APK_BLOB_NULL;
+	}
 	return apk_istream_close_error(is, r);
 }
 
@@ -929,6 +936,8 @@ int adb_c_block(struct apk_ostream *os, uint32_t type, apk_blob_t val)
 	size_t padding = adb_block_padding(&blk);
 	int r;
 
+	if (val.len & ~0x3fffffff) return -APKE_ADB_LIMIT;
+
 	r = apk_ostream_write(os, &blk, sizeof blk);
 	if (r < 0) return r;
 
@@ -990,6 +999,8 @@ int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_ist
 	} else {
 		r = apk_stream_copy(is, os, blk_sz, 0, 0, 0);
 	}
+	if (r < 0) return r;
+	r = 0;
 	if (padding) {
 		r = apk_ostream_write(os, padding_zeroes, padding);
 		if (r < 0) return r;

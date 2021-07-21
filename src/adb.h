@@ -54,8 +54,9 @@ struct adb_header {
 /* Blocks */
 #define ADB_BLOCK_ALIGNMENT	8
 #define ADB_BLOCK_ADB		0
-#define ADB_BLOCK_SIG		2
-#define ADB_BLOCK_DATA		3
+#define ADB_BLOCK_SIG		1
+#define ADB_BLOCK_DATA		2
+#define ADB_BLOCK_DATAX		3
 
 struct adb_block {
 	uint32_t type_size;

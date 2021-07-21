@@ -84,10 +84,11 @@ static int adbsign_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 
 	ctx->ac = ac;
 	foreach_array_item(arg, args) {
+		memset(&ctx->vfy, 0, sizeof ctx->vfy);
 		struct apk_istream *is = adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, *arg), &comp);
 		ctx->os = adb_compress(apk_ostream_to_file(AT_FDCWD, *arg, 0644), comp);
-		adb_m_process(&ctx->db, is, 0, 0, process_block);
-		process_signatures(ctx);
+		apk_ostream_cancel(ctx->os, adb_m_process(&ctx->db, is, 0, 0, process_block));
+		apk_ostream_cancel(ctx->os, process_signatures(ctx));
 		adb_free(&ctx->db);
 		r = apk_ostream_close(ctx->os);
 		if (r) apk_err(out, "%s: %s", *arg, apk_error_str(r));
