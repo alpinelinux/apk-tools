@@ -54,6 +54,7 @@ int adb_free(struct adb *db)
 				free(bucket);
 		free(db->adb.ptr);
 	}
+	memset(db, 0, sizeof *db);
 	return 0;
 }
 
@@ -67,7 +68,7 @@ void adb_reset(struct adb *db)
 			free(bucket);
 		list_init(&db->bucket[i]);
 	}
-	db->adb.len = 0;
+	db->adb.len = sizeof(struct adb_hdr);
 }
 
 static int __adb_dummy_cb(struct adb *db, struct adb_block *b, struct apk_istream *is)
@@ -94,6 +95,14 @@ static int __adb_m_parse(struct adb *db, apk_blob_t data, struct apk_trust *t,
 		switch (type) {
 		case ADB_BLOCK_ADB:
 			allowed = BIT(ADB_BLOCK_SIG) | BIT(ADB_BLOCK_DATA) | BIT(ADB_BLOCK_DATAX);
+			if (b.len < 16) {
+				r = -APKE_ADB_BLOCK;
+				break;
+			}
+			if (((struct adb_hdr*)b.ptr)->adb_compat_ver != 0) {
+				r = -APKE_ADB_VERSION;
+				break;
+			}
 			db->adb = b;
 			break;
 		case ADB_BLOCK_SIG:
@@ -195,7 +204,15 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 			allowed = BIT(ADB_BLOCK_SIG) | BIT(ADB_BLOCK_DATA) | BIT(ADB_BLOCK_DATAX);
 			db->adb.ptr = malloc(sz);
 			db->adb.len = adb_block_length(&blk);
+			if (db->adb.len < 16) {
+				r = -APKE_ADB_BLOCK;
+				break;
+			}
 			if ((r = apk_istream_read(is, db->adb.ptr, sz)) < 0) goto err;
+			if (((struct adb_hdr*)db->adb.ptr)->adb_compat_ver != 0) {
+				r = -APKE_ADB_VERSION;
+				break;
+			}
 			r = cb(db, &blk, apk_istream_from_blob(&seg.is, db->adb));
 			if (r < 0) goto err;
 			continue;
@@ -252,8 +269,40 @@ int adb_m_process(struct adb *db, struct apk_istream *is, uint32_t expected_sche
 	return __adb_m_stream(db, is, expected_schema, t, cb);
 }
 
+static size_t adb_w_raw(struct adb *db, struct iovec *vec, size_t n, size_t len, size_t alignment)
+{
+	void *ptr;
+	size_t offs, i;
+
+	if ((i = ROUND_UP(db->adb.len, alignment) - db->adb.len) != 0) {
+		memset(&db->adb.ptr[db->adb.len], 0, i);
+		db->adb.len += i;
+	}
+
+	if (db->adb.len + len > db->alloc_len) {
+		assert(db->num_buckets);
+		if (!db->alloc_len) db->alloc_len = 8192;
+		while (db->adb.len + len > db->alloc_len)
+			db->alloc_len *= 2;
+		ptr = realloc(db->adb.ptr, db->alloc_len);
+		assert(ptr);
+		db->adb.ptr = ptr;
+	}
+
+	offs = db->adb.len;
+	for (i = 0; i < n; i++) {
+		memcpy(&db->adb.ptr[db->adb.len], vec[i].iov_base, vec[i].iov_len);
+		db->adb.len += vec[i].iov_len;
+	}
+
+	return offs;
+}
+
+
 int adb_w_init_dynamic(struct adb *db, uint32_t schema, void *buckets, size_t num_buckets)
 {
+	struct adb_hdr hdr = { .adb_compat_ver = 0, .adb_ver = 0 };
+	struct iovec vec = { .iov_base = &hdr, .iov_len = sizeof hdr };
 	size_t i;
 
 	*db = (struct adb) {
@@ -267,6 +316,7 @@ int adb_w_init_dynamic(struct adb *db, uint32_t schema, void *buckets, size_t nu
 			list_init(&db->bucket[i]);
 	}
 
+	adb_w_raw(db, &vec, 1, vec.iov_len, sizeof hdr);
 	return 0;
 }
 
@@ -289,8 +339,8 @@ static inline void *adb_r_deref(const struct adb *db, adb_val_t v, size_t offs, 
 
 adb_val_t adb_r_root(const struct adb *db)
 {
-	if (db->adb.len < sizeof(adb_val_t)) return ADB_NULL;
-	return *(adb_val_t *)(db->adb.ptr + db->adb.len - sizeof(adb_val_t));
+	if (db->adb.len < sizeof(struct adb_hdr)) return ADB_NULL;
+	return ((struct adb_hdr*)db->adb.ptr)->root;
 }
 
 uint32_t adb_r_int(const struct adb *db, adb_val_t v)
@@ -518,35 +568,6 @@ static adb_val_t adb_w_error(struct adb *db, int rc)
 	return ADB_ERROR(rc);
 }
 
-static size_t adb_w_raw(struct adb *db, struct iovec *vec, size_t n, size_t len, size_t alignment)
-{
-	void *ptr;
-	size_t offs, i;
-
-	if ((i = ROUND_UP(db->adb.len, alignment) - db->adb.len) != 0) {
-		memset(&db->adb.ptr[db->adb.len], 0, i);
-		db->adb.len += i;
-	}
-
-	if (db->adb.len + len > db->alloc_len) {
-		assert(db->num_buckets);
-		if (!db->alloc_len) db->alloc_len = 8192;
-		while (db->adb.len + len > db->alloc_len)
-			db->alloc_len *= 2;
-		ptr = realloc(db->adb.ptr, db->alloc_len);
-		assert(ptr);
-		db->adb.ptr = ptr;
-	}
-
-	offs = db->adb.len;
-	for (i = 0; i < n; i++) {
-		memcpy(&db->adb.ptr[db->adb.len], vec[i].iov_base, vec[i].iov_len);
-		db->adb.len += vec[i].iov_len;
-	}
-
-	return offs;
-}
-
 static size_t adb_w_data(struct adb *db, struct iovec *vec, size_t nvec, size_t alignment)
 {
 	size_t len, i;
@@ -593,10 +614,11 @@ static size_t adb_w_data1(struct adb *db, void *ptr, size_t len, size_t alignmen
 
 void adb_w_root(struct adb *db, adb_val_t root_val)
 {
-	struct iovec vec = {
-		.iov_base = &root_val, .iov_len = sizeof(adb_val_t),
-	};
-	adb_w_raw(db, &vec, 1, vec.iov_len, sizeof root_val);
+	if (db->adb.len < sizeof(struct adb_hdr)) {
+		adb_w_error(db, APKE_ADB_HEADER);
+		return;
+	}
+	((struct adb_hdr*)db->adb.ptr)->root = root_val;
 }
 
 void adb_w_rootobj(struct adb_obj *obj)
@@ -697,7 +719,7 @@ adb_val_t adb_w_adb(struct adb *db, struct adb *valdb)
 		{ .iov_base = valdb->adb.ptr, .iov_len = valdb->adb.len },
 		{ .iov_base = padding_zeroes, .iov_len = adb_block_padding(&blk) },
 	};
-	if (valdb->adb.len <= 4) return ADB_NULL;
+	if (valdb->adb.len <= sizeof(struct adb_hdr)) return ADB_NULL;
 	bsz = htole32(iovec_len(vec, ARRAY_SIZE(vec)) - sizeof bsz);
 	return ADB_VAL(ADB_TYPE_BLOB_32, adb_w_raw(db, vec, ARRAY_SIZE(vec), iovec_len(vec, ARRAY_SIZE(vec)), sizeof(uint32_t)));
 }

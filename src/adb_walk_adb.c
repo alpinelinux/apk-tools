@@ -111,6 +111,7 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 	struct adb_walk_ctx *ctx = container_of(db, struct adb_walk_ctx, db);
 	struct adb_walk *d = ctx->d;
 	char tmp[16+ADB_MAX_SIGNATURE_LEN*2];
+	struct adb_hdr *hdr;
 	struct adb_sign_hdr *s;
 	uint32_t schema_magic = ctx->db.schema;
 	const struct adb_db_schema *ds;
@@ -123,9 +124,12 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 		d->ops->schema(d, db->schema);
 		for (ds = d->schemas; ds->magic; ds++)
 			if (ds->magic == schema_magic) break;
-		len = snprintf(tmp, sizeof tmp, "ADB block, size: %zu", sz);
+		hdr = apk_istream_peek(is, sizeof *hdr);
+		if (IS_ERR(hdr)) return PTR_ERR(hdr);
+		len = snprintf(tmp, sizeof tmp, "ADB block, size: %zu, compat: %d, ver: %d",
+			sz, hdr->adb_compat_ver, hdr->adb_ver);
 		d->ops->comment(d, APK_BLOB_PTR_LEN(tmp, len));
-		if (ds->root) dump_object(ctx, ds->root, adb_r_root(db));
+		if (ds->root && hdr->adb_compat_ver == 0) dump_object(ctx, ds->root, adb_r_root(db));
 		break;
 	case ADB_BLOCK_SIG:
 		s = (struct adb_sign_hdr*) apk_istream_get(is, sz);

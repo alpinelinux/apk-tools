@@ -77,6 +77,13 @@ static inline apk_blob_t adb_block_blob(struct adb_block *b) {
 
 #define ADB_MAX_SIGNATURE_LEN 2048
 
+struct adb_hdr {
+	uint8_t adb_compat_ver;
+	uint8_t adb_ver;
+	uint16_t reserved;
+	adb_val_t root;
+};
+
 struct adb_sign_hdr {
 	uint8_t sign_ver, hash_alg;
 };

@@ -41,6 +41,7 @@ const char *apk_error_str(int error)
 	case APKE_SIGNATURE_INVALID:		return "BAD signature";
 	case APKE_ADB_COMPRESSION:		return "ADB compression not supported";
 	case APKE_ADB_HEADER:			return "ADB header error";
+	case APKE_ADB_VERSION:			return "incompatible ADB version";
 	case APKE_ADB_SCHEMA:			return "ADB schema error";
 	case APKE_ADB_BLOCK:			return "ADB block error";
 	case APKE_ADB_SIGNATURE:		return "ADB signature block error";
