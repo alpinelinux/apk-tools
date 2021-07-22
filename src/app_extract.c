@@ -102,13 +102,13 @@ static int uvol_run(struct apk_ctx *ac, char *action, const char *volname, char 
 	return 0;
 }
 
-static int uvol_extract(struct apk_ctx *ac, char *action, const char *volname, char *arg1, off_t sz, struct apk_istream *is, struct apk_digest_ctx *dctx)
+static int uvol_extract(struct apk_ctx *ac, const char *volname, char *arg1, off_t sz, struct apk_istream *is, struct apk_digest_ctx *dctx)
 {
 	struct apk_out *out = &ac->out;
 	struct apk_ostream *os;
 	pid_t pid;
 	int r, status, pipefds[2];
-	char *argv[] = { (char*)apk_ctx_get_uvol(ac), action, (char*) volname, arg1, 0 };
+	char *argv[] = { (char*)apk_ctx_get_uvol(ac), "write", (char*) volname, arg1, 0 };
 	posix_spawn_file_actions_t act;
 
 	if (pipe2(pipefds, O_CLOEXEC) != 0) return -errno;
@@ -148,7 +148,7 @@ static int apk_extract_volume(struct apk_ctx *ac, struct apk_file_info *fi, stru
 	snprintf(size, sizeof size, "%ju", fi->size);
 	r = uvol_run(ac, "create", fi->name, "ro", size);
 	if (r != 0) return r;
-	return  uvol_extract(ac, "write", fi->name, size, fi->size, is, dctx);
+	return  uvol_extract(ac, fi->name, size, fi->size, is, dctx);
 }
 
 static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istream *is)
