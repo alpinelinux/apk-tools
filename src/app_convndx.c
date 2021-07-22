@@ -71,6 +71,7 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 	char **arg;
 	struct conv_ctx *ctx = pctx;
 	struct apk_trust *trust = apk_ctx_get_trust(ac);
+	struct apk_out *out = &ac->out;
 	struct adb_obj ndx;
 	int r;
 
@@ -81,7 +82,10 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 
 	foreach_array_item(arg, args) {
 		r = load_index(ctx, apk_istream_from_url(*arg, apk_ctx_since(ac, 0)));
-		if (r) goto err;
+		if (r) {
+			apk_err(out, "%s: %s", *arg, apk_error_str(r));
+			goto err;
+		}
 		fprintf(stderr, "%s: %u packages\n", *arg, adb_ra_num(&ctx->pkgs));
 	}
 
