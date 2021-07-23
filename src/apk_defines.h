@@ -60,7 +60,8 @@ enum {
 	APKE_PACKAGE_NOT_FOUND,
 	APKE_INDEX_STALE,
 	APKE_FILE_INTEGRITY,
-	APKE_UVOL
+	APKE_CACHE_NOT_AVAILABLE,
+	APKE_UVOL,
 };
 
 static inline void *ERR_PTR(long error) { return (void*) error; }

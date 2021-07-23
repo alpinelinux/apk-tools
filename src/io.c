@@ -33,6 +33,11 @@
 
 size_t apk_io_bufsize = 128*1024;
 
+static inline int atfd_error(int atfd)
+{
+	return atfd < -1 && atfd != AT_FDCWD;
+}
+
 ssize_t apk_write_fully(int fd, const void *ptr, size_t size)
 {
 	ssize_t i = 0, r;
@@ -528,6 +533,8 @@ struct apk_istream *__apk_istream_from_file(int atfd, const char *file, int try_
 {
 	int fd;
 
+	if (atfd_error(atfd)) return ERR_PTR(atfd);
+
 	fd = openat(atfd, file, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) return ERR_PTR(-errno);
 
@@ -588,6 +595,8 @@ apk_blob_t apk_blob_from_file(int atfd, const char *file)
 	struct stat st;
 	char *buf;
 
+	if (atfd_error(atfd)) return APK_BLOB_NULL;
+
 	fd = openat(atfd, file, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return APK_BLOB_NULL;
@@ -614,6 +623,8 @@ err_fd:
 int apk_blob_to_file(int atfd, const char *file, apk_blob_t b, unsigned int flags)
 {
 	int fd, r, len;
+
+	if (atfd_error(atfd)) return atfd;
 
 	fd = openat(atfd, file, O_CREAT | O_WRONLY | O_CLOEXEC, 0644);
 	if (fd < 0)
@@ -684,6 +695,8 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 	unsigned int hash_alg = flags & 0xff;
 	unsigned int xattr_hash_alg = (flags >> 8) & 0xff;
 	int atflags = 0;
+
+	if (atfd_error(atfd)) return atfd;
 
 	memset(fi, 0, sizeof *fi);
 	if (flags & APK_FI_NOFOLLOW)
@@ -917,6 +930,8 @@ struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode)
 	char tmpname[PATH_MAX];
 	struct apk_ostream *os;
 	int fd;
+
+	if (atfd_error(atfd)) return ERR_PTR(atfd);
 
 	if (snprintf(tmpname, sizeof tmpname, "%s.tmp", file) >= sizeof tmpname)
 		return ERR_PTR(-ENAMETOOLONG);

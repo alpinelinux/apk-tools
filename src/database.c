@@ -1647,7 +1647,10 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			mkdirat(db->root_fd, "var/cache", 0755);
 			mkdirat(db->root_fd, "var/cache/apk", 0755);
 			db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
-			if (db->cache_fd < 0) goto ret_errno;
+			if (db->cache_fd < 0) {
+				if (ac->open_flags & APK_OPENF_WRITE) goto ret_errno;
+				db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
+			}
 		}
 	}
 
@@ -1814,8 +1817,8 @@ void apk_db_close(struct apk_database *db)
 		db->cache_remount_dir = NULL;
 	}
 
-	if (db->cache_fd) close(db->cache_fd);
-	if (db->lock_fd) close(db->lock_fd);
+	if (db->cache_fd > 0) close(db->cache_fd);
+	if (db->lock_fd > 0) close(db->lock_fd);
 }
 
 int apk_db_get_tag_id(struct apk_database *db, apk_blob_t tag)
