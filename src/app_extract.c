@@ -31,7 +31,6 @@ struct extract_ctx {
 	unsigned int cur_path, cur_file;
 
 	struct apk_pathbuilder pb;
-	unsigned int is_uvol : 1;
 };
 
 
@@ -70,12 +69,13 @@ static void apk_extract_acl(struct apk_file_info *fi, struct adb_obj *o, struct 
 	fi->gid = apk_id_cache_resolve_gid(idc, adb_ro_blob(o, ADBI_ACL_GROUP), 65534);
 }
 
-static int uvol_detect(struct apk_ctx *ac, struct apk_pathbuilder *pb)
+static const char *uvol_detect(struct apk_ctx *ac, const char *path)
 {
-	apk_blob_t b = apk_pathbuilder_get(pb);
 	if (!apk_ctx_get_uvol(ac)) return 0;
-	return apk_blob_starts_with(b, APK_BLOB_STRLIT("uvol")) &&
-		(b.len == 4 || b.ptr[4] == '/');
+	if (strncmp(path, "uvol", 4) != 0) return 0;
+	if (path[4] == 0) return path;
+	if (path[4] == '/') return &path[5];
+	return 0;
 }
 
 static int uvol_run(struct apk_ctx *ac, char *action, const char *volname, char *arg1, char *arg2)
@@ -146,17 +146,19 @@ static int apk_extract_volume(struct apk_ctx *ac, struct apk_file_info *fi, stru
 	int r;
 
 	snprintf(size, sizeof size, "%ju", fi->size);
-	r = uvol_run(ac, "create", fi->name, size, "ro");
+	r = uvol_run(ac, "create", fi->uvol_name, size, "ro");
 	if (r != 0) return r;
-	return  uvol_extract(ac, fi->name, size, fi->size, is, dctx);
+	return  uvol_extract(ac, fi->uvol_name, size, fi->size, is, dctx);
 }
 
 static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istream *is)
 {
 	struct apk_ctx *ac = ctx->ac;
 	struct apk_out *out = &ac->out;
+	const char *path_name = apk_pathbuilder_cstr(&ctx->pb);
 	struct apk_file_info fi = {
-		.name = apk_pathbuilder_cstr(&ctx->pb),
+		.name = path_name,
+		.uvol_name = uvol_detect(ac, path_name),
 		.size = adb_ro_int(&ctx->file, ADBI_FI_SIZE),
 		.mtime = adb_ro_int(&ctx->file, ADBI_FI_MTIME),
 	};
@@ -207,7 +209,7 @@ static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istrea
 
 	fi.mode |= S_IFREG;
 	apk_digest_ctx_init(&dctx, fi.digest.alg);
-	if (ctx->is_uvol) {
+	if (fi.uvol_name) {
 		r = apk_extract_volume(ac, &fi, is, &dctx);
 	} else {
 		r = apk_archive_entry_extract(
@@ -218,11 +220,11 @@ static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istrea
 	apk_digest_ctx_free(&dctx);
 	if (r == 0 && apk_digest_cmp(&fi.digest, &d) != 0)
 		r = -APKE_FILE_INTEGRITY;
-	if (ctx->is_uvol) {
+	if (fi.uvol_name) {
 		if (r == 0)
-			r = uvol_run(ac, "up", fi.name, 0, 0);
+			r = uvol_run(ac, "up", fi.uvol_name, 0, 0);
 		else
-			uvol_run(ac, "remove", fi.name, 0, 0);
+			uvol_run(ac, "remove", fi.uvol_name, 0, 0);
 	} else if (r != 0)
 		unlinkat(ctx->root_fd, fi.name, 0);
 	return r;
@@ -237,7 +239,7 @@ static int apk_extract_directory(struct extract_ctx *ctx)
 	};
 	struct adb_obj acl;
 
-	if (ctx->is_uvol) return 0;
+	if (uvol_detect(ac, fi.name)) return 0;
 
 	apk_extract_acl(&fi, adb_ro_obj(&ctx->path, ADBI_DI_ACL, &acl), apk_ctx_get_id_cache(ctx->ac));
 	fi.mode |= S_IFDIR;
@@ -249,7 +251,6 @@ static int apk_extract_directory(struct extract_ctx *ctx)
 
 static int apk_extract_next_file(struct extract_ctx *ctx)
 {
-	struct apk_ctx *ac = ctx->ac;
 	apk_blob_t target;
 	int r;
 
@@ -271,7 +272,6 @@ static int apk_extract_next_file(struct extract_ctx *ctx)
 			if (ctx->cur_path > adb_ra_num(&ctx->paths)) return 1;
 			adb_ro_obj(&ctx->paths, ctx->cur_path, &ctx->path);
 			apk_pathbuilder_setb(&ctx->pb, adb_ro_blob(&ctx->path, ADBI_DI_NAME));
-			ctx->is_uvol = uvol_detect(ac, &ctx->pb);
 			adb_ro_obj(&ctx->path, ADBI_DI_FILES, &ctx->files);
 			r = apk_extract_directory(ctx);
 			if (r != 0) return r;

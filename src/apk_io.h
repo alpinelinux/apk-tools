@@ -44,6 +44,7 @@ struct apk_file_meta {
 struct apk_file_info {
 	const char *name;
 	const char *link_target;
+	const char *uvol_name;
 	const char *uname;
 	const char *gname;
 	off_t size;
