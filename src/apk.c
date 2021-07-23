@@ -489,11 +489,16 @@ static void setup_terminal(void)
 
 static void setup_automatic_flags(void)
 {
+	const char *tmp;
+
 	if (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO) ||
 	    !isatty(STDIN_FILENO))
 		return;
 
-	apk_flags |= APK_PROGRESS;
+	/* Enable progress bar by default, except on dumb terminals. */
+	if (!(tmp = getenv("TERM")) || strcmp(tmp, "dumb") != 0)
+		apk_flags |= APK_PROGRESS;
+
 	if (!(apk_flags & APK_SIMULATE) &&
 	    access("/etc/apk/interactive", F_OK) == 0)
 		apk_flags |= APK_INTERACTIVE;
