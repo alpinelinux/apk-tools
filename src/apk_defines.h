@@ -37,6 +37,7 @@
 #define EAPKFORMAT		1026
 #define EAPKDEPFORMAT		1027
 #define EAPKDBFORMAT		1028
+#define EAPKCACHE		1029
 
 static inline void *ERR_PTR(long error) { return (void*) error; }
 static inline void *ERR_CAST(const void *ptr) { return (void*) ptr; }

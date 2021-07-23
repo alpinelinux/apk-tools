@@ -34,6 +34,11 @@
 
 size_t apk_io_bufsize = 128*1024;
 
+static inline int atfd_error(int atfd)
+{
+	return atfd < -1 && atfd != AT_FDCWD;
+}
+
 static void apk_file_meta_from_fd(int fd, struct apk_file_meta *meta)
 {
 	struct stat st;
@@ -314,6 +319,7 @@ struct apk_istream *apk_istream_tee(struct apk_istream *from, int atfd, const ch
 	int fd, r;
 
 	if (IS_ERR_OR_NULL(from)) return ERR_CAST(from);
+	if (atfd_error(atfd)) return ERR_PTR(atfd);
 
 	fd = openat(atfd, to, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC,
 		    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -482,6 +488,8 @@ struct apk_istream *apk_istream_from_file(int atfd, const char *file)
 {
 	int fd;
 
+	if (atfd_error(atfd)) return ERR_PTR(atfd);
+
 	fd = openat(atfd, file, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) return ERR_PTR(-errno);
 
@@ -604,6 +612,8 @@ apk_blob_t apk_blob_from_file(int atfd, const char *file)
 	struct stat st;
 	char *buf;
 
+	if (atfd_error(atfd)) return APK_BLOB_NULL;
+
 	fd = openat(atfd, file, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return APK_BLOB_NULL;
@@ -630,6 +640,8 @@ err_fd:
 int apk_blob_to_file(int atfd, const char *file, apk_blob_t b, unsigned int flags)
 {
 	int fd, r, len;
+
+	if (atfd_error(atfd)) return atfd;
 
 	fd = openat(atfd, file, O_CREAT | O_WRONLY | O_CLOEXEC, 0644);
 	if (fd < 0)
@@ -707,6 +719,9 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 	unsigned int xattr_checksum = (flags >> 8) & 0xff;
 	int atflags = 0;
 
+	if (atfd_error(atfd)) return atfd;
+
+	memset(fi, 0, sizeof *fi);
 	if (flags & APK_FI_NOFOLLOW)
 		atflags |= AT_SYMLINK_NOFOLLOW;
 
@@ -958,6 +973,8 @@ struct apk_ostream *apk_ostream_to_file(int atfd,
 {
 	struct apk_ostream *os;
 	int fd;
+
+	if (atfd_error(atfd)) return ERR_PTR(atfd);
 
 	fd = openat(atfd, tmpfile ?: file, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, mode);
 	if (fd < 0) return ERR_PTR(-errno);

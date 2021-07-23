@@ -185,6 +185,8 @@ const char *apk_error_str(int error)
 		return "package dependency format error";
 	case EAPKDBFORMAT:
 		return "database file format error";
+	case EAPKCACHE:
+		return "cache not available";
 	default:
 		return strerror(error);
 	}

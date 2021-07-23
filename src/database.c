@@ -1670,7 +1670,10 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 			mkdirat(db->root_fd, "var/cache", 0755);
 			mkdirat(db->root_fd, "var/cache/apk", 0755);
 			db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
-			if (db->cache_fd < 0) goto ret_errno;
+			if (db->cache_fd < 0) {
+				if (dbopts->open_flags & APK_OPENF_WRITE) goto ret_errno;
+				db->cache_fd = -EAPKCACHE;
+			}
 		}
 	}
 
@@ -1854,16 +1857,11 @@ void apk_db_close(struct apk_database *db)
 		db->cache_remount_dir = NULL;
 	}
 
-	if (db->keys_fd)
-		close(db->keys_fd);
-	if (db->cache_fd)
-		close(db->cache_fd);
-	if (db->root_fd)
-		close(db->root_fd);
-	if (db->lock_fd)
-		close(db->lock_fd);
-	if (db->root != NULL)
-		free(db->root);
+	if (db->keys_fd > 0) close(db->keys_fd);
+	if (db->cache_fd > 0) close(db->cache_fd);
+	if (db->root_fd > 0) close(db->root_fd);
+	if (db->lock_fd > 0) close(db->lock_fd);
+	free(db->root);
 }
 
 int apk_db_get_tag_id(struct apk_database *db, apk_blob_t tag)
