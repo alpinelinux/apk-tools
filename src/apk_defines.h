@@ -177,6 +177,8 @@ static inline uint32_t get_unaligned32(const void *ptr)
 
 typedef void (*apk_progress_cb)(void *cb_ctx, size_t);
 
+time_t apk_get_build_time(void);
+
 void *apk_array_resize(void *array, size_t new_size, size_t elem_size);
 
 #define APK_ARRAY(array_type_name, elem_type_name)			\
