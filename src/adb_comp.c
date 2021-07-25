@@ -11,13 +11,14 @@
 
 struct apk_istream *adb_decompress(struct apk_istream *is, adb_comp_t *compression)
 {
-	 adb_comp_t c = -1;
+	adb_comp_t c = -1;
 
 	if (IS_ERR_OR_NULL(is)) return is;
 
 	uint8_t *buf = apk_istream_peek(is, 4);
 	if (IS_ERR(buf)) return ERR_PTR(apk_istream_close_error(is, PTR_ERR(buf)));
-	if (memcmp(buf, "ADB", 3) == 0) switch (buf[3]) {
+	if (memcmp(buf, "ADB", 3) != 0) return ERR_PTR(apk_istream_close_error(is, -APKE_ADB_HEADER));
+	switch (buf[3]) {
 	case '.':
 		c = ADB_COMP_NONE;
 		break;

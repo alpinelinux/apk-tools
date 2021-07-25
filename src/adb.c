@@ -257,7 +257,10 @@ err:
 int adb_m_process(struct adb *db, struct apk_istream *is, uint32_t expected_schema,
 	struct apk_trust *t, int (*cb)(struct adb *, struct adb_block *, struct apk_istream *))
 {
-	apk_blob_t mmap = apk_istream_mmap(is);
+	apk_blob_t mmap;
+
+	if (IS_ERR(is)) return PTR_ERR(is);
+	mmap = apk_istream_mmap(is);
 	memset(db, 0, sizeof *db);
 	if (expected_schema & ADB_SCHEMA_IMPLIED)
 		db->schema = expected_schema & ~ADB_SCHEMA_IMPLIED;
