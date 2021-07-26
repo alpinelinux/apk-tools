@@ -936,7 +936,7 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 	struct apk_db_dir_instance *diri;
 	struct apk_db_file *file;
 	struct hlist_node *c1, *c2;
-	char buf[1024];
+	char buf[1024+PATH_MAX];
 	apk_blob_t bbuf = APK_BLOB_BUF(buf);
 	int r;
 
@@ -979,6 +979,12 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 			if (diri->acl != apk_default_acl_dir)
 				apk_blob_push_db_acl(&bbuf, 'M', diri->acl);
 
+			bbuf = apk_blob_pushed(APK_BLOB_BUF(buf), bbuf);
+			if (APK_BLOB_IS_NULL(bbuf)) return -ENOBUFS;
+			r = apk_ostream_write(os, bbuf.ptr, bbuf.len);
+			if (r != bbuf.len) return r < 0 ? r : -ENOSPC;
+			bbuf = APK_BLOB_BUF(buf);
+
 			hlist_for_each_entry(file, c2, &diri->owned_files, diri_files_list) {
 				apk_blob_push_blob(&bbuf, APK_BLOB_STR("R:"));
 				apk_blob_push_blob(&bbuf, APK_BLOB_PTR_LEN(file->name, file->namelen));
@@ -993,13 +999,12 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 					apk_blob_push_blob(&bbuf, APK_BLOB_STR("\n"));
 				}
 
-				if (apk_ostream_write(os, buf, bbuf.ptr - buf) != bbuf.ptr - buf)
-					return -EIO;
+				bbuf = apk_blob_pushed(APK_BLOB_BUF(buf), bbuf);
+				if (APK_BLOB_IS_NULL(bbuf)) return -ENOBUFS;
+				r = apk_ostream_write(os, bbuf.ptr, bbuf.len);
+				if (r != bbuf.len) return r < 0 ? r : -ENOSPC;
 				bbuf = APK_BLOB_BUF(buf);
 			}
-			if (apk_ostream_write(os, buf, bbuf.ptr - buf) != bbuf.ptr - buf)
-				return -EIO;
-			bbuf = APK_BLOB_BUF(buf);
 		}
 		apk_ostream_write(os, "\n", 1);
 	}
