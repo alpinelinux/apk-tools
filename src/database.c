@@ -930,14 +930,14 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 	struct hlist_node *c1, *c2;
 	char buf[1024+PATH_MAX];
 	apk_blob_t bbuf = APK_BLOB_BUF(buf);
-	int r;
+	int r = 0;
+
+	if (IS_ERR(os)) return PTR_ERR(os);
 
 	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
 		pkg = ipkg->pkg;
 		r = apk_pkg_write_index_entry(pkg, os);
-		if (r < 0) {
-			return r;
-		}
+		if (r < 0) goto err;
 
 		if (ipkg->replaces->num) {
 			apk_blob_push_blob(&bbuf, APK_BLOB_STR("r:"));
@@ -973,9 +973,12 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 				apk_blob_push_db_acl(&bbuf, 'M', diri->acl);
 
 			bbuf = apk_blob_pushed(APK_BLOB_BUF(buf), bbuf);
-			if (APK_BLOB_IS_NULL(bbuf)) return -ENOBUFS;
+			if (APK_BLOB_IS_NULL(bbuf)) {
+				r = -ENOBUFS;
+				goto err;
+			}
 			r = apk_ostream_write(os, bbuf.ptr, bbuf.len);
-			if (r < 0) return r;
+			if (r < 0) goto err;
 			bbuf = APK_BLOB_BUF(buf);
 
 			hlist_for_each_entry(file, c2, &diri->owned_files, diri_files_list) {
@@ -993,17 +996,21 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 				}
 
 				bbuf = apk_blob_pushed(APK_BLOB_BUF(buf), bbuf);
-				if (APK_BLOB_IS_NULL(bbuf)) return -ENOBUFS;
+				if (APK_BLOB_IS_NULL(bbuf)) {
+					r = -ENOBUFS;
+					goto err;
+				}
 				r = apk_ostream_write(os, bbuf.ptr, bbuf.len);
-				if (r < 0) return r;
+				if (r < 0) goto err;
 				bbuf = APK_BLOB_BUF(buf);
 			}
 		}
 		r = apk_ostream_write(os, "\n", 1);
-		if (r < 0) return r;
+		if (r < 0) goto err;
 	}
-
-	return 0;
+err:
+	if (r < 0) apk_ostream_cancel(os, r);
+	return apk_ostream_close(os);
 }
 
 static int apk_db_scriptdb_write(struct apk_database *db, struct apk_ostream *os)
@@ -1015,6 +1022,8 @@ static int apk_db_scriptdb_write(struct apk_database *db, struct apk_ostream *os
 	apk_blob_t bfn;
 	int r, i;
 	time_t now = time(NULL);
+
+	if (IS_ERR(os)) return PTR_ERR(os);
 
 	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
 		pkg = ipkg->pkg;
@@ -1042,12 +1051,15 @@ static int apk_db_scriptdb_write(struct apk_database *db, struct apk_ostream *os
 			apk_blob_push_blob(&bfn, APK_BLOB_PTR_LEN("", 1));
 
 			r = apk_tar_write_entry(os, &fi, ipkg->script[i].ptr);
-			if (r < 0)
-				return r;
+			if (r < 0) {
+				apk_ostream_cancel(os, -APKE_V2DB_FORMAT);
+				break;
+			}
 		}
 	}
 
-	return apk_tar_write_entry(os, NULL, NULL);
+	apk_tar_write_entry(os, NULL, NULL);
+	return apk_ostream_close(os);
 }
 
 static int apk_read_script_archive_entry(void *ctx,
@@ -1101,12 +1113,14 @@ static int parse_triggers(void *ctx, apk_blob_t blob)
 	return 0;
 }
 
-static void apk_db_triggers_write(struct apk_database *db, struct apk_ostream *os)
+static int apk_db_triggers_write(struct apk_database *db, struct apk_ostream *os)
 {
 	struct apk_installed_package *ipkg;
 	char buf[APK_BLOB_CHECKSUM_BUF];
 	apk_blob_t bfn;
 	char **trigger;
+
+	if (IS_ERR(os)) return PTR_ERR(os);
 
 	list_for_each_entry(ipkg, &db->installed.triggers, trigger_pkgs_list) {
 		bfn = APK_BLOB_BUF(buf);
@@ -1120,6 +1134,7 @@ static void apk_db_triggers_write(struct apk_database *db, struct apk_ostream *o
 		}
 		apk_ostream_write(os, "\n", 1);
 	}
+	return apk_ostream_close(os);
 }
 
 static int apk_db_triggers_read(struct apk_database *db, struct apk_istream *is)
@@ -1737,7 +1752,7 @@ int apk_db_write_config(struct apk_database *db)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_ostream *os;
-	int r;
+	int r, rr = 0;
 
 	if ((db->ctx->flags & APK_SIMULATE) || db->ctx->root == NULL)
 		return 0;
@@ -1748,33 +1763,30 @@ int apk_db_write_config(struct apk_database *db)
 	}
 
 	os = apk_ostream_to_file(db->root_fd, apk_world_file, 0644);
-	if (IS_ERR_OR_NULL(os)) return PTR_ERR(os);
-	apk_deps_write(db, db->world, os, APK_BLOB_PTR_LEN("\n", 1));
-	apk_ostream_write(os, "\n", 1);
-	r = apk_ostream_close(os);
-	if (r < 0) return r;
+	if (!IS_ERR(os)) {
+		apk_deps_write(db, db->world, os, APK_BLOB_PTR_LEN("\n", 1));
+		apk_ostream_write(os, "\n", 1);
+		r = apk_ostream_close(os);
+		if (r && !rr) rr = r;
+	}
 
-	os = apk_ostream_to_file(db->root_fd, apk_installed_file, 0644);
-	if (IS_ERR_OR_NULL(os)) return PTR_ERR(os);
-	apk_db_write_fdb(db, os);
-	r = apk_ostream_close(os);
-	if (r < 0) return r;
+	r = apk_db_write_fdb(db, apk_ostream_to_file(db->root_fd, apk_installed_file, 0644));
+	if (r < 0 && !rr) rr = r;
 
-	os = apk_ostream_to_file(db->root_fd, apk_scripts_file, 0644);
-	if (IS_ERR_OR_NULL(os)) return PTR_ERR(os);
-	apk_db_scriptdb_write(db, os);
-	r = apk_ostream_close(os);
-	if (r < 0) return r;
+	r = apk_db_scriptdb_write(db, apk_ostream_to_file(db->root_fd, apk_scripts_file, 0644));
+	if (r < 0 && !rr) rr = r;
 
-	apk_db_index_write_nr_cache(db);
+	r = apk_db_index_write_nr_cache(db);
+	if (r < 0 && !rr) rr = r;
 
-	os = apk_ostream_to_file(db->root_fd, apk_triggers_file, 0644);
-	if (IS_ERR_OR_NULL(os)) return PTR_ERR(os);
-	apk_db_triggers_write(db, os);
-	r = apk_ostream_close(os);
-	if (r < 0) return r;
+	r = apk_db_triggers_write(db, apk_ostream_to_file(db->root_fd, apk_triggers_file, 0644));
+	if (r < 0 && !rr) rr = r;
 
-	return 0;
+	if (rr) {
+		apk_err(out, "System state may be inconsistent: failed to write database: %s",
+			apk_error_str(rr));
+	}
+	return rr;
 }
 
 void apk_db_close(struct apk_database *db)
@@ -2289,7 +2301,6 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 		apk_url_parse(&urlp, repo->url);
 		apk_warn(out, "Ignoring " URL_FMT ": %s", URL_PRINTF(urlp), apk_error_str(r));
 		db->available_repos &= ~BIT(repo_num);
-		r = 0;
 	} else {
 		db->repo_tags[tag_id].allowed_repos |= BIT(repo_num);
 	}

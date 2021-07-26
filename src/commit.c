@@ -351,7 +351,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 
 all_done:
 	apk_dependency_array_copy(&db->world, world);
-	apk_db_write_config(db);
+	if (apk_db_write_config(db) != 0) errors++;
 	run_commit_hooks(db, POST_COMMIT_HOOK);
 
 	if (!db->performing_self_upgrade) {
