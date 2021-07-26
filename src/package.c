@@ -904,8 +904,8 @@ static int read_info_entry(void *ctx, const struct apk_file_info *ae,
 			read_info_line(ctx, l);
 	} else if (strcmp(ae->name, ".INSTALL") == 0) {
 		apk_warn(&ri->db->ctx->out,
-			"Package '%s-%s' contains deprecated .INSTALL",
-			pkg->name->name, pkg->version);
+			"Package '%s-" BLOB_FMT "' contains deprecated .INSTALL",
+			pkg->name->name, BLOB_PRINTF(*pkg->version));
 	}
 
 	return 0;

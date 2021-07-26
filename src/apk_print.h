@@ -26,7 +26,7 @@ struct apk_url_print {
 void apk_url_parse(struct apk_url_print *, const char *);
 
 #define URL_FMT			"%.*s%s%s"
-#define URL_PRINTF(u)		u.len_before_pw, u.url, u.pwmask, u.url_or_host
+#define URL_PRINTF(u)		(int)u.len_before_pw, u.url, u.pwmask, u.url_or_host
 
 struct apk_out {
 	int verbosity;
@@ -48,7 +48,8 @@ static inline int apk_out_verbosity(struct apk_out *out) { return out->verbosity
 #define apk_dbg2(out, args...)	do { if (apk_out_verbosity(out) >= 3) { apk_out_fmt(out, NULL, args); } } while (0)
 
 void apk_out_reset(struct apk_out *);
-void apk_out_fmt(struct apk_out *, const char *prefix, const char *format, ...);
+void apk_out_fmt(struct apk_out *, const char *prefix, const char *format, ...)
+	__attribute__ ((format (printf, 3, 4)));
 void apk_out_log_argv(struct apk_out *, char **argv);
 
 struct apk_progress {
@@ -68,6 +69,7 @@ struct apk_indent {
 
 int  apk_print_indented(struct apk_indent *i, apk_blob_t blob);
 void apk_print_indented_words(struct apk_indent *i, const char *text);
-void apk_print_indented_fmt(struct apk_indent *i, const char *fmt, ...);
+void apk_print_indented_fmt(struct apk_indent *i, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
 
 #endif

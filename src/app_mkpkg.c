@@ -161,8 +161,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 		return r;
 	default:
 		apk_pathbuilder_push(&ctx->pb, entry);
-		apk_out(out, "%s: special file ignored",
-			apk_pathbuilder_cstr(&ctx->pb), entry);
+		apk_out(out, "%s: special file ignored", apk_pathbuilder_cstr(&ctx->pb));
 		apk_pathbuilder_pop(&ctx->pb);
 		return 0;
 	}

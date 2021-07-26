@@ -132,7 +132,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 		if (APK_BLOB_IS_NULL(b) || virtdep.conflict ||
 		    virtdep.result_mask != APK_DEPMASK_ANY ||
 		    virtdep.version != &apk_atom_null) {
-			apk_err(out, "%s: bad package specifier");
+			apk_err(out, "%s: bad package specifier", actx->virtpkg);
 			return -1;
 		}
 		if (virtdep.name->name[0] != '.' && non_repository_check(db))
