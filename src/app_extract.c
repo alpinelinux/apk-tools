@@ -341,7 +341,7 @@ static int extract_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	struct extract_ctx *ctx = pctx;
 	struct apk_out *out = &ac->out;
 	char **parg;
-	int r;
+	int r = 0;
 
 	ctx->ac = ac;
 	ctx->extract_flags |= APK_EXTRACTF_NO_OVERWRITE;

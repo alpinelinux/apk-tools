@@ -97,11 +97,11 @@ static int __adb_m_parse(struct adb *db, apk_blob_t data, struct apk_trust *t,
 			allowed = BIT(ADB_BLOCK_SIG) | BIT(ADB_BLOCK_DATA) | BIT(ADB_BLOCK_DATAX);
 			if (b.len < 16) {
 				r = -APKE_ADB_BLOCK;
-				break;
+				goto err;
 			}
 			if (((struct adb_hdr*)b.ptr)->adb_compat_ver != 0) {
 				r = -APKE_ADB_VERSION;
-				break;
+				goto err;
 			}
 			db->adb = b;
 			break;
@@ -116,7 +116,7 @@ static int __adb_m_parse(struct adb *db, apk_blob_t data, struct apk_trust *t,
 			break;
 		case ADB_BLOCK_DATAX:
 			r = -APKE_ADB_BLOCK;
-			break;
+			goto err;
 		}
 		r = cb(db, blk, apk_istream_from_blob(&is, b));
 		if (r < 0) break;
@@ -206,12 +206,12 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 			db->adb.len = adb_block_length(&blk);
 			if (db->adb.len < 16) {
 				r = -APKE_ADB_BLOCK;
-				break;
+				goto err;
 			}
 			if ((r = apk_istream_read(is, db->adb.ptr, sz)) < 0) goto err;
 			if (((struct adb_hdr*)db->adb.ptr)->adb_compat_ver != 0) {
 				r = -APKE_ADB_VERSION;
-				break;
+				goto err;
 			}
 			r = cb(db, &blk, apk_istream_from_blob(&seg.is, db->adb));
 			if (r < 0) goto err;
@@ -232,7 +232,7 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 			break;
 		case ADB_BLOCK_DATAX:
 			r = -APKE_ADB_BLOCK;
-			break;
+			goto err;
 		}
 
 		apk_istream_segment(&seg, is, sz, 0);
@@ -456,7 +456,7 @@ struct adb_obj *adb_ro_obj(const struct adb_obj *o, unsigned i, struct adb_obj *
 			schema = container_of(o->schema->fields[0].kind, struct adb_object_schema, kind);
 		else if (i > 0 && i < o->schema->num_fields)
 			schema = container_of(o->schema->fields[i-1].kind, struct adb_object_schema, kind);
-		assert(schema->kind == ADB_KIND_OBJECT || schema->kind == ADB_KIND_ARRAY);
+		assert(schema && (schema->kind == ADB_KIND_OBJECT || schema->kind == ADB_KIND_ARRAY));
 	}
 
 	return adb_r_obj(o->db, adb_ro_val(o, i), no, schema);

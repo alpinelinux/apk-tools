@@ -174,7 +174,7 @@ int apk_istream_get_max(struct apk_istream *is, size_t max, apk_blob_t *data)
 int apk_istream_get_delim(struct apk_istream *is, apk_blob_t token, apk_blob_t *data)
 {
 	apk_blob_t ret = APK_BLOB_NULL, left = APK_BLOB_NULL;
-	int r;
+	int r = 0;
 
 	do {
 		if (apk_blob_split(APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr), token, &ret, &left))
