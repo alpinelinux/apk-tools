@@ -893,8 +893,8 @@ static int read_info_entry(void *ctx, const struct apk_file_info *ae,
 			apk_blob_for_each_segment(blob, "\n", read_info_line, ctx);
 			free(blob.ptr);
 		} else if (strcmp(ae->name, ".INSTALL") == 0) {
-			apk_warning("Package '%s-%s' contains deprecated .INSTALL",
-				    pkg->name->name, pkg->version);
+			apk_warning("Package '%s-" BLOB_FMT "' contains deprecated .INSTALL",
+				pkg->name->name, BLOB_PRINTF(*pkg->version));
 		}
 		return 0;
 	}
