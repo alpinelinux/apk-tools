@@ -355,10 +355,22 @@ int apk_archive_entry_extract(int atfd, const struct apk_file_info *ae,
 	case S_IFREG:
 		if (ae->link_target == NULL) {
 			int flags = O_RDWR | O_CREAT | O_TRUNC | O_CLOEXEC | O_EXCL;
-			struct apk_ostream *os = apk_ostream_to_fd(openat(atfd, fn, flags, ae->mode & 07777));
+			int fd = openat(atfd, fn, flags, ae->mode & 07777);
+			if (fd < 0) {
+				ret = -errno;
+				break;
+			}
+			struct apk_ostream *os = apk_ostream_to_fd(fd);
+			if (IS_ERR(os)) {
+				ret = PTR_ERR(os);
+				break;
+			}
 			apk_stream_copy(is, os, ae->size, cb, cb_ctx, dctx);
 			r = apk_ostream_close(os);
-			if (r < 0) ret = r;
+			if (r < 0) {
+				unlinkat(atfd, fn, 0);
+				ret = r;
+			}
 		} else {
 			r = linkat(atfd, link_target ?: ae->link_target, atfd, fn, 0);
 			if (r < 0) ret = -errno;

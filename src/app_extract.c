@@ -215,6 +215,7 @@ static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istrea
 		r = apk_archive_entry_extract(
 			ctx->root_fd, &fi, 0, 0, is, 0, 0, &dctx,
 			ctx->extract_flags, out);
+		if (r < 0) return r;
 	}
 	apk_digest_ctx_final(&dctx, &d);
 	apk_digest_ctx_free(&dctx);
@@ -344,7 +345,7 @@ static int extract_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	int r = 0;
 
 	ctx->ac = ac;
-	ctx->extract_flags |= APK_EXTRACTF_NO_OVERWRITE;
+	if (!(ac->force & APK_FORCE_OVERWRITE)) ctx->extract_flags |= APK_EXTRACTF_NO_OVERWRITE;
 	if (!ctx->destination) ctx->destination = ".";
 	ctx->root_fd = openat(AT_FDCWD, ctx->destination, O_RDONLY);
 	if (ctx->root_fd < 0) {
