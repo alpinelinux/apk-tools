@@ -13,7 +13,6 @@
 #include "apk_version.h"
 #include "apk_hash.h"
 #include "apk_atom.h"
-#include "apk_archive.h"
 #include "apk_package.h"
 #include "apk_io.h"
 #include "apk_context.h"
@@ -221,7 +220,7 @@ unsigned int apk_db_get_pinning_mask_repos(struct apk_database *db, unsigned sho
 
 int apk_db_cache_active(struct apk_database *db);
 int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
-		       struct apk_package *pkg, int verify, int autoupdate,
+		       struct apk_package *pkg, int autoupdate,
 		       apk_progress_cb cb, void *cb_ctx);
 
 typedef void (*apk_cache_item_cb)(struct apk_database *db,

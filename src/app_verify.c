@@ -12,38 +12,26 @@
 #include <unistd.h>
 
 #include "apk_applet.h"
-#include "apk_database.h"
 #include "apk_print.h"
+#include "apk_extract.h"
 
 static int verify_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
-	struct apk_sign_ctx sctx;
-	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
-	struct apk_trust *trust = apk_ctx_get_trust(ac);
+	struct apk_extract_ctx ectx;
 	char **parg;
-	int r, ok, rc = 0;
+	int r, rc = 0;
 
-	trust->allow_untrusted = 1;
+	apk_extract_init(&ectx, ac, 0);
 
 	foreach_array_item(parg, args) {
-		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, trust);
-		r = apk_tar_parse(
-			apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, *parg),
-						 apk_sign_ctx_mpart_cb, &sctx),
-			apk_sign_ctx_verify_tar, &sctx, idc);
-		ok = sctx.control_verified && sctx.data_verified;
+		r = apk_extract(&ectx, apk_istream_from_file(AT_FDCWD, *parg));
 		if (apk_out_verbosity(out) >= 1)
-			apk_msg(out, "%s: %d - %s", *parg, r,
-				r < 0 ? apk_error_str(r) :
-				ok ? "OK" :
-				!sctx.control_verified ? "UNTRUSTED" : "FAILED");
-		else if (!ok)
+			apk_msg(out, "%s: %s", *parg,
+				r < 0 ? apk_error_str(r) : "OK");
+		else if (r < 0)
 			apk_out(out, "%s", *parg);
-		if (!ok)
-			rc++;
-
-		apk_sign_ctx_free(&sctx);
+		if (r < 0) rc++;
 	}
 
 	return rc;

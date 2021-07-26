@@ -30,12 +30,6 @@ struct apk_trust;
 #define APK_SCRIPT_TRIGGER		6
 #define APK_SCRIPT_MAX			7
 
-#define APK_SIGN_NONE			0
-#define APK_SIGN_VERIFY			1
-#define APK_SIGN_VERIFY_IDENTITY	2
-#define APK_SIGN_GENERATE		4
-#define APK_SIGN_VERIFY_AND_GENERATE	5
-
 #define APK_DEP_IRRELEVANT		0x01
 #define APK_DEP_SATISFIES		0x02
 #define APK_DEP_CONFLICTS		0x04
@@ -44,28 +38,6 @@ struct apk_trust;
 #define APK_FOREACH_NULL_MATCHES_ALL	0x40
 #define APK_FOREACH_DEP			0x80
 #define APK_FOREACH_GENID_MASK		0xffffff00
-
-struct apk_sign_ctx {
-	struct apk_trust *trust;
-	int action;
-	const EVP_MD *md;
-	int num_signatures;
-	int control_started : 1;
-	int data_started : 1;
-	int has_data_checksum : 1;
-	int control_verified : 1;
-	int data_verified : 1;
-	int allow_untrusted : 1;
-	char data_checksum[EVP_MAX_MD_SIZE];
-	struct apk_checksum identity;
-	EVP_MD_CTX *mdctx;
-
-	struct {
-		apk_blob_t data;
-		EVP_PKEY *pkey;
-		char *identity;
-	} signature;
-};
 
 struct apk_dependency {
 	struct apk_name *name;
@@ -132,17 +104,6 @@ APK_ARRAY(apk_package_array, struct apk_package *);
 
 extern const char *apk_script_types[];
 
-void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action,
-		       struct apk_checksum *identity, struct apk_trust *trust);
-void apk_sign_ctx_free(struct apk_sign_ctx *ctx);
-int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
-			      const struct apk_file_info *fi,
-			      struct apk_istream *is);
-int apk_sign_ctx_parse_pkginfo_line(void *ctx, apk_blob_t line);
-int apk_sign_ctx_verify_tar(void *ctx, const struct apk_file_info *fi,
-			    struct apk_istream *is);
-int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t blob);
-
 void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
 		      struct apk_package *pkg);
 int apk_dep_is_materialized(struct apk_dependency *dep, struct apk_package *pkg);
@@ -165,8 +126,7 @@ int apk_script_type(const char *name);
 struct apk_package *apk_pkg_get_installed(struct apk_name *name);
 
 struct apk_package *apk_pkg_new(void);
-int apk_pkg_read(struct apk_database *db, const char *name,
-		 struct apk_sign_ctx *ctx, struct apk_package **pkg);
+int apk_pkg_read(struct apk_database *db, const char *name, struct apk_package **pkg);
 void apk_pkg_free(struct apk_package *pkg);
 
 int apk_pkg_parse_name(apk_blob_t apkname, apk_blob_t *name, apk_blob_t *version);

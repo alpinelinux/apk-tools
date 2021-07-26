@@ -18,6 +18,7 @@
 #include "apk_print.h"
 #include "apk_adb.h"
 #include "apk_pathbuilder.h"
+#include "apk_extract.h"
 
 struct extract_ctx {
 	const char *destination;
@@ -151,7 +152,7 @@ static int apk_extract_volume(struct apk_ctx *ac, struct apk_file_info *fi, stru
 	return  uvol_extract(ac, fi->uvol_name, size, fi->size, is, dctx);
 }
 
-static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istream *is)
+static int apk_extract_adb_file(struct extract_ctx *ctx, off_t sz, struct apk_istream *is)
 {
 	struct apk_ctx *ac = ctx->ac;
 	struct apk_out *out = &ac->out;
@@ -199,7 +200,7 @@ static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istrea
 			return -APKE_ADB_SCHEMA;
 		}
 		fi.mode |= mode;
-		return apk_archive_entry_extract(
+		return apk_extract_file(
 			ctx->root_fd, &fi, 0, 0, is, 0, 0, 0,
 			ctx->extract_flags, out);
 	}
@@ -212,7 +213,7 @@ static int apk_extract_file(struct extract_ctx *ctx, off_t sz, struct apk_istrea
 	if (fi.uvol_name) {
 		r = apk_extract_volume(ac, &fi, is, &dctx);
 	} else {
-		r = apk_archive_entry_extract(
+		r = apk_extract_file(
 			ctx->root_fd, &fi, 0, 0, is, 0, 0, &dctx,
 			ctx->extract_flags, out);
 		if (r < 0) return r;
@@ -245,7 +246,7 @@ static int apk_extract_directory(struct extract_ctx *ctx)
 	apk_extract_acl(&fi, adb_ro_obj(&ctx->path, ADBI_DI_ACL, &acl), apk_ctx_get_id_cache(ctx->ac));
 	fi.mode |= S_IFDIR;
 
-	return apk_archive_entry_extract(
+	return apk_extract_file(
 		ctx->root_fd, &fi, 0, 0, 0, 0, 0, 0,
 		ctx->extract_flags, out);
 }
@@ -285,7 +286,7 @@ static int apk_extract_next_file(struct extract_ctx *ctx)
 		    APK_BLOB_IS_NULL(target)) {
 			return 0;
 		}
-		r = apk_extract_file(ctx, 0, 0);
+		r = apk_extract_adb_file(ctx, 0, 0);
 		if (r != 0) return r;
 	} while (1);
 }
@@ -316,7 +317,7 @@ static int apk_extract_data_block(struct adb *db, struct adb_block *b, struct ap
 		return -APKE_ADB_BLOCK;
 	}
 
-	return apk_extract_file(ctx, sz, is);
+	return apk_extract_adb_file(ctx, sz, is);
 }
 
 static int apk_extract_pkg(struct extract_ctx *ctx, const char *fn)
@@ -367,12 +368,12 @@ static int extract_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	return r;
 }
 
-static struct apk_applet apk_extract = {
+static struct apk_applet app_extract = {
 	.name = "extract",
 	.context_size = sizeof(struct extract_ctx),
 	.optgroups = { &optgroup_global, &optgroup_applet },
 	.main = extract_main,
 };
 
-APK_DEFINE_APPLET(apk_extract);
+APK_DEFINE_APPLET(app_extract);
 

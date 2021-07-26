@@ -20,6 +20,7 @@
 #include "apk_applet.h"
 #include "apk_database.h"
 #include "apk_pathbuilder.h"
+#include "apk_extract.h"
 #include "apk_print.h"
 
 #define BLOCK_SIZE 4096
@@ -29,7 +30,7 @@ struct mkpkg_ctx {
 	const char *files_dir, *output;
 	struct adb db;
 	struct adb_obj paths, *files;
-	struct apk_sign_ctx sctx;
+	struct apk_extract_ctx ectx;
 	apk_blob_t info[ADBI_PI_MAX];
 	uint64_t installed_size;
 	struct apk_pathbuilder pb;

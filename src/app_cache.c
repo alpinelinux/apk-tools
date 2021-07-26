@@ -98,8 +98,7 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db)
 		if (repo == NULL)
 			continue;
 
-		r = apk_cache_download(db, repo, pkg, APK_SIGN_VERIFY_IDENTITY, 0,
-				       progress_cb, &prog);
+		r = apk_cache_download(db, repo, pkg, 0, progress_cb, &prog);
 		if (r && r != -EALREADY) {
 			apk_err(out, PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
 			ret++;

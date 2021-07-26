@@ -18,6 +18,7 @@
 #include "apk_adb.h"
 #include "apk_applet.h"
 #include "apk_database.h"
+#include "apk_extract.h"
 #include "apk_print.h"
 
 struct mkndx_ctx {
@@ -31,7 +32,7 @@ struct mkndx_ctx {
 	struct adb_obj pkgs;
 	time_t index_mtime;
 
-	struct apk_sign_ctx sctx;
+	struct apk_extract_ctx ectx;
 	size_t file_size;
 };
 
@@ -83,7 +84,7 @@ static int cmpfield(const void *pa, const void *pb)
 	return apk_blob_sort(a->str, b->str);
 }
 
-static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, size_t file_size, struct apk_sign_ctx *sctx, apk_blob_t rewrite_arch)
+static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, size_t file_size, struct apk_extract_ctx *ectx, apk_blob_t rewrite_arch)
 {
 	static struct field fields[]  = {
 		FIELD("arch",			ADBI_PI_ARCH),
@@ -118,9 +119,9 @@ static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, s
 	adb_wo_alloca(&deps[2], &schema_dependency_array, db);
 
 	while ((r = apk_istream_get_delim(is, token, &line)) == 0) {
-		if (sctx) apk_sign_ctx_parse_pkginfo_line(sctx, line);
 		if (line.len < 1 || line.ptr[0] == '#') continue;
 		if (!apk_blob_split(line, APK_BLOB_STR(" = "), &k, &v)) continue;
+		apk_extract_v2_control(ectx, k, v);
 
 		key.str = k;
 		f = bsearch(&key, fields, ARRAY_SIZE(fields), sizeof(fields[0]), cmpfield);
@@ -163,22 +164,16 @@ static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, s
 	return adb_w_obj(&pkginfo);
 }
 
-static int mkndx_parse_v2_tar(void *pctx, const struct apk_file_info *ae, struct apk_istream *is)
+static int mkndx_parse_v2_tar(struct apk_extract_ctx *ectx, const struct apk_file_info *ae, struct apk_istream *is)
 {
-	struct mkndx_ctx *ctx = pctx;
-	adb_val_t o;
-	int r;
+	struct mkndx_ctx *ctx = container_of(ectx, struct mkndx_ctx, ectx);
 
-	r = apk_sign_ctx_process_file(&ctx->sctx, ae, is);
-	if (r <= 0) return r;
-	if (ctx->sctx.control_verified) return -ECANCELED;
-	if (!ctx->sctx.control_started || ctx->sctx.data_started) return 0;
-
-	if (strcmp(ae->name, ".PKGINFO") == 0) {
-		o = adb_wa_append(
+	if (ectx->metadata_verified) return -ECANCELED;
+	if (ectx->metadata && strcmp(ae->name, ".PKGINFO") == 0) {
+		adb_val_t o = adb_wa_append(
 			&ctx->pkgs,
 			mkndx_read_v2_pkginfo(
-				&ctx->db, is, ctx->file_size, &ctx->sctx,
+				&ctx->db, is, ctx->file_size, &ctx->ectx,
 				ctx->rewrite_arch));
 		if (ADB_IS_ERROR(o)) return -ADB_VAL_VALUE(o);
 	}
@@ -189,7 +184,6 @@ static int mkndx_parse_v2_tar(void *pctx, const struct apk_file_info *ae, struct
 static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
-	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
 	struct apk_trust *trust = apk_ctx_get_trust(ac);
 	struct adb odb, tmpdb;
 	struct adb_obj oroot, opkgs, ndx, tmpl;
@@ -204,6 +198,8 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		apk_err(out, "Please specify --output FILE");
 		return -1;
 	}
+
+	apk_extract_init(&ctx->ectx, ac, mkndx_parse_v2_tar);
 
 	adb_init(&odb);
 	adb_w_init_tmp(&tmpdb, 200);
@@ -278,11 +274,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		}
 		if (!found) {
 		do_file:
-			apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, trust);
-			r = apk_tar_parse(
-				apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, *parg), apk_sign_ctx_mpart_cb, &ctx->sctx),
-				mkndx_parse_v2_tar, ctx, idc);
-			apk_sign_ctx_free(&ctx->sctx);
+			r = apk_extract(&ctx->ectx, apk_istream_from_file(AT_FDCWD, *parg));
 			if (r < 0 && r != -ECANCELED) goto err_pkg;
 			newpkgs++;
 		}

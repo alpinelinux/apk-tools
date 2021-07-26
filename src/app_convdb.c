@@ -5,6 +5,7 @@
 
 #include "apk_adb.h"
 #include "apk_applet.h"
+#include "apk_tar.h"
 
 struct conv_script {
 	struct list_head script_node;

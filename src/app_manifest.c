@@ -14,6 +14,7 @@
 #include "apk_defines.h"
 #include "apk_applet.h"
 #include "apk_database.h"
+#include "apk_extract.h"
 #include "apk_version.h"
 #include "apk_print.h"
 
@@ -60,62 +61,48 @@ static void process_package(struct apk_database *db, struct apk_package *pkg)
 
 struct manifest_file_ctx {
 	struct apk_out *out;
-	struct apk_sign_ctx *sctx;
+	struct apk_extract_ctx ectx;
 	const char *prefix1, *prefix2;
 };
 
-static int read_file_entry(void *ctx, const struct apk_file_info *ae, struct apk_istream *is)
+static int read_file_entry(struct apk_extract_ctx *ectx, const struct apk_file_info *fi, struct apk_istream *is)
 {
-	struct manifest_file_ctx *mctx = ctx;
+	struct manifest_file_ctx *mctx = container_of(ectx, struct manifest_file_ctx, ectx);
 	struct apk_out *out = mctx->out;
 	char csum_buf[APK_BLOB_CHECKSUM_BUF];
 	apk_blob_t csum_blob = APK_BLOB_BUF(csum_buf);
-	int r;
 
-	r = apk_sign_ctx_verify_tar(mctx->sctx, ae, is);
-	if (r != 0)
-		return r;
-
-	if (!mctx->sctx->data_started)
-		return 0;
-
-	if ((ae->mode & S_IFMT) != S_IFREG)
-		return 0;
+	if (ectx->metadata) return 0;
+	if ((fi->mode & S_IFMT) != S_IFREG) return 0;
 
 	memset(csum_buf, '\0', sizeof(csum_buf));
-	apk_blob_push_hexdump(&csum_blob, APK_DIGEST_BLOB(ae->digest));
+	apk_blob_push_hexdump(&csum_blob, APK_DIGEST_BLOB(fi->digest));
 
 	apk_out(out, "%s%s%s:%s  %s",
 		mctx->prefix1, mctx->prefix2,
-		apk_digest_alg_str(ae->digest.alg), csum_buf,
-		ae->name);
+		apk_digest_alg_str(fi->digest.alg), csum_buf,
+		fi->name);
 
 	return 0;
 }
 
 static void process_file(struct apk_database *db, const char *match)
 {
-	struct apk_id_cache *idc = apk_ctx_get_id_cache(db->ctx);
 	struct apk_out *out = &db->ctx->out;
-	struct apk_sign_ctx sctx;
 	struct manifest_file_ctx ctx = {
 		.out = out,
-		.sctx = &sctx,
 		.prefix1 = "",
 		.prefix2 = "",
 	};
 	int r;
 
+	apk_extract_init(&ctx.ectx, db->ctx, read_file_entry);
 	if (apk_out_verbosity(out) > 1) {
 		ctx.prefix1 = match;
 		ctx.prefix2 = ": ";
 	}
 
-	apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, apk_ctx_get_trust(db->ctx));
-	r = apk_tar_parse(
-		apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, match), apk_sign_ctx_mpart_cb, &sctx),
-		read_file_entry, &ctx, idc);
-	apk_sign_ctx_free(&sctx);
+	r = apk_extract(&ctx.ectx, apk_istream_from_file(AT_FDCWD, match));
 	if (r < 0) apk_err(out, "%s: %s", match, apk_error_str(r));
 }
 

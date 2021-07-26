@@ -14,6 +14,7 @@
 #include "apk_database.h"
 #include "apk_print.h"
 #include "apk_solver.h"
+#include "apk_extract.h"
 
 struct add_ctx {
 	const char *virtpkg;
@@ -153,15 +154,11 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 
 		if (strstr(*parg, ".apk") != NULL) {
 			struct apk_package *pkg = NULL;
-			struct apk_sign_ctx sctx;
 
 			if (non_repository_check(db))
 				return -1;
 
-			apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY_AND_GENERATE,
-					  NULL, apk_ctx_get_trust(ac));
-			r = apk_pkg_read(db, *parg, &sctx, &pkg);
-			apk_sign_ctx_free(&sctx);
+			r = apk_pkg_read(db, *parg, &pkg);
 			if (r != 0) {
 				apk_err(out, "%s: %s", *parg, apk_error_str(r));
 				return -1;

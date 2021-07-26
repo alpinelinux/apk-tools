@@ -4,12 +4,13 @@
 
 #include "apk_adb.h"
 #include "apk_applet.h"
+#include "apk_extract.h"
 
 struct conv_ctx {
 	struct apk_ctx *ac;
 	struct adb_obj pkgs;
 	struct adb dbi;
-	struct apk_sign_ctx sctx;
+	struct apk_extract_ctx ectx;
 	int found;
 };
 
@@ -31,38 +32,27 @@ static void convert_index(struct conv_ctx *ctx, struct apk_istream *is)
 	}
 }
 
-static int load_apkindex(void *sctx, const struct apk_file_info *fi,
+static int load_apkindex(struct apk_extract_ctx *ectx, const struct apk_file_info *fi,
 			 struct apk_istream *is)
 {
-	struct conv_ctx *ctx = sctx;
-	int r;
-
-	r = apk_sign_ctx_process_file(&ctx->sctx, fi, is);
-	if (r <= 0) return r;
+	struct conv_ctx *ctx = container_of(ectx, struct conv_ctx, ectx);
 
 	if (strcmp(fi->name, "APKINDEX") == 0) {
 		ctx->found = 1;
 		convert_index(ctx, is);
 		return apk_istream_close(is);
 	}
-
 	return 0;
 }
 
 static int load_index(struct conv_ctx *ctx, struct apk_istream *is)
 {
 	int r = 0;
-
-	if (IS_ERR_OR_NULL(is)) return is ? PTR_ERR(is) : -EINVAL;
-
+	if (IS_ERR(is)) return PTR_ERR(is);
 	ctx->found = 0;
-	apk_sign_ctx_init(&ctx->sctx, APK_SIGN_VERIFY, NULL, apk_ctx_get_trust(ctx->ac));
-	r = apk_tar_parse(
-		apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &ctx->sctx),
-		load_apkindex, ctx, apk_ctx_get_id_cache(ctx->ac));
-	apk_sign_ctx_free(&ctx->sctx);
+	apk_extract_init(&ctx->ectx, ctx->ac, load_apkindex);
+	r = apk_extract(&ctx->ectx, is);
 	if (r >= 0 && ctx->found == 0) r = -APKE_V2NDX_FORMAT;
-
 	return r;
 }
 

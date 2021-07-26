@@ -39,6 +39,7 @@ const char *apk_error_str(int error)
 	case APKE_SIGNATURE_FAIL:		return "signing failure";
 	case APKE_SIGNATURE_UNTRUSTED:		return "UNTRUSTED signature";
 	case APKE_SIGNATURE_INVALID:		return "BAD signature";
+	case APKE_FORMAT_NOT_SUPPORTED:		return "file format not supported (in this applet)";
 	case APKE_ADB_COMPRESSION:		return "ADB compression not supported";
 	case APKE_ADB_HEADER:			return "ADB header error";
 	case APKE_ADB_VERSION:			return "incompatible ADB version";
