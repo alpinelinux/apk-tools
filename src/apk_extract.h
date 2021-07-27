@@ -14,6 +14,7 @@
 #include "apk_print.h"
 #include "apk_io.h"
 
+struct adb;
 struct apk_ctx;
 struct apk_extract_ctx;
 
@@ -26,26 +27,31 @@ int apk_extract_file(int atfd, const struct apk_file_info *ae,
 		apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx,
 		unsigned int extract_flags, struct apk_out *out);
 
-
-typedef int (*apk_extract_cb)(struct apk_extract_ctx *,
-		const struct apk_file_info *ae,
-		struct apk_istream *istream);
+struct apk_extract_ops {
+	int (*v2index)(struct apk_extract_ctx *, apk_blob_t *desc, struct apk_istream *is);
+	int (*v2meta)(struct apk_extract_ctx *, struct apk_istream *is);
+	int (*v3index)(struct apk_extract_ctx *, struct adb *);
+	int (*v3meta)(struct apk_extract_ctx *, struct adb *);
+	int (*script)(struct apk_extract_ctx *, unsigned int script, size_t size, struct apk_istream *is);
+	int (*file)(struct apk_extract_ctx *, const struct apk_file_info *fi, struct apk_istream *is);
+};
 
 struct apk_extract_ctx {
 	struct apk_ctx *ac;
-	apk_extract_cb cb;
+	const struct apk_extract_ops *ops;
 	struct apk_checksum *identity;
-	unsigned generate_identity : 1;
-	unsigned metadata : 1;
-	unsigned metadata_verified : 1;
+	apk_blob_t desc;
 	void *pctx;
+	unsigned generate_identity : 1;
+	unsigned is_package : 1;
+	unsigned is_index : 1;
 };
 
-static inline void apk_extract_init(struct apk_extract_ctx *ectx, struct apk_ctx *ac, apk_extract_cb cb) {
-	*ectx = (struct apk_extract_ctx){.ac = ac, .cb = cb};
+static inline void apk_extract_init(struct apk_extract_ctx *ectx, struct apk_ctx *ac, const struct apk_extract_ops *ops) {
+	*ectx = (struct apk_extract_ctx){.ac = ac, .ops = ops};
 }
 static inline void apk_extract_reset(struct apk_extract_ctx *ectx) {
-	apk_extract_init(ectx, ectx->ac, ectx->cb);
+	apk_extract_init(ectx, ectx->ac, ectx->ops);
 }
 static inline void apk_extract_generate_identity(struct apk_extract_ctx *ctx, struct apk_checksum *id) {
 	ctx->identity = id;
@@ -58,6 +64,7 @@ int apk_extract(struct apk_extract_ctx *, struct apk_istream *is);
 
 int apk_extract_v2(struct apk_extract_ctx *, struct apk_istream *is);
 void apk_extract_v2_control(struct apk_extract_ctx *, apk_blob_t, apk_blob_t);
+int apk_extract_v2_meta(struct apk_extract_ctx *ectx, struct apk_istream *is);
 
 int apk_extract_v3(struct apk_extract_ctx *, struct apk_istream *is);
 

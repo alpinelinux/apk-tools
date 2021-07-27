@@ -164,22 +164,21 @@ static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, s
 	return adb_w_obj(&pkginfo);
 }
 
-static int mkndx_parse_v2_tar(struct apk_extract_ctx *ectx, const struct apk_file_info *ae, struct apk_istream *is)
+static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
 {
 	struct mkndx_ctx *ctx = container_of(ectx, struct mkndx_ctx, ectx);
-
-	if (ectx->metadata_verified) return -ECANCELED;
-	if (ectx->metadata && strcmp(ae->name, ".PKGINFO") == 0) {
-		adb_val_t o = adb_wa_append(
-			&ctx->pkgs,
-			mkndx_read_v2_pkginfo(
-				&ctx->db, is, ctx->file_size, &ctx->ectx,
-				ctx->rewrite_arch));
-		if (ADB_IS_ERROR(o)) return -ADB_VAL_VALUE(o);
-	}
-
+	adb_val_t o = adb_wa_append(
+		&ctx->pkgs,
+		mkndx_read_v2_pkginfo(
+			&ctx->db, is, ctx->file_size, &ctx->ectx,
+			ctx->rewrite_arch));
+	if (ADB_IS_ERROR(o)) return -ADB_VAL_VALUE(o);
 	return 0;
 }
+
+static const struct apk_extract_ops extract_ndxinfo_ops = {
+	.v2meta = mkndx_parse_v2meta,
+};
 
 static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
@@ -199,7 +198,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		return -1;
 	}
 
-	apk_extract_init(&ctx->ectx, ac, mkndx_parse_v2_tar);
+	apk_extract_init(&ctx->ectx, ac, &extract_ndxinfo_ops);
 
 	adb_init(&odb);
 	adb_w_init_tmp(&tmpdb, 200);
@@ -275,7 +274,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		if (!found) {
 		do_file:
 			r = apk_extract(&ctx->ectx, apk_istream_from_file(AT_FDCWD, *parg));
-			if (r < 0 && r != -ECANCELED) goto err_pkg;
+			if (r < 0) goto err_pkg;
 			newpkgs++;
 		}
 	}

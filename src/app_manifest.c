@@ -65,14 +65,13 @@ struct manifest_file_ctx {
 	const char *prefix1, *prefix2;
 };
 
-static int read_file_entry(struct apk_extract_ctx *ectx, const struct apk_file_info *fi, struct apk_istream *is)
+static int process_pkg_file(struct apk_extract_ctx *ectx, const struct apk_file_info *fi, struct apk_istream *is)
 {
 	struct manifest_file_ctx *mctx = container_of(ectx, struct manifest_file_ctx, ectx);
 	struct apk_out *out = mctx->out;
 	char csum_buf[APK_BLOB_CHECKSUM_BUF];
 	apk_blob_t csum_blob = APK_BLOB_BUF(csum_buf);
 
-	if (ectx->metadata) return 0;
 	if ((fi->mode & S_IFMT) != S_IFREG) return 0;
 
 	memset(csum_buf, '\0', sizeof(csum_buf));
@@ -86,6 +85,11 @@ static int read_file_entry(struct apk_extract_ctx *ectx, const struct apk_file_i
 	return 0;
 }
 
+static const struct apk_extract_ops extract_manifest_ops = {
+	.v2meta = apk_extract_v2_meta,
+	.file = process_pkg_file,
+};
+
 static void process_file(struct apk_database *db, const char *match)
 {
 	struct apk_out *out = &db->ctx->out;
@@ -96,7 +100,7 @@ static void process_file(struct apk_database *db, const char *match)
 	};
 	int r;
 
-	apk_extract_init(&ctx.ectx, db->ctx, read_file_entry);
+	apk_extract_init(&ctx.ectx, db->ctx, &extract_manifest_ops);
 	if (apk_out_verbosity(out) > 1) {
 		ctx.prefix1 = match;
 		ctx.prefix2 = ": ";

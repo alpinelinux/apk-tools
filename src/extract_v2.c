@@ -278,31 +278,61 @@ update_digest:
 	return 0;
 }
 
+static int apk_extract_verify_v2index(struct apk_extract_ctx *ectx, apk_blob_t *desc, struct apk_istream *is)
+{
+	return 0;
+}
+
+static int apk_extract_verify_v2file(struct apk_extract_ctx *ectx, const struct apk_file_info *fi, struct apk_istream *is)
+{
+	return 0;
+}
+
+static const struct apk_extract_ops extract_v2verify_ops = {
+	.v2index = apk_extract_verify_v2index,
+	.v2meta = apk_extract_v2_meta,
+	.file = apk_extract_verify_v2file,
+};
+
 static int apk_extract_v2_entry(void *pctx, const struct apk_file_info *fi, struct apk_istream *is)
 {
 	struct apk_extract_ctx *ectx = pctx;
 	struct apk_sign_ctx *sctx = ectx->pctx;
-	int r;
+	int r, type;
 
 	r = apk_sign_ctx_process_file(sctx, fi, is);
 	if (r <= 0) return r;
 
-	ectx->metadata = sctx->control_started && !sctx->data_started;
-	ectx->metadata_verified = sctx->control_verified;
-
-	r = ectx->cb ? ectx->cb(ectx, fi, is) : 0;
-
-	if (ectx->metadata && strcmp(fi->name, ".PKGINFO") == 0) {
-		// Parse the .PKGINFO for the data, in case the callback did not do it.
-		apk_blob_t l, r, token = APK_BLOB_STR("\n");
-		while (apk_istream_get_delim(is, token, &l) == 0) {
-			if (l.len < 1 || l.ptr[0] == '#') continue;
-			if (apk_blob_split(l, APK_BLOB_STR(" = "), &l, &r))
-				apk_extract_v2_control(ectx, l, r);
+	if (!sctx->control_started) return 0;
+	if (!sctx->data_started || !sctx->has_data_checksum) {
+		if (fi->name[0] == '.') {
+			ectx->is_package = 1;
+			if (ectx->is_index) return -APKE_V2NDX_FORMAT;
+			if (!ectx->ops->v2meta) return -APKE_FORMAT_NOT_SUPPORTED;
+			if (strcmp(fi->name, ".PKGINFO") == 0) {
+				return ectx->ops->v2meta(ectx, is);
+			} else if (strcmp(fi->name, ".INSTALL") == 0) {
+				return -APKE_V2PKG_FORMAT;
+			} else if ((type = apk_script_type(&fi->name[1])) != APK_SCRIPT_INVALID) {
+				if (ectx->ops->script) return ectx->ops->script(ectx, type, fi->size, is);
+			}
+		} else {
+			ectx->is_index = 1;
+			if (ectx->is_package) return -APKE_V2PKG_FORMAT;
+			if (!ectx->ops->v2index) return -APKE_FORMAT_NOT_SUPPORTED;
+			if (strcmp(fi->name, "DESCRIPTION") == 0) {
+				free(ectx->desc.ptr);
+				ectx->desc = apk_blob_from_istream(is, fi->size);
+			} else if (strcmp(fi->name, "APKINDEX") == 0) {
+				return ectx->ops->v2index(ectx, &ectx->desc, is);
+			}
 		}
+		return 0;
 	}
 
-	return r;
+	if (!sctx->control_verified) return 0;
+	if (!ectx->ops->file) return -ECANCELED;
+	return ectx->ops->file(ectx, fi, is);
 }
 
 int apk_extract_v2(struct apk_extract_ctx *ectx, struct apk_istream *is)
@@ -319,13 +349,18 @@ int apk_extract_v2(struct apk_extract_ctx *ectx, struct apk_istream *is)
 	else
 		action = trust->allow_untrusted ? APK_SIGN_NONE : APK_SIGN_VERIFY;
 
+	if (!ectx->ops) ectx->ops = &extract_v2verify_ops;
 	ectx->pctx = &sctx;
 	apk_sign_ctx_init(&sctx, action, ectx->identity, trust);
 	r = apk_tar_parse(
 		apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx),
 		apk_extract_v2_entry, ectx, apk_ctx_get_id_cache(ac));
+	if (r == -ECANCELED) r = 0;
+	if (r == 0 && !ectx->is_package && !ectx->is_index)
+		r = ectx->ops->v2index ? -APKE_V2NDX_FORMAT : -APKE_V2PKG_FORMAT;
 	if (ectx->generate_identity) *ectx->identity = sctx.identity;
 	apk_sign_ctx_free(&sctx);
+	free(ectx->desc.ptr);
 	apk_extract_reset(ectx);
 
 	return r;
@@ -345,3 +380,16 @@ void apk_extract_v2_control(struct apk_extract_ctx *ectx, apk_blob_t l, apk_blob
 					EVP_MD_size(sctx->md)));
 	}
 }
+
+int apk_extract_v2_meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
+{
+	apk_blob_t k, v, token = APK_BLOB_STRLIT("\n");
+	while (apk_istream_get_delim(is, token, &k) == 0) {
+		if (k.len < 1 || k.ptr[0] == '#') continue;
+		if (apk_blob_split(k, APK_BLOB_STRLIT(" = "), &k, &v)) {
+			apk_extract_v2_control(ectx, k, v);
+		}
+	}
+	return 0;
+}
+

@@ -592,28 +592,18 @@ static int read_info_line(struct read_info_ctx *ri, apk_blob_t line)
 	return 0;
 }
 
-static int apk_pkg_parse_entry(struct apk_extract_ctx *ectx, const struct apk_file_info *ae,
-		struct apk_istream *is)
+static int apk_pkg_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
 {
 	struct read_info_ctx *ri = container_of(ectx, struct read_info_ctx, ectx);
-	struct apk_package *pkg = ri->pkg;
-
-	if (ectx->metadata_verified) return -ECANCELED;
-	if (!ectx->metadata) return 0;
-
-	if (strcmp(ae->name, ".PKGINFO") == 0) {
-		/* APK 2.0 format */
-		apk_blob_t l, token = APK_BLOB_STR("\n");
-		while (apk_istream_get_delim(is, token, &l) == 0)
-			read_info_line(ri, l);
-	} else if (strcmp(ae->name, ".INSTALL") == 0) {
-		apk_warn(&ri->db->ctx->out,
-			"Package '%s-" BLOB_FMT "' contains deprecated .INSTALL",
-			pkg->name->name, BLOB_PRINTF(*pkg->version));
-	}
-
+	apk_blob_t l, token = APK_BLOB_STR("\n");
+	while (apk_istream_get_delim(is, token, &l) == 0)
+		read_info_line(ri, l);
 	return 0;
 }
+
+static const struct apk_extract_ops extract_pkgmeta_ops = {
+	.v2meta = apk_pkg_v2meta,
+};
 
 int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package **pkg)
 {
@@ -633,12 +623,11 @@ int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package *
 		goto err;
 
 	ctx.pkg->size = fi.size;
-	apk_extract_init(&ctx.ectx, db->ctx, apk_pkg_parse_entry);
+	apk_extract_init(&ctx.ectx, db->ctx, &extract_pkgmeta_ops);
 	apk_extract_generate_identity(&ctx.ectx, &ctx.pkg->csum);
 
 	r = apk_extract(&ctx.ectx, apk_istream_from_file(AT_FDCWD, file));
-	if (r < 0 && r != -ECANCELED)
-		goto err;
+	if (r < 0) goto err;
 	if (ctx.pkg->name == NULL || ctx.pkg->uninstallable) {
 		r = -ENOTSUP;
 		goto err;

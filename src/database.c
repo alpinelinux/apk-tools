@@ -2163,37 +2163,29 @@ struct apkindex_ctx {
 	int repo, found;
 };
 
-static int load_apkindex(struct apk_extract_ctx *ectx, const struct apk_file_info *fi,
-			 struct apk_istream *is)
+static int load_v2index(struct apk_extract_ctx *ectx, apk_blob_t *desc, struct apk_istream *is)
 {
 	struct apkindex_ctx *ctx = container_of(ectx, struct apkindex_ctx, ectx);
-	struct apk_repository *repo;
+	struct apk_repository *repo = &ctx->db->repos[ctx->repo];
 
-	repo = &ctx->db->repos[ctx->repo];
-	if (strcmp(fi->name, "DESCRIPTION") == 0) {
-		repo->description = apk_blob_from_istream(is, fi->size);
-	} else if (strcmp(fi->name, "APKINDEX") == 0) {
-		ctx->found = 1;
-		return apk_db_index_read(ctx->db, is, ctx->repo);
-	}
-	return 0;
+	repo->description = *desc;
+	*desc = APK_BLOB_NULL;
+	return apk_db_index_read(ctx->db, is, ctx->repo);
 }
+
+static const struct apk_extract_ops extract_index = {
+	.v2index = load_v2index,
+};
 
 static int load_index(struct apk_database *db, struct apk_istream *is, int repo)
 {
-	struct apkindex_ctx ctx;
-	int r = 0;
-
+	struct apkindex_ctx ctx = {
+		.db = db,
+		.repo = repo,
+	};
 	if (IS_ERR(is)) return PTR_ERR(is);
-
-	ctx.db = db;
-	ctx.repo = repo;
-	ctx.found = 0;
-	apk_extract_init(&ctx.ectx, db->ctx, load_apkindex);
-	r = apk_extract(&ctx.ectx, is);
-	if (r >= 0 && ctx.found == 0)
-		r = -APKE_V2NDX_FORMAT;
-	return r;
+	apk_extract_init(&ctx.ectx, db->ctx, &extract_index);
+	return apk_extract(&ctx.ectx, is);
 }
 
 int apk_db_index_read_file(struct apk_database *db, const char *file, int repo)
@@ -2285,10 +2277,9 @@ static void extract_cb(void *_ctx, size_t bytes_done)
 
 static void apk_db_run_pending_script(struct install_ctx *ctx)
 {
-	if (ctx->script_pending && ctx->ectx.metadata_verified) {
-		ctx->script_pending = FALSE;
-		apk_ipkg_run_script(ctx->ipkg, ctx->db, ctx->script, ctx->script_args);
-	}
+	if (!ctx->script_pending) return;
+	ctx->script_pending = FALSE;
+	apk_ipkg_run_script(ctx->ipkg, ctx->db, ctx->script, ctx->script_args);
 }
 
 static int read_info_line(void *_ctx, apk_blob_t line)
@@ -2376,9 +2367,25 @@ static int contains_control_character(const char *str)
 	return 0;
 }
 
-static int apk_db_install_archive_entry(struct apk_extract_ctx *ectx,
-					const struct apk_file_info *ae,
-					struct apk_istream *is)
+static int apk_db_install_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
+{
+	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
+	apk_blob_t l, token = APK_BLOB_STR("\n");
+	while (apk_istream_get_delim(is, token, &l) == 0)
+		read_info_line(ctx, l);
+	return 0;
+}
+
+static int apk_db_install_script(struct apk_extract_ctx *ectx, unsigned int type, size_t size, struct apk_istream *is)
+{
+	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
+	struct apk_package *pkg = ctx->pkg;
+	apk_ipkg_add_script(pkg->ipkg, is, type, size);
+	ctx->script_pending |= (type == ctx->script);
+	return 0;
+}
+
+static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_file_info *ae, struct apk_istream *is)
 {
 	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
 	static const char dot1[] = "/./", dot2[] = "/../";
@@ -2393,28 +2400,7 @@ static int apk_db_install_archive_entry(struct apk_extract_ctx *ectx,
 	int ret = 0, r;
 	char tmpname_file[TMPNAME_MAX], tmpname_link_target[TMPNAME_MAX];
 
-	/* Package metainfo and script processing */
-	if (ectx->metadata) {
-		if (ae->name[0] != '.') return 0;
-		if (strcmp(ae->name, ".PKGINFO") == 0) {
-			apk_blob_t l, token = APK_BLOB_STR("\n");
-			while (apk_istream_get_delim(is, token, &l) == 0)
-				read_info_line(ctx, l);
-			return 0;
-		}
-		r = apk_script_type(&ae->name[1]);
-		if (r != APK_SCRIPT_INVALID) {
-			apk_ipkg_add_script(ipkg, is, r, ae->size);
-			ctx->script_pending |= (r == ctx->script);
-			apk_db_run_pending_script(ctx);
-		}
-		return 0;
-	}
-
-	/* Handle script */
 	apk_db_run_pending_script(ctx);
-
-	/* Rest of files need to be inside data portion */
 	if (ae->name[0] == '.') return 0;
 
 	/* Sanity check the file name */
@@ -2593,6 +2579,12 @@ static int apk_db_install_archive_entry(struct apk_extract_ctx *ectx,
 
 	return ret;
 }
+
+static const struct apk_extract_ops extract_installer = {
+	.v2meta = apk_db_install_v2meta,
+	.script = apk_db_install_script,
+	.file = apk_db_install_file,
+};
 
 static void apk_db_purge_pkg(struct apk_database *db,
 			     struct apk_installed_package *ipkg,
@@ -2805,7 +2797,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 		.cb = cb,
 		.cb_ctx = cb_ctx,
 	};
-	apk_extract_init(&ctx.ectx, db->ctx, apk_db_install_archive_entry);
+	apk_extract_init(&ctx.ectx, db->ctx, &extract_installer);
 	apk_extract_verify_identity(&ctx.ectx, &pkg->csum);
 	r = apk_extract(&ctx.ectx, is);
 	if (need_copy && r == 0) pkg->repos |= BIT(APK_REPOSITORY_CACHED);

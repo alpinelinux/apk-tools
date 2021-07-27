@@ -11,11 +11,11 @@ struct conv_ctx {
 	struct adb_obj pkgs;
 	struct adb dbi;
 	struct apk_extract_ctx ectx;
-	int found;
 };
 
-static void convert_index(struct conv_ctx *ctx, struct apk_istream *is)
+static int convert_v2index(struct apk_extract_ctx *ectx, apk_blob_t *desc, struct apk_istream *is)
 {
+	struct conv_ctx *ctx = container_of(ectx, struct conv_ctx, ectx);
 	struct adb_obj pkginfo;
 	apk_blob_t token = APK_BLOB_STR("\n"), l;
 	int i;
@@ -30,30 +30,18 @@ static void convert_index(struct conv_ctx *ctx, struct apk_istream *is)
 		i = adb_pkg_field_index(l.ptr[0]);
 		if (i > 0) adb_wo_pkginfo(&pkginfo, i, APK_BLOB_PTR_LEN(l.ptr+2, l.len-2));
 	}
+	return apk_istream_close(is);
 }
 
-static int load_apkindex(struct apk_extract_ctx *ectx, const struct apk_file_info *fi,
-			 struct apk_istream *is)
-{
-	struct conv_ctx *ctx = container_of(ectx, struct conv_ctx, ectx);
-
-	if (strcmp(fi->name, "APKINDEX") == 0) {
-		ctx->found = 1;
-		convert_index(ctx, is);
-		return apk_istream_close(is);
-	}
-	return 0;
-}
+static const struct apk_extract_ops extract_convndx = {
+	.v2index = convert_v2index,
+};
 
 static int load_index(struct conv_ctx *ctx, struct apk_istream *is)
 {
-	int r = 0;
 	if (IS_ERR(is)) return PTR_ERR(is);
-	ctx->found = 0;
-	apk_extract_init(&ctx->ectx, ctx->ac, load_apkindex);
-	r = apk_extract(&ctx->ectx, is);
-	if (r >= 0 && ctx->found == 0) r = -APKE_V2NDX_FORMAT;
-	return r;
+	apk_extract_init(&ctx->ectx, ctx->ac, &extract_convndx);
+	return apk_extract(&ctx->ectx, is);
 }
 
 static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
