@@ -188,6 +188,25 @@ static int apk_extract_v3_data_block(struct adb *db, struct adb_block *b, struct
 	return apk_extract_v3_file(ectx, sz, is);
 }
 
+static int apk_extract_v3_verify_meta(struct apk_extract_ctx *ectx, struct adb *db)
+{
+	return 0;
+}
+
+static int apk_extract_v3_verify_file(struct apk_extract_ctx *ectx, const struct apk_file_info *fi, struct apk_istream *is)
+{
+	if (is) {
+		apk_istream_read(is, 0, fi->size);
+		return apk_istream_close(is);
+	}
+	return 0;
+}
+
+static const struct apk_extract_ops extract_v3verify_ops = {
+	.v3meta = apk_extract_v3_verify_meta,
+	.file = apk_extract_v3_verify_file,
+};
+
 int apk_extract_v3(struct apk_extract_ctx *ectx, struct apk_istream *is)
 {
 	struct apk_ctx *ac = ectx->ac;
@@ -198,8 +217,8 @@ int apk_extract_v3(struct apk_extract_ctx *ectx, struct apk_istream *is)
 	int r;
 
 	if (IS_ERR(is)) return PTR_ERR(is);
-	if (!ectx->ops || !ectx->ops->v3meta)
-		return apk_istream_close_error(is, -APKE_FORMAT_NOT_SUPPORTED);
+	if (!ectx->ops) ectx->ops = &extract_v3verify_ops;
+	if (!ectx->ops->v3meta) return apk_istream_close_error(is, -APKE_FORMAT_NOT_SUPPORTED);
 
 	ectx->pctx = &ctx;
 	r = adb_m_process(&ctx.db, adb_decompress(is, 0),
@@ -211,6 +230,7 @@ int apk_extract_v3(struct apk_extract_ctx *ectx, struct apk_istream *is)
 	}
 	if (r == -ECANCELED) r = 0;
 	adb_free(&ctx.db);
-	ectx->pctx = 0;
+	apk_extract_reset(ectx);
+
 	return r;
 }

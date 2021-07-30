@@ -356,7 +356,7 @@ int apk_extract_v2(struct apk_extract_ctx *ectx, struct apk_istream *is)
 		apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx),
 		apk_extract_v2_entry, ectx, apk_ctx_get_id_cache(ac));
 	if (r == -ECANCELED) r = 0;
-	if (r == 0 && !ectx->is_package && !ectx->is_index)
+	if ((r == 0 || r == -APKE_SIGNATURE_UNTRUSTED || r == -APKE_EOF) && !ectx->is_package && !ectx->is_index)
 		r = ectx->ops->v2index ? -APKE_V2NDX_FORMAT : -APKE_V2PKG_FORMAT;
 	if (ectx->generate_identity) *ectx->identity = sctx.identity;
 	apk_sign_ctx_free(&sctx);
