@@ -17,6 +17,8 @@
 #include "apk_extract.h"
 #include "apk_version.h"
 #include "apk_print.h"
+#include "apk_adb.h"
+#include "apk_pathbuilder.h"
 
 /* TODO: support package files as well as generating manifest from the installed DB. */
 static char *csum_types[APK_CHECKSUM_SHA1 + 1] = {
@@ -85,8 +87,48 @@ static int process_pkg_file(struct apk_extract_ctx *ectx, const struct apk_file_
 	return 0;
 }
 
+static int process_v3_meta(struct apk_extract_ctx *ectx, struct adb *db)
+{
+	struct manifest_file_ctx *mctx = container_of(ectx, struct manifest_file_ctx, ectx);
+	struct apk_out *out = mctx->out;
+	struct adb_obj pkg, paths, path, files, file;
+	struct apk_digest digest;
+	struct apk_pathbuilder pb;
+	char buf[APK_DIGEST_MAX_LENGTH*2+1];
+	apk_blob_t hex;
+	int i, j;
+
+	adb_r_rootobj(db, &pkg, &schema_package);
+	adb_ro_obj(&pkg, ADBI_PKG_PATHS, &paths);
+
+	for (i = ADBI_FIRST; i <= adb_ra_num(&paths); i++) {
+		adb_ro_obj(&paths, i, &path);
+		adb_ro_obj(&path, ADBI_DI_FILES, &files);
+		apk_pathbuilder_setb(&pb, adb_ro_blob(&path, ADBI_DI_NAME));
+
+		for (j = ADBI_FIRST; j <= adb_ra_num(&files); j++) {
+			adb_ro_obj(&files, j, &file);
+			apk_pathbuilder_pushb(&pb, adb_ro_blob(&file, ADBI_FI_NAME));
+			apk_digest_from_blob(&digest, adb_ro_blob(&file, ADBI_FI_HASHES));
+
+			hex = APK_BLOB_BUF(buf);
+			apk_blob_push_hexdump(&hex, APK_DIGEST_BLOB(digest));
+			apk_blob_push_blob(&hex, APK_BLOB_STRLIT("\0"));
+
+			apk_out(out, "%s%s%s:%s  %s",
+				mctx->prefix1, mctx->prefix2,
+				apk_digest_alg_str(digest.alg), buf,
+				apk_pathbuilder_cstr(&pb));
+			apk_pathbuilder_pop(&pb);
+		}
+	}
+
+	return -ECANCELED;
+}
+
 static const struct apk_extract_ops extract_manifest_ops = {
 	.v2meta = apk_extract_v2_meta,
+	.v3meta = process_v3_meta,
 	.file = process_pkg_file,
 };
 
