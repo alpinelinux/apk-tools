@@ -176,8 +176,22 @@ static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *
 	return 0;
 }
 
+static int mkndx_parse_v3meta(struct apk_extract_ctx *ectx, struct adb *db)
+{
+	struct mkndx_ctx *ctx = container_of(ectx, struct mkndx_ctx, ectx);
+	struct adb_obj obj;
+
+	adb_r_rootobj(db, &obj, &schema_package);
+
+	adb_val_t o = adb_wa_append(&ctx->pkgs,
+		adb_w_copy(&ctx->db, db, adb_ro_val(&obj, ADBI_PKG_PKGINFO)));
+	if (ADB_IS_ERROR(o)) return -ADB_VAL_VALUE(o);
+	return 0;
+}
+
 static const struct apk_extract_ops extract_ndxinfo_ops = {
 	.v2meta = mkndx_parse_v2meta,
+	.v3meta = mkndx_parse_v3meta,
 };
 
 static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
