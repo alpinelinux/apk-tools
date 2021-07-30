@@ -302,6 +302,61 @@ struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct 
 	return &sis->is;
 }
 
+static void digest_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
+{
+	struct apk_digest_istream *dis = container_of(is, struct apk_digest_istream, is);
+	return apk_istream_get_meta(dis->pis, meta);
+}
+
+static ssize_t digest_read(struct apk_istream *is, void *ptr, size_t size)
+{
+	struct apk_digest_istream *dis = container_of(is, struct apk_digest_istream, is);
+	ssize_t r;
+
+	r = dis->pis->ops->read(dis->pis, ptr, size);
+	if (r > 0) apk_digest_ctx_update(&dis->dctx, ptr, r);
+	return r;
+}
+
+static int digest_close(struct apk_istream *is)
+{
+	struct apk_digest_istream *dis = container_of(is, struct apk_digest_istream, is);
+
+	if (dis->digest) {
+		struct apk_digest res;
+		apk_digest_ctx_final(&dis->dctx, &res);
+		if (apk_digest_cmp(&res, dis->digest) != 0)
+			apk_istream_error(is, -APKE_FILE_INTEGRITY);
+		dis->digest = 0;
+	}
+	apk_digest_ctx_free(&dis->dctx);
+
+	return is->err < 0 ? is->err : 0;
+}
+
+static const struct apk_istream_ops digest_istream_ops = {
+	.get_meta = digest_get_meta,
+	.read = digest_read,
+	.close = digest_close,
+};
+
+struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct apk_istream *is, struct apk_digest *d)
+{
+	*dis = (struct apk_digest_istream) {
+		.is.ops = &digest_istream_ops,
+		.is.buf = is->buf,
+		.is.buf_size = is->buf_size,
+		.is.ptr = is->ptr,
+		.is.end = is->end,
+		.pis = is,
+		.digest = d,
+	};
+	apk_digest_ctx_init(&dis->dctx, d->alg);
+	if (dis->is.ptr != dis->is.end)
+		apk_digest_ctx_update(&dis->dctx, dis->is.ptr, dis->is.end - dis->is.ptr);
+	return &dis->is;
+}
+
 struct apk_tee_istream {
 	struct apk_istream is;
 	struct apk_istream *inner_is;

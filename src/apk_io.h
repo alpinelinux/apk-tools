@@ -135,6 +135,14 @@ struct apk_segment_istream {
 };
 struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, size_t len, time_t mtime);
 
+struct apk_digest_istream {
+	struct apk_istream is;
+	struct apk_istream *pis;
+	struct apk_digest *digest;
+	struct apk_digest_ctx dctx;
+};
+struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct apk_istream *is, struct apk_digest *d);
+
 #define APK_ISTREAM_TEE_COPY_META 1
 #define APK_ISTREAM_TEE_OPTIONAL  2
 

@@ -198,12 +198,13 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 			r = -APKE_ADB_BLOCK;
 			break;
 		}
-		sz = adb_block_size(&blk) - sizeof blk;
+
+		sz = adb_block_length(&blk);
 		switch (type) {
 		case ADB_BLOCK_ADB:
 			allowed = BIT(ADB_BLOCK_SIG) | BIT(ADB_BLOCK_DATA) | BIT(ADB_BLOCK_DATAX);
 			db->adb.ptr = malloc(sz);
-			db->adb.len = adb_block_length(&blk);
+			db->adb.len = sz;
 			if (db->adb.len < 16) {
 				r = -APKE_ADB_BLOCK;
 				goto err;
@@ -215,7 +216,7 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 			}
 			r = cb(db, &blk, apk_istream_from_blob(&seg.is, db->adb));
 			if (r < 0) goto err;
-			continue;
+			goto skip_padding;
 		case ADB_BLOCK_SIG:
 			sig = apk_istream_peek(is, sz);
 			if (IS_ERR(sig)) {
@@ -223,7 +224,7 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 				goto err;
 			}
 			if (!trusted &&
-			    adb_trust_verify_signature(t, db, &vfy, APK_BLOB_PTR_LEN(sig, adb_block_length(&blk))) == 0)
+			    adb_trust_verify_signature(t, db, &vfy, APK_BLOB_PTR_LEN(sig, sz)) == 0)
 				trusted = 1;
 			break;
 		case ADB_BLOCK_DATA:
@@ -237,8 +238,11 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 
 		apk_istream_segment(&seg, is, sz, 0);
 		r = cb(db, &blk, &seg.is);
+		r = apk_istream_close_error(&seg.is, r);
 		if (r < 0) break;
-		r = apk_istream_close(&seg.is);
+
+	skip_padding:
+		r = apk_istream_read(is, 0, adb_block_padding(&blk));
 		if (r < 0) break;
 	} while (1);
 err:

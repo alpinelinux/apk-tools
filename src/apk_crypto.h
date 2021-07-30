@@ -82,9 +82,9 @@ static inline int apk_digest_calc(struct apk_digest *d, uint8_t alg, const void 
 }
 
 static inline int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg) {
+	dctx->alg = alg;
 	dctx->mdctx = EVP_MD_CTX_new();
 	if (!dctx->mdctx) return -ENOMEM;
-	dctx->alg = alg;
 #ifdef EVP_MD_CTX_FLAG_FINALISE
 	EVP_MD_CTX_set_flags(dctx->mdctx, EVP_MD_CTX_FLAG_FINALISE);
 #endif
