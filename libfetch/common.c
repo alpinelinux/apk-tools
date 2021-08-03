@@ -181,7 +181,7 @@ fetch_parseuint(const char *str, const char **endptr, int radix, uintmax_t max)
 		unsigned char ch = (unsigned char)*p;
 		if (isdigit(ch))
 			d = ch - '0';
-		else	d = tolower(ch - 'a');
+		else	d = tolower(ch) - 'a' + 10;
 		if (d > radix || val > maxx) goto err;
 		val *= radix;
 		if (val > max-d) goto err;
