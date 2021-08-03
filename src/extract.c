@@ -23,7 +23,7 @@ int apk_extract_file(int atfd, const struct apk_file_info *ae,
 	const char *fn = extract_name ?: ae->name;
 	int fd, r = -1, atflags = 0, ret = 0;
 
-	if (!(extract_flags & APK_EXTRACTF_NO_OVERWRITE)) {
+	if (!S_ISDIR(ae->mode) && !(extract_flags & APK_EXTRACTF_NO_OVERWRITE)) {
 		if (unlinkat(atfd, fn, 0) != 0 && errno != ENOENT) return -errno;
 	}
 
