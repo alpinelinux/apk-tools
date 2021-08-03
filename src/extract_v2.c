@@ -330,7 +330,7 @@ static int apk_extract_v2_entry(void *pctx, const struct apk_file_info *fi, stru
 		return 0;
 	}
 
-	if (!sctx->control_verified) return 0;
+	if (!sctx->data_started) return 0;
 	if (!ectx->ops->file) return -ECANCELED;
 	return ectx->ops->file(ectx, fi, is);
 }
@@ -345,9 +345,9 @@ int apk_extract_v2(struct apk_extract_ctx *ectx, struct apk_istream *is)
 	if (ectx->generate_identity)
 		action = trust->allow_untrusted ? APK_SIGN_GENERATE : APK_SIGN_VERIFY_AND_GENERATE;
 	else if (ectx->identity)
-		action = trust->allow_untrusted ? APK_SIGN_NONE : APK_SIGN_VERIFY_IDENTITY;
+		action = APK_SIGN_VERIFY_IDENTITY;
 	else
-		action = trust->allow_untrusted ? APK_SIGN_NONE : APK_SIGN_VERIFY;
+		action = APK_SIGN_VERIFY;
 
 	if (!ectx->ops) ectx->ops = &extract_v2verify_ops;
 	ectx->pctx = &sctx;

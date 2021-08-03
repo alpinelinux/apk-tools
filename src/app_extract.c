@@ -141,7 +141,10 @@ static int extract_v3_meta(struct apk_extract_ctx *ectx, struct adb *db)
 static int extract_file(struct apk_extract_ctx *ectx, const struct apk_file_info *fi, struct apk_istream *is)
 {
 	struct extract_ctx *ctx = container_of(ectx, struct extract_ctx, ectx);
+	struct apk_out *out = &ctx->ac->out;
 	int r;
+
+	apk_dbg2(out, "%s", fi->name);
 
 	if (fi->uvol_name) return apk_extract_volume(ectx->ac, fi, is);
 
