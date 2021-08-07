@@ -147,6 +147,8 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 
 		virtdep.result_mask = APK_VERSION_EQUAL;
 		virtdep.version = virtpkg->version;
+
+		if (!args->num) apk_warn(out, "creating empty virtual package");
 	}
 
 	foreach_array_item(parg, args) {
