@@ -9,7 +9,7 @@ cat version.data | while read a result b rest ; do
 	fi
 done
 
-if [ "$fail" == "0" ]; then
+if [ "$fail" = "0" ]; then
 	echo "OK: version checking works"
 fi
 

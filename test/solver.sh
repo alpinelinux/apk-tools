@@ -10,9 +10,9 @@ TEST_TO_RUN="$@"
 fail=0
 pass=0
 for test in ${TEST_TO_RUN:-*.test}; do
-	get_block ARGS < $test | xargs $APK_TEST &> .$test.got
+	get_block ARGS < $test | xargs $APK_TEST > .$test.got 2>&1
 
-	if ! get_block EXPECT < $test | cmp .$test.got &> /dev/null; then
+	if ! get_block EXPECT < $test | cmp .$test.got > /dev/null 2>&1; then
 		fail=$((fail+1))
 		echo "FAIL: $test"
 		get_block EXPECT < $test | diff -ru - .$test.got

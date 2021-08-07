@@ -50,9 +50,9 @@ repos.stamp: $(repos)
 		fi; \
 		if ! APK="$(APK)" ROOT="$(testroot)" SYSREPO="$(SYSREPO)" sh -ex ./$< > $(basename $@).out 2>&1; then\
 			echo " FAIL";\
-			printf "------------- output -------------\n" >&2;\
+			printf '%s\n' "------------- output -------------" >&2;\
 			cat $(basename $@).out >&2;\
-			printf "----------------------------------\n" >&2;\
+			printf '%s\n' "----------------------------------" >&2;\
 			exit 1;\
 		fi ;\
 		echo " OK" ;\
