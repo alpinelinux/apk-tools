@@ -146,13 +146,14 @@ static int extract_file(struct apk_extract_ctx *ectx, const struct apk_file_info
 
 	apk_dbg2(out, "%s", fi->name);
 
-	if (fi->uvol_name) return apk_extract_volume(ectx->ac, fi, is);
-
-	r = apk_extract_file(ctx->root_fd, fi, 0, 0, is, 0, 0, 0,
-		ctx->extract_flags, &ectx->ac->out);
-	r = apk_istream_close_error(is, r);
-
-	if (r != 0) unlinkat(ctx->root_fd, fi->name, 0);
+	if (fi->uvol_name && is) {
+		r = apk_extract_volume(ectx->ac, fi, is);
+	} else {
+		r = apk_extract_file(ctx->root_fd, fi, 0, 0, is, 0, 0, 0,
+			ctx->extract_flags, &ectx->ac->out);
+		if (r != 0) unlinkat(ctx->root_fd, fi->name, 0);
+	}
+	if (is) r = apk_istream_close_error(is, r);
 	return r;
 }
 
