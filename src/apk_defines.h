@@ -211,7 +211,7 @@ void *apk_array_resize(void *array, size_t new_size, size_t elem_size);
 	static inline elem_type_name *					\
 	array_type_name##_add(struct array_type_name **a)		\
 	{								\
-		int size = 1 + (*a)->num;				\
+		int size = 1 + ((*a) ? (*a)->num : 0);			\
 		*a = apk_array_resize(*a, size, sizeof(elem_type_name));\
 		return &(*a)->item[size-1];				\
 	}

@@ -32,14 +32,19 @@ struct mkpkg_ctx {
 	struct adb_obj paths, *files;
 	struct apk_extract_ctx ectx;
 	apk_blob_t info[ADBI_PI_MAX];
+	apk_blob_t script[ADBI_SCRPT_MAX];
+	struct apk_string_array *triggers;
 	uint64_t installed_size;
 	struct apk_pathbuilder pb;
+	unsigned has_scripts : 1;
 };
 
 #define MKPKG_OPTIONS(OPT) \
 	OPT(OPT_MKPKG_files,	APK_OPT_ARG APK_OPT_SH("f") "files") \
 	OPT(OPT_MKPKG_info,	APK_OPT_ARG APK_OPT_SH("i") "info") \
 	OPT(OPT_MKPKG_output,	APK_OPT_ARG APK_OPT_SH("o") "output") \
+	OPT(OPT_MKPKG_script,	APK_OPT_ARG APK_OPT_SH("s") "script") \
+	OPT(OPT_MKPKG_trigger,	APK_OPT_ARG APK_OPT_SH("t") "trigger") \
 
 APK_OPT_APPLET(option_desc, MKPKG_OPTIONS);
 
@@ -65,6 +70,23 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 		break;
 	case OPT_MKPKG_output:
 		ictx->output = optarg;
+		break;
+	case OPT_MKPKG_script:
+		apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r);
+		i = adb_s_field_by_name_blob(&schema_scripts, l);
+		if (i == APK_SCRIPT_INVALID) {
+			apk_err(out, "invalid script type: " BLOB_FMT, BLOB_PRINTF(l));
+			return -EINVAL;
+		}
+		ictx->script[i] = apk_blob_from_file(AT_FDCWD, r.ptr);
+		if (APK_BLOB_IS_NULL(ictx->script[i])) {
+			apk_err(out, "failed to load script: " BLOB_FMT, BLOB_PRINTF(r));
+			return -ENOENT;
+		}
+		ictx->has_scripts = 1;
+		break;
+	case OPT_MKPKG_trigger:
+		*apk_string_array_add(&ictx->triggers) = (char*) optarg;
 		break;
 	default:
 		return -ENOTSUP;
@@ -251,6 +273,20 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	adb_wo_int(&pkgi, ADBI_PI_INSTALLED_SIZE, ctx->installed_size);
 	adb_wo_obj(&pkg, ADBI_PKG_PKGINFO, &pkgi);
 	adb_wo_obj(&pkg, ADBI_PKG_PATHS, &ctx->paths);
+	if (ctx->has_scripts) {
+		struct adb_obj scripts;
+		adb_wo_alloca(&scripts, &schema_scripts, &ctx->db);
+		for (i = ADBI_FIRST; i < APK_SCRIPT_MAX; i++)
+			adb_wo_blob(&scripts, i, ctx->script[i]);
+		adb_wo_obj(&pkg, ADBI_PKG_SCRIPTS, &scripts);
+	}
+	if (ctx->triggers) {
+		struct adb_obj triggers;
+		adb_wo_alloca(&triggers, &schema_string_array, &ctx->db);
+		for (i = 0; i < ctx->triggers->num; i++)
+			adb_wa_append_fromstring(&triggers, APK_BLOB_STR(ctx->triggers->item[i]));
+		adb_wo_obj(&pkg, ADBI_PKG_TRIGGERS, &triggers);
+	}
 	adb_w_rootobj(&pkg);
 
 	// re-read since object resets
