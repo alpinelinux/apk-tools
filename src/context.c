@@ -16,7 +16,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 {
 	memset(ac, 0, sizeof *ac);
 	apk_string_array_init(&ac->repository_list);
-	apk_string_array_init(&ac->private_keys);
+	apk_trust_init(&ac->trust);
 	apk_out_reset(&ac->out);
 	ac->out.out = stdout;
 	ac->out.err = stderr;
@@ -28,7 +28,6 @@ void apk_ctx_free(struct apk_ctx *ac)
 	apk_id_cache_free(&ac->id_cache);
 	apk_trust_free(&ac->trust);
 	apk_string_array_free(&ac->repository_list);
-	apk_string_array_free(&ac->private_keys);
 	if (ac->out.log) fclose(ac->out.log);
 }
 
@@ -75,12 +74,10 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 
 struct apk_trust *apk_ctx_get_trust(struct apk_ctx *ac)
 {
-	if (!ac->trust.initialized) {
-		int r = apk_trust_init(&ac->trust,
-			openat(ac->root_fd, ac->keys_dir, O_RDONLY | O_CLOEXEC),
-			ac->private_keys);
-		if (r) return ERR_PTR(r);
-		ac->trust.allow_untrusted = !!(ac->flags & APK_ALLOW_UNTRUSTED);
+	if (!ac->trust.keys_loaded) {
+		int r = apk_trust_load_keys(&ac->trust,
+			openat(ac->root_fd, ac->keys_dir, O_RDONLY | O_CLOEXEC));
+		if (r != 0) apk_err(&ac->out, "Unable to load trust keys: %s", apk_error_str(r));
 	}
 	return &ac->trust;
 }

@@ -1103,8 +1103,6 @@ int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct a
 	size_t siglen;
 	int r;
 
-	if (IS_ERR(trust)) return PTR_ERR(trust);
-
 	if (!vfy) {
 		vfy = alloca(sizeof *vfy);
 		memset(vfy, 0, sizeof *vfy);

@@ -24,11 +24,12 @@ struct apk_trust {
 	struct list_head trusted_key_list;
 	struct list_head private_key_list;
 	int allow_untrusted : 1;
-	int initialized : 1;
+	int keys_loaded : 1;
 };
 
-int apk_trust_init(struct apk_trust *trust, int keysfd, struct apk_string_array *);
+void apk_trust_init(struct apk_trust *trust);
 void apk_trust_free(struct apk_trust *trust);
+int apk_trust_load_keys(struct apk_trust *trust, int keysfd);
 struct apk_pkey *apk_trust_key_by_name(struct apk_trust *trust, const char *filename);
 
 #endif
