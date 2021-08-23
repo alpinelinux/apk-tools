@@ -19,7 +19,7 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 	int r = 0, i, multi_line = 0, nesting = 0, new_item = 0;
 	uint8_t started[64] = {0};
 
-	if (IS_ERR_OR_NULL(is)) return PTR_ERR(is);
+	if (IS_ERR(is)) return PTR_ERR(is);
 	if (apk_istream_get_delim(is, token, &l) != 0) goto err;
 	apk_blob_pull_blob_match(&l, APK_BLOB_STR("#%SCHEMA: "));
 	if ((r = d->ops->schema(d, apk_blob_pull_uint(&l, 16))) != 0) goto err;

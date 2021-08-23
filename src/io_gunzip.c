@@ -146,7 +146,7 @@ struct apk_istream *apk_istream_zlib(struct apk_istream *is, int raw, apk_multip
 {
 	struct apk_gzip_istream *gis;
 
-	if (IS_ERR_OR_NULL(is)) return ERR_CAST(is);
+	if (IS_ERR(is)) return ERR_CAST(is);
 
 	gis = malloc(sizeof(*gis) + apk_io_bufsize);
 	if (!gis) goto err;
@@ -231,7 +231,7 @@ struct apk_ostream *apk_ostream_zlib(struct apk_ostream *output, int raw)
 {
 	struct apk_gzip_ostream *gos;
 
-	if (IS_ERR_OR_NULL(output)) return ERR_CAST(output);
+	if (IS_ERR(output)) return ERR_CAST(output);
 
 	gos = malloc(sizeof(struct apk_gzip_ostream));
 	if (gos == NULL) goto err;

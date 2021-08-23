@@ -171,8 +171,8 @@ static int fetch_package(apk_hash_item item, void *pctx)
 	}
 
 	is = apk_istream_from_fd_url(urlfd, url, apk_db_url_since(db, 0));
-	if (IS_ERR_OR_NULL(is)) {
-		r = PTR_ERR(is) ?: -EIO;
+	if (IS_ERR(is)) {
+		r = PTR_ERR(is);
 		goto err;
 	}
 
@@ -219,7 +219,7 @@ static void mark_name_flags(struct apk_database *db, const char *match, struct a
 		.result_mask = APK_DEPMASK_ANY,
 	};
 
-	if (!IS_ERR_OR_NULL(name)) {
+	if (name) {
 		name->auto_select_virtual = 1;
 		apk_deps_add(&ctx->world, &dep);
 	} else {

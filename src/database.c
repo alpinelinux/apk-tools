@@ -704,7 +704,7 @@ int apk_db_read_overlay(struct apk_database *db, struct apk_istream *is)
 	struct apk_installed_package *ipkg;
 	apk_blob_t token = APK_BLOB_STR("\n"), line, bdir, bfile;
 
-	if (IS_ERR_OR_NULL(is)) return PTR_ERR(is);
+	if (IS_ERR(is)) return PTR_ERR(is);
 
 	pkg = apk_pkg_new();
 	if (!pkg) goto no_mem;
@@ -758,7 +758,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 	gid_t gid;
 	int field, r, lineno = 0;
 
-	if (IS_ERR_OR_NULL(is)) return PTR_ERR(is);
+	if (IS_ERR(is)) return PTR_ERR(is);
 
 	while (apk_istream_get_delim(is, token, &l) == 0) {
 		lineno++;
@@ -1223,7 +1223,7 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 	/* Write list of installed non-repository packages to
 	 * cached index file */
 	os = apk_ostream_to_file(db->cache_fd, "installed", 0644);
-	if (IS_ERR_OR_NULL(os)) return PTR_ERR(os);
+	if (IS_ERR(os)) return PTR_ERR(os);
 
 	ctx.os = os;
 	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
@@ -2769,7 +2769,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 		need_copy = FALSE;
 
 	is = apk_istream_from_fd_url(filefd, file, apk_db_url_since(db, 0));
-	if (IS_ERR_OR_NULL(is)) {
+	if (IS_ERR(is)) {
 		r = PTR_ERR(is);
 		if (r == -ENOENT && pkg->filename == NULL)
 			r = -APKE_INDEX_STALE;

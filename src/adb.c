@@ -37,7 +37,7 @@ static struct adb_block *adb_block_next(struct adb_block *cur, apk_blob_t b)
 }
 
 #define adb_foreach_block(__blk, __adb) \
-	for (__blk = adb_block_first(__adb); !IS_ERR_OR_NULL(__blk); __blk = adb_block_next(__blk, __adb))
+	for (__blk = adb_block_first(__adb); __blk && !IS_ERR(__blk); __blk = adb_block_next(__blk, __adb))
 
 /* Init stuff */
 int adb_free(struct adb *db)
@@ -1103,7 +1103,7 @@ int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct a
 	size_t siglen;
 	int r;
 
-	if (IS_ERR_OR_NULL(trust)) return PTR_ERR(trust);
+	if (IS_ERR(trust)) return PTR_ERR(trust);
 
 	if (!vfy) {
 		vfy = alloca(sizeof *vfy);

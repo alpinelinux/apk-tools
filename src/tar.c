@@ -124,7 +124,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 	apk_blob_t pax = APK_BLOB_NULL, longname = APK_BLOB_NULL;
 	char filename[sizeof buf.name + sizeof buf.prefix + 2];
 
-	if (IS_ERR_OR_NULL(is)) return PTR_ERR(is) ?: -EINVAL;
+	if (IS_ERR(is)) return PTR_ERR(is);
 
 	memset(&entry, 0, sizeof(entry));
 	entry.name = buf.name;

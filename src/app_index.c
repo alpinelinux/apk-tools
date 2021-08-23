@@ -199,7 +199,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		os = apk_ostream_to_file(AT_FDCWD, ictx->output, 0644);
 	else
 		os = apk_ostream_to_fd(STDOUT_FILENO);
-	if (IS_ERR_OR_NULL(os)) return -1;
+	if (IS_ERR(os)) return PTR_ERR(os);
 
 	memset(&fi, 0, sizeof(fi));
 	fi.mode = 0644 | S_IFREG;

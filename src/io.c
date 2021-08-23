@@ -154,7 +154,7 @@ void *apk_istream_peek(struct apk_istream *is, size_t len)
 void *apk_istream_get(struct apk_istream *is, size_t len)
 {
 	void *p = apk_istream_peek(is, len);
-	if (!IS_ERR_OR_NULL(p)) is->ptr += len;
+	if (!IS_ERR(p)) is->ptr += len;
 	else apk_istream_error(is, PTR_ERR(p));
 	return p;
 }
@@ -595,7 +595,7 @@ struct apk_istream *__apk_istream_from_file(int atfd, const char *file, int try_
 
 	if (try_mmap) {
 		struct apk_istream *is = apk_mmap_istream_from_fd(fd);
-		if (!IS_ERR_OR_NULL(is)) return is;
+		if (!IS_ERR(is)) return is;
 	}
 	return apk_istream_from_fd(fd);
 }
@@ -816,7 +816,7 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		apk_digest_calc(&fi->digest, hash_alg, target, st.st_size);
 	} else {
 		struct apk_istream *is = apk_istream_from_file(atfd, filename);
-		if (!IS_ERR_OR_NULL(is)) {
+		if (!IS_ERR(is)) {
 			struct apk_digest_ctx dctx;
 			apk_blob_t blob;
 
@@ -995,7 +995,7 @@ struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode)
 	if (fd < 0) return ERR_PTR(-errno);
 
 	os = apk_ostream_to_fd(fd);
-	if (IS_ERR_OR_NULL(os)) return ERR_CAST(os);
+	if (IS_ERR(os)) return ERR_CAST(os);
 
 	struct apk_fd_ostream *fos = container_of(os, struct apk_fd_ostream, os);
 	fos->file = file;
