@@ -1017,7 +1017,6 @@ static int apk_db_scriptdb_write(struct apk_database *db, struct apk_ostream *os
 	char filename[256];
 	apk_blob_t bfn;
 	int r, i;
-	time_t now = time(NULL);
 
 	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
 		pkg = ipkg->pkg;
@@ -1030,7 +1029,6 @@ static int apk_db_scriptdb_write(struct apk_database *db, struct apk_ostream *os
 				.name = filename,
 				.size = ipkg->script[i].len,
 				.mode = 0755 | S_IFREG,
-				.mtime = now,
 			};
 			/* The scripts db expects file names in format:
 			 * pkg-version.<hexdump of package checksum>.action */
