@@ -179,7 +179,8 @@ static void print_result(struct apk_database *db, const char *match, struct apk_
 	OPT(OPT_LIST_origin,		APK_OPT_SH("o") "origin") \
 	OPT(OPT_LIST_orphaned,		APK_OPT_SH("O") "orphaned") \
 	OPT(OPT_LIST_providers,		APK_OPT_SH("P") "providers") \
-	OPT(OPT_LIST_upgradeable,	APK_OPT_SH("u") "upgradeable")
+	OPT(OPT_LIST_upgradable,	APK_OPT_SH("u") "upgradable") \
+	OPT(OPT_LIST_upgradeable,	"upgradeable")
 
 APK_OPT_APPLET(option_desc, LIST_OPTIONS);
 
@@ -208,6 +209,7 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 	case OPT_LIST_providers:
 		ctx->match_providers = 1;
 		break;
+	case OPT_LIST_upgradable:
 	case OPT_LIST_upgradeable:
 		ctx->available = 1;
 		ctx->orphaned = 0;

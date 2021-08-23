@@ -27,7 +27,7 @@ globbing.
 *-a, --available*
 	Consider only available packages.
 
-*-u, --upgradable*
+*-u, --upgradable, --upgradeable*
 	Consider only upgradable packages.
 
 *-o, --origin*
