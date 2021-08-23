@@ -167,6 +167,8 @@ static int apk_extract_v3_data_block(struct adb *db, struct adb_block *b, struct
 	int r;
 
 	if (adb_block_type(b) != ADB_BLOCK_DATA) return 0;
+	if (db->schema != ADB_SCHEMA_PACKAGE) return -APKE_ADB_SCHEMA;
+	if (!ectx->ops->v3meta) return -APKE_FORMAT_NOT_SUPPORTED;
 
 	r = apk_extract_v3_next_file(ectx);
 	if (r != 0) {
@@ -188,6 +190,11 @@ static int apk_extract_v3_data_block(struct adb *db, struct adb_block *b, struct
 	return apk_extract_v3_file(ectx, sz, is);
 }
 
+static int apk_extract_v3_verify_index(struct apk_extract_ctx *ectx, struct adb *db)
+{
+	return 0;
+}
+
 static int apk_extract_v3_verify_meta(struct apk_extract_ctx *ectx, struct adb *db)
 {
 	return 0;
@@ -203,6 +210,7 @@ static int apk_extract_v3_verify_file(struct apk_extract_ctx *ectx, const struct
 }
 
 static const struct apk_extract_ops extract_v3verify_ops = {
+	.v3index = apk_extract_v3_verify_index,
 	.v3meta = apk_extract_v3_verify_meta,
 	.file = apk_extract_v3_verify_file,
 };
@@ -218,15 +226,30 @@ int apk_extract_v3(struct apk_extract_ctx *ectx, struct apk_istream *is)
 
 	if (IS_ERR(is)) return PTR_ERR(is);
 	if (!ectx->ops) ectx->ops = &extract_v3verify_ops;
-	if (!ectx->ops->v3meta) return apk_istream_close_error(is, -APKE_FORMAT_NOT_SUPPORTED);
+	if (!ectx->ops->v3meta && !ectx->ops->v3index)
+		return apk_istream_close_error(is, -APKE_FORMAT_NOT_SUPPORTED);
 
 	ectx->pctx = &ctx;
 	r = adb_m_process(&ctx.db, adb_decompress(is, 0),
-		ADB_SCHEMA_PACKAGE, trust, apk_extract_v3_data_block);
+		ADB_SCHEMA_ANY, trust, apk_extract_v3_data_block);
 	if (r == 0) {
-		r = apk_extract_v3_next_file(ectx);
-		if (r == 0) r = -APKE_ADB_BLOCK;
-		if (r == 1) r = 0;
+		switch (ctx.db.schema) {
+		case ADB_SCHEMA_PACKAGE:
+			r = apk_extract_v3_next_file(ectx);
+			if (r == 0) r = -APKE_ADB_BLOCK;
+			if (r == 1) r = 0;
+			break;
+		case ADB_SCHEMA_INDEX:
+			if (!ectx->ops->v3index) {
+				r = -APKE_FORMAT_NOT_SUPPORTED;
+				break;
+			}
+			r = ectx->ops->v3index(ectx, &ctx.db);
+			break;
+		default:
+			r = -APKE_ADB_SCHEMA;
+			break;
+		}
 	}
 	if (r == -ECANCELED) r = 0;
 	adb_free(&ctx.db);

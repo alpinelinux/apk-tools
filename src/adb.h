@@ -44,6 +44,7 @@ typedef uint32_t adb_val_t;
 
 /* File Header */
 #define ADB_FORMAT_MAGIC	0x2e424441	// ADB.
+#define ADB_SCHEMA_ANY		0
 #define ADB_SCHEMA_IMPLIED	0x80000000
 
 struct adb_file_header {
