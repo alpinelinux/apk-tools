@@ -49,21 +49,24 @@ struct tar_header {
 	char padding[12];   /* 500-511 */
 };
 
-#define TAR_BLOB(s)	APK_BLOB_PTR_LEN(s, strnlen(s, sizeof(s)))
-#define GET_OCTAL(s)	get_octal(s, sizeof(s))
-#define PUT_OCTAL(s,v)	put_octal(s, sizeof(s), v)
+#define TAR_BLOB(s)		APK_BLOB_PTR_LEN(s, strnlen(s, sizeof(s)))
+#define GET_OCTAL(s,r)		get_octal(s, sizeof(s), r)
+#define PUT_OCTAL(s,v,hz)	put_octal(s, sizeof(s), v, hz)
 
-static unsigned int get_octal(char *s, size_t l)
+static unsigned int get_octal(char *s, size_t l, int *r)
 {
 	apk_blob_t b = APK_BLOB_PTR_LEN(s, l);
-	return apk_blob_pull_uint(&b, 8);
+	unsigned int val = apk_blob_pull_uint(&b, 8);
+	while (b.len >= 1 && b.ptr[0] == 0) b.ptr++, b.len--;
+	if (b.len != 0) *r = -EAPKFORMAT;
+	return val;
 }
 
-static void put_octal(char *s, size_t l, size_t value)
+static void put_octal(char *s, size_t l, size_t value, int has_zero)
 {
 	char *ptr = &s[l - 1];
 
-	*(ptr--) = '\0';
+	if (has_zero) *(ptr--) = '\0';
 	while (value != 0 && ptr >= s) {
 		*(ptr--) = '0' + (value % 8);
 		value /= 8;
@@ -147,20 +150,27 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 			end++;
 			continue;
 		}
+		if (memcmp(buf.magic, "ustar", 5) != 0) {
+			r = -EAPKFORMAT;
+			goto err;
+		}
 
+		r = 0;
 		entry = (struct apk_file_info){
-			.size  = GET_OCTAL(buf.size),
-			.uid   = apk_resolve_uid(idc, TAR_BLOB(buf.uname), GET_OCTAL(buf.uid)),
-			.gid   = apk_resolve_gid(idc, TAR_BLOB(buf.gname), GET_OCTAL(buf.gid)),
-			.mode  = GET_OCTAL(buf.mode) & 07777,
-			.mtime = GET_OCTAL(buf.mtime),
+			.size  = GET_OCTAL(buf.size, &r),
+			.uid   = apk_resolve_uid(idc, TAR_BLOB(buf.uname), GET_OCTAL(buf.uid, &r)),
+			.gid   = apk_resolve_gid(idc, TAR_BLOB(buf.gname), GET_OCTAL(buf.gid, &r)),
+			.mode  = GET_OCTAL(buf.mode, &r) & 07777,
+			.mtime = GET_OCTAL(buf.mtime, &r),
 			.name  = entry.name,
 			.uname = buf.uname,
 			.gname = buf.gname,
-			.device = makedev(GET_OCTAL(buf.devmajor),
-					  GET_OCTAL(buf.devminor)),
+			.device = makedev(GET_OCTAL(buf.devmajor, &r),
+					  GET_OCTAL(buf.devminor, &r)),
 			.xattrs = entry.xattrs,
 		};
+		if (r != 0) goto err;
+
 		if (buf.prefix[0] && buf.typeflag != 'x' && buf.typeflag != 'g') {
 			snprintf(filename, sizeof filename, "%.*s/%.*s",
 				 (int) sizeof buf.prefix, buf.prefix,
@@ -288,11 +298,11 @@ int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
 		strlcpy(buf.uname, ae->uname ?: "root", sizeof buf.uname);
 		strlcpy(buf.gname, ae->gname ?: "root", sizeof buf.gname);
 
-		PUT_OCTAL(buf.size, ae->size);
-		PUT_OCTAL(buf.uid, ae->uid);
-		PUT_OCTAL(buf.gid, ae->gid);
-		PUT_OCTAL(buf.mode, ae->mode & 07777);
-		PUT_OCTAL(buf.mtime, ae->mtime ?: apk_get_build_time());
+		PUT_OCTAL(buf.size, ae->size, 0);
+		PUT_OCTAL(buf.uid, ae->uid, 1);
+		PUT_OCTAL(buf.gid, ae->gid, 1);
+		PUT_OCTAL(buf.mode, ae->mode & 07777, 1);
+		PUT_OCTAL(buf.mtime, ae->mtime ?: apk_get_build_time(), 0);
 
 		/* Checksum */
 		strcpy(buf.magic, "ustar  ");
@@ -300,7 +310,7 @@ int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
 		src = (const unsigned char *) &buf;
 		for (i = chksum = 0; i < sizeof(buf); i++)
 			chksum += src[i];
-	        put_octal(buf.chksum, sizeof(buf.chksum)-1, chksum);
+		put_octal(buf.chksum, sizeof(buf.chksum)-1, chksum, 1);
 	}
 
 	if (apk_ostream_write(os, &buf, sizeof(buf)) != sizeof(buf))
