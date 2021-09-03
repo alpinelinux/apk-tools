@@ -27,6 +27,7 @@
 #include "apk_database.h"
 #include "apk_print.h"
 #include "apk_extract.h"
+#include "apk_adb.h"
 
 const apk_spn_match_def apk_spn_dependency_comparer = {
 	[7] = (1<<4) /*<*/ | (1<<5) /*=*/ | (1<<6) /*<*/,
@@ -448,6 +449,27 @@ int apk_deps_write(struct apk_database *db, struct apk_dependency_array *deps, s
 	return n;
 }
 
+void apk_dep_from_adb(struct apk_dependency *dep, struct apk_database *db, struct adb_obj *d)
+{
+	*dep = (struct apk_dependency) {
+		.name = apk_db_get_name(db, adb_ro_blob(d, ADBI_DEP_NAME)),
+		.version = apk_atomize_dup(&db->atoms, adb_ro_blob(d, ADBI_DEP_VERSION)),
+		.result_mask = adb_ro_int(d, ADBI_DEP_MATCH) ?: APK_VERSION_EQUAL,
+	};
+}
+
+void apk_deps_from_adb(struct apk_dependency_array **deps, struct apk_database *db, struct adb_obj *da)
+{
+	struct adb_obj obj;
+	int i;
+
+	for (i = ADBI_FIRST; i <= adb_ra_num(da); i++) {
+		struct apk_dependency *d = apk_dependency_array_add(deps);
+		adb_ro_obj(da, i, &obj);
+		apk_dep_from_adb(d, db, &obj);
+	}
+}
+
 const char *apk_script_types[] = {
 	[APK_SCRIPT_PRE_INSTALL]	= "pre-install",
 	[APK_SCRIPT_POST_INSTALL]	= "post-install",
@@ -474,6 +496,7 @@ struct read_info_ctx {
 	struct apk_database *db;
 	struct apk_package *pkg;
 	struct apk_extract_ctx ectx;
+	int v3ok;
 };
 
 int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
@@ -549,6 +572,47 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 	return 0;
 }
 
+static char *commit_id(apk_blob_t b)
+{
+	char buf[80];
+	apk_blob_t to = APK_BLOB_BUF(buf);
+
+	apk_blob_push_hexdump(&to, b);
+	to = apk_blob_pushed(APK_BLOB_BUF(buf), to);
+	if (APK_BLOB_IS_NULL(to)) return NULL;
+	return apk_blob_cstr(to);
+}
+
+void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct adb_obj *pkgo)
+{
+	struct adb_obj pkginfo, obj;
+	apk_blob_t uid;
+
+	adb_ro_obj(pkgo, ADBI_PKG_PKGINFO, &pkginfo);
+
+	uid = adb_ro_blob(&pkginfo, ADBI_PI_UNIQUE_ID);
+	if (uid.len == APK_CHECKSUM_SHA1) {
+		pkg->csum.type = APK_CHECKSUM_SHA1;
+		memcpy(pkg->csum.data, uid.ptr, uid.len);
+	}
+
+	pkg->name = apk_db_get_name(db, adb_ro_blob(&pkginfo, ADBI_PI_NAME));
+	pkg->version = apk_atomize_dup(&db->atoms, adb_ro_blob(&pkginfo, ADBI_PI_VERSION));
+	pkg->description = apk_blob_cstr(adb_ro_blob(&pkginfo, ADBI_PI_DESCRIPTION));
+	pkg->url = apk_blob_cstr(adb_ro_blob(&pkginfo, ADBI_PI_URL));
+	pkg->license = apk_atomize_dup(&db->atoms, adb_ro_blob(&pkginfo, ADBI_PI_LICENSE));
+	pkg->arch = apk_atomize_dup(&db->atoms, adb_ro_blob(&pkginfo, ADBI_PI_ARCH));
+	pkg->installed_size = adb_ro_int(&pkginfo, ADBI_PI_INSTALLED_SIZE);
+	pkg->origin = apk_atomize_dup(&db->atoms, adb_ro_blob(&pkginfo, ADBI_PI_ORIGIN));
+	pkg->maintainer = apk_atomize_dup(&db->atoms, adb_ro_blob(&pkginfo, ADBI_PI_MAINTAINER));
+	pkg->build_time = adb_ro_int(&pkginfo, ADBI_PI_BUILD_TIME);
+	pkg->commit = commit_id(adb_ro_blob(&pkginfo, ADBI_PI_REPO_COMMIT));
+
+	apk_deps_from_adb(&pkg->depends, db, adb_ro_obj(&pkginfo, ADBI_PI_DEPENDS, &obj));
+	apk_deps_from_adb(&pkg->provides, db, adb_ro_obj(&pkginfo, ADBI_PI_PROVIDES, &obj));
+	apk_deps_from_adb(&pkg->install_if, db, adb_ro_obj(&pkginfo, ADBI_PI_INSTALL_IF, &obj));
+}
+
 static int read_info_line(struct read_info_ctx *ri, apk_blob_t line)
 {
 	static struct {
@@ -601,13 +665,27 @@ static int apk_pkg_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
 	return 0;
 }
 
+static int apk_pkg_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
+{
+	struct read_info_ctx *ri = container_of(ectx, struct read_info_ctx, ectx);
+
+	if (!ri->v3ok) return -APKE_FORMAT_NOT_SUPPORTED;
+
+	apk_pkg_from_adb(ri->db, ri->pkg, pkg);
+	return -ECANCELED;
+}
+
 static const struct apk_extract_ops extract_pkgmeta_ops = {
 	.v2meta = apk_pkg_v2meta,
+	.v3meta = apk_pkg_v3meta,
 };
 
-int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package **pkg)
+int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package **pkg, int v3ok)
 {
-	struct read_info_ctx ctx;
+	struct read_info_ctx ctx = {
+		.db = db,
+		.v3ok = v3ok,
+	};
 	struct apk_file_info fi;
 	int r;
 
@@ -615,8 +693,6 @@ int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package *
 	if (r != 0)
 		return r;
 
-	memset(&ctx, 0, sizeof(ctx));
-	ctx.db = db;
 	ctx.pkg = apk_pkg_new();
 	r = -ENOMEM;
 	if (ctx.pkg == NULL)
@@ -628,8 +704,10 @@ int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package *
 
 	r = apk_extract(&ctx.ectx, apk_istream_from_file(AT_FDCWD, file));
 	if (r < 0) goto err;
-	if (ctx.pkg->name == NULL || ctx.pkg->uninstallable) {
-		r = -ENOTSUP;
+	if (ctx.pkg->csum.type == APK_CHECKSUM_NONE ||
+	    ctx.pkg->name == NULL ||
+	    ctx.pkg->uninstallable) {
+		r = -APKE_FORMAT_NOT_SUPPORTED;
 		goto err;
 	}
 	ctx.pkg->filename = strdup(file);

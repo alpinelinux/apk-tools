@@ -36,6 +36,7 @@
 #include "apk_print.h"
 #include "apk_openssl.h"
 #include "apk_tar.h"
+#include "apk_adb.h"
 
 static const apk_spn_match_def apk_spn_repo_separators = {
 	[1] = (1<<1) /* tab */,
@@ -2374,6 +2375,29 @@ static int apk_db_install_v2meta(struct apk_extract_ctx *ectx, struct apk_istrea
 	return 0;
 }
 
+static int apk_db_install_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
+{
+	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
+	struct apk_database *db = ctx->db;
+	struct apk_installed_package *ipkg = ctx->ipkg;
+	struct adb_obj triggers, pkginfo, obj;
+	int i;
+
+	apk_pkg_from_adb(db, ctx->pkg, pkg);
+	adb_ro_obj(pkg, ADBI_PKG_PKGINFO, &pkginfo);
+	apk_deps_from_adb(&ipkg->replaces, db, adb_ro_obj(&pkginfo, ADBI_PI_REPLACES, &obj));
+	ipkg->replaces_priority = adb_ro_int(&pkginfo, ADBI_PI_PRIORITY);
+
+	apk_string_array_resize(&ipkg->triggers, 0);
+	adb_ro_obj(pkg, ADBI_PKG_TRIGGERS, &triggers);
+	for (i = ADBI_FIRST; i <= adb_ra_num(&triggers); i++)
+		*apk_string_array_add(&ipkg->triggers) = apk_blob_cstr(adb_ro_blob(&triggers, i));
+	if (ctx->ipkg->triggers->num != 0 && !list_hashed(&ipkg->trigger_pkgs_list))
+		list_add_tail(&ipkg->trigger_pkgs_list, &db->installed.triggers);
+
+	return 0;
+}
+
 static int apk_db_install_script(struct apk_extract_ctx *ectx, unsigned int type, size_t size, struct apk_istream *is)
 {
 	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
@@ -2410,6 +2434,13 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 			PKG_VER_PRINTF(pkg), ae->name);
 		ipkg->broken_files = 1;
 		return 0;
+	}
+
+	if (ae->uvol_name) {
+		apk_warn(out, PKG_VER_FMT": %s: uvol not supported yet",
+			PKG_VER_PRINTF(pkg), ae->name);
+		ipkg->broken_files = 1;
+		return APK_EXTRACT_SKIP_FILE;
 	}
 
 	/* Installable entry */
@@ -2542,10 +2573,16 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 			else
 				apk_checksum_from_digest(&file->csum, &ae->digest);
 			/* only warn once per package */
-			if (file->csum.type == APK_CHECKSUM_NONE && !ctx->missing_checksum) {
+			if (ae->digest.alg == APK_DIGEST_NONE && !ctx->missing_checksum) {
 				apk_warn(out,
 					PKG_VER_FMT": support for packages without embedded "
 					"checksums will be dropped in apk-tools 3.",
+					PKG_VER_PRINTF(pkg));
+				ipkg->broken_files = 1;
+				ctx->missing_checksum = 1;
+			} else if (file->csum.type == APK_CHECKSUM_NONE && !ctx->missing_checksum) {
+				apk_warn(out,
+					PKG_VER_FMT": v3 checksums ignored",
 					PKG_VER_PRINTF(pkg));
 				ipkg->broken_files = 1;
 				ctx->missing_checksum = 1;
@@ -2580,6 +2617,7 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 
 static const struct apk_extract_ops extract_installer = {
 	.v2meta = apk_db_install_v2meta,
+	.v3meta = apk_db_install_v3meta,
 	.script = apk_db_install_script,
 	.file = apk_db_install_file,
 };

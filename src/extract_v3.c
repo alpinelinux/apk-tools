@@ -93,6 +93,8 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 
 	fi.mode |= S_IFREG;
 	r = ectx->ops->file(ectx, &fi, apk_istream_verify(&dis, is, &fi.digest));
+	if (r == APK_EXTRACT_SKIP_FILE)
+		return 0;
 	return apk_istream_close_error(&dis.is, r);
 }
 
@@ -255,6 +257,7 @@ int apk_extract_v3(struct apk_extract_ctx *ectx, struct apk_istream *is)
 		}
 	}
 	if (r == -ECANCELED) r = 0;
+	if (r == 0 && !ctx.db.adb.len) r = -APKE_ADB_BLOCK;
 	adb_free(&ctx.db);
 	apk_extract_reset(ectx);
 

@@ -120,8 +120,12 @@ static inline int apk_digest_cmp_csum(const struct apk_digest *d, const struct a
 }
 static inline void apk_checksum_from_digest(struct apk_checksum *csum, const struct apk_digest *d)
 {
-	csum->type = d->len;
-	memcpy(csum->data, d->data, d->len);
+	if (d->len > sizeof csum->data) {
+		csum->type = APK_CHECKSUM_NONE;
+	} else {
+		csum->type = d->len;
+		memcpy(csum->data, d->data, d->len);
+	}
 }
 
 // Asymmetric keys

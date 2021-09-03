@@ -253,11 +253,11 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 	} while (1);
 err:
 	if (r > 0) r = -APKE_ADB_BLOCK;
-	if (r == 0) {
+	if (r == 0 || r == -ECANCELED) {
 		if (!trusted) r = -APKE_SIGNATURE_UNTRUSTED;
 		else if (!db->adb.ptr) r = -APKE_ADB_BLOCK;
 	}
-	if (r != 0) {
+	if (r != 0 && r != -ECANCELED) {
 		free(db->adb.ptr);
 		db->adb = APK_BLOB_NULL;
 	}

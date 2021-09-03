@@ -18,6 +18,8 @@ struct adb_obj;
 struct apk_ctx;
 struct apk_extract_ctx;
 
+#define APK_EXTRACT_SKIP_FILE		0x111
+
 #define APK_EXTRACTF_NO_CHOWN		0x0001
 #define APK_EXTRACTF_NO_OVERWRITE	0x0002
 

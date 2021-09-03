@@ -182,7 +182,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		} while (0);
 
 		if (!found) {
-			r = apk_pkg_read(db, *parg, &pkg);
+			r = apk_pkg_read(db, *parg, &pkg, FALSE);
 			if (r < 0) {
 				apk_err(out, "%s: %s", *parg, apk_error_str(r));
 				errors++;
