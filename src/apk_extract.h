@@ -14,7 +14,7 @@
 #include "apk_print.h"
 #include "apk_io.h"
 
-struct adb;
+struct adb_obj;
 struct apk_ctx;
 struct apk_extract_ctx;
 
@@ -30,8 +30,8 @@ int apk_extract_file(int atfd, const struct apk_file_info *ae,
 struct apk_extract_ops {
 	int (*v2index)(struct apk_extract_ctx *, apk_blob_t *desc, struct apk_istream *is);
 	int (*v2meta)(struct apk_extract_ctx *, struct apk_istream *is);
-	int (*v3index)(struct apk_extract_ctx *, struct adb *);
-	int (*v3meta)(struct apk_extract_ctx *, struct adb *);
+	int (*v3index)(struct apk_extract_ctx *, struct adb_obj *);
+	int (*v3meta)(struct apk_extract_ctx *, struct adb_obj *);
 	int (*script)(struct apk_extract_ctx *, unsigned int script, size_t size, struct apk_istream *is);
 	int (*file)(struct apk_extract_ctx *, const struct apk_file_info *fi, struct apk_istream *is);
 };

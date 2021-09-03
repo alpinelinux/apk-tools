@@ -120,13 +120,14 @@ static int apk_extract_v3_next_file(struct apk_extract_ctx *ectx)
 	int r;
 
 	if (!ctx->cur_path) {
-		r = ectx->ops->v3meta(ectx, &ctx->db);
-		if (r < 0) return r;
-
 		// one time init
 		ctx->cur_path = ADBI_FIRST;
 		ctx->cur_file = 0;
 		adb_r_rootobj(&ctx->db, &ctx->pkg, &schema_package);
+
+		r = ectx->ops->v3meta(ectx, &ctx->pkg);
+		if (r < 0) return r;
+
 		adb_ro_obj(&ctx->pkg, ADBI_PKG_PATHS, &ctx->paths);
 		adb_ro_obj(&ctx->paths, ctx->cur_path, &ctx->path);
 		adb_ro_obj(&ctx->path, ADBI_DI_FILES, &ctx->files);
@@ -190,12 +191,12 @@ static int apk_extract_v3_data_block(struct adb *db, struct adb_block *b, struct
 	return apk_extract_v3_file(ectx, sz, is);
 }
 
-static int apk_extract_v3_verify_index(struct apk_extract_ctx *ectx, struct adb *db)
+static int apk_extract_v3_verify_index(struct apk_extract_ctx *ectx, struct adb_obj *obj)
 {
 	return 0;
 }
 
-static int apk_extract_v3_verify_meta(struct apk_extract_ctx *ectx, struct adb *db)
+static int apk_extract_v3_verify_meta(struct apk_extract_ctx *ectx, struct adb_obj *obj)
 {
 	return 0;
 }
@@ -222,6 +223,7 @@ int apk_extract_v3(struct apk_extract_ctx *ectx, struct apk_istream *is)
 	struct apk_extract_v3_ctx ctx = {
 		.ectx = ectx,
 	};
+	struct adb_obj obj;
 	int r;
 
 	if (IS_ERR(is)) return PTR_ERR(is);
@@ -244,7 +246,8 @@ int apk_extract_v3(struct apk_extract_ctx *ectx, struct apk_istream *is)
 				r = -APKE_FORMAT_NOT_SUPPORTED;
 				break;
 			}
-			r = ectx->ops->v3index(ectx, &ctx.db);
+			adb_r_rootobj(&ctx.db, &obj, &schema_index);
+			r = ectx->ops->v3index(ectx, &obj);
 			break;
 		default:
 			r = -APKE_ADB_SCHEMA;

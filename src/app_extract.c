@@ -133,7 +133,7 @@ static int apk_extract_volume(struct apk_ctx *ac, const struct apk_file_info *fi
 	return r;
 }
 
-static int extract_v3_meta(struct apk_extract_ctx *ectx, struct adb *db)
+static int extract_v3_meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 {
 	return 0;
 }

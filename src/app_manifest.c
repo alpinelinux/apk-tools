@@ -87,19 +87,18 @@ static int process_pkg_file(struct apk_extract_ctx *ectx, const struct apk_file_
 	return 0;
 }
 
-static int process_v3_meta(struct apk_extract_ctx *ectx, struct adb *db)
+static int process_v3_meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 {
 	struct manifest_file_ctx *mctx = container_of(ectx, struct manifest_file_ctx, ectx);
 	struct apk_out *out = mctx->out;
-	struct adb_obj pkg, paths, path, files, file;
+	struct adb_obj paths, path, files, file;
 	struct apk_digest digest;
 	struct apk_pathbuilder pb;
 	char buf[APK_DIGEST_MAX_LENGTH*2+1];
 	apk_blob_t hex;
 	int i, j;
 
-	adb_r_rootobj(db, &pkg, &schema_package);
-	adb_ro_obj(&pkg, ADBI_PKG_PATHS, &paths);
+	adb_ro_obj(pkg, ADBI_PKG_PATHS, &paths);
 
 	for (i = ADBI_FIRST; i <= adb_ra_num(&paths); i++) {
 		adb_ro_obj(&paths, i, &path);
