@@ -151,7 +151,6 @@ static int extract_file(struct apk_extract_ctx *ectx, const struct apk_file_info
 	} else {
 		r = apk_extract_file(ctx->root_fd, fi, 0, 0, is, 0, 0, 0,
 			ctx->extract_flags, &ectx->ac->out);
-		if (r != 0) unlinkat(ctx->root_fd, fi->name, 0);
 	}
 	if (is) r = apk_istream_close_error(is, r);
 	return r;
