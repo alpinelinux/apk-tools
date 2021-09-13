@@ -38,6 +38,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		ac->open_flags &= ~(APK_OPENF_CREATE | APK_OPENF_WRITE);
 		ac->open_flags |= APK_OPENF_READ;
 	}
+	if (ac->flags & APK_ALLOW_UNTRUSTED) ac->trust.allow_untrusted = 1;
 	if (!ac->cache_dir) ac->cache_dir = "etc/apk/cache";
 	if (!ac->keys_dir) ac->keys_dir = "etc/apk/keys";
 	if (!ac->root) ac->root = "/";

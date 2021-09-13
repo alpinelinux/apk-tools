@@ -82,7 +82,7 @@ static int __adb_m_parse(struct adb *db, apk_blob_t data, struct apk_trust *t,
 	struct adb_verify_ctx vfy = {};
 	struct adb_block *blk;
 	struct apk_istream is;
-	int r = 0, trusted = t ? 0 : 1;
+	int r = 0, trusted = (t && t->allow_untrusted) ? 1 : 0;
 	uint32_t type, allowed = BIT(ADB_BLOCK_ADB);
 
 	adb_foreach_block(blk, data) {
@@ -112,7 +112,10 @@ static int __adb_m_parse(struct adb *db, apk_blob_t data, struct apk_trust *t,
 			break;
 		case ADB_BLOCK_DATA:
 			allowed = BIT(ADB_BLOCK_DATA) | BIT(ADB_BLOCK_DATAX);
-			if (!trusted) goto err;
+			if (!trusted) {
+				r = -APKE_SIGNATURE_UNTRUSTED;
+				goto err;
+			}
 			break;
 		case ADB_BLOCK_DATAX:
 			r = -APKE_ADB_BLOCK;
@@ -170,7 +173,7 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 	struct adb_block blk;
 	struct apk_segment_istream seg;
 	void *sig;
-	int r = 0, trusted = t ? 0 : 1;
+	int r = 0, trusted = (t && t->allow_untrusted) ? 1 : 0;
 	uint32_t type, allowed = BIT(ADB_BLOCK_ADB);
 	size_t sz;
 
@@ -229,7 +232,10 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 			break;
 		case ADB_BLOCK_DATA:
 			allowed = BIT(ADB_BLOCK_DATA) | BIT(ADB_BLOCK_DATAX);
-			if (!trusted) goto err;
+			if (!trusted) {
+				r = -APKE_SIGNATURE_UNTRUSTED;
+				goto err;
+			}
 			break;
 		case ADB_BLOCK_DATAX:
 			r = -APKE_ADB_BLOCK;
