@@ -1,6 +1,11 @@
 stages:
     - test
     - build
+    - upload
+    - release
+
+variables:
+  PACKAGE_ENDPOINT: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/"
 
 test:alpine:
     image: alpine
@@ -62,3 +67,45 @@ build-static:
     tags:
       - docker-alpine
       - $ARCH
+
+make-release:
+    stage: release
+    image: registry.gitlab.com/gitlab-org/release-cli:latest
+    script:
+        - |-
+          apk add curl
+          for artifact in src/apk.static-*; do
+            ! [ -f "$artifact" ] && { echo "No artifacts found"; exit 1; }
+            ARCH=${artifact#*-}
+            echo "Uploading binary for $ARCH"
+            curl --fail -H "JOB-TOKEN: $CI_JOB_TOKEN" -T "$artifact" -o /dev/null ${PACKAGE_ENDPOINT}/$CI_COMMIT_TAG/$ARCH/apk.static
+          done
+        - echo "Making a release"
+    release:
+      name: $CI_COMMIT_TAG
+      description: "Release $CI_COMMIT_TAG"
+      tag_name: $CI_COMMIT_TAG
+      ref: $CI_COMMIT_TAG
+      assets:
+        links:
+          - name: apk.static (x86_64)
+            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/x86_64/apk.static
+          - name: apk.static (x86)
+            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/x86/apk.static
+          - name: apk.static (armv7)
+            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/armv7/apk.static
+          - name: apk.static (armhf)
+            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/armhf/apk.static
+          - name: apk.static (aarch64)
+            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/aarch64/apk.static
+          - name: apk.static (s390x)
+            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/s390x/apk.static
+          - name: apk.static (ppc64le)
+            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/ppc64le/apk.static
+          - name: apk.static (riscv64)
+            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/riscv64/apk.static
+    rules:
+        - if: $CI_COMMIT_TAG
+    tags:
+      - docker-alpine
+      - x86_64
