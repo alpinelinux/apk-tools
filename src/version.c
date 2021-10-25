@@ -68,11 +68,12 @@ static void next_token(int *type, apk_blob_t *blob)
 	*type = n;
 }
 
-static int get_token(int *type, apk_blob_t *blob)
+static int64_t get_token(int *type, apk_blob_t *blob)
 {
 	static const char *pre_suffixes[] = { "alpha", "beta", "pre", "rc" };
 	static const char *post_suffixes[] = { "cvs", "svn", "git", "hg", "p" };
-	int v = 0, i = 0, nt = TOKEN_INVALID;
+	int i = 0, nt = TOKEN_INVALID;
+	int64_t v = 0;
 
 	if (blob->len <= 0) {
 		*type = TOKEN_END;
@@ -96,6 +97,7 @@ static int get_token(int *type, apk_blob_t *blob)
 			v *= 10;
 			v += blob->ptr[i++] - '0';
 		}
+		if (i >= 18) goto invalid;
 		break;
 	case TOKEN_LETTER:
 		v = blob->ptr[i++];
@@ -121,6 +123,7 @@ static int get_token(int *type, apk_blob_t *blob)
 			break;
 		/* fallthrough: invalid suffix */
 	default:
+	invalid:
 		*type = TOKEN_INVALID;
 		return -1;
 	}
@@ -190,7 +193,7 @@ int apk_version_validate(apk_blob_t ver)
 int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 {
 	int at = TOKEN_DIGIT, bt = TOKEN_DIGIT, tt;
-	int av = 0, bv = 0;
+	int64_t av = 0, bv = 0;
 
 	if (APK_BLOB_IS_NULL(a) || APK_BLOB_IS_NULL(b)) {
 		if (APK_BLOB_IS_NULL(a) && APK_BLOB_IS_NULL(b))
