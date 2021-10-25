@@ -35,7 +35,7 @@ adb_val_t adb_wo_pkginfo(struct adb_obj *obj, unsigned int f, apk_blob_t val)
 	case ADBI_PI_UNIQUE_ID:
 		if (!val.ptr || val.len < 4) break;
 		apk_blob_pull_csum(&val, &csum);
-		v = adb_w_int(obj->db, get_unaligned32(csum.data) & ADB_VALUE_MASK);
+		v = adb_w_blob(obj->db, APK_BLOB_CSUM(csum));
 		break;
 	case ADBI_PI_REPO_COMMIT:
 		if (val.len < 40) break;
@@ -386,7 +386,7 @@ const struct adb_object_schema schema_pkginfo = {
 	.fields = {
 		ADB_FIELD(ADBI_PI_NAME,		"name",		scalar_string),
 		ADB_FIELD(ADBI_PI_VERSION,	"version",	scalar_version),
-		ADB_FIELD(ADBI_PI_UNIQUE_ID,	"unique-id",	scalar_int),
+		ADB_FIELD(ADBI_PI_UNIQUE_ID,	"unique-id",	scalar_hexblob),
 		ADB_FIELD(ADBI_PI_DESCRIPTION,	"description",	scalar_string),
 		ADB_FIELD(ADBI_PI_ARCH,		"arch",		scalar_string),
 		ADB_FIELD(ADBI_PI_LICENSE,	"license",	scalar_string),

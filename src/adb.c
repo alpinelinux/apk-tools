@@ -672,6 +672,18 @@ adb_val_t adb_w_blob(struct adb *db, apk_blob_t b)
 	return ADB_VAL(o, adb_w_data(db, vec, ARRAY_SIZE(vec), vec[0].iov_len));
 }
 
+static adb_val_t adb_w_blob_raw(struct adb *db, apk_blob_t b)
+{
+	adb_val_t val;
+	size_t num_buckets;
+
+	num_buckets = db->num_buckets;
+	db->num_buckets = 0;
+	val = adb_w_blob(db, b);
+	db->num_buckets = num_buckets;
+	return val;
+}
+
 adb_val_t adb_w_int(struct adb *db, uint32_t val)
 {
 	if (val >= 0x10000000)
@@ -867,6 +879,12 @@ adb_val_t adb_wo_blob(struct adb_obj *o, unsigned i, apk_blob_t b)
 {
 	assert(o->schema->kind == ADB_KIND_OBJECT);
 	return adb_wo_val(o, i, adb_w_blob(o->db, b));
+}
+
+adb_val_t adb_wo_blob_raw(struct adb_obj *o, unsigned i, apk_blob_t b)
+{
+	assert(o->schema->kind == ADB_KIND_OBJECT);
+	return adb_wo_val(o, i, adb_w_blob_raw(o->db, b));
 }
 
 adb_val_t adb_wo_obj(struct adb_obj *o, unsigned i, struct adb_obj *no)
