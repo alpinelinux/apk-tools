@@ -11,6 +11,7 @@ static const char *apk_digest_str[] = {
 	[APK_DIGEST_NONE]	= "none",
 	[APK_DIGEST_MD5]	= "md5",
 	[APK_DIGEST_SHA1]	= "sha1",
+	[APK_DIGEST_SHA256_160] = "sha256-160",
 	[APK_DIGEST_SHA256]	= "sha256",
 	[APK_DIGEST_SHA512]	= "sha512",
 };
@@ -26,11 +27,12 @@ const char *apk_digest_alg_str(uint8_t alg)
 int apk_digest_alg_len(uint8_t alg)
 {
 	switch (alg) {
-	case APK_DIGEST_MD5:	return 16;
-	case APK_DIGEST_SHA1:	return 20;
-	case APK_DIGEST_SHA256:	return 32;
-	case APK_DIGEST_SHA512:	return 64;
-	default:		return 0;
+	case APK_DIGEST_MD5:		return 16;
+	case APK_DIGEST_SHA1:		return 20;
+	case APK_DIGEST_SHA256_160:	return 20;
+	case APK_DIGEST_SHA256:		return 32;
+	case APK_DIGEST_SHA512:		return 64;
+	default:			return 0;
 	}
 }
 

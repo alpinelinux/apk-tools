@@ -100,7 +100,7 @@ static int audit_file(struct audit_ctx *actx,
 	if (apk_fileinfo_get(dirfd, name,
 				APK_FI_NOFOLLOW |
 				APK_FI_XATTR_CSUM(dbf->acl->xattr_csum.type ?: APK_CHECKSUM_DEFAULT) |
-				APK_FI_CSUM(dbf->csum.type),
+				APK_FI_DIGEST(apk_dbf_digest(dbf)),
 				&fi, &db->atoms) != 0)
 		return -EPERM;
 

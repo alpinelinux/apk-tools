@@ -27,6 +27,7 @@ struct apk_digest_ctx {
 #define APK_DIGEST_SHA1		0x02
 #define APK_DIGEST_SHA256	0x03
 #define APK_DIGEST_SHA512	0x04
+#define APK_DIGEST_SHA256_160	0x05
 
 #define APK_DIGEST_MAX_LENGTH	64	// longest is SHA512
 
@@ -45,6 +46,7 @@ static inline const EVP_MD *apk_digest_alg_to_evp(uint8_t alg) {
 	case APK_DIGEST_NONE:	return EVP_md_null();
 	case APK_DIGEST_MD5:	return EVP_md5();
 	case APK_DIGEST_SHA1:	return EVP_sha1();
+	case APK_DIGEST_SHA256_160:
 	case APK_DIGEST_SHA256:	return EVP_sha256();
 	case APK_DIGEST_SHA512:	return EVP_sha512();
 	default:
@@ -77,7 +79,7 @@ static inline int apk_digest_calc(struct apk_digest *d, uint8_t alg, const void 
 	if (EVP_Digest(ptr, sz, d->data, &md_sz, apk_digest_alg_to_evp(alg), 0) != 1)
 		return -APKE_CRYPTO_ERROR;
 	d->alg = alg;
-	d->len = md_sz;
+	d->len = apk_digest_alg_len(alg);
 	return 0;
 }
 
@@ -108,7 +110,7 @@ static inline int apk_digest_ctx_final(struct apk_digest_ctx *dctx, struct apk_d
 		return -APKE_CRYPTO_ERROR;
 	}
 	d->alg = dctx->alg;
-	d->len = mdlen;
+	d->len = apk_digest_alg_len(d->alg);
 	return 0;
 }
 

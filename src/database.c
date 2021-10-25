@@ -866,6 +866,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 				case 'f': ipkg->broken_files = 1; break;
 				case 's': ipkg->broken_script = 1; break;
 				case 'x': ipkg->broken_xattr = 1; break;
+				case 'S': ipkg->sha256_160 = 1; break;
 				default:
 					if (!(db->ctx->force & APK_FORCE_OLD_APK))
 						goto old_apk_tools;
@@ -943,7 +944,7 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 			apk_blob_push_blob(&bbuf, db->repo_tags[ipkg->repository_tag].plain_name);
 			apk_blob_push_blob(&bbuf, APK_BLOB_STR("\n"));
 		}
-		if (ipkg->broken_files || ipkg->broken_script || ipkg->broken_xattr) {
+		if (ipkg->broken_files || ipkg->broken_script || ipkg->broken_xattr || ipkg->sha256_160) {
 			apk_blob_push_blob(&bbuf, APK_BLOB_STR("f:"));
 			if (ipkg->broken_files)
 				apk_blob_push_blob(&bbuf, APK_BLOB_STR("f"));
@@ -951,6 +952,8 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 				apk_blob_push_blob(&bbuf, APK_BLOB_STR("s"));
 			if (ipkg->broken_xattr)
 				apk_blob_push_blob(&bbuf, APK_BLOB_STR("x"));
+			if (ipkg->sha256_160)
+				apk_blob_push_blob(&bbuf, APK_BLOB_STR("S"));
 			apk_blob_push_blob(&bbuf, APK_BLOB_STR("\n"));
 		}
 		hlist_for_each_entry(diri, c1, &ipkg->owned_dirs, pkg_dirs_list) {
@@ -2580,9 +2583,13 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 					PKG_VER_PRINTF(pkg));
 				ipkg->broken_files = 1;
 				ctx->missing_checksum = 1;
+			} else if (file->csum.type == APK_CHECKSUM_NONE && ae->digest.alg == APK_DIGEST_SHA256) {
+				ipkg->sha256_160 = 1;
+				file->csum.type = APK_CHECKSUM_SHA1;
+				memcpy(file->csum.data, ae->digest.data, file->csum.type);
 			} else if (file->csum.type == APK_CHECKSUM_NONE && !ctx->missing_checksum) {
 				apk_warn(out,
-					PKG_VER_FMT": v3 checksums ignored",
+					PKG_VER_FMT": unknown v3 checksum",
 					PKG_VER_PRINTF(pkg));
 				ipkg->broken_files = 1;
 				ctx->missing_checksum = 1;
@@ -2652,7 +2659,7 @@ static void apk_db_purge_pkg(struct apk_database *db,
 			if ((diri->dir->protect_mode == APK_PROTECT_NONE) ||
 			    (db->ctx->flags & APK_PURGE) ||
 			    (file->csum.type != APK_CHECKSUM_NONE &&
-			     apk_fileinfo_get(db->root_fd, name, APK_FI_NOFOLLOW | APK_FI_CSUM(file->csum.type), &fi, &db->atoms) == 0 &&
+			     apk_fileinfo_get(db->root_fd, name, APK_FI_NOFOLLOW | APK_FI_DIGEST(apk_dbf_digest(file)), &fi, &db->atoms) == 0 &&
 			     apk_digest_cmp_csum(&fi.digest, &file->csum) == 0))
 				unlinkat(db->root_fd, name, 0);
 			apk_dbg2(out, "%s", name);
@@ -2705,7 +2712,7 @@ static void apk_db_migrate_files(struct apk_database *db,
 			 * in db, and the file is in a protected path */
 			cstype = APK_CHECKSUM_NONE;
 			if (ofile != NULL && diri->dir->protect_mode != APK_PROTECT_NONE)
-				cstype = APK_FI_CSUM(ofile->csum.type);
+				cstype = APK_FI_DIGEST(apk_dbf_digest(ofile));
 			cstype |= APK_FI_NOFOLLOW;
 
 			r = apk_fileinfo_get(db->root_fd, name, cstype, &fi, &db->atoms);
@@ -2726,7 +2733,7 @@ static void apk_db_migrate_files(struct apk_database *db,
 				if (ofile == NULL ||
 				    ofile->csum.type != file->csum.type)
 					apk_fileinfo_get(db->root_fd, name,
-						APK_FI_NOFOLLOW |APK_FI_CSUM(file->csum.type),
+						APK_FI_NOFOLLOW |APK_FI_DIGEST(apk_dbf_digest(file)),
 						&fi, &db->atoms);
 				if ((db->ctx->flags & APK_CLEAN_PROTECTED) ||
 				    (file->csum.type != APK_CHECKSUM_NONE &&
