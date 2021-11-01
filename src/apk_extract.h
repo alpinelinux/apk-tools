@@ -25,9 +25,8 @@ struct apk_extract_ctx;
 
 int apk_extract_file(int atfd, const struct apk_file_info *ae,
 		const char *extract_name, const char *hardlink_name,
-		struct apk_istream *is,
-		apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx,
-		unsigned int extract_flags, struct apk_out *out);
+		struct apk_istream *is, apk_progress_cb cb, void *cb_ctx,
+		unsigned int extract_flags, struct apk_ctx *ac);
 
 struct apk_extract_ops {
 	int (*v2index)(struct apk_extract_ctx *, apk_blob_t *desc, struct apk_istream *is);

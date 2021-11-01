@@ -7,21 +7,109 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#include <sys/stat.h>
-#include <sys/xattr.h>
+#include <spawn.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/xattr.h>
 
+#include "apk_context.h"
 #include "apk_extract.h"
+
+static int uvol_run(struct apk_ctx *ac, char *action, const char *volname, char *arg1, char *arg2)
+{
+	struct apk_out *out = &ac->out;
+	pid_t pid;
+	int r, status;
+	char *argv[] = { (char*)apk_ctx_get_uvol(ac), action, (char*) volname, arg1, arg2, 0 };
+	posix_spawn_file_actions_t act;
+
+	posix_spawn_file_actions_init(&act);
+	posix_spawn_file_actions_addclose(&act, STDIN_FILENO);
+	r = posix_spawn(&pid, apk_ctx_get_uvol(ac), &act, 0, argv, environ);
+	posix_spawn_file_actions_destroy(&act);
+	if (r != 0) {
+		apk_err(out, "%s: uvol exec error: %s", volname, apk_error_str(r));
+		return r;
+	}
+	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		apk_err(out, "%s: uvol exited with error %d", volname, WEXITSTATUS(status));
+		return -APKE_UVOL;
+	}
+	return 0;
+}
+
+static int uvol_extract(struct apk_ctx *ac, const char *volname, char *arg1, off_t sz,
+	struct apk_istream *is, apk_progress_cb cb, void *cb_ctx)
+{
+	struct apk_out *out = &ac->out;
+	struct apk_ostream *os;
+	pid_t pid;
+	int r, status, pipefds[2];
+	char *argv[] = { (char*)apk_ctx_get_uvol(ac), "write", (char*) volname, arg1, 0 };
+	posix_spawn_file_actions_t act;
+
+	if (pipe2(pipefds, O_CLOEXEC) != 0) return -errno;
+
+	posix_spawn_file_actions_init(&act);
+	posix_spawn_file_actions_adddup2(&act, pipefds[0], STDIN_FILENO);
+	r = posix_spawn(&pid, apk_ctx_get_uvol(ac), &act, 0, argv, environ);
+	posix_spawn_file_actions_destroy(&act);
+	if (r != 0) {
+		apk_err(out, "%s: uvol exec error: %s", volname, apk_error_str(r));
+		return r;
+	}
+	close(pipefds[0]);
+	os = apk_ostream_to_fd(pipefds[1]);
+	apk_stream_copy(is, os, sz, cb, cb_ctx, 0);
+	r = apk_ostream_close(os);
+	if (r != 0) {
+		if (r >= 0) r = -APKE_UVOL;
+		apk_err(out, "%s: uvol write error: %s", volname, apk_error_str(r));
+		return r;
+	}
+
+	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		apk_err(out, "%s: uvol exited with error %d", volname, WEXITSTATUS(status));
+		return -APKE_UVOL;
+	}
+
+	return 0;
+}
+
+static int apk_extract_volume(struct apk_ctx *ac, const struct apk_file_info *fi,
+	struct apk_istream *is, apk_progress_cb cb, void *cb_ctx)
+{
+	char size[64];
+	int r;
+
+	snprintf(size, sizeof size, "%ju", fi->size);
+	r = uvol_run(ac, "create", fi->uvol_name, size, "ro");
+	if (r != 0) return r;
+
+	r = uvol_extract(ac, fi->uvol_name, size, fi->size, is, cb, cb_ctx);
+	if (r == 0) r = uvol_run(ac, "up", fi->uvol_name, 0, 0);
+	if (r != 0) uvol_run(ac, "remove", fi->uvol_name, 0, 0);
+	return r;
+}
 
 int apk_extract_file(int atfd, const struct apk_file_info *ae,
 		const char *extract_name, const char *link_target,
 		struct apk_istream *is,
-		apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx,
-		unsigned int extract_flags, struct apk_out *out)
+		apk_progress_cb cb, void *cb_ctx,
+		unsigned int extract_flags, struct apk_ctx *ac)
 {
+	struct apk_out *out = &ac->out;
 	struct apk_xattr *xattr;
 	const char *fn = extract_name ?: ae->name;
 	int fd, r = -1, atflags = 0, ret = 0;
+
+	if (ae->uvol_name && is) {
+		if (extract_name || link_target) return -APKE_UVOL;
+		return apk_extract_volume(ac, ae, is, cb, cb_ctx);
+	}
 
 	if (!S_ISDIR(ae->mode) && !(extract_flags & APK_EXTRACTF_NO_OVERWRITE)) {
 		if (unlinkat(atfd, fn, 0) != 0 && errno != ENOENT) return -errno;
@@ -46,7 +134,7 @@ int apk_extract_file(int atfd, const struct apk_file_info *ae,
 				ret = PTR_ERR(os);
 				break;
 			}
-			apk_stream_copy(is, os, ae->size, cb, cb_ctx, dctx);
+			apk_stream_copy(is, os, ae->size, cb, cb_ctx, 0);
 			r = apk_ostream_close(os);
 			if (r < 0) {
 				unlinkat(atfd, fn, 0);

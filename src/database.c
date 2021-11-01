@@ -2415,7 +2415,8 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
 	static const char dot1[] = "/./", dot2[] = "/../";
 	struct apk_database *db = ctx->db;
-	struct apk_out *out = &db->ctx->out;
+	struct apk_ctx *ac = db->ctx;
+	struct apk_out *out = &ac->out;
 	struct apk_package *pkg = ctx->pkg, *opkg;
 	struct apk_dependency *dep;
 	struct apk_installed_package *ipkg = pkg->ipkg;
@@ -2566,7 +2567,7 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 				db->root_fd, ae,
 				format_tmpname(pkg, file, tmpname_file),
 				format_tmpname(pkg, link_target_file, tmpname_link_target),
-				is, extract_cb, ctx, 0, db->extract_flags, out);
+				is, extract_cb, ctx, db->extract_flags, ac);
 
 		switch (r) {
 		case 0:
