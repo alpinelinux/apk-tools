@@ -1935,7 +1935,7 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 		execve(fn, argv, environment);
 		exit(127); /* should not get here */
 	}
-	waitpid(pid, &status, 0);
+	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
 		apk_err(out, "%s: script exited with error %d", basename(fn), WEXITSTATUS(status));
 		return -1;

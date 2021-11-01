@@ -72,7 +72,7 @@ static int uvol_run(struct apk_ctx *ac, char *action, const char *volname, char 
 		apk_err(out, "%s: uvol exec error: %s", volname, apk_error_str(r));
 		return r;
 	}
-	waitpid(pid, &status, 0);
+	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
 		apk_err(out, "%s: uvol exited with error %d", volname, WEXITSTATUS(status));
 		return -APKE_UVOL;
@@ -109,7 +109,7 @@ static int uvol_extract(struct apk_ctx *ac, const char *volname, char *arg1, off
 		return r;
 	}
 
-	waitpid(pid, &status, 0);
+	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
 	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
 		apk_err(out, "%s: uvol exited with error %d", volname, WEXITSTATUS(status));
 		return -APKE_UVOL;
