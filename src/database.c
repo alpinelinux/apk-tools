@@ -2685,7 +2685,8 @@ static void apk_db_purge_pkg(struct apk_database *db,
 				.filename = APK_BLOB_PTR_LEN(file->name, file->namelen),
 			};
 			hash = apk_blob_hash_seed(key.filename, diri->dir->hash);
-			if ((diri->dir->protect_mode == APK_PROTECT_NONE) ||
+			if (!is_installed ||
+			    (diri->dir->protect_mode == APK_PROTECT_NONE) ||
 			    (apk_flags & APK_PURGE) ||
 			    (file->csum.type != APK_CHECKSUM_NONE &&
 			     apk_fileinfo_get(db->root_fd, name, APK_FI_NOFOLLOW | file->csum.type, &fi, &db->atoms) == 0 &&
