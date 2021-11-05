@@ -21,6 +21,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 	ac->out.out = stdout;
 	ac->out.err = stderr;
 	ac->out.verbosity = 1;
+	apk_digest_ctx_init(&ac->dctx, APK_DIGEST_SHA256);
 }
 
 void apk_ctx_free(struct apk_ctx *ac)
@@ -43,8 +44,19 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 	if (!ac->keys_dir) ac->keys_dir = "etc/apk/keys";
 	if (!ac->root) ac->root = "/";
 	if (!ac->cache_max_age) ac->cache_max_age = 4*60*60; /* 4 hours default */
-	if (!strcmp(ac->root, "/")) ac->flags |= APK_NO_CHROOT; /* skip chroot if root is default */
-	ac->uvol = getenv("APK_UVOL") ?: "/usr/bin/uvol";
+
+	if (!strcmp(ac->root, "/")) {
+		// No chroot needed if using system root
+		ac->flags |= APK_NO_CHROOT;
+
+		// Check uvol availability
+		ac->uvol = getenv("APK_UVOL") ?: "/usr/bin/uvol";
+		if (access(ac->uvol, X_OK) != 0)
+			ac->uvol = ERR_PTR(-APKE_UVOL_NOT_AVAILABLE);
+	} else {
+		ac->uvol = ERR_PTR(-APKE_UVOL_ROOT);
+	}
+
 
 	ac->root_fd = openat(AT_FDCWD, ac->root, O_RDONLY | O_CLOEXEC);
 	if (ac->root_fd < 0 && (ac->open_flags & APK_OPENF_CREATE)) {
@@ -55,13 +67,15 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		apk_err(&ac->out, "Unable to open root: %s", apk_error_str(errno));
 		return -errno;
 	}
+	ac->dest_fd = ac->root_fd;
 
 	if (ac->open_flags & APK_OPENF_WRITE) {
-		const char *log_path = "var/log/apk.log", *log_dir = "var/log";
+		const char *log_path = "var/log/apk.log";
 		const int lflags = O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC;
 		int fd = openat(ac->root_fd, log_path, lflags, 0644);
 		if (fd < 0 && (ac->open_flags & APK_OPENF_CREATE)) {
-			mkdirat(ac->root_fd, log_dir, 0755);
+			mkdirat(ac->root_fd, "var", 0755);
+			mkdirat(ac->root_fd, "var/log", 0755);
 			fd = openat(ac->root_fd, log_path, lflags, 0644);
 		}
 		if (fd < 0) {

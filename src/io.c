@@ -314,7 +314,10 @@ static ssize_t digest_read(struct apk_istream *is, void *ptr, size_t size)
 	ssize_t r;
 
 	r = dis->pis->ops->read(dis->pis, ptr, size);
-	if (r > 0) apk_digest_ctx_update(&dis->dctx, ptr, r);
+	if (r > 0) {
+		apk_digest_ctx_update(&dis->dctx, ptr, r);
+		dis->size_left -= r;
+	}
 	return r;
 }
 
@@ -322,7 +325,7 @@ static int digest_close(struct apk_istream *is)
 {
 	struct apk_digest_istream *dis = container_of(is, struct apk_digest_istream, is);
 
-	if (dis->digest) {
+	if (dis->digest && dis->size_left == 0) {
 		struct apk_digest res;
 		apk_digest_ctx_final(&dis->dctx, &res);
 		if (apk_digest_cmp(&res, dis->digest) != 0)
@@ -340,7 +343,7 @@ static const struct apk_istream_ops digest_istream_ops = {
 	.close = digest_close,
 };
 
-struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct apk_istream *is, struct apk_digest *d)
+struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct apk_istream *is, off_t size, struct apk_digest *d)
 {
 	*dis = (struct apk_digest_istream) {
 		.is.ops = &digest_istream_ops,
@@ -350,10 +353,13 @@ struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct ap
 		.is.end = is->end,
 		.pis = is,
 		.digest = d,
+		.size_left = size,
 	};
 	apk_digest_ctx_init(&dis->dctx, d->alg);
-	if (dis->is.ptr != dis->is.end)
+	if (dis->is.ptr != dis->is.end) {
 		apk_digest_ctx_update(&dis->dctx, dis->is.ptr, dis->is.end - dis->is.ptr);
+		dis->size_left -= dis->is.end - dis->is.ptr;
+	}
 	return &dis->is;
 }
 

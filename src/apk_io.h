@@ -44,7 +44,6 @@ struct apk_file_meta {
 struct apk_file_info {
 	const char *name;
 	const char *link_target;
-	const char *uvol_name;
 	const char *uname;
 	const char *gname;
 	off_t size;
@@ -140,8 +139,9 @@ struct apk_digest_istream {
 	struct apk_istream *pis;
 	struct apk_digest *digest;
 	struct apk_digest_ctx dctx;
+	off_t size_left;
 };
-struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct apk_istream *is, struct apk_digest *d);
+struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct apk_istream *is, off_t size, struct apk_digest *d);
 
 #define APK_ISTREAM_TEE_COPY_META 1
 #define APK_ISTREAM_TEE_OPTIONAL  2

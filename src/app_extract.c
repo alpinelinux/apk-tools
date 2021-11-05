@@ -15,6 +15,7 @@
 #include "apk_applet.h"
 #include "apk_print.h"
 #include "apk_extract.h"
+#include "apk_fs.h"
 
 struct extract_ctx {
 	const char *destination;
@@ -22,7 +23,6 @@ struct extract_ctx {
 
 	struct apk_extract_ctx ectx;
 	struct apk_ctx *ac;
-	int root_fd;
 };
 
 
@@ -41,7 +41,7 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 		ctx->destination = optarg;
 		break;
 	case OPT_EXTRACT_no_chown:
-		ctx->extract_flags |= APK_EXTRACTF_NO_CHOWN;
+		ctx->extract_flags |= APK_FSEXTRACTF_NO_CHOWN;
 		break;
 	default:
 		return -ENOTSUP;
@@ -66,8 +66,7 @@ static int extract_file(struct apk_extract_ctx *ectx, const struct apk_file_info
 
 	apk_dbg2(out, "%s", fi->name);
 
-	return apk_extract_file(ctx->root_fd, fi, 0, 0, is, 0, 0,
-		ctx->extract_flags, ectx->ac);
+	return apk_fs_extract(ctx->ac, fi, is, 0, 0, ctx->extract_flags, APK_BLOB_NULL);
 }
 
 static const struct apk_extract_ops extract_ops = {
@@ -84,10 +83,11 @@ static int extract_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	int r = 0;
 
 	ctx->ac = ac;
-	if (!(ac->force & APK_FORCE_OVERWRITE)) ctx->extract_flags |= APK_EXTRACTF_NO_OVERWRITE;
+	if (!(ac->force & APK_FORCE_OVERWRITE)) ctx->extract_flags |= APK_FSEXTRACTF_NO_OVERWRITE;
 	if (!ctx->destination) ctx->destination = ".";
-	ctx->root_fd = openat(AT_FDCWD, ctx->destination, O_RDONLY);
-	if (ctx->root_fd < 0) {
+
+	ac->dest_fd = openat(AT_FDCWD, ctx->destination, O_RDONLY);
+	if (ac->dest_fd < 0) {
 		r = -errno;
 		apk_err(out, "Error opening destination '%s': %s",
 			ctx->destination, apk_error_str(r));
@@ -103,7 +103,7 @@ static int extract_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 			break;
 		}
 	}
-	close(ctx->root_fd);
+	close(ac->dest_fd);
 	return r;
 }
 

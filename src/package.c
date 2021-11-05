@@ -591,7 +591,7 @@ void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct a
 	adb_ro_obj(pkgo, ADBI_PKG_PKGINFO, &pkginfo);
 
 	uid = adb_ro_blob(&pkginfo, ADBI_PI_UNIQUE_ID);
-	if (uid.len == APK_CHECKSUM_SHA1) {
+	if (uid.len >= APK_CHECKSUM_SHA1) {
 		pkg->csum.type = APK_CHECKSUM_SHA1;
 		memcpy(pkg->csum.data, uid.ptr, uid.len);
 	}
@@ -723,19 +723,16 @@ err:
 
 void apk_pkg_free(struct apk_package *pkg)
 {
-	if (pkg == NULL)
-		return;
+	if (!pkg) return;
 
 	apk_pkg_uninstall(NULL, pkg);
 	apk_dependency_array_free(&pkg->depends);
 	apk_dependency_array_free(&pkg->provides);
 	apk_dependency_array_free(&pkg->install_if);
-	if (pkg->url)
-		free(pkg->url);
-	if (pkg->description)
-		free(pkg->description);
-	if (pkg->commit)
-		free(pkg->commit);
+	if (pkg->url) free(pkg->url);
+	if (pkg->description) free(pkg->description);
+	if (pkg->commit) free(pkg->commit);
+	if (pkg->filename) free(pkg->filename);
 	free(pkg);
 }
 

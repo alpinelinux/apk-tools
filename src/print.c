@@ -58,7 +58,9 @@ const char *apk_error_str(int error)
 	case APKE_INDEX_STALE:			return "package mentioned in index not found (try 'apk update')";
 	case APKE_FILE_INTEGRITY:		return "file integrity error";
 	case APKE_CACHE_NOT_AVAILABLE:		return "cache not available";
-	case APKE_UVOL:				return "uvol error";
+	case APKE_UVOL_NOT_AVAILABLE:		return "uvol manager not available";
+	case APKE_UVOL_ERROR:			return "uvol error";
+	case APKE_UVOL_ROOT:			return "uvol not supported with --root";
 	default:
 		return strerror(error);
 	}

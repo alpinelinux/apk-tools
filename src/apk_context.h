@@ -9,9 +9,11 @@
 #ifndef APK_CONTEXT_H
 #define APK_CONTEXT_H
 
+#include "apk_blob.h"
 #include "apk_print.h"
 #include "apk_trust.h"
 #include "apk_io.h"
+#include "apk_crypto.h"
 #include "adb.h"
 
 #define APK_SIMULATE			BIT(0)
@@ -34,8 +36,6 @@
 #define APK_FORCE_NON_REPOSITORY	BIT(4)
 #define APK_FORCE_BINARY_STDOUT		BIT(5)
 
-struct apk_database;
-
 #define APK_OPENF_READ			0x0001
 #define APK_OPENF_WRITE			0x0002
 #define APK_OPENF_CREATE		0x0004
@@ -52,6 +52,8 @@ struct apk_database;
 #define APK_OPENF_NO_STATE	(APK_OPENF_NO_INSTALLED |	\
 				 APK_OPENF_NO_SCRIPTS |		\
 				 APK_OPENF_NO_WORLD)
+
+struct apk_database;
 
 struct apk_ctx {
 	unsigned int flags, force, lock_wait;
@@ -70,7 +72,9 @@ struct apk_ctx {
 	struct apk_trust trust;
 	struct apk_id_cache id_cache;
 	struct apk_database *db;
-	int root_fd;
+	int root_fd, dest_fd;
+
+	struct apk_digest_ctx dctx;
 };
 
 void apk_ctx_init(struct apk_ctx *ac);
@@ -81,6 +85,7 @@ struct apk_trust *apk_ctx_get_trust(struct apk_ctx *ac);
 struct apk_id_cache *apk_ctx_get_id_cache(struct apk_ctx *ac);
 
 static inline int apk_ctx_fd_root(struct apk_ctx *ac) { return ac->root_fd; }
+static inline int apk_ctx_fd_dest(struct apk_ctx *ac) { return ac->dest_fd; }
 static inline time_t apk_ctx_since(struct apk_ctx *ac, time_t since) {
 	return (ac->force & APK_FORCE_REFRESH) ? APK_ISTREAM_FORCE_REFRESH : since;
 }

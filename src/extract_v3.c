@@ -22,15 +22,6 @@ struct apk_extract_v3_ctx {
 	struct apk_pathbuilder pb;
 };
 
-static const char *uvol_detect(struct apk_ctx *ac, const char *path)
-{
-	if (!apk_ctx_get_uvol(ac)) return 0;
-	if (strncmp(path, "uvol", 4) != 0) return 0;
-	if (path[4] == 0) return path;
-	if (path[4] == '/') return &path[5];
-	return 0;
-}
-
 static void apk_extract_v3_acl(struct apk_file_info *fi, struct adb_obj *o, struct apk_id_cache *idc)
 {
 	fi->mode = adb_ro_int(o, ADBI_ACL_MODE);
@@ -41,11 +32,9 @@ static void apk_extract_v3_acl(struct apk_file_info *fi, struct adb_obj *o, stru
 static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct apk_istream *is)
 {
 	struct apk_extract_v3_ctx *ctx = ectx->pctx;
-	struct apk_ctx *ac = ectx->ac;
 	const char *path_name = apk_pathbuilder_cstr(&ctx->pb);
 	struct apk_file_info fi = {
 		.name = path_name,
-		.uvol_name = uvol_detect(ac, path_name),
 		.size = adb_ro_int(&ctx->file, ADBI_FI_SIZE),
 		.mtime = adb_ro_int(&ctx->file, ADBI_FI_MTIME),
 	};
@@ -92,22 +81,17 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 	if (fi.digest.alg == APK_DIGEST_NONE) return -APKE_ADB_SCHEMA;
 
 	fi.mode |= S_IFREG;
-	r = ectx->ops->file(ectx, &fi, apk_istream_verify(&dis, is, &fi.digest));
-	if (r == APK_EXTRACT_SKIP_FILE)
-		return 0;
+	r = ectx->ops->file(ectx, &fi, apk_istream_verify(&dis, is, fi.size, &fi.digest));
 	return apk_istream_close_error(&dis.is, r);
 }
 
 static int apk_extract_v3_directory(struct apk_extract_ctx *ectx)
 {
 	struct apk_extract_v3_ctx *ctx = ectx->pctx;
-	struct apk_ctx *ac = ectx->ac;
 	struct apk_file_info fi = {
 		.name = apk_pathbuilder_cstr(&ctx->pb),
 	};
 	struct adb_obj acl;
-
-	if (uvol_detect(ac, fi.name)) return 0;
 
 	apk_extract_v3_acl(&fi, adb_ro_obj(&ctx->path, ADBI_DI_ACL, &acl), apk_ctx_get_id_cache(ectx->ac));
 	fi.mode |= S_IFDIR;
@@ -262,4 +246,17 @@ int apk_extract_v3(struct apk_extract_ctx *ectx, struct apk_istream *is)
 	apk_extract_reset(ectx);
 
 	return r;
+}
+
+int apk_extract(struct apk_extract_ctx *ectx, struct apk_istream *is)
+{
+	void *sig;
+
+	if (IS_ERR(is)) return PTR_ERR(is);
+
+	sig = apk_istream_peek(is, 4);
+	if (IS_ERR(sig)) return apk_istream_close_error(is, PTR_ERR(sig));
+
+	if (memcmp(sig, "ADB", 3) == 0) return apk_extract_v3(ectx, is);
+	return apk_extract_v2(ectx, is);
 }

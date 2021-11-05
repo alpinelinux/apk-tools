@@ -18,16 +18,6 @@ struct adb_obj;
 struct apk_ctx;
 struct apk_extract_ctx;
 
-#define APK_EXTRACT_SKIP_FILE		0x111
-
-#define APK_EXTRACTF_NO_CHOWN		0x0001
-#define APK_EXTRACTF_NO_OVERWRITE	0x0002
-
-int apk_extract_file(int atfd, const struct apk_file_info *ae,
-		const char *extract_name, const char *hardlink_name,
-		struct apk_istream *is, apk_progress_cb cb, void *cb_ctx,
-		unsigned int extract_flags, struct apk_ctx *ac);
-
 struct apk_extract_ops {
 	int (*v2index)(struct apk_extract_ctx *, apk_blob_t *desc, struct apk_istream *is);
 	int (*v2meta)(struct apk_extract_ctx *, struct apk_istream *is);

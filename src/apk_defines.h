@@ -62,7 +62,9 @@ enum {
 	APKE_INDEX_STALE,
 	APKE_FILE_INTEGRITY,
 	APKE_CACHE_NOT_AVAILABLE,
-	APKE_UVOL,
+	APKE_UVOL_NOT_AVAILABLE,
+	APKE_UVOL_ERROR,
+	APKE_UVOL_ROOT,
 };
 
 static inline void *ERR_PTR(long error) { return (void*) error; }
