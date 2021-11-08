@@ -154,6 +154,9 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 
 int adb_walk_adb(struct adb_walk *d, struct apk_istream *is, struct apk_trust *trust)
 {
+	struct apk_trust allow_untrusted = {
+		.allow_untrusted = 1,
+	};
 	struct adb_walk_ctx ctx = {
 		.d = d,
 		.trust = trust,
@@ -162,7 +165,7 @@ int adb_walk_adb(struct adb_walk *d, struct apk_istream *is, struct apk_trust *t
 
 	if (IS_ERR(is)) return PTR_ERR(is);
 
-	r = adb_m_process(&ctx.db, is, 0, 0, adb_walk_block);
+	r = adb_m_process(&ctx.db, is, 0, &allow_untrusted, adb_walk_block);
 	adb_free(&ctx.db);
 	return r;
 }
