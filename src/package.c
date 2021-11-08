@@ -583,34 +583,32 @@ static char *commit_id(apk_blob_t b)
 	return apk_blob_cstr(to);
 }
 
-void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct adb_obj *pkgo)
+void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct adb_obj *pkginfo)
 {
-	struct adb_obj pkginfo, obj;
+	struct adb_obj obj;
 	apk_blob_t uid;
 
-	adb_ro_obj(pkgo, ADBI_PKG_PKGINFO, &pkginfo);
-
-	uid = adb_ro_blob(&pkginfo, ADBI_PI_UNIQUE_ID);
+	uid = adb_ro_blob(pkginfo, ADBI_PI_UNIQUE_ID);
 	if (uid.len >= APK_CHECKSUM_SHA1) {
 		pkg->csum.type = APK_CHECKSUM_SHA1;
 		memcpy(pkg->csum.data, uid.ptr, uid.len);
 	}
 
-	pkg->name = apk_db_get_name(db, adb_ro_blob(&pkginfo, ADBI_PI_NAME));
-	pkg->version = apk_atomize_dup(&db->atoms, adb_ro_blob(&pkginfo, ADBI_PI_VERSION));
-	pkg->description = apk_blob_cstr(adb_ro_blob(&pkginfo, ADBI_PI_DESCRIPTION));
-	pkg->url = apk_blob_cstr(adb_ro_blob(&pkginfo, ADBI_PI_URL));
-	pkg->license = apk_atomize_dup(&db->atoms, adb_ro_blob(&pkginfo, ADBI_PI_LICENSE));
-	pkg->arch = apk_atomize_dup(&db->atoms, adb_ro_blob(&pkginfo, ADBI_PI_ARCH));
-	pkg->installed_size = adb_ro_int(&pkginfo, ADBI_PI_INSTALLED_SIZE);
-	pkg->origin = apk_atomize_dup(&db->atoms, adb_ro_blob(&pkginfo, ADBI_PI_ORIGIN));
-	pkg->maintainer = apk_atomize_dup(&db->atoms, adb_ro_blob(&pkginfo, ADBI_PI_MAINTAINER));
-	pkg->build_time = adb_ro_int(&pkginfo, ADBI_PI_BUILD_TIME);
-	pkg->commit = commit_id(adb_ro_blob(&pkginfo, ADBI_PI_REPO_COMMIT));
+	pkg->name = apk_db_get_name(db, adb_ro_blob(pkginfo, ADBI_PI_NAME));
+	pkg->version = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_VERSION));
+	pkg->description = apk_blob_cstr(adb_ro_blob(pkginfo, ADBI_PI_DESCRIPTION));
+	pkg->url = apk_blob_cstr(adb_ro_blob(pkginfo, ADBI_PI_URL));
+	pkg->license = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_LICENSE));
+	pkg->arch = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_ARCH));
+	pkg->installed_size = adb_ro_int(pkginfo, ADBI_PI_INSTALLED_SIZE);
+	pkg->origin = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_ORIGIN));
+	pkg->maintainer = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_MAINTAINER));
+	pkg->build_time = adb_ro_int(pkginfo, ADBI_PI_BUILD_TIME);
+	pkg->commit = commit_id(adb_ro_blob(pkginfo, ADBI_PI_REPO_COMMIT));
 
-	apk_deps_from_adb(&pkg->depends, db, adb_ro_obj(&pkginfo, ADBI_PI_DEPENDS, &obj));
-	apk_deps_from_adb(&pkg->provides, db, adb_ro_obj(&pkginfo, ADBI_PI_PROVIDES, &obj));
-	apk_deps_from_adb(&pkg->install_if, db, adb_ro_obj(&pkginfo, ADBI_PI_INSTALL_IF, &obj));
+	apk_deps_from_adb(&pkg->depends, db, adb_ro_obj(pkginfo, ADBI_PI_DEPENDS, &obj));
+	apk_deps_from_adb(&pkg->provides, db, adb_ro_obj(pkginfo, ADBI_PI_PROVIDES, &obj));
+	apk_deps_from_adb(&pkg->install_if, db, adb_ro_obj(pkginfo, ADBI_PI_INSTALL_IF, &obj));
 }
 
 static int read_info_line(struct read_info_ctx *ri, apk_blob_t line)
@@ -668,10 +666,13 @@ static int apk_pkg_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
 static int apk_pkg_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 {
 	struct read_info_ctx *ri = container_of(ectx, struct read_info_ctx, ectx);
+	struct adb_obj pkginfo;
 
 	if (!ri->v3ok) return -APKE_FORMAT_NOT_SUPPORTED;
 
+	adb_ro_obj(pkg, ADBI_PKG_PKGINFO, &pkginfo);
 	apk_pkg_from_adb(ri->db, ri->pkg, pkg);
+
 	return -ECANCELED;
 }
 

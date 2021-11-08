@@ -2176,8 +2176,33 @@ static int load_v2index(struct apk_extract_ctx *ectx, apk_blob_t *desc, struct a
 	return apk_db_index_read(ctx->db, is, ctx->repo);
 }
 
+static int load_v3index(struct apk_extract_ctx *ectx, struct adb_obj *ndx)
+{
+	struct apkindex_ctx *ctx = container_of(ectx, struct apkindex_ctx, ectx);
+	struct apk_database *db = ctx->db;
+	struct apk_repository *repo = &db->repos[ctx->repo];
+	struct apk_package *pkg;
+	struct adb_obj pkgs, pkginfo;
+	int i;
+
+	repo->description = apk_blob_dup(adb_ro_blob(ndx, ADBI_NDX_DESCRIPTION));
+	adb_ro_obj(ndx, ADBI_NDX_PACKAGES, &pkgs);
+
+	for (i = ADBI_FIRST; i <= adb_ra_num(&pkgs); i++) {
+		adb_ro_obj(&pkgs, i, &pkginfo);
+		pkg = apk_pkg_new();
+		if (!pkg) return -ENOMEM;
+		apk_pkg_from_adb(db, pkg, &pkginfo);
+		pkg->repos |= BIT(ctx->repo);
+		if (!apk_db_pkg_add(db, pkg)) return -APKE_ADB_SCHEMA;
+	}
+
+	return 0;
+}
+
 static const struct apk_extract_ops extract_index = {
 	.v2index = load_v2index,
+	.v3index = load_v3index,
 };
 
 static int load_index(struct apk_database *db, struct apk_istream *is, int repo)

@@ -138,7 +138,7 @@ int apk_pkg_parse_name(apk_blob_t apkname, apk_blob_t *name, apk_blob_t *version
 
 int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		     char field, apk_blob_t value);
-void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct adb_obj *pkgo);
+void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct adb_obj *pkginfo);
 
 struct apk_installed_package *apk_pkg_install(struct apk_database *db, struct apk_package *pkg);
 void apk_pkg_uninstall(struct apk_database *db, struct apk_package *pkg);

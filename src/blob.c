@@ -32,6 +32,15 @@ char *apk_blob_cstr(apk_blob_t blob)
 	return cstr;
 }
 
+apk_blob_t apk_blob_dup(apk_blob_t blob)
+{
+	char *ptr = malloc(blob.len);
+	if (!ptr) return APK_BLOB_NULL;
+	memcpy(ptr, blob.ptr, blob.len);
+	return APK_BLOB_PTR_LEN(ptr, blob.len);
+}
+
+
 #if defined(__i386__)
 static unsigned long inline memspn(
 		const unsigned char *ptr,

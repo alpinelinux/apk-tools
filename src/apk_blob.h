@@ -87,6 +87,7 @@ static inline apk_blob_t apk_blob_trim(apk_blob_t blob)
 }
 
 char *apk_blob_cstr(apk_blob_t str);
+apk_blob_t apk_blob_dup(apk_blob_t blob);
 int apk_blob_spn(apk_blob_t blob, const apk_spn_match accept, apk_blob_t *l, apk_blob_t *r);
 int apk_blob_cspn(apk_blob_t blob, const apk_spn_match reject, apk_blob_t *l, apk_blob_t *r);
 int apk_blob_split(apk_blob_t blob, apk_blob_t split, apk_blob_t *l, apk_blob_t *r);
