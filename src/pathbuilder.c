@@ -17,13 +17,12 @@ int apk_pathbuilder_pushb(struct apk_pathbuilder *pb, apk_blob_t b)
 	memcpy(&pb->name[i], b.ptr, b.len);
 	pb->namelen = i + b.len;
 	pb->name[pb->namelen] = 0;
-	return 0;
+	return i;
 }
 
-void apk_pathbuilder_pop(struct apk_pathbuilder *pb)
+void apk_pathbuilder_pop(struct apk_pathbuilder *pb, int pos)
 {
-	char *slash = memrchr(pb->name, '/', pb->namelen);
-	if (slash) pb->namelen = slash - pb->name;
-	else pb->namelen = 0;
+	if (pos < 0) return;
+	pb->namelen = pos;
 	pb->name[pb->namelen] = 0;
 }

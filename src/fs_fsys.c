@@ -223,10 +223,10 @@ static int fsys_file_control(struct apk_fsdir *d, apk_blob_t filename, int ctrl)
 	struct apk_ctx *ac = d->ac;
 	char tmpname[TMPNAME_MAX], apknewname[TMPNAME_MAX];
 	const char *fn;
-	int rc = 0, atfd = apk_ctx_fd_dest(d->ac);
+	int n, rc = 0, atfd = apk_ctx_fd_dest(d->ac);
 	apk_blob_t dirname = apk_pathbuilder_get(&d->pb);
 
-	apk_pathbuilder_pushb(&d->pb, filename);
+	n = apk_pathbuilder_pushb(&d->pb, filename);
 	fn = apk_pathbuilder_cstr(&d->pb);
 
 	switch (ctrl) {
@@ -258,7 +258,7 @@ static int fsys_file_control(struct apk_fsdir *d, apk_blob_t filename, int ctrl)
 		break;
 	}
 
-	apk_pathbuilder_pop(&d->pb);
+	apk_pathbuilder_pop(&d->pb, n);
 	return rc;
 }
 
@@ -267,10 +267,11 @@ static int fsys_file_digest(struct apk_fsdir *d, apk_blob_t filename, uint8_t al
 	struct apk_ctx *ac = d->ac;
 	struct apk_istream *is;
 	apk_blob_t blob;
+	int n;
 
-	apk_pathbuilder_pushb(&d->pb, filename);
+	n = apk_pathbuilder_pushb(&d->pb, filename);
 	is = apk_istream_from_file(apk_ctx_fd_dest(ac), apk_pathbuilder_cstr(&d->pb));
-	apk_pathbuilder_pop(&d->pb);
+	apk_pathbuilder_pop(&d->pb, n);
 	if (IS_ERR(is)) return PTR_ERR(is);
 
 	apk_digest_ctx_reset(&ac->dctx, alg);

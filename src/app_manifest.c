@@ -96,7 +96,7 @@ static int process_v3_meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 	struct apk_pathbuilder pb;
 	char buf[APK_DIGEST_MAX_LENGTH*2+1];
 	apk_blob_t hex;
-	int i, j;
+	int i, j, n;
 
 	adb_ro_obj(pkg, ADBI_PKG_PATHS, &paths);
 
@@ -107,7 +107,7 @@ static int process_v3_meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 
 		for (j = ADBI_FIRST; j <= adb_ra_num(&files); j++) {
 			adb_ro_obj(&files, j, &file);
-			apk_pathbuilder_pushb(&pb, adb_ro_blob(&file, ADBI_FI_NAME));
+			n = apk_pathbuilder_pushb(&pb, adb_ro_blob(&file, ADBI_FI_NAME));
 			apk_digest_from_blob(&digest, adb_ro_blob(&file, ADBI_FI_HASHES));
 
 			hex = APK_BLOB_BUF(buf);
@@ -118,7 +118,7 @@ static int process_v3_meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 				mctx->prefix1, mctx->prefix2,
 				apk_digest_alg_str(digest.alg), buf,
 				apk_pathbuilder_cstr(&pb));
-			apk_pathbuilder_pop(&pb);
+			apk_pathbuilder_pop(&pb, n);
 		}
 	}
 

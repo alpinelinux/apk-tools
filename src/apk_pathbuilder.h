@@ -18,7 +18,7 @@ struct apk_pathbuilder {
 };
 
 int apk_pathbuilder_pushb(struct apk_pathbuilder *pb, apk_blob_t b);
-void apk_pathbuilder_pop(struct apk_pathbuilder *pb);
+void apk_pathbuilder_pop(struct apk_pathbuilder *pb, int);
 
 
 static inline int apk_pathbuilder_setb(struct apk_pathbuilder *pb, apk_blob_t b)

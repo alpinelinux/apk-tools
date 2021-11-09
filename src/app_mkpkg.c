@@ -154,7 +154,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 			char target[1022];
 		} symlink;
 	} ft;
-	int r;
+	int r, n;
 
 	r = apk_fileinfo_get(dirfd, entry, APK_FI_NOFOLLOW | APK_FI_DIGEST(APK_DIGEST_SHA256), &fi, NULL);
 	if (r) return r;
@@ -178,14 +178,14 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 		r = 0;
 		break;
 	case S_IFDIR:
-		apk_pathbuilder_push(&ctx->pb, entry);
+		n = apk_pathbuilder_push(&ctx->pb, entry);
 		r = mkpkg_process_directory(ctx, openat(dirfd, entry, O_RDONLY), &fi);
-		apk_pathbuilder_pop(&ctx->pb);
+		apk_pathbuilder_pop(&ctx->pb, n);
 		return r;
 	default:
-		apk_pathbuilder_push(&ctx->pb, entry);
+		n = apk_pathbuilder_push(&ctx->pb, entry);
 		apk_out(out, "%s: special file ignored", apk_pathbuilder_cstr(&ctx->pb));
-		apk_pathbuilder_pop(&ctx->pb);
+		apk_pathbuilder_pop(&ctx->pb, n);
 		return 0;
 	}
 
@@ -330,13 +330,13 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 				.path_idx = i,
 				.file_idx = j,
 			};
-			apk_pathbuilder_pushb(&ctx->pb, filename);
+			int n = apk_pathbuilder_pushb(&ctx->pb, filename);
 			adb_c_block_data(
 				os, APK_BLOB_STRUCT(hdr), sz,
 				apk_istream_from_fd(openat(files_fd,
 					apk_pathbuilder_cstr(&ctx->pb),
 					O_RDONLY)));
-			apk_pathbuilder_pop(&ctx->pb);
+			apk_pathbuilder_pop(&ctx->pb, n);
 		}
 	}
 	close(files_fd);
