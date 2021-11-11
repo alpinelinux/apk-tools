@@ -77,10 +77,11 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 		return ectx->ops->file(ectx, &fi, is);
 	}
 
+	fi.mode |= S_IFREG;
+	if (!is) return ectx->ops->file(ectx, &fi, 0);
+
 	apk_digest_from_blob(&fi.digest, adb_ro_blob(&ctx->file, ADBI_FI_HASHES));
 	if (fi.digest.alg == APK_DIGEST_NONE) return -APKE_ADB_SCHEMA;
-
-	fi.mode |= S_IFREG;
 	r = ectx->ops->file(ectx, &fi, apk_istream_verify(&dis, is, fi.size, &fi.digest));
 	return apk_istream_close_error(&dis.is, r);
 }
