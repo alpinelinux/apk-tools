@@ -11,13 +11,13 @@
 
 int apk_pathbuilder_pushb(struct apk_pathbuilder *pb, apk_blob_t b)
 {
-	size_t i = pb->namelen;
+	size_t oldlen = pb->namelen, i = pb->namelen;
 	if (i + b.len + 2 >= ARRAY_SIZE(pb->name)) return -ENAMETOOLONG;
 	if (i) pb->name[i++] = '/';
 	memcpy(&pb->name[i], b.ptr, b.len);
 	pb->namelen = i + b.len;
 	pb->name[pb->namelen] = 0;
-	return i;
+	return oldlen;
 }
 
 void apk_pathbuilder_pop(struct apk_pathbuilder *pb, int pos)
