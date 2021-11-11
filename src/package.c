@@ -671,7 +671,7 @@ static int apk_pkg_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 	if (!ri->v3ok) return -APKE_FORMAT_NOT_SUPPORTED;
 
 	adb_ro_obj(pkg, ADBI_PKG_PKGINFO, &pkginfo);
-	apk_pkg_from_adb(ri->db, ri->pkg, pkg);
+	apk_pkg_from_adb(ri->db, ri->pkg, &pkginfo);
 
 	return -ECANCELED;
 }
