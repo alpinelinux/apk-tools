@@ -23,6 +23,7 @@
 #define FETCH_RECURSIVE		1
 #define FETCH_STDOUT		2
 #define FETCH_LINK		4
+#define FETCH_URL		8
 
 struct fetch_ctx {
 	unsigned int flags;
@@ -71,7 +72,8 @@ static int cup(void)
 	OPT(OPT_FETCH_recursive,	APK_OPT_SH("R") "recursive") \
 	OPT(OPT_FETCH_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
 	OPT(OPT_FETCH_simulate,		"simulate") \
-	OPT(OPT_FETCH_stdout,		APK_OPT_SH("s") "stdout")
+	OPT(OPT_FETCH_stdout,		APK_OPT_SH("s") "stdout") \
+	OPT(OPT_FETCH_url,		"url") \
 
 APK_OPT_APPLET(option_desc, FETCH_OPTIONS);
 
@@ -94,6 +96,9 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 		break;
 	case OPT_FETCH_output:
 		fctx->outdir_fd = openat(AT_FDCWD, optarg, O_RDONLY | O_CLOEXEC);
+		break;
+	case OPT_FETCH_url:
+		fctx->flags |= FETCH_URL;
 		break;
 	default:
 		return -ENOTSUP;
@@ -143,13 +148,16 @@ static int fetch_package(apk_hash_item item, void *pctx)
 			return 0;
 	}
 
-	apk_message("Downloading " PKG_VER_FMT, PKG_VER_PRINTF(pkg));
+	r = apk_repo_format_item(db, repo, pkg, &urlfd, url, sizeof(url));
+	if (r < 0) goto err;
+
+	if (ctx->flags & FETCH_URL)
+		apk_message("%s", url);
+	else
+		apk_message("Downloading " PKG_VER_FMT, PKG_VER_PRINTF(pkg));
+
 	if (apk_flags & APK_SIMULATE)
 		return 0;
-
-	r = apk_repo_format_item(db, repo, pkg, &urlfd, url, sizeof(url));
-	if (r < 0)
-		goto err;
 
 	if (ctx->flags & FETCH_STDOUT) {
 		fd = STDOUT_FILENO;
