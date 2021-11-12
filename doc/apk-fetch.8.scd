@@ -37,3 +37,6 @@ specified.
 
 	*Note*: this option is unreliable if needed indexes are not up-to-date
 	as this omits refresing or downloading of missing indexes.
+
+*--url*
+	Print the full URL for downloaded packages.
