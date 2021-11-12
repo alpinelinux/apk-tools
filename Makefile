@@ -4,7 +4,7 @@
 -include config.mk
 
 PACKAGE := apk-tools
-VERSION := 2.12.7
+VERSION := 2.12.8
 
 export VERSION
 
