@@ -262,7 +262,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	struct apk_change *change;
 	char buf[32];
 	const char *size_unit;
-	off_t humanized, size_diff = 0;
+	off_t humanized, size_diff = 0, download_size = 0;
 	int r, errors = 0;
 
 	assert(world);
@@ -279,12 +279,15 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	memset(&prog, 0, sizeof(prog));
 	foreach_array_item(change, changeset->changes) {
 		count_change(change, &prog.total);
-		if (change->new_pkg)
+		if (change->new_pkg) {
 			size_diff += change->new_pkg->installed_size;
+			if (change->new_pkg != change->old_pkg &&
+			    !(change->new_pkg->repos & db->local_repos))
+				download_size += change->new_pkg->size;
+		}
 		if (change->old_pkg)
 			size_diff -= change->old_pkg->installed_size;
 	}
-	size_unit = apk_get_human_size(llabs(size_diff), &humanized);
 
 	if ((apk_verbosity > 1 || (apk_flags & APK_INTERACTIVE)) &&
 	    !(apk_flags & APK_SIMULATE)) {
@@ -299,6 +302,12 @@ int apk_solver_commit_changeset(struct apk_database *db,
 					   "The following packages will be upgraded");
 			r += dump_packages(changeset, cmp_reinstall,
 					   "The following packages will be reinstalled");
+			if (download_size) {
+				size_unit = apk_get_human_size(download_size, &humanized);
+				printf("Need to download %lld %s of packages.\n",
+					(long long)humanized, size_unit);
+			}
+			size_unit = apk_get_human_size(llabs(size_diff), &humanized);
 			printf("After this operation, %lld %s of %s.\n",
 				(long long)humanized,
 				size_unit,
