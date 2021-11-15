@@ -91,7 +91,7 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db)
 
 	foreach_array_item(change, changeset.changes) {
 		pkg = change->new_pkg;
-		if ((pkg == NULL) || (pkg->repos & db->local_repos))
+		if (!pkg || (pkg->repos & db->local_repos) || !pkg->installed_size)
 			continue;
 
 		repo = apk_db_select_repo(db, pkg);

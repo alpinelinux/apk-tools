@@ -533,10 +533,8 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *
 
 	if (!pkg->license) pkg->license = &apk_atom_null;
 
-	/* Set as "cached" if installing from specified file, and
-	 * for virtual packages */
-	if (pkg->filename != NULL || pkg->installed_size == 0)
-		pkg->repos |= BIT(APK_REPOSITORY_CACHED);
+	// Set as "cached" if installing from specified file
+	if (pkg->filename) pkg->repos |= BIT(APK_REPOSITORY_CACHED);
 
 	idb = apk_hash_get(&db->available.packages, APK_BLOB_CSUM(pkg->csum));
 	if (idb == NULL) {
@@ -1227,8 +1225,7 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 	struct apk_ostream *os;
 	int r;
 
-	if (!apk_db_cache_active(db))
-		return 0;
+	if (!apk_db_cache_active(db)) return 0;
 
 	/* Write list of installed non-repository packages to
 	 * cached index file */
@@ -1238,16 +1235,14 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 	ctx.os = os;
 	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
 		struct apk_package *pkg = ipkg->pkg;
-		if (pkg->repos != BIT(APK_REPOSITORY_CACHED))
-			continue;
-		r = write_index_entry(pkg, &ctx);
-		if (r != 0)
-			return r;
+		if ((pkg->repos == BIT(APK_REPOSITORY_CACHED) ||
+		     (pkg->repos == 0 && !pkg->installed_size))) {
+			r = write_index_entry(pkg, &ctx);
+			if (r != 0) return r;
+		}
 	}
 	r = apk_ostream_close(os);
-	if (r < 0)
-		return r;
-
+	if (r < 0) return r;
 	return ctx.count;
 }
 

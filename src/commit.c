@@ -425,7 +425,7 @@ static void print_pinning_errors(struct print_state *ps, struct apk_package *pkg
 	if (!(pkg->repos & db->available_repos)) {
 		label_start(ps, "masked in:");
 		apk_print_indented_fmt(&ps->i, "--no-network");
-	} else if (pkg->repos == BIT(APK_REPOSITORY_CACHED) && !(pkg->filename != NULL || pkg->installed_size == 0)) {
+	} else if (pkg->repos == BIT(APK_REPOSITORY_CACHED) && !pkg->filename) {
 		label_start(ps, "masked in:");
 		apk_print_indented_fmt(&ps->i, "cache");
 	} else {
