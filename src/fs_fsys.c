@@ -102,11 +102,9 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 	int atfd = apk_ctx_fd_dest(ac);
 	const char *fn = fi->name, *link_target = fi->link_target;
 
-	if (pkgctx.ptr) {
-		fn = format_tmpname(&ac->dctx, pkgctx, get_dirname(fn), APK_BLOB_STR(fn), tmpname_file);
-		if (link_target)
-			link_target = format_tmpname(&ac->dctx, pkgctx, get_dirname(link_target), APK_BLOB_STR(link_target), tmpname_linktarget);
-	}
+	if (pkgctx.ptr)
+		fn = format_tmpname(&ac->dctx, pkgctx, get_dirname(fn),
+			APK_BLOB_STR(fn), tmpname_file);
 
 	if (!S_ISDIR(fi->mode) && !(extract_flags & APK_FSEXTRACTF_NO_OVERWRITE)) {
 		if (unlinkat(atfd, fn, 0) != 0 && errno != ENOENT) return -errno;
@@ -119,7 +117,7 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 			ret = -errno;
 		break;
 	case S_IFREG:
-		if (fi->link_target == NULL) {
+		if (!link_target) {
 			int flags = O_RDWR | O_CREAT | O_TRUNC | O_CLOEXEC | O_EXCL;
 			int fd = openat(atfd, fn, flags, fi->mode & 07777);
 			if (fd < 0) {
@@ -138,6 +136,10 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 				ret = r;
 			}
 		} else {
+			// Hardlink needs to be done against the temporary name
+			if (pkgctx.ptr)
+				link_target = format_tmpname(&ac->dctx, pkgctx, get_dirname(link_target),
+					APK_BLOB_STR(link_target), tmpname_linktarget);
 			r = linkat(atfd, link_target, atfd, fn, 0);
 			if (r < 0) ret = -errno;
 		}
