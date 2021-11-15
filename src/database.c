@@ -25,7 +25,6 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/statvfs.h>
-#include <sys/sysmacros.h>
 #include <linux/magic.h>
 
 #include "apk_defines.h"
@@ -1161,7 +1160,7 @@ static int apk_db_triggers_read(struct apk_database *db, struct apk_istream *is)
 static int apk_db_read_state(struct apk_database *db, int flags)
 {
 	apk_blob_t blob, world;
-	int r;
+	int r, ret = 0;
 
 	/* Read:
 	 * 1. /etc/apk/world
@@ -1171,26 +1170,29 @@ static int apk_db_read_state(struct apk_database *db, int flags)
 	 */
 	if (!(flags & APK_OPENF_NO_WORLD)) {
 		blob = world = apk_blob_from_file(db->root_fd, apk_world_file);
-		if (APK_BLOB_IS_NULL(blob)) return -ENOENT;
-		blob = apk_blob_trim(blob);
-		apk_blob_pull_deps(&blob, db, &db->world);
-		free(world.ptr);
+		if (!APK_BLOB_IS_NULL(blob)) {
+			blob = apk_blob_trim(blob);
+			apk_blob_pull_deps(&blob, db, &db->world);
+			free(world.ptr);
+		} else {
+			ret = -ENOENT;
+		}
 	}
 
 	if (!(flags & APK_OPENF_NO_INSTALLED)) {
 		r = apk_db_index_read(db, apk_istream_from_file(db->root_fd, apk_installed_file), -1);
-		if (r && r != -ENOENT) return r;
+		if (r && r != -ENOENT) ret = r;
 		r = apk_db_triggers_read(db, apk_istream_from_file(db->root_fd, apk_triggers_file));
-		if (r && r != -ENOENT) return r;
+		if (r && r != -ENOENT) ret = r;
 	}
 
 	if (!(flags & APK_OPENF_NO_SCRIPTS)) {
 		r = apk_tar_parse(apk_istream_from_file(db->root_fd, apk_scripts_file),
 				  apk_read_script_archive_entry, db, db->id_cache);
-		if (r && r != -ENOENT) return r;
+		if (r && r != -ENOENT) ret = r;
 	}
 
-	return 0;
+	return ret;
 }
 
 struct index_write_ctx {
@@ -1326,39 +1328,6 @@ static int add_protected_paths_from_file(void *ctx, int dirfd, const char *file)
 
 	apk_blob_for_each_segment(blob, "\n", add_protected_path, db);
 	free(blob.ptr);
-
-	return 0;
-}
-
-static int apk_db_create(struct apk_database *db)
-{
-	int fd;
-
-	mkdirat(db->root_fd, "tmp", 01777);
-	mkdirat(db->root_fd, "dev", 0755);
-	mknodat(db->root_fd, "dev/null", S_IFCHR | 0666, makedev(1, 3));
-	mknodat(db->root_fd, "dev/zero", S_IFCHR | 0666, makedev(1, 5));
-	mknodat(db->root_fd, "dev/random", S_IFCHR | 0666, makedev(1, 8));
-	mknodat(db->root_fd, "dev/urandom", S_IFCHR | 0666, makedev(1, 9));
-	mknodat(db->root_fd, "dev/console", S_IFCHR | 0600, makedev(5, 1));
-	mkdirat(db->root_fd, "etc", 0755);
-	mkdirat(db->root_fd, "etc/apk", 0755);
-	mkdirat(db->root_fd, "lib", 0755);
-	mkdirat(db->root_fd, "lib/apk", 0755);
-	mkdirat(db->root_fd, "lib/apk/db", 0755);
-	mkdirat(db->root_fd, "var", 0755);
-	mkdirat(db->root_fd, "var/cache", 0755);
-	mkdirat(db->root_fd, "var/cache/apk", 0755);
-	mkdirat(db->root_fd, "var/cache/misc", 0755);
-
-	fd = openat(db->root_fd, apk_world_file, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0644);
-	if (fd < 0)
-		return -errno;
-	close(fd);
-	fd = openat(db->root_fd, apk_installed_file, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0644);
-	if (fd < 0)
-		return -errno;
-	close(fd);
 
 	return 0;
 }
@@ -1531,7 +1500,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	const char *msg = NULL;
 	struct statfs stfs;
 	apk_blob_t blob;
-	int r, fd, write_arch = FALSE;
+	int r, fd;
 
 	apk_default_acl_dir = apk_db_acl_atomize(db, 0755, 0, 0);
 	apk_default_acl_file = apk_db_acl_atomize(db, 0644, 0, 0);
@@ -1556,7 +1525,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 
 	if (ac->root && ac->arch) {
 		db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(ac->arch));
-		write_arch = TRUE;
+		db->write_arch = 1;
 	} else {
 		apk_blob_t arch;
 		arch = apk_blob_from_file(db->root_fd, apk_arch_file);
@@ -1565,48 +1534,37 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			free(arch.ptr);
 		} else {
 			db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(APK_DEFAULT_ARCH));
-			write_arch = TRUE;
+			db->write_arch = 1;
 		}
 	}
 
 	db->id_cache = apk_ctx_get_id_cache(ac);
 
 	if (ac->open_flags & APK_OPENF_WRITE) {
+		msg = "Unable to lock database";
 		db->lock_fd = openat(db->root_fd, apk_lock_file,
 				     O_CREAT | O_RDWR | O_CLOEXEC, 0600);
-		if (db->lock_fd < 0 && errno == ENOENT &&
-		    (ac->open_flags & APK_OPENF_CREATE)) {
-			r = apk_db_create(db);
-			if (r != 0) {
-				msg = "Unable to create database";
-				goto ret_r;
-			}
-			db->lock_fd = openat(db->root_fd, apk_lock_file,
-					     O_CREAT | O_RDWR | O_CLOEXEC, 0600);
-		}
-		if (db->lock_fd < 0 ||
-		    flock(db->lock_fd, LOCK_EX | LOCK_NB) < 0) {
-			msg = "Unable to lock database";
-			if (ac->lock_wait) {
-				struct sigaction sa, old_sa;
-
-				apk_msg(out, "Waiting for repository lock");
-				memset(&sa, 0, sizeof sa);
-				sa.sa_handler = handle_alarm;
-				sa.sa_flags   = SA_ONESHOT;
-				sigaction(SIGALRM, &sa, &old_sa);
-
-				alarm(ac->lock_wait);
-				if (flock(db->lock_fd, LOCK_EX) < 0)
-					goto ret_errno;
-
-				alarm(0);
-				sigaction(SIGALRM, &old_sa, NULL);
-			} else
+		if (db->lock_fd < 0) {
+			if (!(ac->open_flags & APK_OPENF_CREATE))
 				goto ret_errno;
+		} else if (flock(db->lock_fd, LOCK_EX | LOCK_NB) < 0) {
+			struct sigaction sa, old_sa;
+
+			if (!ac->lock_wait) goto ret_errno;
+
+			apk_msg(out, "Waiting for repository lock");
+			memset(&sa, 0, sizeof sa);
+			sa.sa_handler = handle_alarm;
+			sa.sa_flags   = SA_ONESHOT;
+			sigaction(SIGALRM, &sa, &old_sa);
+
+			alarm(ac->lock_wait);
+			if (flock(db->lock_fd, LOCK_EX) < 0)
+				goto ret_errno;
+
+			alarm(0);
+			sigaction(SIGALRM, &old_sa, NULL);
 		}
-		if (write_arch)
-			apk_blob_to_file(db->root_fd, apk_arch_file, *db->arch, APK_BTF_ADD_EOL);
 
 		/* mount /proc */
 		if (asprintf(&db->root_proc_dir, "%s/proc", db->ctx->root) == -1)
@@ -1655,6 +1613,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		db->cache_dir = apk_static_cache_dir;
 		db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
 		if (db->cache_fd < 0) {
+			mkdirat(db->root_fd, "var", 0755);
 			mkdirat(db->root_fd, "var/cache", 0755);
 			mkdirat(db->root_fd, "var/cache/apk", 0755);
 			db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
@@ -1671,15 +1630,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	}
 
 	r = apk_db_read_state(db, ac->open_flags);
-	if (r == -ENOENT && (ac->open_flags & APK_OPENF_CREATE)) {
-		r = apk_db_create(db);
-		if (r != 0) {
-			msg = "Unable to create database";
-			goto ret_r;
-		}
-		r = apk_db_read_state(db, ac->open_flags);
-	}
-	if (r != 0) {
+	if (r != 0 && !(r == -ENOENT && (ac->open_flags & APK_OPENF_CREATE))) {
 		msg = "Unable to read database state";
 		goto ret_r;
 	}
@@ -1748,10 +1699,23 @@ int apk_db_write_config(struct apk_database *db)
 	if ((db->ctx->flags & APK_SIMULATE) || db->ctx->root == NULL)
 		return 0;
 
-	if (db->lock_fd == 0) {
+	if (db->ctx->open_flags & APK_OPENF_CREATE) {
+		if (faccessat(db->root_fd, "lib/apk/db", F_OK, 0) != 0) {
+			mkdirat(db->root_fd, "lib", 0755);
+			mkdirat(db->root_fd, "lib/apk", 0755);
+			mkdirat(db->root_fd, "lib/apk/db", 0755);
+		}
+		if (faccessat(db->root_fd, "etc/apk", F_OK, 0) != 0) {
+			mkdirat(db->root_fd, "etc", 0755);
+			mkdirat(db->root_fd, "etc/apk", 0755);
+		}
+	} else if (db->lock_fd == 0) {
 		apk_err(out, "Refusing to write db without write lock!");
 		return -1;
 	}
+
+	if (db->write_arch)
+		apk_blob_to_file(db->root_fd, apk_arch_file, *db->arch, APK_BTF_ADD_EOL);
 
 	os = apk_ostream_to_file(db->root_fd, apk_world_file, 0644);
 	if (!IS_ERR(os)) {

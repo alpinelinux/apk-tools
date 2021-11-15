@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 
 #include "apk_openssl.h"
 #include <openssl/pem.h>
@@ -773,10 +774,28 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
 		return;
 
+	if (!db->script_dirs_checked) {
+		db->script_dirs_checked = 1;
+		if (faccessat(db->root_fd, "tmp", F_OK, 0) != 0)
+			mkdirat(db->root_fd, "tmp", 01777);
+		if (faccessat(db->root_fd, "dev", F_OK, 0) != 0) {
+			mkdirat(db->root_fd, "dev", 0755);
+			mknodat(db->root_fd, "dev/null", S_IFCHR | 0666, makedev(1, 3));
+			mknodat(db->root_fd, "dev/zero", S_IFCHR | 0666, makedev(1, 5));
+			mknodat(db->root_fd, "dev/random", S_IFCHR | 0666, makedev(1, 8));
+			mknodat(db->root_fd, "dev/urandom", S_IFCHR | 0666, makedev(1, 9));
+			mknodat(db->root_fd, "dev/console", S_IFCHR | 0600, makedev(5, 1));
+		}
+		if (faccessat(db->root_fd, "var/cache/misc", F_OK, 0) != 0) {
+			mkdirat(root_fd, "var", 0755);
+			mkdirat(root_fd, "var/cache", 0755);
+			mkdirat(root_fd, "var/cache/misc", 0755);
+		}
+	}
+
 	apk_msg(out, "Executing %s", &fn[15]);
 	fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0755);
 	if (fd < 0) {
-		mkdirat(root_fd, "var/cache/misc", 0755);
 		fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0755);
 		if (fd < 0) goto err_log;
 	}
