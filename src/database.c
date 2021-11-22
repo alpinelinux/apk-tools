@@ -2658,10 +2658,10 @@ static void apk_db_migrate_files(struct apk_database *db,
 			if (ofile && ofile->diri->pkg->name == NULL) {
 				// File was from overlay, delete the package's version
 				ctrl = APK_FS_CTRL_CANCEL;
-			} else if ((diri->dir->protect_mode != APK_PROTECT_NONE) &&
+			} else if (diri->dir->protect_mode != APK_PROTECT_NONE &&
+				   apk_fsdir_file_digest(&d, key.filename, apk_dbf_digest(ofile), &dgst) == 0 &&
 				   (!ofile || ofile->csum.type == APK_CHECKSUM_NONE ||
-				    (apk_fsdir_file_digest(&d, key.filename, apk_dbf_digest(ofile), &dgst) == 0 &&
-				     apk_digest_cmp_csum(&dgst, &ofile->csum) != 0))) {
+				    apk_digest_cmp_csum(&dgst, &ofile->csum) != 0)) {
 				// Protected directory, and a file without db entry
 				// or with local modifications. Keep the filesystem file.
 				// Determine if the package's file should be kept as .apk-new

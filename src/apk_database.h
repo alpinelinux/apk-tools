@@ -241,7 +241,9 @@ void apk_name_foreach_matching(struct apk_database *db, struct apk_string_array 
 
 static inline uint8_t apk_dbf_digest(struct apk_db_file *dbf)
 {
-	uint8_t alg = apk_digest_alg_by_len(dbf->csum.type);
+	uint8_t alg;
+	if (!dbf) return APK_DIGEST_NONE;
+	alg = apk_digest_alg_by_len(dbf->csum.type);
 	if (alg == APK_DIGEST_SHA1 && dbf->diri->pkg->ipkg->sha256_160)
 		alg = APK_DIGEST_SHA256_160;
 	return alg;
