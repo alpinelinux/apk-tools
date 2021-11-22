@@ -2344,6 +2344,7 @@ static int apk_db_install_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *p
 	adb_ro_obj(pkg, ADBI_PKG_PKGINFO, &pkginfo);
 	apk_deps_from_adb(&ipkg->replaces, db, adb_ro_obj(&pkginfo, ADBI_PI_REPLACES, &obj));
 	ipkg->replaces_priority = adb_ro_int(&pkginfo, ADBI_PI_PRIORITY);
+	ipkg->v3 = 1;
 
 	apk_string_array_resize(&ipkg->triggers, 0);
 	adb_ro_obj(pkg, ADBI_PKG_TRIGGERS, &triggers);
@@ -2512,23 +2513,30 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 		r = apk_fs_extract(ac, ae, is, extract_cb, ctx, db->extract_flags, apk_pkg_ctx(pkg));
 		switch (r) {
 		case 0:
-			/* Hardlinks need special care for checksum */
+			// Hardlinks need special care for checksum
 			if (link_target_file)
 				memcpy(&file->csum, &link_target_file->csum, sizeof file->csum);
 			else
 				apk_checksum_from_digest(&file->csum, &ae->digest);
-			/* only warn once per package */
-			if (ae->digest.alg == APK_DIGEST_NONE && !ctx->missing_checksum) {
+
+			if (ipkg->v3 && S_ISLNK(ae->mode)) {
+				struct apk_digest d;
+				apk_digest_calc(&d, APK_DIGEST_SHA256,
+						ae->link_target, strlen(ae->link_target));
+				ipkg->sha256_160 = 1;
+				file->csum.type = APK_CHECKSUM_SHA1;
+				memcpy(file->csum.data, d.data, file->csum.type);
+			} else if (file->csum.type == APK_CHECKSUM_NONE && ae->digest.alg == APK_DIGEST_SHA256) {
+				ipkg->sha256_160 = 1;
+				file->csum.type = APK_CHECKSUM_SHA1;
+				memcpy(file->csum.data, ae->digest.data, file->csum.type);
+			} else if (ae->digest.alg == APK_DIGEST_NONE && !ctx->missing_checksum) {
 				apk_warn(out,
 					PKG_VER_FMT": support for packages without embedded "
 					"checksums will be dropped in apk-tools 3.",
 					PKG_VER_PRINTF(pkg));
 				ipkg->broken_files = 1;
 				ctx->missing_checksum = 1;
-			} else if (file->csum.type == APK_CHECKSUM_NONE && ae->digest.alg == APK_DIGEST_SHA256) {
-				ipkg->sha256_160 = 1;
-				file->csum.type = APK_CHECKSUM_SHA1;
-				memcpy(file->csum.data, ae->digest.data, file->csum.type);
 			} else if (file->csum.type == APK_CHECKSUM_NONE && !ctx->missing_checksum) {
 				apk_warn(out,
 					PKG_VER_FMT": unknown v3 checksum",
@@ -2537,15 +2545,13 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 				ctx->missing_checksum = 1;
 			}
 			break;
-		case -APKE_UVOL_ROOT:
-		case -APKE_UVOL_NOT_AVAILABLE:
-			ipkg->broken_files = 1;
-			break;
 		case -ENOTSUP:
 			ipkg->broken_xattr = 1;
 			break;
 		case -ENOSPC:
 			ret = r;
+		case -APKE_UVOL_ROOT:
+		case -APKE_UVOL_NOT_AVAILABLE:
 		default:
 			ipkg->broken_files = 1;
 			break;
