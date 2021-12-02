@@ -306,8 +306,14 @@ static const struct apk_fsdir_ops *apk_fsops_get(apk_blob_t dir)
 int apk_fs_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct apk_istream *is,
 	apk_progress_cb cb, void *cb_ctx, unsigned int extract_flags, apk_blob_t pkgctx)
 {
-	const struct apk_fsdir_ops *ops = apk_fsops_get(APK_BLOB_PTR_LEN((char*)fi->name, strnlen(fi->name, 5)));
-	return ops->file_extract(ac, fi, is, cb, cb_ctx, extract_flags, pkgctx);
+	if (S_ISDIR(fi->mode)) {
+		struct apk_fsdir fsd;
+		apk_fsdir_get(&fsd, APK_BLOB_STR((char*)fi->name), ac, pkgctx);
+		return apk_fsdir_create(&fsd, fi->mode);
+	} else {
+		const struct apk_fsdir_ops *ops = apk_fsops_get(APK_BLOB_PTR_LEN((char*)fi->name, strnlen(fi->name, 5)));
+		return ops->file_extract(ac, fi, is, cb, cb_ctx, extract_flags, pkgctx);
+	}
 }
 
 void apk_fsdir_get(struct apk_fsdir *d, apk_blob_t dir, struct apk_ctx *ac, apk_blob_t pkgctx)
