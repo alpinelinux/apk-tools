@@ -2334,10 +2334,19 @@ static int apk_db_install_v2meta(struct apk_extract_ctx *ectx, struct apk_istrea
 
 static int apk_db_install_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 {
+	static const int script_type_to_field[] = {
+		[APK_SCRIPT_PRE_INSTALL]	= ADBI_SCRPT_PREINST,
+		[APK_SCRIPT_POST_INSTALL]	= ADBI_SCRPT_POSTINST,
+		[APK_SCRIPT_PRE_DEINSTALL]	= ADBI_SCRPT_PREDEINST,
+		[APK_SCRIPT_POST_DEINSTALL]	= ADBI_SCRPT_POSTDEINST,
+		[APK_SCRIPT_PRE_UPGRADE]	= ADBI_SCRPT_PREUPGRADE,
+		[APK_SCRIPT_POST_UPGRADE]	= ADBI_SCRPT_POSTUPGRADE,
+		[APK_SCRIPT_TRIGGER]		= ADBI_SCRPT_TRIGGER,
+	};
 	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
 	struct apk_database *db = ctx->db;
 	struct apk_installed_package *ipkg = ctx->ipkg;
-	struct adb_obj triggers, pkginfo, obj;
+	struct adb_obj scripts, triggers, pkginfo, obj;
 	int i;
 
 	// Extract the information not available in index
@@ -2345,6 +2354,14 @@ static int apk_db_install_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *p
 	apk_deps_from_adb(&ipkg->replaces, db, adb_ro_obj(&pkginfo, ADBI_PI_REPLACES, &obj));
 	ipkg->replaces_priority = adb_ro_int(&pkginfo, ADBI_PI_PRIORITY);
 	ipkg->v3 = 1;
+
+	adb_ro_obj(pkg, ADBI_PKG_SCRIPTS, &scripts);
+	for (i = 0; i < ARRAY_SIZE(script_type_to_field); i++) {
+		apk_blob_t b = adb_ro_blob(&scripts, script_type_to_field[i]);
+		if (APK_BLOB_IS_NULL(b)) continue;
+		apk_ipkg_assign_script(ipkg, i, apk_blob_dup(b));
+		ctx->script_pending |= (i == ctx->script);
+	}
 
 	apk_string_array_resize(&ipkg->triggers, 0);
 	adb_ro_obj(pkg, ADBI_PKG_TRIGGERS, &triggers);

@@ -144,6 +144,7 @@ void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct a
 struct apk_installed_package *apk_pkg_install(struct apk_database *db, struct apk_package *pkg);
 void apk_pkg_uninstall(struct apk_database *db, struct apk_package *pkg);
 
+int apk_ipkg_assign_script(struct apk_installed_package *ipkg, unsigned int type, apk_blob_t blob);
 int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 			struct apk_istream *is,
 			unsigned int type, unsigned int size);

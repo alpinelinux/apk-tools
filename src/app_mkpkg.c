@@ -74,7 +74,7 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 	case OPT_MKPKG_script:
 		apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r);
 		i = adb_s_field_by_name_blob(&schema_scripts, l);
-		if (i == APK_SCRIPT_INVALID) {
+		if (!i) {
 			apk_err(out, "invalid script type: " BLOB_FMT, BLOB_PRINTF(l));
 			return -EINVAL;
 		}

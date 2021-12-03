@@ -738,18 +738,23 @@ void apk_pkg_free(struct apk_package *pkg)
 	free(pkg);
 }
 
+int apk_ipkg_assign_script(struct apk_installed_package *ipkg, unsigned int type, apk_blob_t b)
+{
+	if (APK_BLOB_IS_NULL(b)) return -1;
+	if (type >= APK_SCRIPT_MAX) {
+		free(b.ptr);
+		return -1;
+	}
+	if (ipkg->script[type].ptr) free(ipkg->script[type].ptr);
+	ipkg->script[type] = b;
+	return 0;
+}
+
 int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 			struct apk_istream *is,
 			unsigned int type, unsigned int size)
 {
-	apk_blob_t b;
-
-	if (type >= APK_SCRIPT_MAX) return -1;
-	b = apk_blob_from_istream(is, size);
-	if (APK_BLOB_IS_NULL(b)) return -1;
-	if (ipkg->script[type].ptr) free(ipkg->script[type].ptr);
-	ipkg->script[type] = b;
-	return 0;
+	return apk_ipkg_assign_script(ipkg, type, apk_blob_from_istream(is, size));
 }
 
 void apk_ipkg_run_script(struct apk_installed_package *ipkg,
