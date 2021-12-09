@@ -480,11 +480,12 @@ http_parse_mtime(const char *p, time_t *mtime)
 	char *locale, *r;
 	struct tm tm;
 
-	locale = strdupa(setlocale(LC_TIME, NULL));
+	locale = strdup(setlocale(LC_TIME, NULL));
 	setlocale(LC_TIME, "C");
 	r = strptime(p, "%a, %d %b %Y %H:%M:%S GMT", &tm);
 	/* XXX should add support for date-2 and date-3 */
 	setlocale(LC_TIME, locale);
+	free(locale);
 	if (r == NULL)
 		return (-1);
 	*mtime = timegm(&tm);
