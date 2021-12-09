@@ -62,6 +62,7 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_force,			APK_OPT_SH("f") "force") \
 	OPT(OPT_GLOBAL_force_binary_stdout,	"force-binary-stdout") \
 	OPT(OPT_GLOBAL_force_broken_world,	"force-broken-world") \
+	OPT(OPT_GLOBAL_force_no_chroot,		"force-no-chroot") \
 	OPT(OPT_GLOBAL_force_non_repository,	"force-non-repository") \
 	OPT(OPT_GLOBAL_force_old_apk,		"force-old-apk") \
 	OPT(OPT_GLOBAL_force_overwrite,		"force-overwrite") \
@@ -141,6 +142,9 @@ static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const cha
 		break;
 	case OPT_GLOBAL_force_refresh:
 		ac->force |= APK_FORCE_REFRESH;
+		break;
+	case OPT_GLOBAL_force_no_chroot:
+		ac->flags |= APK_NO_CHROOT;
 		break;
 	case OPT_GLOBAL_force_non_repository:
 		ac->force |= APK_FORCE_NON_REPOSITORY;

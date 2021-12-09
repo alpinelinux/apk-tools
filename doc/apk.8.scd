@@ -120,6 +120,11 @@ The following options are available for all commands.
 *--force-broken-world*
 	Continue even if _world_ cannot be satisfied.
 
+*--force-no-chroot*
+	Disable chroot for scripts. This can be used for rootfs creation when
+	chroot is not available. Scripts running outside a chroot environment
+	may modify and damage the host system.
+
 *--force-non-repository*
 	Continue even if packages may be lost on reboot. This can happen when
 	running in run-from-tmpfs mode, and installing non-repository package.
