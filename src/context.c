@@ -69,7 +69,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 	}
 	ac->dest_fd = ac->root_fd;
 
-	if (ac->open_flags & APK_OPENF_WRITE) {
+	if ((ac->open_flags & APK_OPENF_WRITE) && !(ac->flags & APK_NO_LOGFILE)) {
 		const char *log_path = "var/log/apk.log";
 		const int lflags = O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC;
 		int fd = openat(ac->root_fd, log_path, lflags, 0644);
