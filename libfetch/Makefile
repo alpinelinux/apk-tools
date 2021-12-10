@@ -4,6 +4,13 @@ generate-y		+= ftperr.h httperr.h
 CFLAGS_common.o		+= -DCA_CERT_FILE=\"$(CONFDIR)/ca.pem\" -DCA_CRL_FILE=\"$(CONFDIR)/crl.pem\"
 CFLAGS_common.o		+= -DCLIENT_CERT_FILE=\"$(CONFDIR)/cert.pem\" -DCLIENT_KEY_FILE=\"$(CONFDIR)/cert.key\"
 
+PKG_CONFIG		?= pkg-config
+
+OPENSSL_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags openssl)
+OPENSSL_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
+
+CFLAGS_ALL		+= $(OPENSSL_CFLAGS)
+
 quiet_cmd_generr = GENERR  $@
       cmd_generr = $(src)/errlist.sh $(basename $(<F))_errlist $(shell echo $(basename $(<F)) | tr a-z A-Z) $< > $@
 
