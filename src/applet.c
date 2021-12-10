@@ -10,7 +10,7 @@
 #include "apk_applet.h"
 #include "apk_print.h"
 
-static struct list_head apk_applet_list;
+static LIST_HEAD(apk_applet_list);
 
 #define apk_applet_foreach(iter) list_for_each_entry(iter, &apk_applet_list, node)
 
@@ -18,16 +18,6 @@ void apk_applet_register(struct apk_applet *applet)
 {
 	list_init(&applet->node);
 	list_add_tail(&applet->node, &apk_applet_list);
-}
-
-void apk_applet_register_builtin(void)
-{
-	extern apk_init_func_t __start_initapplets[], __stop_initapplets[];
-	apk_init_func_t *p;
-
-	list_init(&apk_applet_list);
-	for (p = __start_initapplets; p < __stop_initapplets; p++)
-		(*p)();
 }
 
 struct apk_applet *apk_applet_find(const char *name)

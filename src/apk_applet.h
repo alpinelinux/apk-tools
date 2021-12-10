@@ -56,14 +56,10 @@ struct apk_applet {
 extern const struct apk_option_group optgroup_global, optgroup_commit, optgroup_signing;
 
 void apk_applet_register(struct apk_applet *);
-void apk_applet_register_builtin(void);
 struct apk_applet *apk_applet_find(const char *name);
 void apk_applet_help(struct apk_applet *applet, struct apk_out *out);
-typedef void (*apk_init_func_t)(void);
-
 
 #define APK_DEFINE_APPLET(x) \
-static void __register_##x(void) { apk_applet_register(&x); } \
-static apk_init_func_t __regfunc_##x __attribute__((__section__("initapplets"))) __attribute((used)) = __register_##x;
+__attribute__((constructor)) static void __register_##x(void) { apk_applet_register(&x); }
 
 #endif

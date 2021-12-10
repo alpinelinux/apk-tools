@@ -409,7 +409,6 @@ int main(int argc, char **argv)
 #ifdef TEST_MODE
 	apk_string_array_init(&test_repos);
 #endif
-	apk_applet_register_builtin();
 
 	apk_argv = malloc(sizeof(char*[argc+2]));
 	memcpy(apk_argv, argv, sizeof(char*[argc]));
