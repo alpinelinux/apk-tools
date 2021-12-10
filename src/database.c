@@ -14,7 +14,6 @@
 #include <libgen.h>
 #include <limits.h>
 #include <unistd.h>
-#include <malloc.h>
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
