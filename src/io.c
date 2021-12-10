@@ -20,6 +20,7 @@
 #include <sys/xattr.h>
 #include <pwd.h>
 #include <grp.h>
+#include <limits.h>
 
 #include "apk_defines.h"
 #include "apk_io.h"
