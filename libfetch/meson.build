@@ -38,6 +38,7 @@ libfetch = static_library(
 	'fetch',
 	libfetch_src,
 	c_args: libfetch_cargs,
+	dependencies: static_deps,
 )
 
 libfetch_dep = declare_dependency(
