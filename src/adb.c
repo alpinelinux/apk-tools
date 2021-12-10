@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
 
