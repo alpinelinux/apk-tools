@@ -34,9 +34,6 @@
 #include "apk_print.h"
 #include "apk_io.h"
 
-static struct list_head apk_applet_list;
-#define foreach_applet(iter) list_for_each_entry(iter, &apk_applet_list, node)
-
 #ifdef TEST_MODE
 static const char *test_installed_db = NULL;
 static const char *test_world = NULL;
@@ -282,20 +279,8 @@ const struct apk_option_group optgroup_commit = {
 static int usage(struct apk_applet *applet)
 {
 	version();
-	apk_help(applet);
+	apk_applet_help(applet);
 	return 1;
-}
-
-static struct apk_applet *find_applet(const char *name)
-{
-	struct apk_applet *a;
-
-	foreach_applet(a) {
-		if (strcmp(name, a->name) == 0)
-			return a;
-	}
-
-	return NULL;
 }
 
 static struct apk_applet *deduce_applet(int argc, char **argv)
@@ -311,11 +296,11 @@ static struct apk_applet *deduce_applet(int argc, char **argv)
 		prog++;
 
 	if (strncmp(prog, "apk_", 4) == 0)
-		return find_applet(prog + 4);
+		return apk_applet_find(prog + 4);
 
 	for (i = 1; i < argc; i++) {
 		if (argv[i][0] == '-') continue;
-		a = find_applet(argv[i]);
+		a = apk_applet_find(argv[i]);
 		if (a) return a;
 	}
 
@@ -432,22 +417,6 @@ static void setup_automatic_flags(void)
 		apk_flags |= APK_INTERACTIVE;
 }
 
-void apk_applet_register(struct apk_applet *applet)
-{
-	list_init(&applet->node);
-	list_add_tail(&applet->node, &apk_applet_list);
-}
-
-static void apk_applet_register_builtin(void)
-{
-	extern apk_init_func_t __start_initapplets[], __stop_initapplets[];
-	apk_init_func_t *p;
-
-	list_init(&apk_applet_list);
-	for (p = __start_initapplets; p < __stop_initapplets; p++)
-		(*p)();
-}
-
 static struct apk_database db;
 
 static void on_sigint(int s)
@@ -468,7 +437,6 @@ int main(int argc, char **argv)
 #ifdef TEST_MODE
 	apk_string_array_init(&test_repos);
 #endif
-	apk_applet_register_builtin();
 
 	apk_argv = malloc(sizeof(char*[argc+2]));
 	memcpy(apk_argv, argv, sizeof(char*[argc]));

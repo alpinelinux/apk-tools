@@ -212,6 +212,7 @@ APK_ARRAY(apk_string_array, char *);
 #define foreach_array_item(iter, array) \
 	for (iter = &(array)->item[0]; iter < &(array)->item[(array)->num]; iter++)
 
+#define LIST_HEAD(name) struct list_head name = { &name, &name }
 #define LIST_END (void *) 0xe01
 #define LIST_POISON1 (void *) 0xdeadbeef
 #define LIST_POISON2 (void *) 0xabbaabba

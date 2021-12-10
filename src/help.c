@@ -10,6 +10,27 @@
 #include "apk_applet.h"
 #include "apk_print.h"
 
+static LIST_HEAD(apk_applet_list);
+
+#define apk_applet_foreach(iter) list_for_each_entry(iter, &apk_applet_list, node)
+
+void apk_applet_register(struct apk_applet *applet)
+{
+	list_init(&applet->node);
+	list_add_tail(&applet->node, &apk_applet_list);
+}
+
+struct apk_applet *apk_applet_find(const char *name)
+{
+	struct apk_applet *a;
+
+	apk_applet_foreach(a) {
+		if (strcmp(name, a->name) == 0)
+			return a;
+	}
+	return NULL;
+}
+
 static inline int is_group(struct apk_applet *applet, const char *topic)
 {
 	if (!applet) return strcasecmp(topic, "apk") == 0;
@@ -19,7 +40,7 @@ static inline int is_group(struct apk_applet *applet, const char *topic)
 	return 0;
 }
 
-void apk_help(struct apk_applet *applet)
+void apk_applet_help(struct apk_applet *applet)
 {
 #include "help.h"
 
