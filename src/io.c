@@ -1187,8 +1187,11 @@ static void idcache_load_users(int root_fd, struct apk_id_hash *idh)
 	do {
 #ifdef HAVE_FGETPWENT_R
 		fgetpwent_r(in, &pwent, buf, sizeof(buf), &pwd);
-#else
+#elif !defined(__APPLE__)
 		pwd = fgetpwent(in);
+#else
+# warning macOS does not support nested /etc/passwd databases, using system one.
+		pwd = getpwent();
 #endif
 		if (!pwd) break;
 		idcache_add(idh, APK_BLOB_STR(pwd->pw_name), pwd->pw_uid);
@@ -1217,8 +1220,11 @@ static void idcache_load_groups(int root_fd, struct apk_id_hash *idh)
 	do {
 #ifdef HAVE_FGETGRENT_R
 		fgetgrent_r(in, &grent, buf, sizeof(buf), &grp);
-#else
+#elif !defined(__APPLE__)
 		grp = fgetgrent(in);
+#else
+# warning macOS does not support nested /etc/group databases, using system one.
+		grp = getgrent();
 #endif
 		if (!grp) break;
 		idcache_add(idh, APK_BLOB_STR(grp->gr_name), grp->gr_gid);
