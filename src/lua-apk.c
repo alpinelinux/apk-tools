@@ -7,7 +7,6 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#include <features.h>
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
