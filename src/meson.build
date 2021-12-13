@@ -158,7 +158,7 @@ if(lua_dep.found())
 	libluaapk = library(
 		'luaapk',
 		luaapk_src,
-		dependencies: [lua_dep, libapk_dep],
+		dependencies: [lua_dep, libapk_dep, shared_deps],
 		install: true,
 		install_dir: lua_dep.get_pkgconfig_variable('libdir'),
 		c_args: apk_cargs,
