@@ -52,7 +52,7 @@ static int fetch_maperror(int ec)
 		/* [FETCH_OK] = , */
 		[FETCH_PROTO] = -EPROTO,
 		[FETCH_RESOLV] = -APKE_DNS,
-		[FETCH_SERVER] = -EREMOTEIO,
+		[FETCH_SERVER] = -APKE_REMOTE_IO,
 		[FETCH_TEMP] = -EAGAIN,
 		[FETCH_TIMEOUT] = -ETIMEDOUT,
 		[FETCH_UNAVAIL] = -ENOENT,

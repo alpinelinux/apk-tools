@@ -27,7 +27,6 @@ const char *apk_error_str(int error)
 	case ECONNABORTED:			return "network connection aborted";
 	case ECONNREFUSED:			return "could not connect to server (check repositories file)";
 	case ENETUNREACH:			return "network error (check Internet connection and firewall)";
-	case EREMOTEIO:				return "remote server returned error (try 'apk update')";
 	case EAGAIN:				return "temporary error (try again later)";
 	case APKE_EOF:				return "unexpected end of file";
 	case APKE_DNS:				return "DNS error (try again later)";
@@ -60,6 +59,7 @@ const char *apk_error_str(int error)
 	case APKE_UVOL_NOT_AVAILABLE:		return "uvol manager not available";
 	case APKE_UVOL_ERROR:			return "uvol error";
 	case APKE_UVOL_ROOT:			return "uvol not supported with --root";
+	case APKE_REMOTE_IO:			return "remote server returned error (try 'apk update')";
 	default:
 		return strerror(error);
 	}

@@ -65,6 +65,7 @@ enum {
 	APKE_UVOL_NOT_AVAILABLE,
 	APKE_UVOL_ERROR,
 	APKE_UVOL_ROOT,
+	APKE_REMOTE_IO,
 };
 
 static inline void *ERR_PTR(long error) { return (void*) error; }
