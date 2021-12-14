@@ -77,7 +77,7 @@ LIBS_apk		:= -lapk
 LIBS_apk-test		:= -lapk
 LIBS_apk.so		:= -L$(obj) -lapk
 
-CFLAGS_ALL		+= -D_ATFILE_SOURCE -Ilibfetch
+CFLAGS_ALL		+= -D_ATFILE_SOURCE -Ilibfetch -Iportability
 CFLAGS_apk.o		:= -DAPK_VERSION=\"$(FULL_VERSION)\"
 CFLAGS_apk-static.o	:= -DAPK_VERSION=\"$(FULL_VERSION)\" -DOPENSSL_NO_ENGINE
 CFLAGS_apk-test.o	:= -DAPK_VERSION=\"$(FULL_VERSION)\" -DOPENSSL_NO_ENGINE -DTEST_MODE
