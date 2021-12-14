@@ -127,8 +127,4 @@ void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to);
 void apk_blob_pull_hexdump(apk_blob_t *b, apk_blob_t to);
 int apk_blob_pull_blob_match(apk_blob_t *b, apk_blob_t match);
 
-#if defined(__GLIBC__) && !defined(__UCLIBC__)
-extern size_t strlcpy(char *dest, const char *src, size_t size);
-#endif
-
 #endif
