@@ -33,6 +33,7 @@ add_project_arguments('-D_FILE_OFFSET_BITS=64', language: 'c')
 subproject = meson.is_subproject()
 
 subdir('doc')
+subdir('portability')
 subdir('libfetch')
 subdir('src')
 subdir('tests')

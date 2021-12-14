@@ -117,6 +117,7 @@ libapk_shared = shared_library(
 	install: not subproject,
 	dependencies: [
 		libfetch_dep,
+		libportability_dep,
 		shared_deps,
 	],
 	c_args: apk_cargs,
@@ -128,6 +129,7 @@ libapk_static = static_library(
 	install: not subproject,
 	dependencies: [
 		libfetch_dep,
+		libportability_dep,
 		static_deps,
 	],
 	c_args: [apk_cargs, '-DOPENSSL_NO_ENGINE'],
@@ -158,7 +160,12 @@ if(lua_dep.found())
 	libluaapk = library(
 		'luaapk',
 		luaapk_src,
-		dependencies: [lua_dep, libapk_dep, shared_deps],
+		dependencies: [
+			lua_dep,
+			libapk_dep,
+			shared_deps,
+			libportability_dep.partial_dependency(includes: true),
+		],
 		install: true,
 		install_dir: lua_dep.get_pkgconfig_variable('libdir'),
 		c_args: apk_cargs,
@@ -173,6 +180,7 @@ apk_exe = executable(
 		libapk_dep,
 		shared_deps,
 		libfetch_dep.partial_dependency(includes: true),
+		libportability_dep.partial_dependency(includes: true),
 	],
 	c_args: apk_cargs,
 )
@@ -185,6 +193,7 @@ if get_option('static_apk')
 		dependencies: [
 			static_deps,
 			libfetch_dep.partial_dependency(includes: true),
+			libportability_dep.partial_dependency(includes: true),
 		],
 		link_with: libapk_static,
 		c_args: [apk_cargs, '-DOPENSSL_NO_ENGINE'],
