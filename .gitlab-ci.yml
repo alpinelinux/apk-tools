@@ -7,7 +7,7 @@ stages:
 variables:
   PACKAGE_ENDPOINT: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/"
 
-test:alpine:
+test-legacy:alpine:
     image: alpine
     stage: test
     script:
@@ -18,7 +18,7 @@ test:alpine:
         - docker-alpine
         - x86_64
 
-test-meson:alpine:
+test:alpine:
     image: alpine
     stage: test
     script:
@@ -35,10 +35,11 @@ test:debian:
     stage: test
     script:
         - apt-get update
-        - apt-get install -y make gcc git libssl-dev zlib1g-dev lua5.3-dev lua5.2 lua-zlib-dev sudo
+        - apt-get install -y make gcc git libssl-dev zlib1g-dev lua5.3-dev lua5.2 lua-zlib-dev sudo meson
         - unlink /bin/sh
         - ln -s /bin/bash /bin/sh
-        - make -j$(nproc) check
+        - meson build
+        - ninja -C build
     tags:
         - docker-alpine
         - x86_64
