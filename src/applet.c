@@ -9,6 +9,7 @@
 #include <zlib.h>
 #include "apk_applet.h"
 #include "apk_print.h"
+#include "help.h"
 
 static LIST_HEAD(apk_applet_list);
 
@@ -31,6 +32,7 @@ struct apk_applet *apk_applet_find(const char *name)
 	return NULL;
 }
 
+#ifndef NO_HELP
 static inline int is_group(struct apk_applet *applet, const char *topic)
 {
 	if (!applet) return strcasecmp(topic, "apk") == 0;
@@ -39,11 +41,10 @@ static inline int is_group(struct apk_applet *applet, const char *topic)
 		if (strcasecmp(applet->optgroups[i]->desc, topic) == 0) return 1;
 	return 0;
 }
+#endif
 
 void apk_applet_help(struct apk_applet *applet, struct apk_out *out)
 {
-#include "help.h"
-
 #ifndef NO_HELP
 	char buf[uncompressed_help_size], *ptr, *msg;
 	unsigned long len = sizeof buf;
