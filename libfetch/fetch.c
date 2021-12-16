@@ -354,7 +354,55 @@ fetchCopyURL(const struct url *src)
 }
 
 /*
- * Split an URL into components. URL syntax is:
+ * Return value of the given hex digit.
+ */
+static int
+fetch_hexval(char ch)
+{
+	if (ch >= '0' && ch <= '9')
+		return (ch - '0');
+	else if (ch >= 'a' && ch <= 'f')
+		return (ch - 'a' + 10);
+	else if (ch >= 'A' && ch <= 'F')
+		return (ch - 'A' + 10);
+	return (-1);
+}
+
+/*
+ * Decode percent-encoded URL component from src into dst, stopping at end
+ * of string or one of the characters contained in brk.  Returns a pointer
+ * to the unhandled part of the input string (null terminator, specified
+ * character).  No terminator is written to dst (it is the caller's
+ * responsibility).
+ */
+static const char *
+fetch_pctdecode(char *dst, const char *src, const char *brk, size_t dlen)
+{
+	int d1, d2;
+	char c;
+	const char *s;
+
+	for (s = src; *s != '\0' && !strchr(brk, *s); s++) {
+		if (s[0] == '%' && (d1 = fetch_hexval(s[1])) >= 0 &&
+		    (d2 = fetch_hexval(s[2])) >= 0 && (d1 > 0 || d2 > 0)) {
+			c = d1 << 4 | d2;
+			s += 2;
+		} else if (s[0] == '%') {
+			/* Invalid escape sequence. */
+			return (NULL);
+		} else {
+			c = *s;
+		}
+		if (!dlen)
+			return NULL;
+		dlen--;
+		*dst++ = c;
+	}
+	return (s);
+}
+
+/*
+ * Split a URL into components. URL syntax is:
  * [method:/][/[user[:pwd]@]host[:port]/][document]
  * This almost, but not quite, RFC1738 URL syntax.
  */
@@ -428,25 +476,25 @@ find_user:
 	p = strpbrk(URL, "/@");
 	if (p != NULL && *p == '@') {
 		/* username */
-		for (q = URL, i = 0; (*q != ':') && (*q != '@'); q++) {
-			if (i >= URL_USERLEN) {
-				url_seterr(URL_BAD_AUTH);
-				goto ouch;
-			}
-			u->user[i++] = *q;
+		q = URL;
+		q = fetch_pctdecode(u->user, q, ":@", URL_USERLEN);
+		if (q == NULL) {
+			url_seterr(URL_BAD_AUTH);
+			goto ouch;
 		}
 
 		/* password */
 		if (*q == ':') {
-			for (q++, i = 0; (*q != '@'); q++) {
-				if (i >= URL_PWDLEN) {
-					url_seterr(URL_BAD_AUTH);
-					goto ouch;
-				}
-				u->pwd[i++] = *q;
+			q = fetch_pctdecode(u->pwd, q + 1, "@", URL_PWDLEN);
+			if (q == NULL) {
+				url_seterr(URL_BAD_AUTH);
+				goto ouch;
 			}
 		}
-
+		if (*q != '@') {
+			url_seterr(URL_BAD_AUTH);
+			goto ouch;
+		}
 		p++;
 	} else {
 		p = URL;
