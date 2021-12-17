@@ -128,6 +128,7 @@ static int uvol_file_control(struct apk_fsdir *d, apk_blob_t filename, int ctrl)
 	struct apk_ctx *ac = d->ac;
 	struct apk_pathbuilder pb;
 	const char *uvol_name;
+	int r;
 
 	if (IS_ERR(ac->uvol)) return PTR_ERR(ac->uvol);
 
@@ -140,6 +141,9 @@ static int uvol_file_control(struct apk_fsdir *d, apk_blob_t filename, int ctrl)
 	case APK_FS_CTRL_APKNEW:
 	case APK_FS_CTRL_CANCEL:
 	case APK_FS_CTRL_DELETE:
+		r = uvol_run(ac, "down", uvol_name, 0, 0);
+		if (r)
+			return r;
 		return uvol_run(ac, "remove", uvol_name, 0, 0);
 	default:
 		return -APKE_UVOL_ERROR;
