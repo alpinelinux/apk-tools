@@ -37,7 +37,7 @@ build-static:
     script:
         - abuild-apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib zlib-static openssl-libs-static
         - make -j$(nproc) static
-        - cp src/apk.static src/apk.static-$ARCH
+        - install -s -m0755 src/apk.static src/apk.static-$ARCH
     parallel:
       matrix:
         - ARCH:
