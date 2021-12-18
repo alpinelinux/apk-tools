@@ -33,7 +33,7 @@ test:debian:
 
 build-static:
     stage: build
-    image: alpinelinux/build-base
+    image: alpinelinux/build-base:latest-$ARCH
     script:
         - abuild-apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib zlib-static openssl-libs-static
         - make -j$(nproc) static
