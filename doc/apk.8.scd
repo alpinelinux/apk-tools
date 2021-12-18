@@ -150,6 +150,9 @@ The following options are available for all commands.
 *--no-progress*
 	Disable progress bar even for TTYs.
 
+*--preserve-env*
+	Pass user environment down to scripts.
+
 *--print-arch*
 	Print default arch and exit.
 

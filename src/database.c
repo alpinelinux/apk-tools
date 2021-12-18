@@ -1873,7 +1873,7 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 	struct apk_out *out = &db->ctx->out;
 	int status;
 	pid_t pid;
-	static char * const environment[] = {
+	static char * const clean_environment[] = {
 		"PATH=/usr/sbin:/usr/bin:/sbin:/bin",
 		NULL
 	};
@@ -1896,7 +1896,7 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 			exit(127);
 		}
 
-		execve(fn, argv, environment);
+		execve(fn, argv, (db->ctx->flags & APK_PRESERVE_ENV) ? environ : clean_environment);
 		exit(127); /* should not get here */
 	}
 	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);

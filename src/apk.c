@@ -74,6 +74,7 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_no_logfile,		"no-logfile") \
 	OPT(OPT_GLOBAL_no_network,		"no-network") \
 	OPT(OPT_GLOBAL_no_progress,		"no-progress") \
+	OPT(OPT_GLOBAL_preserve_env,		"preserve-env") \
 	OPT(OPT_GLOBAL_print_arch,		"print-arch") \
 	OPT(OPT_GLOBAL_progress,		"progress") \
 	OPT(OPT_GLOBAL_progress_fd,		APK_OPT_ARG "progress-fd") \
@@ -154,6 +155,9 @@ static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const cha
 		break;
 	case OPT_GLOBAL_interactive:
 		ac->flags |= APK_INTERACTIVE;
+		break;
+	case OPT_GLOBAL_preserve_env:
+		ac->flags |= APK_PRESERVE_ENV;
 		break;
 	case OPT_GLOBAL_progress:
 		ac->progress.out = &ac->out;
