@@ -26,6 +26,7 @@ struct list_ctx {
 	unsigned int match_origin : 1;
 	unsigned int match_depends : 1;
 	unsigned int match_providers : 1;
+	unsigned int manifest : 1;
 
 	struct apk_string_array *filters;
 };
@@ -121,6 +122,11 @@ static void print_package(const struct apk_package *pkg, const struct list_ctx *
 	printf("\n");
 }
 
+static void print_manifest(const struct apk_package *pkg, const struct list_ctx *ctx)
+{
+	printf("%s " BLOB_FMT "\n", pkg->name->name, BLOB_PRINTF(*pkg->version));
+}
+
 static void filter_package(const struct apk_package *pkg, const struct list_ctx *ctx)
 {
 	if (ctx->match_origin && !origin_matches(ctx, pkg))
@@ -138,7 +144,10 @@ static void filter_package(const struct apk_package *pkg, const struct list_ctx 
 	if (ctx->upgradable && !is_upgradable(pkg->name, pkg))
 		return;
 
-	print_package(pkg, ctx);
+	if (ctx->manifest)
+		print_manifest(pkg, ctx);
+	else
+		print_package(pkg, ctx);
 }
 
 static void iterate_providers(const struct apk_name *name, const struct list_ctx *ctx)
@@ -180,6 +189,7 @@ static void print_result(struct apk_database *db, const char *match, struct apk_
 	OPT(OPT_LIST_orphaned,		APK_OPT_SH("O") "orphaned") \
 	OPT(OPT_LIST_providers,		APK_OPT_SH("P") "providers") \
 	OPT(OPT_LIST_upgradable,	APK_OPT_SH("u") "upgradable") \
+	OPT(OPT_LIST_manifest,		"manifest") \
 	OPT(OPT_LIST_upgradeable,	"upgradeable")
 
 APK_OPT_APPLET(option_desc, LIST_OPTIONS);
@@ -208,6 +218,10 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 		break;
 	case OPT_LIST_providers:
 		ctx->match_providers = 1;
+		break;
+	case OPT_LIST_manifest:
+		ctx->manifest = 1;
+		ctx->installed = 1;
 		break;
 	case OPT_LIST_upgradable:
 	case OPT_LIST_upgradeable:

@@ -38,3 +38,6 @@ globbing.
 
 *-P, --providers*
 	List packages by provider.
+
+*--manifest*
+	List installed packages in format `<name> <version>`.
