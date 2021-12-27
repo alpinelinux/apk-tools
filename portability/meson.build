@@ -7,6 +7,8 @@ libportability_src = []
 check_functions = [
 	['memrchr', 'memrchr.c', 'NEED_MEMRCHR', 'string.h'],
 	['strlcpy', 'strlcpy.c', 'NEED_STRLCPY', 'string.h'],
+	['pipe2', 'pipe2.c', 'NEED_PIPE2', 'unistd.h'],
+	['mknodat', 'mknodat.c', 'NEED_MKNODAT', 'sys/stat.h'],
 ]
 
 
