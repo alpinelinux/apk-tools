@@ -183,13 +183,13 @@ static void print_result(struct apk_database *db, const char *match, struct apk_
 
 #define LIST_OPTIONS(OPT) \
 	OPT(OPT_LIST_available,		APK_OPT_SH("a") "available") \
-	OPT(OPT_LIST_installed,		APK_OPT_SH("I") "installed") \
 	OPT(OPT_LIST_depends,		APK_OPT_SH("d") "depends") \
+	OPT(OPT_LIST_installed,		APK_OPT_SH("I") "installed") \
+	OPT(OPT_LIST_manifest,		"manifest") \
 	OPT(OPT_LIST_origin,		APK_OPT_SH("o") "origin") \
 	OPT(OPT_LIST_orphaned,		APK_OPT_SH("O") "orphaned") \
 	OPT(OPT_LIST_providers,		APK_OPT_SH("P") "providers") \
 	OPT(OPT_LIST_upgradable,	APK_OPT_SH("u") "upgradable") \
-	OPT(OPT_LIST_manifest,		"manifest") \
 	OPT(OPT_LIST_upgradeable,	"upgradeable")
 
 APK_OPT_APPLET(option_desc, LIST_OPTIONS);
@@ -203,11 +203,15 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 		ctx->available = 1;
 		ctx->orphaned = 0;
 		break;
+	case OPT_LIST_depends:
+		ctx->match_depends = 1;
+		break;
 	case OPT_LIST_installed:
 		ctx->installed = 1;
 		break;
-	case OPT_LIST_depends:
-		ctx->match_depends = 1;
+	case OPT_LIST_manifest:
+		ctx->manifest = 1;
+		ctx->installed = 1;
 		break;
 	case OPT_LIST_origin:
 		ctx->match_origin = 1;
@@ -218,10 +222,6 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 		break;
 	case OPT_LIST_providers:
 		ctx->match_providers = 1;
-		break;
-	case OPT_LIST_manifest:
-		ctx->manifest = 1;
-		ctx->installed = 1;
 		break;
 	case OPT_LIST_upgradable:
 	case OPT_LIST_upgradeable:

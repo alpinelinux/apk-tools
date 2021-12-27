@@ -18,26 +18,26 @@ globbing.
 
 # OPTIONS
 
-*-I, --installed*
-	Consider only installed packages.
-
-*-O, --orphaned*
-	Consider only orphaned packages.
-
 *-a, --available*
 	Consider only available packages.
-
-*-u, --upgradable, --upgradeable*
-	Consider only upgradable packages.
-
-*-o, --origin*
-	List packages by origin.
 
 *-d, --depends*
 	List packages by dependency.
 
-*-P, --providers*
-	List packages by provider.
+*-I, --installed*
+	Consider only installed packages.
 
 *--manifest*
 	List installed packages in format `<name> <version>`.
+
+*-o, --origin*
+	List packages by origin.
+
+*-O, --orphaned*
+	Consider only orphaned packages.
+
+*-P, --providers*
+	List packages by provider.
+
+*-u, --upgradable, --upgradeable*
+	Consider only upgradable packages.
