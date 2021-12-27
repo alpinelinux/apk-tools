@@ -462,9 +462,12 @@ struct apk_istream *apk_istream_tee(struct apk_istream *from, struct apk_ostream
 err_free:
 	free(tee);
 err:
-	if (!IS_ERR(to)) apk_ostream_close(to);
-	if (!IS_ERR(from) && (flags & APK_ISTREAM_TEE_OPTIONAL))
-		return from;
+	if (!IS_ERR(to)) {
+		apk_ostream_cancel(to, r);
+		apk_ostream_close(to);
+	}
+	if (IS_ERR(from)) return ERR_CAST(from);
+	if (flags & APK_ISTREAM_TEE_OPTIONAL) return from;
 	return ERR_PTR(apk_istream_close_error(from, r));
 }
 
