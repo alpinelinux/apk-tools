@@ -68,14 +68,10 @@ static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependenc
 		apk_msg(out, "World updated, but the following packages are not removed due to:");
 		ctx->header = 1;
 	}
-	if (!ctx->indent.indent) {
-		ctx->indent.x = printf("  %s:", ctx->name->name);
-		ctx->indent.indent = ctx->indent.x + 1;
-	}
-
-	if (name_in_world(pkg0->name)) {
+	if (!ctx->indent.indent)
+		apk_print_indented_group(&ctx->indent, 0, "  %s:", ctx->name->name);
+	if (name_in_world(pkg0->name))
 		apk_print_indented(&ctx->indent, APK_BLOB_STR(pkg0->name->name));
-	}
 	foreach_array_item(d, pkg0->provides) {
 		if (!name_in_world(d->name)) continue;
 		apk_print_indented(&ctx->indent, APK_BLOB_STR(d->name->name));
@@ -98,14 +94,13 @@ static void print_not_deleted_name(struct apk_database *db, const char *match,
 	struct not_deleted_ctx *ctx = (struct not_deleted_ctx *) pctx;
 	struct apk_provider *p;
 
-	ctx->indent = (struct apk_indent) { .out = out };
 	ctx->name = name;
 	ctx->matches = apk_foreach_genid() | APK_FOREACH_MARKED | APK_DEP_SATISFIES;
+	apk_print_indented_init(&ctx->indent, out, 0);
 	foreach_array_item(p, name->providers)
 		if (p->pkg->marked)
 			print_not_deleted_pkg(p->pkg, NULL, NULL, ctx);
-	if (ctx->indent.indent)
-		printf("\n");
+	apk_print_indented_end(&ctx->indent);
 }
 
 static void delete_pkg(struct apk_package *pkg0, struct apk_dependency *dep0,

@@ -133,14 +133,13 @@ static int dump_packages(struct apk_out *out, struct apk_changeset *changeset,
 {
 	struct apk_change *change;
 	struct apk_name *name;
-	struct apk_indent indent = { .out = out, .indent = 2 };
+	struct apk_indent indent;
 	int match = 0;
 
+	apk_print_indented_init(&indent, out, 0);
 	foreach_array_item(change, changeset->changes) {
-		if (!cmp(change))
-			continue;
-		if (match == 0)
-			printf("%s:\n", msg);
+		if (!cmp(change)) continue;
+		if (!match) apk_print_indented_group(&indent, 2, "%s:\n", msg);
 		if (change->new_pkg != NULL)
 			name = change->new_pkg->name;
 		else
@@ -149,8 +148,7 @@ static int dump_packages(struct apk_out *out, struct apk_changeset *changeset,
 		apk_print_indented(&indent, APK_BLOB_STR(name->name));
 		match++;
 	}
-	if (match)
-		printf("\n");
+	apk_print_indented_end(&indent);
 	return match;
 }
 
@@ -308,11 +306,11 @@ int apk_solver_commit_changeset(struct apk_database *db,
 					   "The following packages will be reinstalled");
 			if (download_size) {
 				size_unit = apk_get_human_size(download_size, &humanized);
-				printf("Need to download %lld %s of packages.\n",
+				apk_msg(out, "Need to download %lld %s of packages.",
 					(long long)humanized, size_unit);
 			}
 			size_unit = apk_get_human_size(llabs(size_diff), &humanized);
-			printf("After this operation, %lld %s of %s.\n",
+			apk_msg(out, "After this operation, %lld %s of %s.",
 				(long long)humanized,
 				size_unit,
 				(size_diff < 0) ?
@@ -405,22 +403,15 @@ struct print_state {
 static void label_start(struct print_state *ps, const char *text)
 {
 	if (ps->label) {
-		printf("  %s:\n", ps->label);
+		apk_print_indented_line(&ps->i, "  %s:\n", ps->label);
 		ps->label = NULL;
-		ps->i.x = ps->i.indent = 0;
 		ps->num_labels++;
 	}
-	if (ps->i.x == 0) {
-		ps->i.x = printf("    %s", text);
-		ps->i.indent = ps->i.x + 1;
-	}
+	if (!ps->i.x) apk_print_indented_group(&ps->i, 0, "    %s", text);
 }
 static void label_end(struct print_state *ps)
 {
-	if (ps->i.x != 0) {
-		printf("\n");
-		ps->i.x = ps->i.indent = 0;
-	}
+	apk_print_indented_end(&ps->i);
 }
 
 static void print_pinning_errors(struct print_state *ps, struct apk_package *pkg, unsigned int tag)
@@ -653,8 +644,6 @@ void apk_solver_print_errors(struct apk_database *db,
 	 * any other selected version. or all of them with -v.
 	 */
  
-	apk_err(out, "unable to select packages:");
-
 	/* Construct information about names */
 	foreach_array_item(change, changeset->changes) {
 		struct apk_package *pkg = change->new_pkg;
@@ -668,10 +657,11 @@ void apk_solver_print_errors(struct apk_database *db,
 
 	/* Analyze is package, and missing names referred to */
 	ps = (struct print_state) {
-		.i.out = out,
 		.db = db,
 		.world = world,
 	};
+	apk_err(out, "unable to select packages:");
+	apk_print_indented_init(&ps.i, out, 1);
 	analyze_deps(&ps, world);
 	foreach_array_item(change, changeset->changes) {
 		struct apk_package *pkg = change->new_pkg;
@@ -681,8 +671,8 @@ void apk_solver_print_errors(struct apk_database *db,
 		analyze_deps(&ps, pkg->depends);
 	}
 
-	if (ps.num_labels == 0)
-		printf("  Huh? Error reporter did not find the broken constraints.\n");
+	if (!ps.num_labels)
+		apk_print_indented_line(&ps.i, "Huh? Error reporter did not find the broken constraints.\n");
 }
 
 int apk_solver_commit(struct apk_database *db,

@@ -9,6 +9,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -222,16 +223,52 @@ void apk_print_progress(struct apk_progress *p, size_t done, size_t total)
 	fputs("\e8\e[0K", out);
 }
 
+void apk_print_indented_init(struct apk_indent *i, struct apk_out *out, int err)
+{
+	*i = (struct apk_indent) {
+		.f = err ? out->err : out->out,
+		.width = apk_out_get_width(out),
+	};
+	out->last_change++;
+}
+
+void apk_print_indented_line(struct apk_indent *i, const char *fmt, ...)
+{
+	va_list va;
+
+	va_start(va, fmt);
+	vfprintf(i->f, fmt, va);
+	va_end(va);
+	i->x = i->indent = 0;
+}
+
+void apk_print_indented_group(struct apk_indent *i, int indent, const char *fmt, ...)
+{
+	va_list va;
+
+	va_start(va, fmt);
+	i->x = vfprintf(i->f, fmt, va);
+	i->indent = indent ?: (i->x + 1);
+	if (fmt[strlen(fmt)-1] == '\n') i->x = 0;
+	va_end(va);
+}
+
+void apk_print_indented_end(struct apk_indent *i)
+{
+	if (i->x) {
+		fprintf(i->f, "\n");
+		i->x = i->indent = 0;
+	}
+}
+
 int apk_print_indented(struct apk_indent *i, apk_blob_t blob)
 {
-	FILE *out = i->out->out;
 	if (i->x <= i->indent)
-		i->x += fprintf(out, "%*s" BLOB_FMT, i->indent - i->x, "", BLOB_PRINTF(blob));
-	else if (i->x + blob.len + 1 >= apk_out_get_width(i->out))
-		i->x = fprintf(out, "\n%*s" BLOB_FMT, i->indent, "", BLOB_PRINTF(blob)) - 1;
+		i->x += fprintf(i->f, "%*s" BLOB_FMT, i->indent - i->x, "", BLOB_PRINTF(blob));
+	else if (i->x + blob.len + 1 >= i->width)
+		i->x = fprintf(i->f, "\n%*s" BLOB_FMT, i->indent, "", BLOB_PRINTF(blob)) - 1;
 	else
-		i->x += fprintf(out, " " BLOB_FMT, BLOB_PRINTF(blob));
-	i->out->last_change++;
+		i->x += fprintf(i->f, " " BLOB_FMT, BLOB_PRINTF(blob));
 	return 0;
 }
 
