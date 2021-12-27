@@ -26,6 +26,9 @@ static_deps = [
 
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
 
+# Needed for 64-bit off_t and friends on glibc.
+add_project_arguments('-D_FILE_OFFSET_BITS=64', language: 'c')
+
 # If we're a subproject we only want the static lib and not files
 subproject = meson.is_subproject()
 
