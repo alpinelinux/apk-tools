@@ -1554,7 +1554,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			apk_msg(out, "Waiting for repository lock");
 			memset(&sa, 0, sizeof sa);
 			sa.sa_handler = handle_alarm;
-			sa.sa_flags   = SA_ONESHOT;
+			sa.sa_flags   = SA_RESETHAND;
 			sigaction(SIGALRM, &sa, &old_sa);
 
 			alarm(ac->lock_wait);
