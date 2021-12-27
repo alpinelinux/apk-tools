@@ -721,7 +721,7 @@ void apk_fileinfo_hash_xattr(struct apk_file_info *fi)
 int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		     struct apk_file_info *fi, struct apk_atom_pool *atoms)
 {
-	struct stat64 st;
+	struct stat st;
 	unsigned int checksum = flags & 0xff;
 	unsigned int xattr_checksum = (flags >> 8) & 0xff;
 	int atflags = 0;
@@ -732,7 +732,7 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 	if (flags & APK_FI_NOFOLLOW)
 		atflags |= AT_SYMLINK_NOFOLLOW;
 
-	if (fstatat64(atfd, filename, &st, atflags) != 0)
+	if (fstatat(atfd, filename, &st, atflags) != 0)
 		return -errno;
 
 	*fi = (struct apk_file_info) {
