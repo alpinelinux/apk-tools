@@ -9,6 +9,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -66,81 +67,6 @@ const char *apk_get_human_size(off_t size, off_t *dest)
 
 	if (dest) *dest = s;
 	return apk_size_units[min(i, ARRAY_SIZE(apk_size_units) - 1)];
-}
-
-void apk_print_progress(size_t done, size_t total)
-{
-	static size_t last_done = 0;
-	static int last_bar = 0, last_percent = 0;
-	int bar_width;
-	int bar = 0;
-	char buf[64]; /* enough for petabytes... */
-	int i, percent = 0;
-
-	if (last_done == done && !apk_progress_force)
-		return;
-
-	if (apk_progress_fd != 0) {
-		i = snprintf(buf, sizeof(buf), "%zu/%zu\n", done, total);
-		write(apk_progress_fd, buf, i);
-	}
-	last_done = done;
-
-	if (!(apk_flags & APK_PROGRESS))
-		return;
-
-	bar_width = apk_get_screen_width() - 6;
-	if (total > 0) {
-		bar = muldiv(bar_width, done, total);
-		percent = muldiv(100, done, total);
-	}
-
-	if (bar  == last_bar && percent == last_percent && !apk_progress_force)
-		return;
-
-	last_bar = bar;
-	last_percent = percent;
-	apk_progress_force = 0;
-
-	fprintf(stdout, "\e7%3i%% ", percent);
-
-	for (i = 0; i < bar; i++)
-		fputs(apk_progress_char, stdout);
-	for (; i < bar_width; i++)
-		fputc(' ', stdout);
-
-	fflush(stdout);
-	fputs("\e8\e[0K", stdout);
-}
-
-int apk_print_indented(struct apk_indent *i, apk_blob_t blob)
-{
-	if (i->x <= i->indent)
-		i->x += printf("%*s" BLOB_FMT, i->indent - i->x, "", BLOB_PRINTF(blob));
-	else if (i->x + blob.len + 1 >= apk_get_screen_width())
-		i->x = printf("\n%*s" BLOB_FMT, i->indent, "", BLOB_PRINTF(blob)) - 1;
-	else
-		i->x += printf(" " BLOB_FMT, BLOB_PRINTF(blob));
-	apk_progress_force = 1;
-	return 0;
-}
-
-void apk_print_indented_words(struct apk_indent *i, const char *text)
-{
-	apk_blob_for_each_segment(APK_BLOB_STR(text), " ",
-		(apk_blob_cb) apk_print_indented, i);
-}
-
-void apk_print_indented_fmt(struct apk_indent *i, const char *fmt, ...)
-{
-	char tmp[256];
-	size_t n;
-	va_list va;
-
-	va_start(va, fmt);
-	n = vsnprintf(tmp, sizeof(tmp), fmt, va);
-	apk_print_indented(i, APK_BLOB_PTR_LEN(tmp, n));
-	va_end(va);
 }
 
 const char *apk_error_str(int error)
@@ -241,4 +167,116 @@ void apk_url_parse(struct apk_url_print *urlp, const char *url)
 		.url_or_host = path_or_host,
 		.len_before_pw = pw - url + 1,
 	};
+}
+
+void apk_print_progress(size_t done, size_t total)
+{
+	static size_t last_done = 0;
+	static int last_bar = 0, last_percent = 0;
+	int bar_width;
+	int bar = 0;
+	char buf[64]; /* enough for petabytes... */
+	int i, percent = 0;
+
+	if (last_done == done && !apk_progress_force)
+		return;
+
+	if (apk_progress_fd != 0) {
+		i = snprintf(buf, sizeof(buf), "%zu/%zu\n", done, total);
+		write(apk_progress_fd, buf, i);
+	}
+	last_done = done;
+
+	if (!(apk_flags & APK_PROGRESS))
+		return;
+
+	bar_width = apk_get_screen_width() - 6;
+	if (total > 0) {
+		bar = muldiv(bar_width, done, total);
+		percent = muldiv(100, done, total);
+	}
+
+	if (bar  == last_bar && percent == last_percent && !apk_progress_force)
+		return;
+
+	last_bar = bar;
+	last_percent = percent;
+	apk_progress_force = 0;
+
+	fprintf(stdout, "\e7%3i%% ", percent);
+
+	for (i = 0; i < bar; i++)
+		fputs(apk_progress_char, stdout);
+	for (; i < bar_width; i++)
+		fputc(' ', stdout);
+
+	fflush(stdout);
+	fputs("\e8\e[0K", stdout);
+}
+
+void apk_print_indented_init(struct apk_indent *i, int err)
+{
+	*i = (struct apk_indent) {
+		.f = err ? stderr : stdout,
+		.width = apk_get_screen_width(),
+	};
+	apk_progress_force = 1;
+}
+
+void apk_print_indented_line(struct apk_indent *i, const char *fmt, ...)
+{
+	va_list va;
+
+	va_start(va, fmt);
+	vfprintf(i->f, fmt, va);
+	va_end(va);
+	i->x = i->indent = 0;
+}
+
+void apk_print_indented_group(struct apk_indent *i, int indent, const char *fmt, ...)
+{
+	va_list va;
+
+	va_start(va, fmt);
+	i->x = vfprintf(i->f, fmt, va);
+	i->indent = indent ?: (i->x + 1);
+	if (fmt[strlen(fmt)-1] == '\n') i->x = 0;
+	va_end(va);
+}
+
+void apk_print_indented_end(struct apk_indent *i)
+{
+	if (i->x) {
+		fprintf(i->f, "\n");
+		i->x = i->indent = 0;
+	}
+}
+
+int apk_print_indented(struct apk_indent *i, apk_blob_t blob)
+{
+	if (i->x <= i->indent)
+		i->x += fprintf(i->f, "%*s" BLOB_FMT, i->indent - i->x, "", BLOB_PRINTF(blob));
+	else if (i->x + blob.len + 1 >= i->width)
+		i->x = fprintf(i->f, "\n%*s" BLOB_FMT, i->indent, "", BLOB_PRINTF(blob)) - 1;
+	else
+		i->x += fprintf(i->f, " " BLOB_FMT, BLOB_PRINTF(blob));
+	return 0;
+}
+
+void apk_print_indented_words(struct apk_indent *i, const char *text)
+{
+	apk_blob_for_each_segment(APK_BLOB_STR(text), " ",
+		(apk_blob_cb) apk_print_indented, i);
+}
+
+void apk_print_indented_fmt(struct apk_indent *i, const char *fmt, ...)
+{
+	char tmp[256];
+	size_t n;
+	va_list va;
+
+	va_start(va, fmt);
+	n = vsnprintf(tmp, sizeof(tmp), fmt, va);
+	apk_print_indented(i, APK_BLOB_PTR_LEN(tmp, n));
+	va_end(va);
 }

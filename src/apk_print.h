@@ -41,11 +41,16 @@ int apk_get_screen_width(void);
 const char *apk_get_human_size(off_t size, off_t *dest);
 
 struct apk_indent {
-	int x;
-	int indent;
+	FILE *f;
+	unsigned int x, indent, width;
 };
 
 void apk_print_progress(size_t done, size_t total);
+
+void apk_print_indented_init(struct apk_indent *i, int err);
+void apk_print_indented_line(struct apk_indent *i, const char *fmt, ...);
+void apk_print_indented_group(struct apk_indent *i, int indent, const char *fmt, ...);
+void apk_print_indented_end(struct apk_indent *i);
 int  apk_print_indented(struct apk_indent *i, apk_blob_t blob);
 void apk_print_indented_words(struct apk_indent *i, const char *text);
 void apk_print_indented_fmt(struct apk_indent *i, const char *fmt, ...)
