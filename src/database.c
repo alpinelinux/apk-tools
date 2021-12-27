@@ -1338,12 +1338,12 @@ static void handle_alarm(int sig)
 static char *find_mountpoint(int atfd, const char *rel_path)
 {
 	struct mntent *me;
-	struct stat64 st;
+	struct stat st;
 	FILE *f;
 	char *ret = NULL;
 	dev_t dev;
 
-	if (fstatat64(atfd, rel_path, &st, 0) != 0)
+	if (fstatat(atfd, rel_path, &st, 0) != 0)
 		return NULL;
 	dev = st.st_dev;
 
@@ -1353,7 +1353,7 @@ static char *find_mountpoint(int atfd, const char *rel_path)
 	while ((me = getmntent(f)) != NULL) {
 		if (strcmp(me->mnt_fsname, "rootfs") == 0)
 			continue;
-		if (fstatat64(atfd, me->mnt_dir, &st, 0) == 0 &&
+		if (fstatat(atfd, me->mnt_dir, &st, 0) == 0 &&
 		    st.st_dev == dev) {
 			ret = strdup(me->mnt_dir);
 			break;
