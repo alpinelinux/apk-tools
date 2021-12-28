@@ -756,6 +756,25 @@ int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 	return apk_ipkg_assign_script(ipkg, type, apk_blob_from_istream(is, size));
 }
 
+#ifdef __linux__
+static inline void make_device_tree(struct apk_database *db)
+{
+	if (faccessat(db->root_fd, "dev", F_OK, 0) == 0) return;
+
+	mkdirat(db->root_fd, "dev", 0755);
+	mknodat(db->root_fd, "dev/null", S_IFCHR | 0666, makedev(1, 3));
+	mknodat(db->root_fd, "dev/zero", S_IFCHR | 0666, makedev(1, 5));
+	mknodat(db->root_fd, "dev/random", S_IFCHR | 0666, makedev(1, 8));
+	mknodat(db->root_fd, "dev/urandom", S_IFCHR | 0666, makedev(1, 9));
+	mknodat(db->root_fd, "dev/console", S_IFCHR | 0600, makedev(5, 1));
+}
+#else
+static inline void make_device_tree(struct apk_database *db)
+{
+	(void) db;
+}
+#endif
+
 void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 			 struct apk_database *db,
 			 unsigned int type, char **argv)
@@ -782,14 +801,7 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		db->script_dirs_checked = 1;
 		if (faccessat(db->root_fd, "tmp", F_OK, 0) != 0)
 			mkdirat(db->root_fd, "tmp", 01777);
-		if (faccessat(db->root_fd, "dev", F_OK, 0) != 0) {
-			mkdirat(db->root_fd, "dev", 0755);
-			mknodat(db->root_fd, "dev/null", S_IFCHR | 0666, makedev(1, 3));
-			mknodat(db->root_fd, "dev/zero", S_IFCHR | 0666, makedev(1, 5));
-			mknodat(db->root_fd, "dev/random", S_IFCHR | 0666, makedev(1, 8));
-			mknodat(db->root_fd, "dev/urandom", S_IFCHR | 0666, makedev(1, 9));
-			mknodat(db->root_fd, "dev/console", S_IFCHR | 0600, makedev(5, 1));
-		}
+		make_device_tree(db);
 		if (faccessat(db->root_fd, "var/cache/misc", F_OK, 0) != 0) {
 			mkdirat(root_fd, "var", 0755);
 			mkdirat(root_fd, "var/cache", 0755);
