@@ -1,3 +1,4 @@
+build/
 src/apk
 src/apk-test
 src/apk.static
