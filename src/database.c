@@ -1544,6 +1544,37 @@ static void remount_cache(struct apk_database *db)
 		db->cache_remount_dir = NULL;
 	}
 }
+
+static int mount_proc(struct apk_database *db)
+{
+	struct statfs stfs;
+
+	/* mount /proc */
+	if (asprintf(&db->root_proc_dir, "%s/proc", db->ctx->root) == -1)
+		return -1;
+	if (statfs(db->root_proc_dir, &stfs) != 0) {
+		if (errno == ENOENT) mkdir(db->root_proc_dir, 0555);
+		stfs.f_type = 0;
+	}
+	if (stfs.f_type != PROC_SUPER_MAGIC) {
+		mount("proc", db->root_proc_dir, "proc", 0, 0);
+	} else {
+		/* was already mounted. prevent umount on close */
+		free(db->root_proc_dir);
+		db->root_proc_dir = NULL;
+	}
+
+	return 0;
+}
+
+static void unmount_proc(struct apk_database *db)
+{
+	if (db->root_proc_dir) {
+		umount2(db->root_proc_dir, MNT_DETACH|UMOUNT_NOFOLLOW);
+		free(db->root_proc_dir);
+		db->root_proc_dir = NULL;
+	}
+}
 #else
 static int detect_tmpfs_root(struct apk_database *db)
 {
@@ -1557,6 +1588,17 @@ static int setup_cache(struct apk_database *db, struct apk_ctx *ac)
 }
 
 static void remount_cache(struct apk_database *db)
+{
+	(void) db;
+}
+
+static int mount_proc(struct apk_database *db)
+{
+	(void) db;
+	return 0;
+}
+
+static void unmount_proc(struct apk_database *db)
 {
 	(void) db;
 }
@@ -1646,20 +1688,8 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			sigaction(SIGALRM, &old_sa, NULL);
 		}
 
-		/* mount /proc */
-		if (asprintf(&db->root_proc_dir, "%s/proc", db->ctx->root) == -1)
+		if (mount_proc(db) < 0)
 			goto ret_errno;
-		if (statfs(db->root_proc_dir, &stfs) != 0) {
-			if (errno == ENOENT) mkdir(db->root_proc_dir, 0555);
-			stfs.f_type = 0;
-		}
-		if (stfs.f_type != PROC_SUPER_MAGIC) {
-			mount("proc", db->root_proc_dir, "proc", 0, 0);
-		} else {
-			/* was already mounted. prevent umount on close */
-			free(db->root_proc_dir);
-			db->root_proc_dir = NULL;
-		}
 	}
 
 	blob = APK_BLOB_STR("+etc\n" "@etc/init.d\n" "!etc/apk\n");
@@ -1827,12 +1857,7 @@ void apk_db_close(struct apk_database *db)
 	apk_hash_free(&db->installed.dirs);
 	apk_atom_free(&db->atoms);
 
-	if (db->root_proc_dir) {
-		umount2(db->root_proc_dir, MNT_DETACH|UMOUNT_NOFOLLOW);
-		free(db->root_proc_dir);
-		db->root_proc_dir = NULL;
-	}
-
+	unmount_proc(db);
 	remount_cache(db);
 
 	if (db->cache_fd > 0) close(db->cache_fd);
