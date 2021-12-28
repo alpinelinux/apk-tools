@@ -1462,6 +1462,31 @@ static int apk_db_name_rdepends(apk_hash_item item, void *pctx)
 	return 0;
 }
 
+static inline int setup_static_cache(struct apk_database *db, struct apk_ctx *ac)
+{
+	db->cache_dir = apk_static_cache_dir;
+	db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
+	if (db->cache_fd < 0) {
+		mkdirat(db->root_fd, "var", 0755);
+		mkdirat(db->root_fd, "var/cache", 0755);
+		mkdirat(db->root_fd, "var/cache/apk", 0755);
+		db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
+		if (db->cache_fd < 0) {
+			if (ac->open_flags & APK_OPENF_WRITE) return -EROFS;
+			db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
+		}
+	}
+
+	return 0;
+}
+
+#ifdef __linux__
+static int detect_tmpfs_root(struct apk_database *db)
+{
+	struct statfs stfs;
+
+	return fstatfs(db->root_fd, &stfs) == 0 && stfs.f_type == TMPFS_MAGIC;
+}
 
 static unsigned long map_statfs_flags(unsigned long f_flag)
 {
@@ -1479,6 +1504,49 @@ static unsigned long map_statfs_flags(unsigned long f_flag)
 	if (f_flag & ST_MANDLOCK) mnt_flags |= ST_MANDLOCK;
 	return mnt_flags;
 }
+
+static int setup_cache(struct apk_database *db, struct apk_ctx *ac)
+{
+	struct apk_out *out = &ac->out;
+	int fd;
+	struct statfs stfs;
+
+	fd = openat(db->root_fd, ac->cache_dir, O_RDONLY | O_CLOEXEC);
+	if (fd >= 0 && fstatfs(fd, &stfs) == 0) {
+		db->cache_dir = ac->cache_dir;
+		db->cache_fd = fd;
+		db->cache_remount_flags = map_statfs_flags(stfs.f_flags);
+		if ((ac->open_flags & (APK_OPENF_WRITE | APK_OPENF_CACHE_WRITE)) &&
+		    (db->cache_remount_flags & MS_RDONLY) != 0) {
+			/* remount cache read/write */
+			db->cache_remount_dir = find_mountpoint(db->root_fd, db->cache_dir);
+			if (db->cache_remount_dir == NULL) {
+				apk_warn(out, "Unable to find cache directory mount point");
+			} else if (mount(0, db->cache_remount_dir, 0, MS_REMOUNT | (db->cache_remount_flags & ~MS_RDONLY), 0) != 0) {
+				free(db->cache_remount_dir);
+				db->cache_remount_dir = NULL;
+				return -EROFS;
+			}
+		}
+	} else {
+		if (fd >= 0) close(fd);
+		if (setup_static_cache(db, ac) < 0) return -EROFS;
+	}
+
+	return 0;
+}
+#else
+static int detect_tmpfs_root(struct apk_database *db)
+{
+	(void) db;
+	return 0;
+}
+
+static int setup_cache(struct apk_database *db, struct apk_ctx *ac)
+{
+	return setup_static_cache(db, ac);
+}
+#endif
 
 void apk_db_init(struct apk_database *db)
 {
@@ -1500,9 +1568,8 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 {
 	struct apk_out *out = &ac->out;
 	const char *msg = NULL;
-	struct statfs stfs;
 	apk_blob_t blob;
-	int r, fd;
+	int r;
 
 	apk_default_acl_dir = apk_db_acl_atomize(db, 0755, 0, 0);
 	apk_default_acl_file = apk_db_acl_atomize(db, 0644, 0, 0);
@@ -1520,10 +1587,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 
 	apk_db_setup_repositories(db, ac->cache_dir);
 	db->root_fd = apk_ctx_fd_root(ac);
-
-	if (fstatfs(db->root_fd, &stfs) == 0 &&
-	    stfs.f_type == TMPFS_MAGIC)
-		db->permanent = 0;
+	db->permanent = !detect_tmpfs_root(db);
 
 	if (ac->root && ac->arch) {
 		db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(ac->arch));
@@ -1591,39 +1655,9 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			     add_protected_paths_from_file, db);
 
 	/* figure out where to have the cache */
-	fd = openat(db->root_fd, ac->cache_dir, O_RDONLY | O_CLOEXEC);
-	if (fd >= 0 && fstatfs(fd, &stfs) == 0) {
-		db->cache_dir = ac->cache_dir;
-		db->cache_fd = fd;
-		db->cache_remount_flags = map_statfs_flags(stfs.f_flags);
-		if ((ac->open_flags & (APK_OPENF_WRITE | APK_OPENF_CACHE_WRITE)) &&
-		    (db->cache_remount_flags & MS_RDONLY) != 0) {
-			/* remount cache read/write */
-			db->cache_remount_dir = find_mountpoint(db->root_fd, db->cache_dir);
-			if (db->cache_remount_dir == NULL) {
-				apk_warn(out, "Unable to find cache directory mount point");
-			} else if (mount(0, db->cache_remount_dir, 0, MS_REMOUNT | (db->cache_remount_flags & ~MS_RDONLY), 0) != 0) {
-				free(db->cache_remount_dir);
-				db->cache_remount_dir = NULL;
-				apk_err(out, "Unable to remount cache read/write");
-				r = EROFS;
-				goto ret_r;
-			}
-		}
-	} else {
-		if (fd >= 0) close(fd);
-		db->cache_dir = apk_static_cache_dir;
-		db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
-		if (db->cache_fd < 0) {
-			mkdirat(db->root_fd, "var", 0755);
-			mkdirat(db->root_fd, "var/cache", 0755);
-			mkdirat(db->root_fd, "var/cache/apk", 0755);
-			db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
-			if (db->cache_fd < 0) {
-				if (ac->open_flags & APK_OPENF_WRITE) goto ret_errno;
-				db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
-			}
-		}
+	if ((r = setup_cache(db, ac)) < 0) {
+		apk_err(out, "Unable to remount cache read/write");
+		goto ret_r;
 	}
 
 	if (db->ctx->flags & APK_OVERLAY_FROM_STDIN) {
