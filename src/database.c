@@ -1338,35 +1338,6 @@ static void handle_alarm(int sig)
 {
 }
 
-static char *find_mountpoint(int atfd, const char *rel_path)
-{
-	struct mntent *me;
-	struct stat st;
-	FILE *f;
-	char *ret = NULL;
-	dev_t dev;
-
-	if (fstatat(atfd, rel_path, &st, 0) != 0)
-		return NULL;
-	dev = st.st_dev;
-
-	f = setmntent("/proc/mounts", "r");
-	if (f == NULL)
-		return NULL;
-	while ((me = getmntent(f)) != NULL) {
-		if (strcmp(me->mnt_fsname, "rootfs") == 0)
-			continue;
-		if (fstatat(atfd, me->mnt_dir, &st, 0) == 0 &&
-		    st.st_dev == dev) {
-			ret = strdup(me->mnt_dir);
-			break;
-		}
-	}
-	endmntent(f);
-
-	return ret;
-}
-
 static void mark_in_cache(struct apk_database *db, int dirfd, const char *name, struct apk_package *pkg)
 {
 	if (pkg == NULL)
@@ -1503,6 +1474,35 @@ static unsigned long map_statfs_flags(unsigned long f_flag)
 	if (f_flag & ST_SYNCHRONOUS) mnt_flags |= MS_SYNCHRONOUS;
 	if (f_flag & ST_MANDLOCK) mnt_flags |= ST_MANDLOCK;
 	return mnt_flags;
+}
+
+static char *find_mountpoint(int atfd, const char *rel_path)
+{
+	struct mntent *me;
+	struct stat st;
+	FILE *f;
+	char *ret = NULL;
+	dev_t dev;
+
+	if (fstatat(atfd, rel_path, &st, 0) != 0)
+		return NULL;
+	dev = st.st_dev;
+
+	f = setmntent("/proc/mounts", "r");
+	if (f == NULL)
+		return NULL;
+	while ((me = getmntent(f)) != NULL) {
+		if (strcmp(me->mnt_fsname, "rootfs") == 0)
+			continue;
+		if (fstatat(atfd, me->mnt_dir, &st, 0) == 0 &&
+		    st.st_dev == dev) {
+			ret = strdup(me->mnt_dir);
+			break;
+		}
+	}
+	endmntent(f);
+
+	return ret;
 }
 
 static int setup_cache(struct apk_database *db, struct apk_ctx *ac)
