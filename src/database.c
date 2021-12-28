@@ -1535,6 +1535,15 @@ static int setup_cache(struct apk_database *db, struct apk_ctx *ac)
 
 	return 0;
 }
+
+static void remount_cache(struct apk_database *db)
+{
+	if (db->cache_remount_dir) {
+		mount(0, db->cache_remount_dir, 0, MS_REMOUNT | db->cache_remount_flags, 0);
+		free(db->cache_remount_dir);
+		db->cache_remount_dir = NULL;
+	}
+}
 #else
 static int detect_tmpfs_root(struct apk_database *db)
 {
@@ -1545,6 +1554,11 @@ static int detect_tmpfs_root(struct apk_database *db)
 static int setup_cache(struct apk_database *db, struct apk_ctx *ac)
 {
 	return setup_static_cache(db, ac);
+}
+
+static void remount_cache(struct apk_database *db)
+{
+	(void) db;
 }
 #endif
 
@@ -1819,11 +1833,7 @@ void apk_db_close(struct apk_database *db)
 		db->root_proc_dir = NULL;
 	}
 
-	if (db->cache_remount_dir) {
-		mount(0, db->cache_remount_dir, 0, MS_REMOUNT | db->cache_remount_flags, 0);
-		free(db->cache_remount_dir);
-		db->cache_remount_dir = NULL;
-	}
+	remount_cache(db);
 
 	if (db->cache_fd > 0) close(db->cache_fd);
 	if (db->lock_fd > 0) close(db->lock_fd);
