@@ -10,7 +10,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
-#include <mntent.h>
 #include <libgen.h>
 #include <limits.h>
 #include <unistd.h>
@@ -18,13 +17,17 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <fnmatch.h>
-#include <sys/vfs.h>
 #include <sys/file.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
-#include <sys/mount.h>
-#include <sys/statvfs.h>
-#include <linux/magic.h>
+
+#ifdef __linux__
+# include <mntent.h>
+# include <sys/vfs.h>
+# include <sys/mount.h>
+# include <sys/statvfs.h>
+# include <linux/magic.h>
+#endif
 
 #include "apk_defines.h"
 #include "apk_package.h"
