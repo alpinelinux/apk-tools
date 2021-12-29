@@ -167,6 +167,7 @@ static struct adb_scalar_schema scalar_hexblob = {
 	.kind = ADB_KIND_BLOB,
 	.tostring = hexblob_tostring,
 	.fromstring = hexblob_fromstring,
+	.compare = string_compare,
 };
 
 static apk_blob_t int_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
@@ -213,6 +214,7 @@ static struct adb_scalar_schema scalar_oct = {
 	.kind = ADB_KIND_INT,
 	.tostring = oct_tostring,
 	.fromstring = oct_fromstring,
+	.compare = int_compare,
 };
 
 static apk_blob_t hsize_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
