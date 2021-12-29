@@ -9,9 +9,9 @@
 
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/xattr.h>
 
 #include "apk_fs.h"
+#include "apk_xattr.h"
 
 #define TMPNAME_MAX (PATH_MAX + 64)
 
@@ -186,7 +186,7 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 		fd = openat(atfd, fn, O_RDWR);
 		if (fd >= 0) {
 			foreach_array_item(xattr, fi->xattrs) {
-				if (fsetxattr(fd, xattr->name, xattr->value.ptr, xattr->value.len, 0) < 0) {
+				if (apk_fsetxattr(fd, xattr->name, xattr->value.ptr, xattr->value.len) < 0) {
 					r = -errno;
 					if (r != -ENOTSUP) break;
 				}

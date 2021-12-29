@@ -17,7 +17,6 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
-#include <sys/xattr.h>
 #include <pwd.h>
 #include <grp.h>
 #include <limits.h>
@@ -25,6 +24,7 @@
 #include "apk_defines.h"
 #include "apk_io.h"
 #include "apk_crypto.h"
+#include "apk_xattr.h"
 
 #if defined(__GLIBC__) || defined(__UCLIBC__)
 #define HAVE_FGETPWENT_R
@@ -786,12 +786,12 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		r = 0;
 		fd = openat(atfd, filename, O_RDONLY);
 		if (fd >= 0) {
-			len = flistxattr(fd, buf, sizeof(buf));
+			len = apk_flistxattr(fd, buf, sizeof(buf));
 			if (len > 0) {
 				struct apk_xattr_array *xattrs = NULL;
 				apk_xattr_array_init(&xattrs);
 				for (i = 0; i < len; i += strlen(&buf[i]) + 1) {
-					vlen = fgetxattr(fd, &buf[i], val, sizeof(val));
+					vlen = apk_fgetxattr(fd, &buf[i], val, sizeof(val));
 					if (vlen < 0) {
 						r = errno;
 						if (r == ENODATA) continue;
