@@ -48,7 +48,7 @@ time_t time(time_t *tloc)
 
 static void version(struct apk_out *out, const char *prefix)
 {
-	apk_out_fmt(out, prefix, "apk-tools " APK_VERSION ", compiled for " APK_DEFAULT_ARCH ".");
+	apk_out_fmt(out, prefix, "apk-tools " APK_VERSION ", compiled for " APK_DEFAULT_ABI_TAG ".");
 #ifdef TEST_MODE
 	apk_out_fmt(out, prefix, "TEST MODE BUILD. NOT FOR PRODUCTION USE.");
 #endif
@@ -201,7 +201,7 @@ static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const cha
 		ac->arch = optarg;
 		break;
 	case OPT_GLOBAL_print_arch:
-		puts(APK_DEFAULT_ARCH);
+		puts(APK_DEFAULT_ABI_TAG);
 		return -ESHUTDOWN;
 #ifdef TEST_MODE
 	case OPT_GLOBAL_test_repo:

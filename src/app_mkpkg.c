@@ -263,7 +263,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		}
 	}
 	if (adb_ro_val(&pkgi, ADBI_PI_ARCH) == ADB_VAL_NULL)
-		adb_wo_blob(&pkgi, ADBI_PI_ARCH, APK_BLOB_STRLIT(APK_DEFAULT_ARCH));
+		adb_wo_blob(&pkgi, ADBI_PI_ARCH, APK_BLOB_STRLIT(APK_DEFAULT_ABI_TAG));
 
 	// scan and add all files
 	if (ctx->files_dir) {
