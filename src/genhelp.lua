@@ -242,7 +242,11 @@ function scdoc:render(out)
 	table.insert(out, "\0")
 end
 
+local do_compress = true
 local function compress(data)
+	if not do_compress then
+		return data
+	end
 	local zlib = require 'zlib'
 	local level = 9
 	if type(zlib.version()) == "string" then
@@ -258,8 +262,9 @@ local function dump_compressed_vars(name, data, header)
 	local width = 16
 	local cout = compress(data)
 	if header then print(header) end
-	print(("static const unsigned int uncompressed_%s_size = %d;"):format(name, #data))
-	print(("static const unsigned char compressed_%s[] = { /* %d bytes */"):format(name, #cout))
+	if do_compress then print("#define COMPRESSED_HELP") end
+	print(("static const unsigned int payload_%s_size = %d;"):format(name, #data))
+	print(("static const unsigned char payload_%s[] = { /* %d bytes */"):format(name, #cout))
 	for i = 1, #cout do
 		if i % width == 1 then
 			io.write("\t")
@@ -275,17 +280,21 @@ end
 
 local f = {}
 for _, fn in ipairs(arg) do
-	doc = setmetatable({
-		width = 78,
-		section = "HEADER",
-		usage = {},
-		description = {},
-		commands = {},
-		notes = {},
-		optgroup = {},
-	}, scdoc)
-	doc:parse(fn)
-	table.insert(f, doc)
+	if fn == '--no-zlib' then
+		do_compress = false
+	else
+		doc = setmetatable({
+			width = 78,
+			section = "HEADER",
+			usage = {},
+			description = {},
+			commands = {},
+			notes = {},
+			optgroup = {},
+		}, scdoc)
+		doc:parse(fn)
+		table.insert(f, doc)
+	end
 end
 table.sort(f, function(a, b) return a.applet < b.applet end)
 

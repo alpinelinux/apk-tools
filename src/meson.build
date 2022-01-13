@@ -86,13 +86,18 @@ apk_src = [
 
 if lua_bin.found()
 	genhelp_script = files('genhelp.lua')
+	genhelp_args = [lua_bin, genhelp_script, '@INPUT@']
+
+	if not get_option('compressed-help')
+		genhelp_args += ['--no-zlib']
+	endif
 
 	generated_help = custom_target(
 		'help.h',
 		capture: true,
 		output: 'help.h',
 		input: man_files,
-		command: [lua_bin, genhelp_script, '@INPUT@'],
+		command: genhelp_args,
 	)
 else
 	generated_help = custom_target(

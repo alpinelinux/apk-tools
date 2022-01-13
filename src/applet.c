@@ -46,12 +46,19 @@ static inline int is_group(struct apk_applet *applet, const char *topic)
 void apk_applet_help(struct apk_applet *applet, struct apk_out *out)
 {
 #ifndef NO_HELP
-	char buf[uncompressed_help_size], *ptr, *msg;
-	unsigned long len = sizeof buf;
+#ifdef COMPRESSED_HELP
+	unsigned char buf[payload_help_size];
+#endif
+	const char *ptr = (const char *) payload_help, *base = ptr, *msg;
+	unsigned long len = payload_help_size;
 	int num = 0;
 
-	uncompress((unsigned char*) buf, &len, compressed_help, sizeof compressed_help);
-	for (ptr = buf; *ptr && ptr < &buf[len]; ptr = msg + strlen(msg) + 1) {
+#ifdef COMPRESSED_HELP
+	uncompress(buf, &len, payload_help, sizeof payload_help);
+	ptr = base = (const char *) buf;
+	len = sizeof buf;
+#endif
+	for (; *ptr && ptr < &base[len]; ptr = msg + strlen(msg) + 1) {
 		msg = ptr + strlen(ptr) + 1;
 		if (is_group(applet, ptr)) {
 			fputc('\n', stdout);
