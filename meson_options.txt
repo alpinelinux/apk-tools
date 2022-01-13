@@ -4,3 +4,4 @@ option('compressed-help', description: 'Compress help database, needs lua-zlib',
 option('lua', description: 'Build luaapk (lua bindings)', type: 'feature', value: 'auto')
 option('lua_version', description: 'Lua version to build against', type: 'string', value: '5.3')
 option('static_apk', description: 'Also build apk.static', type: 'boolean', value: false)
+option('abi_tag', description: 'Define a custom ABI tag for default arch', type: 'string')

@@ -115,6 +115,11 @@ apk_cargs = [
 	'-D_ATFILE_SOURCE',
 ]
 
+apk_abi_tag = get_option('abi_tag')
+if apk_abi_tag != ''
+	apk_cargs += ['-DAPK_ABI_TAG="@0@"'.format(apk_abi_tag)]
+endif
+
 libapk_shared = shared_library(
 	'apk',
 	libapk_src,
