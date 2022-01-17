@@ -568,7 +568,7 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		return 2;
 	}
 	if (APK_BLOB_IS_NULL(value))
-		return -1;
+		return -APKE_V2PKG_FORMAT;
 	return 0;
 }
 
@@ -644,12 +644,9 @@ static int read_info_line(struct read_info_ctx *ri, apk_blob_t line)
 
 	apk_extract_v2_control(&ri->ectx, l, r);
 
-	for (i = 0; i < ARRAY_SIZE(fields); i++) {
-		if (apk_blob_compare(APK_BLOB_STR(fields[i].str), l) == 0) {
-			apk_pkg_add_info(ri->db, ri->pkg, fields[i].field, r);
-			return 0;
-		}
-	}
+	for (i = 0; i < ARRAY_SIZE(fields); i++)
+		if (apk_blob_compare(APK_BLOB_STR(fields[i].str), l) == 0)
+			return apk_pkg_add_info(ri->db, ri->pkg, fields[i].field, r);
 
 	return 0;
 }
@@ -658,8 +655,13 @@ static int apk_pkg_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
 {
 	struct read_info_ctx *ri = container_of(ectx, struct read_info_ctx, ectx);
 	apk_blob_t l, token = APK_BLOB_STR("\n");
-	while (apk_istream_get_delim(is, token, &l) == 0)
-		read_info_line(ri, l);
+	int r;
+
+	while (apk_istream_get_delim(is, token, &l) == 0) {
+		r = read_info_line(ri, l);
+		if (r < 0) return r;
+	}
+
 	return 0;
 }
 
