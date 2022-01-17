@@ -839,7 +839,7 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		return 2;
 	}
 	if (APK_BLOB_IS_NULL(value))
-		return -1;
+		return -EAPKFORMAT;
 	return 0;
 }
 
@@ -875,14 +875,11 @@ static int read_info_line(void *ctx, apk_blob_t line)
 	if (!apk_blob_split(line, APK_BLOB_STR(" = "), &l, &r))
 		return 0;
 
-	for (i = 0; i < ARRAY_SIZE(fields); i++) {
-		if (apk_blob_compare(APK_BLOB_STR(fields[i].str), l) == 0) {
-			apk_pkg_add_info(ri->db, ri->pkg, fields[i].field, r);
-			return 0;
-		}
-	}
-	apk_sign_ctx_parse_pkginfo_line(ri->sctx, line);
+	for (i = 0; i < ARRAY_SIZE(fields); i++)
+		if (apk_blob_compare(APK_BLOB_STR(fields[i].str), l) == 0)
+			return apk_pkg_add_info(ri->db, ri->pkg, fields[i].field, r);
 
+	apk_sign_ctx_parse_pkginfo_line(ri->sctx, line);
 	return 0;
 }
 
@@ -903,8 +900,10 @@ static int read_info_entry(void *ctx, const struct apk_file_info *ae,
 	if (strcmp(ae->name, ".PKGINFO") == 0) {
 		/* APK 2.0 format */
 		apk_blob_t l, token = APK_BLOB_STR("\n");
-		while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
-			read_info_line(ctx, l);
+		while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token))) {
+			r = read_info_line(ctx, l);
+			if (r < 0) return r;
+		}
 	} else if (strcmp(ae->name, ".INSTALL") == 0) {
 		apk_warning("Package '%s-" BLOB_FMT "' contains deprecated .INSTALL",
 				pkg->name->name, BLOB_PRINTF(*pkg->version));

@@ -2455,8 +2455,10 @@ static int apk_db_install_archive_entry(void *_ctx,
 		if (ae->name[0] != '.') return 0;
 		if (strcmp(ae->name, ".PKGINFO") == 0) {
 			apk_blob_t l, token = APK_BLOB_STR("\n");
-			while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token)))
-				read_info_line(ctx, l);
+			while (!APK_BLOB_IS_NULL(l = apk_istream_get_delim(is, token))) {
+				r = read_info_line(ctx, l);
+				if (r < 0) return r;
+			}
 			return 0;
 		}
 		r = apk_script_type(&ae->name[1]);
