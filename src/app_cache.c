@@ -26,11 +26,16 @@
 
 struct cache_ctx {
 	unsigned short solver_flags;
+	int add_dependencies : 1;
 };
 
 #define CACHE_OPTIONS(OPT) \
+	OPT(OPT_CACHE_add_dependencies,	"add-dependencies") \
+	OPT(OPT_CACHE_available,	APK_OPT_SH("a") "available") \
+	OPT(OPT_CACHE_ignore_conflict,	"ignore-conflict") \
 	OPT(OPT_CACHE_latest,		APK_OPT_SH("l") "latest") \
-	OPT(OPT_CACHE_upgrade,		APK_OPT_SH("u") "upgrade")
+	OPT(OPT_CACHE_upgrade,		APK_OPT_SH("u") "upgrade") \
+	OPT(OPT_CACHE_simulate,		APK_OPT_SH("s") "simulate") \
 
 APK_OPT_APPLET(option_desc, CACHE_OPTIONS);
 
@@ -39,11 +44,23 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	struct cache_ctx *cctx = (struct cache_ctx *) ctx;
 
 	switch (opt) {
-	case OPT_CACHE_upgrade:
-		cctx->solver_flags |= APK_SOLVERF_UPGRADE;
+	case OPT_CACHE_add_dependencies:
+		cctx->add_dependencies = 1;
+		break;
+	case OPT_CACHE_available:
+		cctx->solver_flags |= APK_SOLVERF_AVAILABLE;
+		break;
+	case OPT_CACHE_ignore_conflict:
+		cctx->solver_flags |= APK_SOLVERF_IGNORE_CONFLICT;
 		break;
 	case OPT_CACHE_latest:
 		cctx->solver_flags |= APK_SOLVERF_LATEST;
+		break;
+	case OPT_CACHE_upgrade:
+		cctx->solver_flags |= APK_SOLVERF_UPGRADE;
+		break;
+	case OPT_CACHE_simulate:
+		apk_flags |= APK_SIMULATE;
 		break;
 	default:
 		return -ENOTSUP;
@@ -66,16 +83,31 @@ static void progress_cb(void *ctx, size_t bytes_done)
 	apk_print_progress(prog->done + bytes_done, prog->total);
 }
 
-static int cache_download(struct cache_ctx *cctx, struct apk_database *db)
+static int cache_download(struct cache_ctx *cctx, struct apk_database *db, struct apk_string_array *args)
 {
 	struct apk_changeset changeset = {};
 	struct apk_change *change;
 	struct apk_package *pkg;
 	struct apk_repository *repo;
+	struct apk_dependency_array *deps;
+	struct apk_dependency dep;
 	struct progress prog = { 0, 0 };
-	int r, ret = 0;
+	int i, r, ret = 0;
 
-	r = apk_solver_solve(db, cctx->solver_flags, db->world, &changeset);
+	apk_dependency_array_init(&deps);
+	if (args->num == 1 || cctx->add_dependencies)
+		apk_dependency_array_copy(&deps, db->world);
+	for (i = 1; i < args->num; i++) {
+		apk_blob_t b = APK_BLOB_STR(args->item[i]);
+		apk_blob_pull_dep(&b, db, &dep);
+		if (APK_BLOB_IS_NULL(b)) {
+			apk_error("bad dependency: %s", args->item[i]);
+			return -EINVAL;
+		}
+		*apk_dependency_array_add(&deps) = dep;
+	}
+	r = apk_solver_solve(db, cctx->solver_flags, deps, &changeset);
+	apk_dependency_array_free(&deps);
 	if (r < 0) {
 		apk_error("Unable to select packages. Run apk fix.");
 		return r;
@@ -83,8 +115,10 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db)
 
 	foreach_array_item(change, changeset.changes) {
 		pkg = change->new_pkg;
-		if ((pkg != NULL) && !(pkg->repos & db->local_repos))
-			prog.total += pkg->size;
+		if (!pkg || (pkg->repos & db->local_repos) || !pkg->installed_size)
+			continue;
+		if (!apk_db_select_repo(db, pkg)) continue;
+		prog.total += pkg->size;
 	}
 
 	foreach_array_item(change, changeset.changes) {
@@ -150,7 +184,7 @@ static int cache_main(void *ctx, struct apk_database *db, struct apk_string_arra
 	char *arg;
 	int r = 0, actions = 0;
 
-	if (args->num != 1)
+	if (args->num < 1)
 		return -EINVAL;
 
 	arg = args->item[0];
@@ -172,7 +206,7 @@ static int cache_main(void *ctx, struct apk_database *db, struct apk_string_arra
 	if (r == 0 && (actions & CACHE_CLEAN))
 		r = cache_clean(db);
 	if (r == 0 && (actions & CACHE_DOWNLOAD))
-		r = cache_download(cctx, db);
+		r = cache_download(cctx, db, args);
 err:
 	return r;
 }
