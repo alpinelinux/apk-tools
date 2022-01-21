@@ -139,7 +139,7 @@ function scdoc:parse_default(ln)
 	ln = ln:gsub("([^\\])%*(.-[^\\])%*", "%1%2")
 	ln = ln:gsub("^%*(.-[^\\])%*", "%1")
 	ln = ln:gsub("([^\\])_(.-[^\\])_", function(a,s) return a..s:upper() end)
-	ln = ln:gsub("^_(.-[^\\])_", function(a,s) return a..s:upper() end)
+	ln = ln:gsub("^_(.-[^\\])_", function(s) return s:upper() end)
 	ln = ln:gsub("\\", "")
 
 	self:section_text(ln)
