@@ -34,7 +34,7 @@ following options:
 	dependencies cannot be satisfied.
 
 *-u, --upgrade*
-	Upgrade _packages_ and it's dependencies. Normally *apk add* will
+	Upgrade _packages_ and their dependencies. Normally *apk add* will
 	avoid changing installed package unless it is required by the newly
 	added _packages_ or their dependencies. This changes the default
 	preference to upgrading the package to the latest installable version.
