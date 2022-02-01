@@ -13,8 +13,6 @@
 #include "apk_version.h"
 #include "apk_print.h"
 
-extern const char * const apk_installed_file;
-
 static void print_policy(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
 {
 	struct apk_out *out = &db->ctx->out;
@@ -44,8 +42,8 @@ zlib1g policy:
 		if (num++ == 0)
 			apk_out(out, "%s policy:", name->name);
 		apk_out(out, "  " BLOB_FMT ":", BLOB_PRINTF(*p->version));
-		if (p->pkg->ipkg != NULL)
-			apk_out(out, "    %s", apk_installed_file);
+		if (p->pkg->ipkg)
+			apk_out(out, "    %s/installed", apk_db_layer_name(p->pkg->layer));
 		for (i = 0; i < db->num_repos; i++) {
 			repo = &db->repos[i];
 			if (!(BIT(i) & p->pkg->repos))

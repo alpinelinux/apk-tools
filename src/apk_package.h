@@ -93,6 +93,7 @@ struct apk_package {
 	unsigned marked : 1;
 	unsigned uninstallable : 1;
 	unsigned cached_non_repository : 1;
+	unsigned layer : 4;
 	struct apk_checksum csum;
 };
 APK_ARRAY(apk_package_array, struct apk_package *);

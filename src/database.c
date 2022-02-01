@@ -56,9 +56,6 @@ static const char * const apk_static_cache_dir = "var/cache/apk";
 static const char * const apk_world_file = "etc/apk/world";
 static const char * const apk_arch_file = "etc/apk/arch";
 static const char * const apk_lock_file = "lib/apk/db/lock";
-static const char * const apk_scripts_file = "lib/apk/db/scripts.tar";
-static const char * const apk_triggers_file = "lib/apk/db/triggers";
-const char * const apk_installed_file = "lib/apk/db/installed";
 
 static struct apk_db_acl *apk_default_acl_dir, *apk_default_acl_file;
 
@@ -759,7 +756,7 @@ err:
 	return apk_istream_close(is);
 }
 
-int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
+static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int repo, unsigned layer)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_package *pkg = NULL;
@@ -812,6 +809,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 		/* If no package, create new */
 		if (pkg == NULL) {
 			pkg = apk_pkg_new();
+			pkg->layer = layer;
 			ipkg = NULL;
 			diri = NULL;
 			file_diri_node = NULL;
@@ -909,6 +907,11 @@ bad_entry:
 err_fmt:
 	is->err = -APKE_V2DB_FORMAT;
 	return apk_istream_close(is);
+}
+
+int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
+{
+	return apk_db_fdb_read(db, is, repo, 0);
 }
 
 static void apk_blob_push_db_acl(apk_blob_t *b, char field, struct apk_db_acl *acl)
@@ -1171,21 +1174,29 @@ static int apk_db_triggers_read(struct apk_database *db, struct apk_istream *is)
 	return apk_istream_close(is);
 }
 
-static int apk_db_read_state(struct apk_database *db, int flags)
+static int apk_db_read_layer(struct apk_database *db, unsigned layer)
 {
 	apk_blob_t blob, world;
-	int r, ret = 0;
+	int r, fd, ret = 0, flags = db->ctx->open_flags;
 
 	/* Read:
-	 * 1. /etc/apk/world
+	 * 1. world
 	 * 2. installed packages db
 	 * 3. triggers db
 	 * 4. scripts db
 	 */
+
+	fd = openat(db->root_fd, apk_db_layer_name(layer), O_RDONLY | O_CLOEXEC);
+	if (fd < 0) return -errno;
+
 	if (!(flags & APK_OPENF_NO_WORLD)) {
-		blob = world = apk_blob_from_file(db->root_fd, apk_world_file);
-		if (!APK_BLOB_IS_NULL(blob)) {
-			blob = apk_blob_trim(blob);
+		if (layer == APK_DB_LAYER_ROOT)
+			world = apk_blob_from_file(db->root_fd, apk_world_file);
+		else
+			world = apk_blob_from_file(fd, "world");
+
+		if (!APK_BLOB_IS_NULL(world)) {
+			blob = apk_blob_trim(world);
 			apk_blob_pull_deps(&blob, db, &db->world);
 			free(world.ptr);
 		} else {
@@ -1194,18 +1205,19 @@ static int apk_db_read_state(struct apk_database *db, int flags)
 	}
 
 	if (!(flags & APK_OPENF_NO_INSTALLED)) {
-		r = apk_db_index_read(db, apk_istream_from_file(db->root_fd, apk_installed_file), -1);
-		if (r && r != -ENOENT) ret = r;
-		r = apk_db_triggers_read(db, apk_istream_from_file(db->root_fd, apk_triggers_file));
-		if (r && r != -ENOENT) ret = r;
+		r = apk_db_fdb_read(db, apk_istream_from_file(fd, "installed"), -1, layer);
+		if (!ret && r != -ENOENT) ret = r;
+		r = apk_db_triggers_read(db, apk_istream_from_file(fd, "triggers"));
+		if (!ret && r != -ENOENT) ret = r;
 	}
 
 	if (!(flags & APK_OPENF_NO_SCRIPTS)) {
-		r = apk_tar_parse(apk_istream_from_file(db->root_fd, apk_scripts_file),
+		r = apk_tar_parse(apk_istream_from_file(fd, "scripts.tar"),
 				  apk_read_script_archive_entry, db, db->id_cache);
-		if (r && r != -ENOENT) ret = r;
+		if (!ret && r != -ENOENT) ret = r;
 	}
 
+	close(fd);
 	return ret;
 }
 
@@ -1616,6 +1628,17 @@ static void unmount_proc(struct apk_database *db)
 }
 #endif
 
+const char *apk_db_layer_name(int layer)
+{
+	switch (layer) {
+	case APK_DB_LAYER_ROOT: return "lib/apk/db";
+	case APK_DB_LAYER_UVOL: return "lib/apk/db-uvol";
+	default:
+		assert("invalid layer");
+		return 0;
+	}
+}
+
 void apk_db_init(struct apk_database *db)
 {
 	memset(db, 0, sizeof(*db));
@@ -1637,7 +1660,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	struct apk_out *out = &ac->out;
 	const char *msg = NULL;
 	apk_blob_t blob;
-	int r;
+	int r, i;
 
 	apk_default_acl_dir = apk_db_acl_atomize(db, 0755, 0, 0);
 	apk_default_acl_file = apk_db_acl_atomize(db, 0644, 0, 0);
@@ -1721,10 +1744,15 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		apk_db_read_overlay(db, apk_istream_from_fd(STDIN_FILENO));
 	}
 
-	r = apk_db_read_state(db, ac->open_flags);
-	if (r != 0 && !(r == -ENOENT && (ac->open_flags & APK_OPENF_CREATE))) {
-		msg = "Unable to read database state";
-		goto ret_r;
+	for (i = 0; i < APK_DB_LAYER_NUM; i++) {
+		r = apk_db_read_layer(db, i);
+		if (r) {
+			if (i != 0) continue;
+			if (r == -ENOENT && (ac->open_flags & APK_OPENF_CREATE)) continue;
+			msg = "Unable to read database";
+			goto ret_r;
+		}
+		db->active_layers |= BIT(i);
 	}
 
 	if (!(ac->open_flags & APK_OPENF_NO_INSTALLED_REPO)) {

@@ -115,6 +115,10 @@ struct apk_repository {
 	apk_blob_t description;
 };
 
+#define APK_DB_LAYER_ROOT		0
+#define APK_DB_LAYER_UVOL		1
+#define APK_DB_LAYER_NUM		2
+
 #define APK_REPOSITORY_CACHED		0
 #define APK_REPOSITORY_FIRST_CONFIGURED	1
 
@@ -138,6 +142,7 @@ struct apk_database {
 	unsigned int repo_update_errors, repo_update_counter;
 	unsigned int pending_triggers;
 	unsigned int extract_flags;
+	unsigned int active_layers;
 	int performing_self_upgrade : 1;
 	int permanent : 1;
 	int autoupdate : 1;
@@ -189,6 +194,7 @@ struct apk_db_dir *apk_db_dir_query(struct apk_database *db, apk_blob_t name);
 struct apk_db_file *apk_db_file_query(struct apk_database *db,
 				      apk_blob_t dir, apk_blob_t name);
 
+const char *apk_db_layer_name(int layer);
 void apk_db_init(struct apk_database *db);
 int apk_db_open(struct apk_database *db, struct apk_ctx *ctx);
 void apk_db_close(struct apk_database *db);
