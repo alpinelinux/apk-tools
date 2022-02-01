@@ -116,6 +116,12 @@ const struct adb_object_schema schema_string_array = {
 	.fields = ADB_ARRAY_ITEM(scalar_string),
 };
 
+static adb_val_t version_fromstring(struct adb *db, apk_blob_t val)
+{
+	if (!apk_version_validate(val)) return ADB_ERROR(APKE_PKGVERSION_FORMAT);
+	return adb_w_blob(db, val);
+}
+
 static int version_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2)
 {
 	switch (apk_version_compare_blob(adb_r_blob(db1, v1), adb_r_blob(db2, v2))) {
@@ -128,7 +134,7 @@ static int version_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_v
 static struct adb_scalar_schema scalar_version = {
 	.kind = ADB_KIND_BLOB,
 	.tostring = string_tostring,
-	.fromstring = string_fromstring,
+	.fromstring = version_fromstring,
 	.compare = version_compare,
 };
 
@@ -327,7 +333,7 @@ static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)
 	return 0;
 
 fail:
-	return -APKE_ADB_DEPENDENCY_FORMAT;
+	return -APKE_DEPENDENCY_FORMAT;
 }
 
 static int dependency_cmp(const struct adb_obj *o1, const struct adb_obj *o2)
@@ -356,7 +362,8 @@ static int dependencies_fromstring(struct adb_obj *obj, apk_blob_t b)
 	adb_wo_alloca(&dep, &schema_dependency, obj->db);
 
 	while (apk_dep_split(&b, &bdep)) {
-		adb_wo_fromstring(&dep, bdep);
+		int r = adb_wo_fromstring(&dep, bdep);
+		if (r) return r;
 		adb_wa_append_obj(obj, &dep);
 	}
 

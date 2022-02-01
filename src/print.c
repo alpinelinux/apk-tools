@@ -39,6 +39,8 @@ const char *apk_error_str(int error)
 	case APKE_SIGNATURE_UNTRUSTED:		return "UNTRUSTED signature";
 	case APKE_SIGNATURE_INVALID:		return "BAD signature";
 	case APKE_FORMAT_NOT_SUPPORTED:		return "file format not supported (in this applet)";
+	case APKE_PKGVERSION_FORMAT:		return "package version is invalid";
+	case APKE_DEPENDENCY_FORMAT:		return "dependency format is invalid";
 	case APKE_ADB_COMPRESSION:		return "ADB compression not supported";
 	case APKE_ADB_HEADER:			return "ADB header error";
 	case APKE_ADB_VERSION:			return "incompatible ADB version";
@@ -47,7 +49,6 @@ const char *apk_error_str(int error)
 	case APKE_ADB_SIGNATURE:		return "ADB signature block error";
 	case APKE_ADB_NO_FROMSTRING:		return "ADB schema error (no fromstring)";
 	case APKE_ADB_LIMIT:			return "ADB schema limit reached";
-	case APKE_ADB_DEPENDENCY_FORMAT:	return "ADB dependency format";
 	case APKE_ADB_PACKAGE_FORMAT:		return "ADB package format";
 	case APKE_V2DB_FORMAT:			return "v2 database format error";
 	case APKE_V2PKG_FORMAT:			return "v2 package format error";

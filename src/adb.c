@@ -764,7 +764,7 @@ adb_val_t adb_w_fromstring(struct adb *db, const uint8_t *kind, apk_blob_t val)
 		adb_wo_alloca(&obj, schema, db);
 		if (!schema->fromstring) return ADB_ERROR(APKE_ADB_NO_FROMSTRING);
 		r = schema->fromstring(&obj, val);
-		if (r) return ADB_ERROR(r);
+		if (r) return ADB_ERROR(-r);
 		return adb_w_obj(&obj);
 		}
 	default:
@@ -849,7 +849,7 @@ adb_val_t adb_w_arr(struct adb_obj *o)
 	return __adb_w_obj(o, ADB_TYPE_ARRAY);
 }
 
-adb_val_t adb_wo_fromstring(struct adb_obj *o, apk_blob_t val)
+int adb_wo_fromstring(struct adb_obj *o, apk_blob_t val)
 {
 	adb_wo_reset(o);
 	return o->schema->fromstring(o, val);

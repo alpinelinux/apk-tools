@@ -242,8 +242,8 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 	// prepare package info
 	for (i = 0; i < ARRAY_SIZE(ctx->info); i++) {
-		apk_blob_t val = ctx->info[i];
-		if (APK_BLOB_IS_NULL(val)) {
+		apk_blob_t b = ctx->info[i];
+		if (APK_BLOB_IS_NULL(b)) {
 			switch (i) {
 			case ADBI_PI_NAME:
 			case ADBI_PI_VERSION:
@@ -254,7 +254,13 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			}
 			continue;
 		}
-		adb_wo_val_fromstring(&pkgi, i, val);
+		adb_val_t val = adb_wo_val_fromstring(&pkgi, i, b);
+		if (ADB_IS_ERROR(val)) {
+			r = ADB_VAL_VALUE(val);
+			apk_err(out, "field '%s' has invalid value: %s",
+				schema_pkginfo.fields[i-1].name, apk_error_str(r));
+			goto err;
+		}
 	}
 	if (adb_ro_val(&pkgi, ADBI_PI_ARCH) == ADB_VAL_NULL)
 		adb_wo_blob(&pkgi, ADBI_PI_ARCH, APK_BLOB_STRLIT(APK_DEFAULT_ARCH));
