@@ -2032,7 +2032,7 @@ void apk_db_update_directory_permissions(struct apk_database *db)
 
 int apk_db_cache_active(struct apk_database *db)
 {
-	return db->ctx->cache_dir != apk_static_cache_dir;
+	return db->cache_dir != apk_static_cache_dir;
 }
 
 struct foreach_cache_item_ctx {
