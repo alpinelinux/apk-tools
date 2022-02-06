@@ -198,9 +198,10 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 			/* Package is in 'cached' repository if filename is provided,
 			 * or it's a 'virtual' package with install_size zero */
 			pkg->ss.pkg_selectable =
-				(pkg->repos & db->available_repos) ||
-				pkg->cached_non_repository ||
-				pkg->ipkg;
+				(BIT(pkg->layer) & db->active_layers) &&
+				((pkg->repos & db->available_repos) ||
+				  pkg->cached_non_repository ||
+				  pkg->ipkg);
 
 			/* Prune install_if packages that are no longer available,
 			 * currently works only if SOLVERF_AVAILABLE is set in the
