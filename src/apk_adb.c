@@ -412,6 +412,7 @@ const struct adb_object_schema schema_pkginfo = {
 		ADB_FIELD(ADBI_PI_REPLACES,	"replaces",	schema_dependency_array),
 		ADB_FIELD(ADBI_PI_INSTALL_IF,	"install-if",	schema_dependency_array),
 		ADB_FIELD(ADBI_PI_RECOMMENDS,	"recommends",	schema_dependency_array),
+		ADB_FIELD(ADBI_PI_LAYER,	"layer",	scalar_int),
 	},
 };
 

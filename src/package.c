@@ -611,6 +611,7 @@ void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct a
 	pkg->maintainer = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_MAINTAINER));
 	pkg->build_time = adb_ro_int(pkginfo, ADBI_PI_BUILD_TIME);
 	pkg->commit = commit_id(adb_ro_blob(pkginfo, ADBI_PI_REPO_COMMIT));
+	pkg->layer = adb_ro_int(pkginfo, ADBI_PI_LAYER);
 
 	apk_deps_from_adb(&pkg->depends, db, adb_ro_obj(pkginfo, ADBI_PI_DEPENDS, &obj));
 	apk_deps_from_adb(&pkg->provides, db, adb_ro_obj(pkginfo, ADBI_PI_PROVIDES, &obj));

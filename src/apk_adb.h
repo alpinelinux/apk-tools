@@ -31,7 +31,8 @@
 #define ADBI_PI_REPLACES	0x11
 #define ADBI_PI_INSTALL_IF	0x12
 #define ADBI_PI_RECOMMENDS	0x13
-#define ADBI_PI_MAX		0x14
+#define ADBI_PI_LAYER		0x14
+#define ADBI_PI_MAX		0x15
 
 /* ACL entries */
 #define ADBI_ACL_MODE		0x01
