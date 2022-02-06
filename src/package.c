@@ -423,7 +423,7 @@ void apk_blob_push_deps(apk_blob_t *to, struct apk_database *db, struct apk_depe
 	}
 }
 
-int apk_deps_write(struct apk_database *db, struct apk_dependency_array *deps, struct apk_ostream *os, apk_blob_t separator)
+int apk_deps_write_layer(struct apk_database *db, struct apk_dependency_array *deps, struct apk_ostream *os, apk_blob_t separator, unsigned layer)
 {
 	apk_blob_t blob;
 	char tmp[256];
@@ -433,9 +433,10 @@ int apk_deps_write(struct apk_database *db, struct apk_dependency_array *deps, s
 		return 0;
 
 	for (i = 0; i < deps->num; i++) {
+		if (layer != -1 && deps->item[i].layer != layer) continue;
+
 		blob = APK_BLOB_BUF(tmp);
-		if (i)
-			apk_blob_push_blob(&blob, separator);
+		if (n) apk_blob_push_blob(&blob, separator);
 		apk_blob_push_dep(&blob, db, &deps->item[i]);
 
 		blob = apk_blob_pushed(APK_BLOB_BUF(tmp), blob);
@@ -447,6 +448,11 @@ int apk_deps_write(struct apk_database *db, struct apk_dependency_array *deps, s
 	}
 
 	return n;
+}
+
+int apk_deps_write(struct apk_database *db, struct apk_dependency_array *deps, struct apk_ostream *os, apk_blob_t separator)
+{
+	return apk_deps_write_layer(db, deps, os, separator, -1);
 }
 
 void apk_dep_from_adb(struct apk_dependency *dep, struct apk_database *db, struct adb_obj *d)

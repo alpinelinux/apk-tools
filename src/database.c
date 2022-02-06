@@ -1819,11 +1819,16 @@ static int apk_db_write_layers(struct apk_database *db)
 		ld->installed = apk_ostream_to_file(ld->fd, "installed", 0644);
 		ld->scripts   = apk_ostream_to_file(ld->fd, "scripts.tar", 0644);
 		ld->triggers  = apk_ostream_to_file(ld->fd, "triggers", 0644);
-	}
 
-	os = apk_ostream_to_file(db->root_fd, apk_world_file, 0644);
-	if (!IS_ERR(os)) {
-		apk_deps_write(db, db->world, os, APK_BLOB_PTR_LEN("\n", 1));
+		if (i == 0)
+			os = apk_ostream_to_file(db->root_fd, apk_world_file, 0644);
+		else
+			os = apk_ostream_to_file(ld->fd, "world", 0644);
+		if (IS_ERR(os)) {
+			if (!rr) rr = PTR_ERR(os);
+			continue;
+		}
+		apk_deps_write_layer(db, db->world, os, APK_BLOB_PTR_LEN("\n", 1), i);
 		apk_ostream_write(os, "\n", 1);
 		r = apk_ostream_close(os);
 		if (!rr) rr = r;

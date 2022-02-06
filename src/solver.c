@@ -1093,6 +1093,11 @@ restart:
 		goto restart;
 	}
 
+	foreach_array_item(d, world) {
+		if (!d->name->ss.chosen.pkg) continue;
+		d->layer = d->name->ss.chosen.pkg->layer;
+	}
+
 	apk_hash_foreach(&db->available.names, free_name, NULL);
 	apk_hash_foreach(&db->available.packages, free_package, NULL);
 	dbg_printf("solver done, errors=%d\n", ss->errors);

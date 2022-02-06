@@ -48,6 +48,7 @@ struct apk_dependency {
 	unsigned conflict : 1;
 	unsigned result_mask : 4;
 	unsigned fuzzy : 1;
+	unsigned layer : 4; // solver sets for 'world' dependencies only
 };
 APK_ARRAY(apk_dependency_array, struct apk_dependency);
 
@@ -120,6 +121,8 @@ void apk_blob_push_deps(apk_blob_t *to, struct apk_database *, struct apk_depend
 void apk_blob_pull_dep(apk_blob_t *from, struct apk_database *, struct apk_dependency *);
 void apk_blob_pull_deps(apk_blob_t *from, struct apk_database *, struct apk_dependency_array **);
 
+int apk_deps_write_layer(struct apk_database *db, struct apk_dependency_array *deps,
+			 struct apk_ostream *os, apk_blob_t separator, unsigned layer);
 int apk_deps_write(struct apk_database *db, struct apk_dependency_array *deps,
 		   struct apk_ostream *os, apk_blob_t separator);
 
