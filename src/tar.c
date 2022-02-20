@@ -42,7 +42,7 @@ static unsigned int get_octal(char *s, size_t l, int *r)
 {
 	apk_blob_t b = APK_BLOB_PTR_LEN(s, l);
 	unsigned int val = apk_blob_pull_uint(&b, 8);
-	while (b.len >= 1 && b.ptr[0] == 0) b.ptr++, b.len--;
+	while (b.len >= 1 && (b.ptr[0] == 0 || b.ptr[0] == 0x20)) b.ptr++, b.len--;
 	if (b.len != 0) *r = -APKE_V2PKG_FORMAT;
 	return val;
 }
