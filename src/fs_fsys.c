@@ -17,7 +17,8 @@
 
 static int fsys_dir_create(struct apk_fsdir *d, mode_t mode)
 {
-	if (mkdirat(apk_ctx_fd_dest(d->ac), apk_pathbuilder_cstr(&d->pb), mode) < 0)
+	if (mkdirat(apk_ctx_fd_dest(d->ac), apk_pathbuilder_cstr(&d->pb), mode) < 0 &&
+	    errno != EEXIST)
 		return -errno;
 	return 0;
 }
