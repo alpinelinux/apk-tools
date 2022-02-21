@@ -51,13 +51,13 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 	gis->zs.avail_out = size;
 	gis->zs.next_out  = ptr;
 
-	while (gis->zs.avail_out != 0 && gis->is.err == 0) {
+	while (gis->zs.avail_out != 0 && gis->is.err >= 0) {
 		if (!APK_BLOB_IS_NULL(gis->cbarg)) {
 			if (gzi_boundary_change(gis))
 				goto ret;
 			gis->cbarg = APK_BLOB_NULL;
 		}
-		if (gis->zs.avail_in == 0) {
+		if (gis->zs.avail_in == 0 && gis->is.err == 0) {
 			apk_blob_t blob;
 
 			if (gis->cb != NULL && gis->cbprev != NULL &&
@@ -68,16 +68,17 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 			}
 			blob = apk_istream_get_all(gis->zis);
 			gis->cbprev = blob.ptr;
-			gis->zs.avail_in = blob.len;
-			gis->zs.next_in = (void *) gis->cbprev;
-			if (blob.len < 0) {
-				gis->is.err = blob.len;
-				goto ret;
-			} else if (gis->zs.avail_in == 0) {
+
+			if (blob.len == 0) {
 				gis->is.err = 1;
 				gis->cbarg = APK_BLOB_NULL;
 				gzi_boundary_change(gis);
+			} else if (blob.len < 0) {
+				gis->is.err = blob.len;
 				goto ret;
+			} else {
+				gis->zs.avail_in = blob.len;
+				gis->zs.next_in = (void *) blob.ptr;
 			}
 		}
 
@@ -107,6 +108,10 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 			break;
 		case Z_OK:
 			break;
+		case Z_BUF_ERROR:
+			/* Happens when input stream is EOF, input buffer is empty,
+			 * and we just tried reading a new header. */
+			goto ret;
 		default:
 			gis->is.err = -EIO;
 			break;
