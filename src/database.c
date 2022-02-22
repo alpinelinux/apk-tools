@@ -2801,9 +2801,9 @@ static void apk_db_purge_pkg(struct apk_database *db,
 	}
 }
 
-
-static void apk_db_migrate_files(struct apk_database *db,
-				 struct apk_installed_package *ipkg)
+static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
+						 struct apk_installed_package *ipkg,
+						 uint8_t priority)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_db_dir_instance *diri;
@@ -2816,13 +2816,20 @@ static void apk_db_migrate_files(struct apk_database *db,
 	unsigned long hash;
 	apk_blob_t dirname;
 	int r, ctrl;
+	uint8_t dir_priority, next_priority = 0xff;
 
 	hlist_for_each_entry_safe(diri, dc, dn, &ipkg->owned_dirs, pkg_dirs_list) {
 		dir = diri->dir;
-		dir->modified = 1;
 		dirname = APK_BLOB_PTR_LEN(dir->name, dir->namelen);
 		apk_fsdir_get(&d, dirname, db->ctx, apk_pkg_ctx(ipkg->pkg));
+		dir_priority = apk_fsdir_priority(&d);
+		if (dir_priority != priority) {
+			if (dir_priority > priority && dir_priority < next_priority)
+				next_priority = dir_priority;
+			continue;
+		}
 
+		dir->modified = 1;
 		hlist_for_each_entry_safe(file, fc, fn, &diri->owned_files, diri_files_list) {
 			key = (struct apk_db_file_hash_key) {
 				.dirname = dirname,
@@ -2883,6 +2890,14 @@ static void apk_db_migrate_files(struct apk_database *db,
 			}
 		}
 	}
+	return next_priority;
+}
+
+static void apk_db_migrate_files(struct apk_database *db,
+				 struct apk_installed_package *ipkg)
+{
+	for (uint8_t prio = APK_FS_PRIO_DISK; prio != 0xff; )
+		prio = apk_db_migrate_files_for_priority(db, ipkg, prio);
 }
 
 static int apk_db_unpack_pkg(struct apk_database *db,

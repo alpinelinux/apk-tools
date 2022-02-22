@@ -156,6 +156,7 @@ static int uvol_file_digest(struct apk_fsdir *d, apk_blob_t filename, uint8_t al
 }
 
 const struct apk_fsdir_ops fsdir_ops_uvol = {
+	.priority = APK_FS_PRIO_UVOL,
 	.dir_create = uvol_dir_create,
 	.dir_delete = uvol_dir_delete,
 	.dir_check = uvol_dir_check,

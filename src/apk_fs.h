@@ -13,6 +13,9 @@
 #include "apk_io.h"
 #include "apk_pathbuilder.h"
 
+#define APK_FS_PRIO_DISK	0
+#define APK_FS_PRIO_UVOL	1
+
 #define APK_FS_CTRL_COMMIT	1
 #define APK_FS_CTRL_APKNEW	2
 #define APK_FS_CTRL_CANCEL	3
@@ -30,6 +33,8 @@ struct apk_fsdir {
 };
 
 struct apk_fsdir_ops {
+	uint8_t priority;
+
 	int (*dir_create)(struct apk_fsdir *, mode_t);
 	int (*dir_delete)(struct apk_fsdir *);
 	int (*dir_check)(struct apk_fsdir *, mode_t, uid_t, gid_t);
@@ -46,6 +51,10 @@ struct apk_fsdir_ops {
 int apk_fs_extract(struct apk_ctx *, const struct apk_file_info *, struct apk_istream *, apk_progress_cb, void *, unsigned int, apk_blob_t);
 
 void apk_fsdir_get(struct apk_fsdir *, apk_blob_t dir, struct apk_ctx *, apk_blob_t);
+
+static inline uint8_t apk_fsdir_priority(struct apk_fsdir *fs) {
+	return fs->ops->priority;
+}
 
 static inline int apk_fsdir_create(struct apk_fsdir *fs, mode_t mode) {
 	return fs->ops->dir_create(fs, mode);

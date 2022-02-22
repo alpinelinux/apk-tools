@@ -285,6 +285,7 @@ static int fsys_file_digest(struct apk_fsdir *d, apk_blob_t filename, uint8_t al
 }
 
 static const struct apk_fsdir_ops fsdir_ops_fsys = {
+	.priority = APK_FS_PRIO_DISK,
 	.dir_create = fsys_dir_create,
 	.dir_delete = fsys_dir_delete,
 	.dir_check = fsys_dir_check,
