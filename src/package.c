@@ -1001,6 +1001,14 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 			 struct apk_database *db,
 			 unsigned int type, char **argv)
 {
+	// script_exec_dir is the directory to which the script is extracted,
+	// executed from, and removed. It needs to not be 'noexec' mounted, and
+	// preferably a tmpfs disk, or something that could be wiped in boot.
+	// Originally this was /tmp, but it is often suggested to be 'noexec'.
+	// Then changed ro /var/cache/misc, but that is also often 'noexec'.
+	// /run was consider as it's tmpfs, but it also might be changing to 'noexec'.
+	// So use for now /lib/apk/exec even if it is not of temporary nature.
+	static const char script_exec_dir[] = "lib/apk/exec";
 	struct apk_package *pkg = ipkg->pkg;
 	char fn[PATH_MAX];
 	int fd, root_fd = db->root_fd;
@@ -1010,18 +1018,18 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 
 	argv[0] = (char *) apk_script_types[type];
 
-	/* Avoid /tmp as it can be mounted noexec */
-	snprintf(fn, sizeof(fn), "var/cache/misc/" PKG_VER_FMT ".%s",
-		PKG_VER_PRINTF(pkg),
+	snprintf(fn, sizeof(fn), "%s/" PKG_VER_FMT ".%s",
+		script_exec_dir, PKG_VER_PRINTF(pkg),
 		apk_script_types[type]);
 
 	if ((apk_flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
 		return;
 
-	apk_message("Executing %s", &fn[15]);
+	apk_message("Executing %s", &fn[strlen(script_exec_dir)+1]);
+
 	fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0755);
 	if (fd < 0) {
-		mkdirat(root_fd, "var/cache/misc", 0755);
+		mkdirat(root_fd, script_exec_dir, 0700);
 		fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0755);
 		if (fd < 0) goto err_log;
 	}
