@@ -4,6 +4,8 @@ add conflicted-provider
 @EXPECT
 ERROR: unable to select packages:
   conflicted-provider (virtual):
+    note: please select one of the 'provided by'
+          packages explicitly
     provided by: conflicted-provider-a
                  conflicted-provider-b
     required by: world[conflicted-provider]

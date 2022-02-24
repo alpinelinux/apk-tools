@@ -715,8 +715,8 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 			if (p->version == &apk_atom_null &&
 			    p->pkg->name->auto_select_virtual == 0 &&
 			    p->pkg->name->ss.requirers == 0 &&
-			    (p->pkg->provider_priority == 0 && name->providers->num > 1)) {
-				dbg_printf("    ignore: virtual package without provider_priority with >1 provider\n");
+			    p->pkg->provider_priority == 0) {
+				dbg_printf("    ignore: virtual package without provider_priority\n");
 				continue;
 			}
 			if (compare_providers(ss, p, &chosen) > 0) {

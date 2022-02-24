@@ -531,6 +531,10 @@ static void analyze_name(struct print_state *ps, struct apk_name *name)
 		snprintf(tmp, sizeof(tmp), "%s (virtual)", name->name);
 		ps->label = tmp;
 
+		label_start(ps, "note:");
+		apk_print_indented_words(&ps->i, "please select one of the 'provided by' packages explicitly");
+		label_end(ps);
+
 		label_start(ps, "provided by:");
 		foreach_array_item(p0, name->providers)
 			p0->pkg->name->state_int++;
