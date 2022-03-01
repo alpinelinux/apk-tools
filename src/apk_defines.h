@@ -142,10 +142,10 @@ static inline int IS_ERR(const void *ptr) { return (unsigned long)ptr >= (unsign
 #error APK_DEFAULT_ARCH not detected for this architecture
 #endif
 
-#ifndef APK_ABI_TAG
-#define APK_DEFAULT_ABI_TAG	APK_DEFAULT_ARCH
+#ifndef APK_ARCH_PREFIX
+#define APK_DEFAULT_FULL_ARCH	APK_DEFAULT_ARCH
 #else
-#define APK_DEFAULT_ABI_TAG	APK_ABI_TAG "-" APK_DEFAULT_ARCH
+#define APK_DEFAULT_FULL_ARCH	APK_ARCH_PREFIX "-" APK_DEFAULT_ARCH
 #endif
 
 #define APK_MAX_REPOS		32	/* see struct apk_package */
