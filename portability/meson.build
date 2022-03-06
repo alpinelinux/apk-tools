@@ -24,7 +24,6 @@ if libportability_src.length() > 0
 	libportability = static_library(
 		'portability',
 		libportability_src,
-		dependencies: static_deps,
 	)
 
 	libportability_dep = declare_dependency(
