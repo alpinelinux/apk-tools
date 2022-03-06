@@ -1730,7 +1730,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		apk_db_read_overlay(db, apk_istream_from_fd(STDIN_FILENO));
 	}
 
-	if ((db->ctx->flags & APK_OPENF_NO_STATE) != APK_OPENF_NO_STATE) {
+	if ((db->ctx->open_flags & APK_OPENF_NO_STATE) != APK_OPENF_NO_STATE) {
 		for (i = 0; i < APK_DB_LAYER_NUM; i++) {
 			r = apk_db_read_layer(db, i);
 			if (r) {
