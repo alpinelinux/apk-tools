@@ -4,8 +4,6 @@
 #include "apk_print.h"
 #include "apk_version.h"
 
-#define APK_VERSION_CONFLICT 16
-
 /* Few helpers to map old database to new one */
 
 int apk_dep_split(apk_blob_t *b, apk_blob_t *bdep)
@@ -259,10 +257,17 @@ static apk_blob_t dependency_tostring(struct adb_obj *obj, char *buf, size_t buf
 	name = adb_ro_blob(obj, ADBI_DEP_NAME);
 	ver  = adb_ro_blob(obj, ADBI_DEP_VERSION);
 
-	if (APK_BLOB_IS_NULL(name)) return APK_BLOB_NULL;
-	if (APK_BLOB_IS_NULL(ver)) return name;
-
 	mask = adb_ro_int(obj, ADBI_DEP_MATCH) ?: APK_VERSION_EQUAL;
+
+	if (APK_BLOB_IS_NULL(name)) return APK_BLOB_NULL;
+	if (APK_BLOB_IS_NULL(ver)) {
+		if (mask & APK_VERSION_CONFLICT)
+			return APK_BLOB_PTR_LEN(buf,
+				snprintf(buf, bufsz, "!"BLOB_FMT,
+					BLOB_PRINTF(name)));
+		return name;
+	}
+
 	return APK_BLOB_PTR_LEN(buf,
 		snprintf(buf, bufsz, "%s"BLOB_FMT"%s"BLOB_FMT,
 			(mask & APK_VERSION_CONFLICT) ? "!" : "",
@@ -295,7 +300,7 @@ static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)
 		if (!apk_blob_spn(bop, apk_spn_dependency_comparer, &bop, &bver))
 			goto fail;
 
-		mask = 0;
+		mask &= APK_VERSION_CONFLICT;
 		for (i = 0; i < bop.len; i++) {
 			switch (bop.ptr[i]) {
 			case '<':

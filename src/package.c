@@ -457,10 +457,12 @@ int apk_deps_write(struct apk_database *db, struct apk_dependency_array *deps, s
 
 void apk_dep_from_adb(struct apk_dependency *dep, struct apk_database *db, struct adb_obj *d)
 {
+	int mask = adb_ro_int(d, ADBI_DEP_MATCH);
 	*dep = (struct apk_dependency) {
 		.name = apk_db_get_name(db, adb_ro_blob(d, ADBI_DEP_NAME)),
 		.version = apk_atomize_dup(&db->atoms, adb_ro_blob(d, ADBI_DEP_VERSION)),
-		.result_mask = adb_ro_int(d, ADBI_DEP_MATCH) ?: APK_VERSION_EQUAL,
+		.conflict = !!(mask & APK_VERSION_CONFLICT),
+		.result_mask = (mask & ~APK_VERSION_CONFLICT) ?: APK_VERSION_EQUAL,
 	};
 }
 
