@@ -1730,16 +1730,18 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		apk_db_read_overlay(db, apk_istream_from_fd(STDIN_FILENO));
 	}
 
-	for (i = 0; i < APK_DB_LAYER_NUM; i++) {
-		r = apk_db_read_layer(db, i);
-		if (r) {
-			if (i != APK_DB_LAYER_ROOT) continue;
-			if (!(r == -ENOENT && (ac->open_flags & APK_OPENF_CREATE))) {
-				msg = "Unable to read database";
-				goto ret_r;
+	if ((db->ctx->flags & APK_OPENF_NO_STATE) != APK_OPENF_NO_STATE) {
+		for (i = 0; i < APK_DB_LAYER_NUM; i++) {
+			r = apk_db_read_layer(db, i);
+			if (r) {
+				if (i != APK_DB_LAYER_ROOT) continue;
+				if (!(r == -ENOENT && (ac->open_flags & APK_OPENF_CREATE))) {
+					msg = "Unable to read database";
+					goto ret_r;
+				}
 			}
+			db->active_layers |= BIT(i);
 		}
-		db->active_layers |= BIT(i);
 	}
 
 	if (!(ac->open_flags & APK_OPENF_NO_INSTALLED_REPO)) {
