@@ -471,6 +471,7 @@ int main(int argc, char **argv)
 	ctx.open_flags |= APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
 	ctx.flags |= APK_SIMULATE;
 	ctx.flags &= ~APK_INTERACTIVE;
+	db.active_layers = BIT(0);
 #endif
 
 	r = apk_ctx_prepare(&ctx);
