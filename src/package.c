@@ -845,7 +845,7 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	goto cleanup;
 
 err_log:
-	apk_err(out, "%s: failed to execute: %s", &fn[15], apk_error_str(errno));
+	apk_err(out, "%s: failed to execute: %s", &fn[strlen(script_exec_dir)+1], apk_error_str(errno));
 err:
 	ipkg->broken_script = 1;
 cleanup:
