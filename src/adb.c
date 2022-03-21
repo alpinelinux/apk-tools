@@ -518,33 +518,6 @@ int adb_ro_cmp(const struct adb_obj *tmpl, const struct adb_obj *obj, unsigned i
 	assert(0);
 }
 
-static struct wacmp_param {
-	struct adb *db1, *db2;
-	const struct adb_object_schema *schema;
-	int mode;
-} __wacmp_param;
-
-static int wacmp(const void *p1, const void *p2)
-{
-	struct wacmp_param *wp = &__wacmp_param;
-	struct adb_obj o1, o2;
-	adb_r_obj(wp->db1, *(adb_val_t *)p1, &o1, wp->schema);
-	adb_r_obj(wp->db2, *(adb_val_t *)p2, &o2, wp->schema);
-	return adb_ro_cmpobj(&o1, &o2, wp->mode);
-}
-
-static int wadbcmp(const void *p1, const void *p2)
-{
-	struct wacmp_param *wp = &__wacmp_param;
-	struct adb a1, a2;
-	struct adb_obj o1, o2;
-	adb_m_blob(&a1, adb_r_blob(wp->db1, *(adb_val_t *)p1), 0);
-	adb_m_blob(&a2, adb_r_blob(wp->db2, *(adb_val_t *)p2), 0);
-	adb_r_rootobj(&a1, &o1, wp->schema);
-	adb_r_rootobj(&a2, &o2, wp->schema);
-	return adb_ro_cmpobj(&o1, &o2, wp->mode);
-}
-
 int adb_ra_find(struct adb_obj *arr, int cur, struct adb_obj *tmpl)
 {
 	const struct adb_object_schema *schema = arr->schema, *item_schema;
@@ -974,23 +947,52 @@ adb_val_t adb_wa_append_fromstring(struct adb_obj *o, apk_blob_t b)
 	return adb_wa_append(o, adb_w_fromstring(o->db, o->schema->fields[0].kind, b));
 }
 
+struct wacmp_param {
+	struct adb *db1, *db2;
+	const struct adb_object_schema *schema;
+	int mode;
+};
+
+static int wacmp(const void *p1, const void *p2, void *arg)
+{
+	struct wacmp_param *wp = arg;
+	struct adb_obj o1, o2;
+	adb_r_obj(wp->db1, *(adb_val_t *)p1, &o1, wp->schema);
+	adb_r_obj(wp->db2, *(adb_val_t *)p2, &o2, wp->schema);
+	return adb_ro_cmpobj(&o1, &o2, wp->mode);
+}
+
+static int wadbcmp(const void *p1, const void *p2, void *arg)
+{
+	struct wacmp_param *wp = arg;
+	struct adb a1, a2;
+	struct adb_obj o1, o2;
+	adb_m_blob(&a1, adb_r_blob(wp->db1, *(adb_val_t *)p1), 0);
+	adb_m_blob(&a2, adb_r_blob(wp->db2, *(adb_val_t *)p2), 0);
+	adb_r_rootobj(&a1, &o1, wp->schema);
+	adb_r_rootobj(&a2, &o2, wp->schema);
+	return adb_ro_cmpobj(&o1, &o2, wp->mode);
+}
+
 void adb_wa_sort(struct adb_obj *arr)
 {
 	const struct adb_object_schema *schema = arr->schema;
-	assert(schema->kind == ADB_KIND_ARRAY);
-	__wacmp_param = (struct wacmp_param) {
+	struct wacmp_param arg = {
 		.db1 = arr->db,
 		.db2 = arr->db,
 		.mode = ADB_OBJCMP_EXACT,
 	};
+
+	assert(schema->kind == ADB_KIND_ARRAY);
+
 	switch (*arr->schema->fields[0].kind) {
 	case ADB_KIND_OBJECT:
-		__wacmp_param.schema = container_of(arr->schema->fields[0].kind, struct adb_object_schema, kind);
-		qsort(&arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wacmp);
+		arg.schema = container_of(arr->schema->fields[0].kind, struct adb_object_schema, kind);
+		qsort_r(&arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wacmp, &arg);
 		break;
 	case ADB_KIND_ADB:
-		__wacmp_param.schema = container_of(arr->schema->fields[0].kind, struct adb_adb_schema, kind)->schema;
-		qsort(&arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wadbcmp);
+		arg.schema = container_of(arr->schema->fields[0].kind, struct adb_adb_schema, kind)->schema;
+		qsort_r(&arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wadbcmp, &arg);
 		break;
 	default:
 		assert(1);
