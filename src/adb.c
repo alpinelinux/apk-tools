@@ -855,6 +855,20 @@ int adb_wo_fromstring(struct adb_obj *o, apk_blob_t val)
 	return o->schema->fromstring(o, val);
 }
 
+int adb_wo_copyobj(struct adb_obj *o, struct adb_obj *src)
+{
+	size_t sz = adb_ro_num(src);
+
+	assert(o->schema->kind == ADB_KIND_OBJECT);
+	assert(o->schema == src->schema);
+
+	adb_wo_reset(o);
+	for (unsigned i = ADBI_FIRST; i < sz; i++)
+		adb_wo_val(o, i, adb_w_copy(o->db, src->db, adb_ro_val(src, i)));
+
+	return 0;
+}
+
 adb_val_t adb_wo_val(struct adb_obj *o, unsigned i, adb_val_t v)
 {
 	if (i >= o->obj[ADBI_NUM_ENTRIES]) return adb_w_error(o->db, E2BIG);

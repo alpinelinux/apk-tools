@@ -214,6 +214,7 @@ void adb_wo_resetdb(struct adb_obj *);
 adb_val_t adb_w_obj(struct adb_obj *);
 adb_val_t adb_w_arr(struct adb_obj *);
 int adb_wo_fromstring(struct adb_obj *o, apk_blob_t);
+int adb_wo_copyobj(struct adb_obj *o, struct adb_obj *);
 adb_val_t adb_wo_val(struct adb_obj *o, unsigned i, adb_val_t);
 adb_val_t adb_wo_val_fromstring(struct adb_obj *o, unsigned i, apk_blob_t);
 adb_val_t adb_wo_int(struct adb_obj *o, unsigned i, uint32_t);

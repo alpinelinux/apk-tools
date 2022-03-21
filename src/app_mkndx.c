@@ -30,6 +30,7 @@ struct mkndx_ctx {
 	apk_blob_t r;
 	struct adb db;
 	struct adb_obj pkgs;
+	struct adb_obj pkginfo;
 	time_t index_mtime;
 
 	struct apk_extract_ctx ectx;
@@ -84,7 +85,7 @@ static int cmpfield(const void *pa, const void *pb)
 	return apk_blob_sort(a->str, b->str);
 }
 
-static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, size_t file_size, struct apk_extract_ctx *ectx, apk_blob_t rewrite_arch)
+static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
 {
 	static struct field fields[]  = {
 		FIELD("arch",			ADBI_PI_ARCH),
@@ -108,12 +109,13 @@ static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, s
 		FIELD("triggers",		0),
 		FIELD("url",			ADBI_PI_URL),
 	};
+	struct mkndx_ctx *ctx = container_of(ectx, struct mkndx_ctx, ectx);
 	struct field *f, key;
-	struct adb_obj pkginfo, deps[3];
+	struct adb *db = &ctx->db;
+	struct adb_obj deps[3];
 	apk_blob_t line, k, v, token = APK_BLOB_STR("\n"), bdep;
 	int r, e = 0, i = 0;
 
-	adb_wo_alloca(&pkginfo, &schema_pkginfo, db);
 	adb_wo_alloca(&deps[0], &schema_dependency_array, db);
 	adb_wo_alloca(&deps[1], &schema_dependency_array, db);
 	adb_wo_alloca(&deps[2], &schema_dependency_array, db);
@@ -127,7 +129,7 @@ static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, s
 		f = bsearch(&key, fields, ARRAY_SIZE(fields), sizeof(fields[0]), cmpfield);
 		if (!f || f->ndx == 0) continue;
 
-		if (adb_ro_val(&pkginfo, f->ndx) != ADB_NULL) {
+		if (adb_ro_val(&ctx->pkginfo, f->ndx) != ADB_NULL) {
 			/* Workaround abuild bug that emitted multiple license lines */
 			if (f->ndx == ADBI_PI_LICENSE) continue;
 			return ADB_ERROR(APKE_ADB_PACKAGE_FORMAT);
@@ -135,7 +137,7 @@ static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, s
 
 		switch (f->ndx) {
 		case ADBI_PI_ARCH:
-			if (!APK_BLOB_IS_NULL(rewrite_arch)) v = rewrite_arch;
+			if (!APK_BLOB_IS_NULL(ctx->rewrite_arch)) v = ctx->rewrite_arch;
 			break;
 		case ADBI_PI_DEPENDS:
 			i = 0;
@@ -152,38 +154,27 @@ static adb_val_t mkndx_read_v2_pkginfo(struct adb *db, struct apk_istream *is, s
 			}
 			continue;
 		}
-		adb_wo_pkginfo(&pkginfo, f->ndx, v);
+		adb_wo_pkginfo(&ctx->pkginfo, f->ndx, v);
 	}
 	if (r != -APKE_EOF) return ADB_ERROR(-r);
 
-	adb_wo_arr(&pkginfo, ADBI_PI_DEPENDS, &deps[0]);
-	adb_wo_arr(&pkginfo, ADBI_PI_PROVIDES, &deps[1]);
-	adb_wo_arr(&pkginfo, ADBI_PI_REPLACES, &deps[2]);
-	adb_wo_int(&pkginfo, ADBI_PI_FILE_SIZE, file_size);
+	adb_wo_arr(&ctx->pkginfo, ADBI_PI_DEPENDS, &deps[0]);
+	adb_wo_arr(&ctx->pkginfo, ADBI_PI_PROVIDES, &deps[1]);
+	adb_wo_arr(&ctx->pkginfo, ADBI_PI_REPLACES, &deps[2]);
 
-	return adb_w_obj(&pkginfo);
-}
-
-static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
-{
-	struct mkndx_ctx *ctx = container_of(ectx, struct mkndx_ctx, ectx);
-	adb_val_t o = adb_wa_append(
-		&ctx->pkgs,
-		mkndx_read_v2_pkginfo(
-			&ctx->db, is, ctx->file_size, &ctx->ectx,
-			ctx->rewrite_arch));
-	if (ADB_IS_ERROR(o)) return -ADB_VAL_VALUE(o);
 	return 0;
 }
 
 static int mkndx_parse_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 {
 	struct mkndx_ctx *ctx = container_of(ectx, struct mkndx_ctx, ectx);
-	struct adb *db = pkg->db;
+	struct adb_obj pkginfo;
 
-	adb_val_t o = adb_wa_append(&ctx->pkgs,
-		adb_w_copy(&ctx->db, db, adb_ro_val(pkg, ADBI_PKG_PKGINFO)));
-	if (ADB_IS_ERROR(o)) return -ADB_VAL_VALUE(o);
+	adb_ro_obj(pkg, ADBI_PKG_PKGINFO, &pkginfo);
+
+	adb_wo_alloca(&ctx->pkginfo, &schema_pkginfo, &ctx->db);
+	adb_wo_copyobj(&ctx->pkginfo, &pkginfo);
+
 	return 0;
 }
 
@@ -199,7 +190,8 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	struct adb odb, tmpdb;
 	struct adb_obj oroot, opkgs, ndx, tmpl;
 	struct apk_file_info fi;
-	adb_val_t match;
+	struct apk_checksum csum;
+	adb_val_t val;
 	int r, found, errors = 0, newpkgs = 0, numpkgs;
 	struct mkndx_ctx *ctx = pctx;
 	char **parg;
@@ -219,6 +211,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	adb_w_init_alloca(&ctx->db, ADB_SCHEMA_INDEX, 1000);
 	adb_wo_alloca(&ndx, &schema_index, &ctx->db);
 	adb_wo_alloca(&ctx->pkgs, &schema_pkginfo_array, &ctx->db);
+	adb_wo_alloca(&ctx->pkginfo, &schema_pkginfo, &ctx->db);
 
 	if (ctx->index) {
 		apk_fileinfo_get(AT_FDCWD, ctx->index, 0, &fi, 0);
@@ -247,6 +240,8 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		if (index_mtime >= fi.mtime) {
 			char *fname, *fend;
 			apk_blob_t bname, bver;
+			adb_val_t match;
+			int i;
 
 			/* Check that it looks like a package name */
 			fname = strrchr(*parg, '/');
@@ -264,31 +259,35 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			adb_wo_resetdb(&tmpl);
 			adb_wo_blob(&tmpl, ADBI_PI_NAME, bname);
 			adb_wo_blob(&tmpl, ADBI_PI_VERSION, bver);
+			adb_wo_int(&tmpl, ADBI_PI_FILE_SIZE, fi.size);
 			match = adb_w_obj(&tmpl);
 
-			for (int i = 0; (i = adb_ra_find(&opkgs, i, &tmpdb, match)) > 0; ) {
+			if ((i = adb_ra_find(&opkgs, 0, &tmpdb, match)) > 0) {
 				struct adb_obj pkg;
-				adb_val_t val;
-
 				adb_ro_obj(&opkgs, i, &pkg);
-				if (apk_blob_compare(bname, adb_ro_blob(&pkg, ADBI_PI_NAME))) continue;
-				if (apk_blob_compare(bver,  adb_ro_blob(&pkg, ADBI_PI_VERSION))) continue;
-				if (fi.size != adb_ro_int(&pkg, ADBI_PI_FILE_SIZE)) continue;
 
 				val = adb_wa_append(&ctx->pkgs, adb_w_copy(&ctx->db, &odb, adb_ro_val(&opkgs, i)));
-				if (ADB_IS_ERROR(val))
-					errors++;
-
 				found = TRUE;
 				break;
 			}
 		}
 		if (!found) {
 		do_file:
+			apk_extract_reset(&ctx->ectx);
+			apk_extract_generate_identity(&ctx->ectx, &csum);
+			csum.type = APK_CHECKSUM_NONE;
 			r = apk_extract(&ctx->ectx, apk_istream_from_file(AT_FDCWD, *parg));
 			if (r < 0) goto err_pkg;
+
+			adb_wo_int(&ctx->pkginfo, ADBI_PI_FILE_SIZE, ctx->file_size);
+			if (csum.type != APK_CHECKSUM_NONE)
+				adb_wo_blob(&ctx->pkginfo, ADBI_PI_UNIQUE_ID,
+					APK_BLOB_CSUM(csum));
+
+			val = adb_wa_append_obj(&ctx->pkgs, &ctx->pkginfo);
 			newpkgs++;
 		}
+		if (ADB_IS_ERROR(val)) errors++;
 	}
 	if (errors) {
 		apk_err(out, "%d errors, not creating index", errors);
