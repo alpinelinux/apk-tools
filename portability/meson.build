@@ -9,6 +9,7 @@ check_functions = [
 	['strlcpy', 'strlcpy.c', 'NEED_STRLCPY', 'string.h'],
 	['pipe2', 'pipe2.c', 'NEED_PIPE2', 'unistd.h'],
 	['mknodat', 'mknodat.c', 'NEED_MKNODAT', 'sys/stat.h'],
+	['qsort_r', 'qsort_r.c', 'NEED_QSORT_R', 'stdlib.h'],
 ]
 
 
