@@ -472,72 +472,109 @@ struct adb_obj *adb_ro_obj(const struct adb_obj *o, unsigned i, struct adb_obj *
 	return adb_r_obj(o->db, adb_ro_val(o, i), no, schema);
 }
 
-int adb_ro_cmp(const struct adb_obj *o1, const struct adb_obj *o2, unsigned i)
+int adb_ro_cmpobj(const struct adb_obj *tmpl, const struct adb_obj *obj, unsigned mode)
 {
-	assert(o1->schema->kind == ADB_KIND_OBJECT);
-	assert(o1->schema == o2->schema);
-	assert(i > 0 && i < o1->schema->num_fields);
+	const struct adb_object_schema *schema = obj->schema;
+	int is_set, r = 0;
 
-	switch (*o1->schema->fields[i-1].kind) {
+	assert(schema->kind == ADB_KIND_OBJECT);
+	assert(schema == tmpl->schema);
+
+	for (unsigned int i = ADBI_FIRST; i <= adb_ro_num(tmpl); i++) {
+		is_set = adb_ro_val(tmpl, i) != ADB_VAL_NULL;
+		if (mode == ADB_OBJCMP_EXACT || is_set) {
+			r = adb_ro_cmp(tmpl, obj, i, mode);
+			if (r) return r;
+		}
+		if (mode == ADB_OBJCMP_INDEX && !is_set)
+			return 0;
+		if (mode != ADB_OBJCMP_EXACT && i >= schema->num_compare)
+			return 0;
+	}
+	return 0;
+}
+
+int adb_ro_cmp(const struct adb_obj *tmpl, const struct adb_obj *obj, unsigned i, unsigned mode)
+{
+	const struct adb_object_schema *schema = obj->schema;
+
+	assert(schema->kind == ADB_KIND_OBJECT);
+	assert(schema == tmpl->schema);
+	assert(i > 0 && i < schema->num_fields);
+
+	switch (*schema->fields[i-1].kind) {
 	case ADB_KIND_BLOB:
 	case ADB_KIND_INT:
-		return container_of(o1->schema->fields[i-1].kind, struct adb_scalar_schema, kind)->compare(
-			o1->db, adb_ro_val(o1, i),
-			o2->db, adb_ro_val(o2, i));
+		return container_of(schema->fields[i-1].kind, struct adb_scalar_schema, kind)->compare(
+			tmpl->db, adb_ro_val(tmpl, i),
+			obj->db, adb_ro_val(obj, i));
 	case ADB_KIND_OBJECT: {
-		struct adb_obj so1, so2;
-		adb_ro_obj(o1, i, &so1);
-		adb_ro_obj(o2, i, &so2);
-		return so1.schema->compare(&so1, &so2);
+		struct adb_obj stmpl, sobj;
+		adb_ro_obj(tmpl, i, &stmpl);
+		adb_ro_obj(obj, i, &sobj);
+		return adb_ro_cmpobj(&stmpl, &sobj, mode);
 		}
 	}
 	assert(0);
 }
 
-static struct adb *__db1, *__db2;
-static const struct adb_object_schema *__schema;
+static struct wacmp_param {
+	struct adb *db1, *db2;
+	const struct adb_object_schema *schema;
+	int mode;
+} __wacmp_param;
 
 static int wacmp(const void *p1, const void *p2)
 {
+	struct wacmp_param *wp = &__wacmp_param;
 	struct adb_obj o1, o2;
-	adb_r_obj(__db1, *(adb_val_t *)p1, &o1, __schema);
-	adb_r_obj(__db2, *(adb_val_t *)p2, &o2, __schema);
-	return o1.schema->compare(&o1, &o2);
+	adb_r_obj(wp->db1, *(adb_val_t *)p1, &o1, wp->schema);
+	adb_r_obj(wp->db2, *(adb_val_t *)p2, &o2, wp->schema);
+	return adb_ro_cmpobj(&o1, &o2, wp->mode);
 }
 
 static int wadbcmp(const void *p1, const void *p2)
 {
+	struct wacmp_param *wp = &__wacmp_param;
 	struct adb a1, a2;
 	struct adb_obj o1, o2;
-	adb_m_blob(&a1, adb_r_blob(__db1, *(adb_val_t *)p1), 0);
-	adb_m_blob(&a2, adb_r_blob(__db2, *(adb_val_t *)p2), 0);
-	adb_r_rootobj(&a1, &o1, __schema);
-	adb_r_rootobj(&a2, &o2, __schema);
-	return __schema->compare(&o1, &o2);
+	adb_m_blob(&a1, adb_r_blob(wp->db1, *(adb_val_t *)p1), 0);
+	adb_m_blob(&a2, adb_r_blob(wp->db2, *(adb_val_t *)p2), 0);
+	adb_r_rootobj(&a1, &o1, wp->schema);
+	adb_r_rootobj(&a2, &o2, wp->schema);
+	return adb_ro_cmpobj(&o1, &o2, wp->mode);
 }
 
-int adb_ra_find(struct adb_obj *arr, int cur, struct adb *db, adb_val_t val)
+int adb_ra_find(struct adb_obj *arr, int cur, struct adb_obj *tmpl)
 {
-	adb_val_t *ndx;
+	const struct adb_object_schema *schema = arr->schema, *item_schema;
+	struct adb_obj obj;
 
-	__db1 = db;
-	__db2 = arr->db;
-	__schema = arr->schema;
-	assert(__schema->kind == ADB_KIND_ARRAY);
-	__schema = container_of(__schema->fields[0].kind, struct adb_object_schema, kind);
+	assert(schema->kind == ADB_KIND_ARRAY);
+	assert(*schema->fields[0].kind == ADB_KIND_OBJECT);
+	item_schema = container_of(schema->fields[0].kind, struct adb_object_schema, kind),
+	assert(item_schema == tmpl->schema);
 
 	if (cur == 0) {
-		ndx = bsearch(&val, &arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wacmp);
-		if (!ndx) return -1;
-		cur = ndx - arr->obj;
-		while (cur > 1 && wacmp(&val, &arr->obj[cur-1]) == 0) cur--;
+		unsigned m, l = ADBI_FIRST, r = adb_ra_num(arr) + 1;
+		while (l < r) {
+			m = (l + r) / 2;
+			if (adb_ro_cmpobj(tmpl, adb_ro_obj(arr, m, &obj), ADB_OBJCMP_INDEX) < 0)
+				r = m;
+			else
+				l = m + 1;
+		}
+		cur = r - 1;
 	} else {
 		cur++;
-		if (wacmp(&val, &arr->obj[cur]) != 0)
-			return -1;
 	}
-	return cur;
 
+	for (; cur <= adb_ra_num(arr); cur++) {
+		adb_ro_obj(arr, cur, &obj);
+		if (adb_ro_cmpobj(tmpl, &obj, ADB_OBJCMP_TEMPLATE) == 0) return cur;
+		if (adb_ro_cmpobj(tmpl, &obj, ADB_OBJCMP_INDEX) != 0) return -1;
+	}
+	return -1;
 }
 
 /* Write interface */
@@ -939,15 +976,20 @@ adb_val_t adb_wa_append_fromstring(struct adb_obj *o, apk_blob_t b)
 
 void adb_wa_sort(struct adb_obj *arr)
 {
-	assert(arr->schema->kind == ADB_KIND_ARRAY);
-	__db1 = __db2 = arr->db;
+	const struct adb_object_schema *schema = arr->schema;
+	assert(schema->kind == ADB_KIND_ARRAY);
+	__wacmp_param = (struct wacmp_param) {
+		.db1 = arr->db,
+		.db2 = arr->db,
+		.mode = ADB_OBJCMP_EXACT,
+	};
 	switch (*arr->schema->fields[0].kind) {
 	case ADB_KIND_OBJECT:
-		__schema = container_of(arr->schema->fields[0].kind, struct adb_object_schema, kind);
+		__wacmp_param.schema = container_of(arr->schema->fields[0].kind, struct adb_object_schema, kind);
 		qsort(&arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wacmp);
 		break;
 	case ADB_KIND_ADB:
-		__schema = container_of(arr->schema->fields[0].kind, struct adb_adb_schema, kind)->schema;
+		__wacmp_param.schema = container_of(arr->schema->fields[0].kind, struct adb_adb_schema, kind)->schema;
 		qsort(&arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wadbcmp);
 		break;
 	default:

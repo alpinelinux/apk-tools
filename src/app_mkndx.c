@@ -208,7 +208,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	adb_w_init_tmp(&tmpdb, 200);
 	adb_wo_alloca(&tmpl, &schema_pkginfo, &tmpdb);
 
-	adb_w_init_alloca(&ctx->db, ADB_SCHEMA_INDEX, 1000);
+	adb_w_init_alloca(&ctx->db, ADB_SCHEMA_INDEX, 8000);
 	adb_wo_alloca(&ndx, &schema_index, &ctx->db);
 	adb_wo_alloca(&ctx->pkgs, &schema_pkginfo_array, &ctx->db);
 	adb_wo_alloca(&ctx->pkginfo, &schema_pkginfo, &ctx->db);
@@ -240,7 +240,6 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		if (index_mtime >= fi.mtime) {
 			char *fname, *fend;
 			apk_blob_t bname, bver;
-			adb_val_t match;
 			int i;
 
 			/* Check that it looks like a package name */
@@ -260,15 +259,13 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			adb_wo_blob(&tmpl, ADBI_PI_NAME, bname);
 			adb_wo_blob(&tmpl, ADBI_PI_VERSION, bver);
 			adb_wo_int(&tmpl, ADBI_PI_FILE_SIZE, fi.size);
-			match = adb_w_obj(&tmpl);
 
-			if ((i = adb_ra_find(&opkgs, 0, &tmpdb, match)) > 0) {
+			if ((i = adb_ra_find(&opkgs, 0, &tmpl)) > 0) {
 				struct adb_obj pkg;
 				adb_ro_obj(&opkgs, i, &pkg);
 
 				val = adb_wa_append(&ctx->pkgs, adb_w_copy(&ctx->db, &odb, adb_ro_val(&opkgs, i)));
 				found = TRUE;
-				break;
 			}
 		}
 		if (!found) {

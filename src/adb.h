@@ -105,13 +105,17 @@ struct adb_sign_v0 {
 #define ADB_ARRAY_ITEM(_t) { { .kind = &(_t).kind } }
 #define ADB_FIELD(_i, _n, _t) [(_i)-1] = { .name = _n, .kind = &(_t).kind }
 
+#define ADB_OBJCMP_EXACT	0	// match all fields
+#define ADB_OBJCMP_TEMPLATE	1	// match fields set on template
+#define ADB_OBJCMP_INDEX	2	// match fields until first non-set one
+
 struct adb_object_schema {
 	uint8_t kind;
 	uint16_t num_fields;
+	uint16_t num_compare;
 
 	apk_blob_t (*tostring)(struct adb_obj *, char *, size_t);
 	int (*fromstring)(struct adb_obj *, apk_blob_t);
-	int (*compare)(const struct adb_obj *, const struct adb_obj *);
 	void (*pre_commit)(struct adb_obj *);
 
 	struct {
@@ -192,8 +196,9 @@ adb_val_t adb_ro_val(const struct adb_obj *o, unsigned i);
 uint32_t adb_ro_int(const struct adb_obj *o, unsigned i);
 apk_blob_t adb_ro_blob(const struct adb_obj *o, unsigned i);
 struct adb_obj *adb_ro_obj(const struct adb_obj *o, unsigned i, struct adb_obj *);
-int adb_ro_cmp(const struct adb_obj *o1, const struct adb_obj *o2, unsigned i);
-int adb_ra_find(struct adb_obj *arr, int cur, struct adb *db, adb_val_t val);
+int adb_ro_cmpobj(const struct adb_obj *o1, const struct adb_obj *o2, unsigned mode);
+int adb_ro_cmp(const struct adb_obj *o1, const struct adb_obj *o2, unsigned i, unsigned mode);
+int adb_ra_find(struct adb_obj *arr, int cur, struct adb_obj *tmpl);
 
 /* Primitive write */
 void adb_w_root(struct adb *, adb_val_t);

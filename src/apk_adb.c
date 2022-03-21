@@ -341,17 +341,12 @@ fail:
 	return -APKE_DEPENDENCY_FORMAT;
 }
 
-static int dependency_cmp(const struct adb_obj *o1, const struct adb_obj *o2)
-{
-	return adb_ro_cmp(o1, o2, ADBI_DEP_NAME);
-}
-
 const struct adb_object_schema schema_dependency = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_DEP_MAX,
+	.num_compare = ADBI_DEP_NAME,
 	.tostring = dependency_tostring,
 	.fromstring = dependency_fromstring,
-	.compare = dependency_cmp,
 	.fields = {
 		ADB_FIELD(ADBI_DEP_NAME,	"name",		scalar_string),
 		ADB_FIELD(ADBI_DEP_VERSION,	"version",	scalar_version),
@@ -383,20 +378,10 @@ const struct adb_object_schema schema_dependency_array = {
 	.fields = ADB_ARRAY_ITEM(schema_dependency),
 };
 
-static int pkginfo_cmp(const struct adb_obj *o1, const struct adb_obj *o2)
-{
-	int r;
-	r = adb_ro_cmp(o1, o2, ADBI_PI_NAME);
-	if (r) return r;
-	r = adb_ro_cmp(o1, o2, ADBI_PI_VERSION);
-	if (r) return r;
-	return adb_ro_cmp(o1, o2, ADBI_PI_UNIQUE_ID);
-}
-
 const struct adb_object_schema schema_pkginfo = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_PI_MAX,
-	.compare = pkginfo_cmp,
+	.num_compare = ADBI_PI_UNIQUE_ID,
 	.fields = {
 		ADB_FIELD(ADBI_PI_NAME,		"name",		scalar_string),
 		ADB_FIELD(ADBI_PI_VERSION,	"version",	scalar_version),
@@ -448,15 +433,10 @@ const struct adb_object_schema schema_acl = {
 	},
 };
 
-static int file_cmp(const struct adb_obj *o1, const struct adb_obj *o2)
-{
-	return adb_ro_cmp(o1, o2, ADBI_FI_NAME);
-}
-
 const struct adb_object_schema schema_file = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_FI_MAX,
-	.compare = file_cmp,
+	.num_compare = ADBI_FI_NAME,
 	.fields = {
 		ADB_FIELD(ADBI_FI_NAME,		"name",		scalar_string),
 		ADB_FIELD(ADBI_FI_ACL,		"acl",		schema_acl),
@@ -477,7 +457,7 @@ const struct adb_object_schema schema_file_array = {
 const struct adb_object_schema schema_dir = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_DI_MAX,
-	.compare = file_cmp,
+	.num_compare = ADBI_DI_NAME,
 	.fields = {
 		ADB_FIELD(ADBI_DI_NAME,		"name",		scalar_string),
 		ADB_FIELD(ADBI_DI_ACL,		"acl",		schema_acl),
@@ -506,15 +486,10 @@ const struct adb_object_schema schema_scripts = {
 	},
 };
 
-static int package_cmp(const struct adb_obj *o1, const struct adb_obj *o2)
-{
-	return adb_ro_cmp(o1, o2, ADBI_PKG_PKGINFO);
-}
-
 const struct adb_object_schema schema_package = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_PKG_MAX,
-	.compare = package_cmp,
+	.num_compare = ADBI_PKG_PKGINFO,
 	.fields = {
 		ADB_FIELD(ADBI_PKG_PKGINFO,	"info",		schema_pkginfo),
 		ADB_FIELD(ADBI_PKG_PATHS,	"paths",	schema_dir_array),
