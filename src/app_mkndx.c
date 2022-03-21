@@ -171,8 +171,6 @@ static int mkndx_parse_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 	struct adb_obj pkginfo;
 
 	adb_ro_obj(pkg, ADBI_PKG_PKGINFO, &pkginfo);
-
-	adb_wo_alloca(&ctx->pkginfo, &schema_pkginfo, &ctx->db);
 	adb_wo_copyobj(&ctx->pkginfo, &pkginfo);
 
 	return 0;
