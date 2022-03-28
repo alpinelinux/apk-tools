@@ -628,6 +628,7 @@ int apk_repo_format_item(struct apk_database *db, struct apk_repository *repo, s
 			 int *fd, char *buf, size_t len)
 {
 	if (repo->url == db->repos[APK_REPOSITORY_CACHED].url) {
+		if (db->cache_fd < 0) return db->cache_fd;
 		*fd = db->cache_fd;
 		return apk_pkg_format_cache_pkg(APK_BLOB_PTR_LEN(buf, len), pkg);
 	} else {
@@ -650,6 +651,8 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 	char cacheitem[128];
 	int r;
 	time_t now = time(NULL);
+
+	if (db->cache_fd < 0) return db->cache_fd;
 
 	if (pkg != NULL)
 		r = apk_pkg_format_cache_pkg(APK_BLOB_BUF(cacheitem), pkg);
@@ -1664,6 +1667,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 
 	apk_db_setup_repositories(db, ac->cache_dir);
 	db->root_fd = apk_ctx_fd_root(ac);
+	db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
 	db->permanent = !detect_tmpfs_root(db);
 
 	if (ac->root && ac->arch) {
@@ -1720,9 +1724,11 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			     add_protected_paths_from_file, db);
 
 	/* figure out where to have the cache */
-	if ((r = setup_cache(db, ac)) < 0) {
-		apk_err(out, "Unable to remount cache read/write");
-		goto ret_r;
+	if (!(db->ctx->flags & APK_NO_CACHE)) {
+		if ((r = setup_cache(db, ac)) < 0) {
+			apk_err(out, "Unable to remount cache read/write");
+			goto ret_r;
+		}
 	}
 
 	if (db->ctx->flags & APK_OVERLAY_FROM_STDIN) {
@@ -2116,7 +2122,7 @@ void apk_db_update_directory_permissions(struct apk_database *db)
 
 int apk_db_cache_active(struct apk_database *db)
 {
-	return db->cache_dir != apk_static_cache_dir;
+	return db->cache_fd > 0 && db->cache_dir != apk_static_cache_dir;
 }
 
 struct foreach_cache_item_ctx {
@@ -2160,6 +2166,7 @@ int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb)
 {
 	struct foreach_cache_item_ctx ctx = { db, cb };
 
+	if (db->cache_fd < 0) return db->cache_fd;
 	return apk_dir_foreach_file(dup(db->cache_fd), foreach_cache_file, &ctx);
 }
 
