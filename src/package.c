@@ -997,6 +997,21 @@ int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 	return 0;
 }
 
+static inline int make_dirs(int root_fd, const char *dirname, mode_t dirmode, mode_t parentmode)
+{
+	char parentdir[PATH_MAX], *slash;
+
+	if (faccessat(root_fd, dirname, F_OK, 0) == 0) return 0;
+	if (mkdirat(root_fd, dirname, dirmode) == 0) return 0;
+	if (errno != ENOENT || !parentmode) return -1;
+
+	slash = strrchr(dirname, '/');
+	if (!slash || slash == dirname || slash-dirname+1 >= sizeof parentdir) return -1;
+	strlcpy(parentdir, dirname, slash-dirname+1);
+	if (make_dirs(root_fd, parentdir, parentmode, parentmode) < 0) return -1;
+	return mkdirat(root_fd, dirname, dirmode);
+}
+
 void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 			 struct apk_database *db,
 			 unsigned int type, char **argv)
@@ -1026,10 +1041,9 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		return;
 
 	apk_message("Executing %s", &fn[strlen(script_exec_dir)+1]);
-
 	fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0755);
 	if (fd < 0) {
-		mkdirat(root_fd, script_exec_dir, 0700);
+		make_dirs(root_fd, script_exec_dir, 0700, 0755);
 		fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0755);
 		if (fd < 0) goto err_log;
 	}
