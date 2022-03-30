@@ -461,6 +461,7 @@ void apk_dep_from_adb(struct apk_dependency *dep, struct apk_database *db, struc
 	*dep = (struct apk_dependency) {
 		.name = apk_db_get_name(db, adb_ro_blob(d, ADBI_DEP_NAME)),
 		.version = apk_atomize_dup(&db->atoms, adb_ro_blob(d, ADBI_DEP_VERSION)),
+		.fuzzy = !!(mask & APK_VERSION_FUZZY),
 		.conflict = !!(mask & APK_VERSION_CONFLICT),
 		.result_mask = (mask & ~APK_VERSION_CONFLICT) ?: APK_VERSION_EQUAL,
 	};
