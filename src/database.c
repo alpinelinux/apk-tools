@@ -1680,7 +1680,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			db->arch = apk_atomize_dup(&db->atoms, apk_blob_trim(arch));
 			free(arch.ptr);
 		} else {
-			db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(APK_DEFAULT_FULL_ARCH));
+			db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(APK_DEFAULT_ARCH));
 			db->write_arch = 1;
 		}
 	}

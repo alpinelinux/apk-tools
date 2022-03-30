@@ -101,51 +101,51 @@ static inline int IS_ERR(const void *ptr) { return (unsigned long)ptr >= (unsign
 
 /* default architecture for APK packages. */
 #if defined(__x86_64__)
-#define APK_DEFAULT_ARCH        "x86_64"
+#define APK_DEFAULT_BASE_ARCH        "x86_64"
 #elif defined(__i386__)
-#define APK_DEFAULT_ARCH        "x86"
+#define APK_DEFAULT_BASE_ARCH        "x86"
 #elif defined(__powerpc__) && !defined(__powerpc64__)
-#define APK_DEFAULT_ARCH	"ppc"
+#define APK_DEFAULT_BASE_ARCH	"ppc"
 #elif defined(__powerpc64__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define APK_DEFAULT_ARCH	"ppc64"
+#define APK_DEFAULT_BASE_ARCH	"ppc64"
 #elif defined(__powerpc64__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_ARCH	"ppc64le"
+#define APK_DEFAULT_BASE_ARCH	"ppc64le"
 #elif defined(__arm__) && defined(__ARM_PCS_VFP) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ && __ARM_ARCH>=7
-#define APK_DEFAULT_ARCH	"armv7"
+#define APK_DEFAULT_BASE_ARCH	"armv7"
 #elif defined(__arm__) && defined(__ARM_PCS_VFP) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_ARCH	"armhf"
+#define APK_DEFAULT_BASE_ARCH	"armhf"
 #elif defined(__arm__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_ARCH	"armel"
+#define APK_DEFAULT_BASE_ARCH	"armel"
 #elif defined(__aarch64__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_ARCH	"aarch64"
+#define APK_DEFAULT_BASE_ARCH	"aarch64"
 #elif defined(__s390x__)
-#define APK_DEFAULT_ARCH	"s390x"
+#define APK_DEFAULT_BASE_ARCH	"s390x"
 #elif defined(__mips64) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define APK_DEFAULT_ARCH	"mips64"
+#define APK_DEFAULT_BASE_ARCH	"mips64"
 #elif defined(__mips64) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_ARCH	"mips64el"
+#define APK_DEFAULT_BASE_ARCH	"mips64el"
 #elif defined(__mips__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define APK_DEFAULT_ARCH	"mips"
+#define APK_DEFAULT_BASE_ARCH	"mips"
 #elif defined(__mips__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_ARCH	"mipsel"
+#define APK_DEFAULT_BASE_ARCH	"mipsel"
 #elif defined(__riscv) && __riscv_xlen == 32
-#define APK_DEFAULT_ARCH	"riscv32"
+#define APK_DEFAULT_BASE_ARCH	"riscv32"
 #elif defined(__riscv) && __riscv_xlen == 64
-#define APK_DEFAULT_ARCH	"riscv64"
+#define APK_DEFAULT_BASE_ARCH	"riscv64"
 #elif defined(__loongarch__) && defined(__loongarch32) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_ARCH	"loongarch32"
+#define APK_DEFAULT_BASE_ARCH	"loongarch32"
 #elif defined(__loongarch__) && defined(__loongarchx32) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_ARCH	"loongarchx32"
+#define APK_DEFAULT_BASE_ARCH	"loongarchx32"
 #elif defined(__loongarch__) && defined(__loongarch64) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_ARCH	"loongarch64"
+#define APK_DEFAULT_BASE_ARCH	"loongarch64"
 #else
-#error APK_DEFAULT_ARCH not detected for this architecture
+#error APK_DEFAULT_BASE_ARCH not detected for this architecture
 #endif
 
 #ifndef APK_ARCH_PREFIX
-#define APK_DEFAULT_FULL_ARCH	APK_DEFAULT_ARCH
+#define APK_DEFAULT_ARCH	APK_DEFAULT_BASE_ARCH
 #else
-#define APK_DEFAULT_FULL_ARCH	APK_ARCH_PREFIX "-" APK_DEFAULT_ARCH
+#define APK_DEFAULT_ARCH	APK_ARCH_PREFIX "-" APK_DEFAULT_BASE_ARCH
 #endif
 
 #define APK_MAX_REPOS		32	/* see struct apk_package */
