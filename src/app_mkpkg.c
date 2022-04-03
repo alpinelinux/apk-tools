@@ -286,7 +286,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	if (ctx->has_scripts) {
 		struct adb_obj scripts;
 		adb_wo_alloca(&scripts, &schema_scripts, &ctx->db);
-		for (i = ADBI_FIRST; i < APK_SCRIPT_MAX; i++)
+		for (i = ADBI_FIRST; i < ADBI_SCRPT_MAX; i++)
 			adb_wo_blob(&scripts, i, ctx->script[i]);
 		adb_wo_obj(&pkg, ADBI_PKG_SCRIPTS, &scripts);
 	}
