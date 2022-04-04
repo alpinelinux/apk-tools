@@ -21,6 +21,20 @@ foreach f : check_functions
 endforeach
 
 
+# Check for wrong (non-POSIX) qsort_r prototype
+qsort_r_test = '''
+	#define _GNU_SOURCE
+	#include <stdlib.h>
+	_Static_assert(_Generic((qsort_r),
+		void (*)(void *, size_t, size_t, void *,
+			int (*)(void *, const void *, const void *)) : 1, default: 0),
+		"Bad prototype not matched");
+'''
+if cc.compiles(qsort_r_test, name: 'Test qsort_r non-POSIX prototype')
+	add_project_arguments('-DHAVE_BROKEN_QSORT_R', language: 'c')
+endif
+
+
 if libportability_src.length() > 0
 	libportability = static_library(
 		'portability',
