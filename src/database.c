@@ -2259,7 +2259,7 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 	struct apk_repository *repo;
 	struct apk_url_print urlp;
 	apk_blob_t brepo, btag;
-	int repo_num, r, targz = 1, tag_id = 0;
+	int repo_num, r, tag_id = 0, atfd = AT_FDCWD;
 	char buf[PATH_MAX], *url;
 
 	brepo = _repository;
@@ -2305,6 +2305,7 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 		} else {
 			if (db->autoupdate) apk_repository_update(db, repo);
 			r = apk_repo_format_cache_index(APK_BLOB_BUF(buf), repo);
+			atfd = db->cache_fd;
 		}
 	} else {
 		db->local_repos |= BIT(repo_num);
@@ -2312,7 +2313,7 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 		r = apk_repo_format_real_url(db->arch, repo, NULL, buf, sizeof(buf), &urlp);
 	}
 	if (r == 0) {
-		r = load_index(db, apk_istream_from_fd_url(db->cache_fd, buf), targz, repo_num);
+		r = load_index(db, apk_istream_from_fd_url(atfd, buf), 1, repo_num);
 	}
 
 	if (r != 0) {
