@@ -768,21 +768,6 @@ int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 	return apk_ipkg_assign_script(ipkg, type, apk_blob_from_istream(is, size));
 }
 
-static inline int make_dirs(int root_fd, const char *dirname, mode_t dirmode, mode_t parentmode)
-{
-	char parentdir[PATH_MAX], *slash;
-
-	if (faccessat(root_fd, dirname, F_OK, 0) == 0) return 0;
-	if (mkdirat(root_fd, dirname, dirmode) == 0) return 0;
-	if (errno != ENOENT || !parentmode) return -1;
-
-	slash = strrchr(dirname, '/');
-	if (!slash || slash == dirname || slash-dirname+1 >= sizeof parentdir) return -1;
-	strlcpy(parentdir, dirname, slash-dirname+1);
-	if (make_dirs(root_fd, parentdir, parentmode, parentmode) < 0) return -1;
-	return mkdirat(root_fd, dirname, dirmode);
-}
-
 #ifdef __linux__
 static inline int make_device_tree(struct apk_database *db)
 {
@@ -834,8 +819,8 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		return;
 
 	if (!db->script_dirs_checked) {
-		if (make_dirs(root_fd, "tmp", 01777, 0) <0 ||
-		    make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0||
+		if (apk_make_dirs(root_fd, "tmp", 01777, 0) <0 ||
+		    apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0||
 		    make_device_tree(db) < 0) {
 			apk_err(out, "failed to prepare dirs for hook scripts: %s",
 				apk_error_str(errno));

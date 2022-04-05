@@ -18,6 +18,7 @@
 #include "apk_atom.h"
 #include "apk_crypto.h"
 
+int apk_make_dirs(int root_fd, const char *dirname, mode_t dirmode, mode_t parentmode);
 ssize_t apk_write_fully(int fd, const void *ptr, size_t size);
 
 struct apk_id_hash {

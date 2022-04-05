@@ -1451,9 +1451,7 @@ static inline int setup_static_cache(struct apk_database *db, struct apk_ctx *ac
 	db->cache_dir = apk_static_cache_dir;
 	db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
 	if (db->cache_fd < 0) {
-		mkdirat(db->root_fd, "var", 0755);
-		mkdirat(db->root_fd, "var/cache", 0755);
-		mkdirat(db->root_fd, "var/cache/apk", 0755);
+		apk_make_dirs(db->root_fd, db->cache_dir, 0755, 0755);
 		db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
 		if (db->cache_fd < 0) {
 			if (ac->open_flags & APK_OPENF_WRITE) return -EROFS;
@@ -1884,15 +1882,8 @@ int apk_db_write_config(struct apk_database *db)
 		return 0;
 
 	if (db->ctx->open_flags & APK_OPENF_CREATE) {
-		if (faccessat(db->root_fd, "lib/apk/db", F_OK, 0) != 0) {
-			mkdirat(db->root_fd, "lib", 0755);
-			mkdirat(db->root_fd, "lib/apk", 0755);
-			mkdirat(db->root_fd, "lib/apk/db", 0755);
-		}
-		if (faccessat(db->root_fd, "etc/apk", F_OK, 0) != 0) {
-			mkdirat(db->root_fd, "etc", 0755);
-			mkdirat(db->root_fd, "etc/apk", 0755);
-		}
+		apk_make_dirs(db->root_fd, "lib/apk/db", 0755, 0755);
+		apk_make_dirs(db->root_fd, "etc/apk", 0755, 0755);
 	} else if (db->lock_fd == 0) {
 		apk_err(out, "Refusing to write db without write lock!");
 		return -1;

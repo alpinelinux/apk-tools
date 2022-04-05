@@ -38,6 +38,21 @@ static inline int atfd_error(int atfd)
 	return atfd < -1 && atfd != AT_FDCWD;
 }
 
+int apk_make_dirs(int root_fd, const char *dirname, mode_t dirmode, mode_t parentmode)
+{
+	char parentdir[PATH_MAX], *slash;
+
+	if (faccessat(root_fd, dirname, F_OK, 0) == 0) return 0;
+	if (mkdirat(root_fd, dirname, dirmode) == 0) return 0;
+	if (errno != ENOENT || !parentmode) return -1;
+
+	slash = strrchr(dirname, '/');
+	if (!slash || slash == dirname || slash-dirname+1 >= sizeof parentdir) return -1;
+	strlcpy(parentdir, dirname, slash-dirname+1);
+	if (apk_make_dirs(root_fd, parentdir, parentmode, parentmode) < 0) return -1;
+	return mkdirat(root_fd, dirname, dirmode);
+}
+
 ssize_t apk_write_fully(int fd, const void *ptr, size_t size)
 {
 	ssize_t i = 0, r;
