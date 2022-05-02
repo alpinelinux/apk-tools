@@ -42,7 +42,9 @@ following options:
 *-t, --virtual* _NAME_
 	Create virtual package _NAME_ with given dependencies. This new package
 	will get the _packages_ as dependencies instead of _world_. Finally the
-	_NAME_ is added to _world_.
+	_NAME_ is added to _world_. An optional version specifier for the virtual
+	package can be given via syntax _NAME_=_VERSION_. The version defaults
+	to synthesized version based on time.
 
 	One can use this to ensure that selected set of packages are installed,
 	and later the temporary modification be undone with *apk-del*(8) _NAME_
