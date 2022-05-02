@@ -20,10 +20,11 @@
 #include "apk_print.h"
 #include "apk_solver.h"
 
-#define FETCH_RECURSIVE		1
-#define FETCH_STDOUT		2
-#define FETCH_LINK		4
-#define FETCH_URL		8
+#define FETCH_RECURSIVE		0x01
+#define FETCH_STDOUT		0x02
+#define FETCH_LINK		0x04
+#define FETCH_URL		0x08
+#define FETCH_WORLD		0x10
 
 struct fetch_ctx {
 	unsigned int flags;
@@ -74,6 +75,7 @@ static int cup(void)
 	OPT(OPT_FETCH_simulate,		"simulate") \
 	OPT(OPT_FETCH_stdout,		APK_OPT_SH("s") "stdout") \
 	OPT(OPT_FETCH_url,		"url") \
+	OPT(OPT_FETCH_world,		APK_OPT_SH("w") "world") \
 
 APK_OPT_APPLET(option_desc, FETCH_OPTIONS);
 
@@ -99,6 +101,10 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 		break;
 	case OPT_FETCH_url:
 		fctx->flags |= FETCH_URL;
+		break;
+	case OPT_FETCH_world:
+		fctx->flags |= FETCH_WORLD | FETCH_RECURSIVE;
+		dbopts->open_flags &= ~APK_OPENF_NO_WORLD;
 		break;
 	default:
 		return -ENOTSUP;
@@ -223,6 +229,12 @@ static void mark_error(struct fetch_ctx *ctx, const char *match, struct apk_name
 	ctx->errors++;
 }
 
+static void mark_dep_flags(struct fetch_ctx *ctx, struct apk_dependency *dep)
+{
+	dep->name->auto_select_virtual = 1;
+	apk_deps_add(&ctx->world, dep);
+}
+
 static void mark_name_flags(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
@@ -312,6 +324,7 @@ static int purge_package(void *pctx, int dirfd, const char *filename)
 static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
+	struct apk_dependency *dep;
 
 	if (ctx->flags & FETCH_STDOUT) {
 		apk_flags &= ~APK_PROGRESS;
@@ -331,6 +344,8 @@ static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_arr
 
 	if (ctx->flags & FETCH_RECURSIVE) {
 		apk_dependency_array_init(&ctx->world);
+		foreach_array_item(dep, db->world)
+			mark_dep_flags(ctx, dep);
 		apk_name_foreach_matching(db, args, apk_foreach_genid(), mark_name_flags, ctx);
 		if (ctx->errors == 0)
 			mark_names_recursive(db, args, ctx);
@@ -351,7 +366,7 @@ static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_arr
 
 static struct apk_applet apk_fetch = {
 	.name = "fetch",
-	.open_flags =	APK_OPENF_READ | APK_OPENF_NO_STATE,
+	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
 	.context_size = sizeof(struct fetch_ctx),
 	.optgroups = { &optgroup_global, &optgroup_applet },
 	.main = fetch_main,

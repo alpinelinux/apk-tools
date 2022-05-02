@@ -32,6 +32,9 @@ specified.
 	*Note*: this option is incompatible with *-o*, *-R*, and the global
 	*--progress* option.
 
+*-w, --world*
+	Download packages needed to satisfy _world_. Implies *--recursive*.
+
 *--simulate*
 	Simulate the requested operation without making any changes.
 
