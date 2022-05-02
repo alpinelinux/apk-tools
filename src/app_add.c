@@ -81,37 +81,42 @@ static int non_repository_check(struct apk_database *db)
 	return 1;
 }
 
-static struct apk_package *create_virtual_package(struct apk_database *db, struct apk_name *name)
+static struct apk_package *create_virtual_package(struct apk_database *db, struct apk_dependency *dep)
 {
-	char ver[32];
 	struct apk_package *virtpkg;
 	struct apk_digest_ctx dctx;
 	struct apk_digest d;
-	struct tm tm;
-	time_t now = time(NULL);
 	pid_t pid = getpid();
-
-	gmtime_r(&now, &tm);
-	strftime(ver, sizeof ver, "%Y%m%d.%H%M%S", &tm);
 
 	virtpkg = apk_pkg_new();
 	if (virtpkg == NULL) return 0;
 
-	virtpkg->name = name;
-	virtpkg->version = apk_atomize_dup(&db->atoms, APK_BLOB_STR(ver));
+	virtpkg->name = dep->name;
+	virtpkg->version = dep->version;
 	virtpkg->description = strdup("virtual meta package");
 	virtpkg->arch = apk_atomize(&db->atoms, APK_BLOB_STR("noarch"));
 	virtpkg->repos |= BIT(APK_REPOSITORY_CACHED);
 
 	apk_digest_ctx_init(&dctx, APK_DIGEST_SHA1);
-	apk_digest_ctx_update(&dctx, &tm, sizeof tm);
 	apk_digest_ctx_update(&dctx, &pid, sizeof pid);
 	apk_digest_ctx_update(&dctx, virtpkg->name->name, strlen(virtpkg->name->name) + 1);
+	apk_digest_ctx_update(&dctx, dep->version->ptr, dep->version->len);
 	apk_digest_ctx_final(&dctx, &d);
 	apk_digest_ctx_free(&dctx);
 	apk_checksum_from_digest(&virtpkg->csum, &d);
 
 	return virtpkg;
+}
+
+static apk_blob_t *generate_version(struct apk_database *db)
+{
+	char ver[32];
+	struct tm tm;
+	time_t now = time(NULL);
+
+	gmtime_r(&now, &tm);
+	strftime(ver, sizeof ver, "%Y%m%d.%H%M%S", &tm);
+	return apk_atomize_dup(&db->atoms, APK_BLOB_STR(ver));
 }
 
 static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
@@ -133,23 +138,31 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 	if (actx->virtpkg) {
 		apk_blob_t b = APK_BLOB_STR(actx->virtpkg);
 		apk_blob_pull_dep(&b, db, &virtdep);
+
 		if (APK_BLOB_IS_NULL(b) || virtdep.conflict ||
-		    virtdep.result_mask != APK_DEPMASK_ANY ||
-		    virtdep.version != &apk_atom_null) {
+		    (virtdep.name->name[0] != '.' && non_repository_check(db)))
+			goto bad_spec;
+
+		switch (virtdep.result_mask) {
+		case APK_DEPMASK_ANY:
+			if (virtdep.version != &apk_atom_null) goto bad_spec;
+			virtdep.result_mask = APK_VERSION_EQUAL;
+			virtdep.version = generate_version(db);
+			break;
+		case APK_VERSION_EQUAL:
+			if (virtdep.version == &apk_atom_null) goto bad_spec;
+			break;
+		default:
+		bad_spec:
 			apk_err(out, "%s: bad package specifier", actx->virtpkg);
 			return -1;
 		}
-		if (virtdep.name->name[0] != '.' && non_repository_check(db))
-			return -1;
 
-		virtpkg = create_virtual_package(db, virtdep.name);
+		virtpkg = create_virtual_package(db, &virtdep);
 		if (!virtpkg) {
 			apk_err(out, "Failed to allocate virtual meta package");
 			return -1;
 		}
-
-		virtdep.result_mask = APK_VERSION_EQUAL;
-		virtdep.version = virtpkg->version;
 
 		if (!args->num) apk_warn(out, "creating empty virtual package");
 	}
