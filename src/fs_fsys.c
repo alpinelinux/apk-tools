@@ -12,6 +12,7 @@
 
 #include "apk_fs.h"
 #include "apk_xattr.h"
+#include "apk_database.h" // for db->atoms
 
 #define TMPNAME_MAX (PATH_MAX + 64)
 
@@ -265,23 +266,16 @@ static int fsys_file_control(struct apk_fsdir *d, apk_blob_t filename, int ctrl)
 	return rc;
 }
 
-static int fsys_file_digest(struct apk_fsdir *d, apk_blob_t filename, uint8_t alg, struct apk_digest *dgst)
+static int fsys_file_info(struct apk_fsdir *d, apk_blob_t filename,
+			  unsigned int flags, struct apk_file_info *fi)
 {
 	struct apk_ctx *ac = d->ac;
-	struct apk_istream *is;
-	apk_blob_t blob;
-	int n;
+	int n, r;
 
 	n = apk_pathbuilder_pushb(&d->pb, filename);
-	is = apk_istream_from_file(apk_ctx_fd_dest(ac), apk_pathbuilder_cstr(&d->pb));
+	r = apk_fileinfo_get(apk_ctx_fd_dest(ac), apk_pathbuilder_cstr(&d->pb), flags, fi, &ac->db->atoms);
 	apk_pathbuilder_pop(&d->pb, n);
-	if (IS_ERR(is)) return PTR_ERR(is);
-
-	apk_digest_ctx_reset(&ac->dctx, alg);
-	while (apk_istream_get_all(is, &blob) == 0)
-		apk_digest_ctx_update(&ac->dctx, blob.ptr, blob.len);
-	apk_digest_ctx_final(&ac->dctx, dgst);
-	return apk_istream_close(is);
+	return r;
 }
 
 static const struct apk_fsdir_ops fsdir_ops_fsys = {
@@ -292,7 +286,7 @@ static const struct apk_fsdir_ops fsdir_ops_fsys = {
 	.dir_update_perms = fsys_dir_update_perms,
 	.file_extract = fsys_file_extract,
 	.file_control = fsys_file_control,
-	.file_digest = fsys_file_digest,
+	.file_info = fsys_file_info,
 };
 
 static const struct apk_fsdir_ops *apk_fsops_get(apk_blob_t dir)

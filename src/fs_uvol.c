@@ -150,7 +150,7 @@ static int uvol_file_control(struct apk_fsdir *d, apk_blob_t filename, int ctrl)
 	}
 }
 
-static int uvol_file_digest(struct apk_fsdir *d, apk_blob_t filename, uint8_t alg, struct apk_digest *dgst)
+static int uvol_file_info(struct apk_fsdir *d, apk_blob_t filename, unsigned int flags, struct apk_file_info *fi)
 {
 	return -APKE_UVOL_ERROR;
 }
@@ -163,5 +163,5 @@ const struct apk_fsdir_ops fsdir_ops_uvol = {
 	.dir_update_perms = uvol_dir_update_perms,
 	.file_extract = uvol_file_extract,
 	.file_control = uvol_file_control,
-	.file_digest = uvol_file_digest,
+	.file_info = uvol_file_info,
 };

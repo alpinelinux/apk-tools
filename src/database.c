@@ -2757,6 +2757,18 @@ static const struct apk_extract_ops extract_installer = {
 	.file = apk_db_install_file,
 };
 
+static int apk_db_audit_file(struct apk_fsdir *d, apk_blob_t filename, struct apk_db_file *dbf)
+{
+	struct apk_file_info fi;
+	int r;
+
+	// Check file first
+	r = apk_fsdir_file_info(d, filename, APK_FI_NOFOLLOW | APK_FI_DIGEST(apk_dbf_digest(dbf)), &fi);
+	if (r != 0 || !dbf || dbf->csum.type == APK_CHECKSUM_NONE) return r != -ENOENT;
+	if (apk_digest_cmp_csum(&fi.digest, &dbf->csum) != 0) return 1;
+	return 0;
+}
+
 static void apk_db_purge_pkg(struct apk_database *db,
 			     struct apk_installed_package *ipkg,
 			     int is_installed)
@@ -2766,7 +2778,6 @@ static void apk_db_purge_pkg(struct apk_database *db,
 	struct apk_db_file *file;
 	struct apk_db_file_hash_key key;
 	struct apk_fsdir d;
-	struct apk_digest dgst;
 	struct hlist_node *dc, *dn, *fc, *fn;
 	unsigned long hash;
 	int ctrl = is_installed ? APK_FS_CTRL_DELETE : APK_FS_CTRL_CANCEL;
@@ -2785,9 +2796,7 @@ static void apk_db_purge_pkg(struct apk_database *db,
 			if (!is_installed ||
 			    (diri->dir->protect_mode == APK_PROTECT_NONE) ||
 			    (db->ctx->flags & APK_PURGE) ||
-			    (file->csum.type != APK_CHECKSUM_NONE &&
-			     apk_fsdir_file_digest(&d, key.filename, apk_dbf_digest(file), &dgst) == 0 &&
-			     apk_digest_cmp_csum(&dgst, &file->csum) == 0))
+			    apk_db_audit_file(&d, key.filename, file) == 0)
 				apk_fsdir_file_control(&d, key.filename, ctrl);
 
 			apk_dbg2(out, DIR_FILE_FMT, DIR_FILE_PRINTF(diri->dir, file));
@@ -2813,7 +2822,6 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 	struct apk_db_file_hash_key key;
 	struct hlist_node *dc, *dn, *fc, *fn;
 	struct apk_fsdir d;
-	struct apk_digest dgst;
 	unsigned long hash;
 	apk_blob_t dirname;
 	int r, ctrl;
@@ -2848,21 +2856,17 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 				// File was from overlay, delete the package's version
 				ctrl = APK_FS_CTRL_CANCEL;
 			} else if (diri->dir->protect_mode != APK_PROTECT_NONE &&
-				   apk_fsdir_file_digest(&d, key.filename, apk_dbf_digest(ofile), &dgst) == 0 &&
-				   (!ofile || ofile->csum.type == APK_CHECKSUM_NONE ||
-				    apk_digest_cmp_csum(&dgst, &ofile->csum) != 0)) {
+				   apk_db_audit_file(&d, key.filename, ofile) != 0) {
 				// Protected directory, and a file without db entry
 				// or with local modifications. Keep the filesystem file.
 				// Determine if the package's file should be kept as .apk-new
 				if ((db->ctx->flags & APK_CLEAN_PROTECTED) ||
-				    (file->csum.type != APK_CHECKSUM_NONE &&
-				     (apk_fsdir_file_digest(&d, key.filename, apk_dbf_digest(file), &dgst) == 0 &&
-				      apk_digest_cmp_csum(&dgst, &file->csum) == 0))) {
+				    apk_db_audit_file(&d, key.filename, file) == 0) {
 					// No .apk-new files allowed, or the file on disk has the same
 					// hash as the file from new package. Keep the on disk one.
 					ctrl = APK_FS_CTRL_CANCEL;
 				} else {
-					// All files difference. Use the package's file as .apk-new.
+					// All files differ. Use the package's file as .apk-new.
 					ctrl = APK_FS_CTRL_APKNEW;
 				}
 			}

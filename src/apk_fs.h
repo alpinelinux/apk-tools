@@ -42,7 +42,7 @@ struct apk_fsdir_ops {
 
 	int (*file_extract)(struct apk_ctx *, const struct apk_file_info *, struct apk_istream *, apk_progress_cb, void *, unsigned int, apk_blob_t);
 	int (*file_control)(struct apk_fsdir *, apk_blob_t, int);
-	int (*file_digest)(struct apk_fsdir *, apk_blob_t, uint8_t alg, struct apk_digest *);
+	int (*file_info)(struct apk_fsdir *, apk_blob_t, unsigned int, struct apk_file_info *);
 };
 
 #define APK_FSEXTRACTF_NO_CHOWN		0x0001
@@ -72,8 +72,8 @@ static inline int apk_fsdir_update_perms(struct apk_fsdir *fs, mode_t mode, uid_
 static inline int apk_fsdir_file_control(struct apk_fsdir *fs, apk_blob_t filename, int ctrl) {
 	return fs->ops->file_control(fs, filename, ctrl);
 }
-static inline int apk_fsdir_file_digest(struct apk_fsdir *fs, apk_blob_t filename, uint8_t alg, struct apk_digest *dgst) {
-	return fs->ops->file_digest(fs, filename, alg, dgst);
+static inline int apk_fsdir_file_info(struct apk_fsdir *fs, apk_blob_t filename, unsigned int flags, struct apk_file_info *fi) {
+	return fs->ops->file_info(fs, filename, flags, fi);
 }
 
 #endif
