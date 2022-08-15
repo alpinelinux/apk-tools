@@ -127,7 +127,7 @@ endif
 
 PHONY += all compile install clean docs FORCE
 
-# Convinient variables
+# Convenient variables
 comma   := ,
 squote  := '
 empty   :=
