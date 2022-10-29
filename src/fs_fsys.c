@@ -57,6 +57,10 @@ static int fsys_dir_update_perms(struct apk_fsdir *d, mode_t mode, uid_t uid, gi
 		if (fchmodat(fd, dirname, mode, 0) < 0)
 			rc = -errno;
 	}
+
+	if (d->ac->db->extract_flags & APK_FSEXTRACTF_NO_CHOWN)
+		return rc;
+
 	if (st.st_uid != uid || st.st_gid != gid) {
 		if (fchownat(fd, dirname, uid, gid, 0) < 0)
 			rc = -errno;

@@ -82,6 +82,15 @@ struct install_ctx {
 	struct hlist_node **file_diri_node;
 };
 
+static mode_t apk_db_dir_get_mode(struct apk_database *db, mode_t mode)
+{
+	// when using --no-chown, we are presumably running as a regular user,
+	// in which case init directories so that regular user can write in them
+	if (db->extract_flags & APK_FSEXTRACTF_NO_CHOWN)
+		return mode | S_IWUSR | S_IXUSR;
+	return mode;
+}
+
 static apk_blob_t apk_pkg_ctx(struct apk_package *pkg)
 {
 	return APK_BLOB_PTR_LEN(pkg->name->name, strlen(pkg->name->name)+1);
@@ -249,15 +258,18 @@ static struct apk_db_acl *apk_db_acl_atomize_digest(struct apk_database *db, mod
 static void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir, mode_t newmode)
 {
 	struct apk_fsdir d;
+	mode_t dir_mode;
 
 	if (dir->namelen == 0) return;
 	if (dir->created) return;
 
+	dir_mode = apk_db_dir_get_mode(db, dir->mode);
+
 	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->ctx, APK_BLOB_NULL);
-	switch (apk_fsdir_check(&d, dir->mode, dir->uid, dir->gid)) {
+	switch (apk_fsdir_check(&d, dir_mode, dir->uid, dir->gid)) {
 	default:
 		if (!(db->ctx->flags & APK_SIMULATE))
-			apk_fsdir_create(&d, dir->mode);
+			apk_fsdir_create(&d, dir_mode);
 	case 0:
 		dir->update_permissions = 1;
 	case APK_FS_DIR_MODIFIED:
@@ -2077,7 +2089,7 @@ static int update_permissions(apk_hash_item item, void *pctx)
 	dir->seen = 0;
 
 	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->ctx, APK_BLOB_NULL);
-	if (apk_fsdir_update_perms(&d, dir->mode, dir->uid, dir->gid) != 0)
+	if (apk_fsdir_update_perms(&d, apk_db_dir_get_mode(db, dir->mode), dir->uid, dir->gid) != 0)
 		ctx->errors++;
 
 	return 0;
