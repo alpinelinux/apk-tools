@@ -146,6 +146,9 @@ The following options are available for all commands.
 *--no-cache*
 	Do not use any local cache path.
 
+*--no-check-certificate*
+	Do not validate the HTTPS server certificates.
+
 *--no-interactive*
 	Disable interactive mode.
 

@@ -101,6 +101,8 @@ struct url_list {
 extern "C" {
 #endif
 
+void		fetch_no_check_certificate(void);
+
 void		fetchIO_close(fetchIO *);
 ssize_t		fetchIO_read(fetchIO *, void *, size_t);
 ssize_t		fetchIO_write(fetchIO *, const void *, size_t);
