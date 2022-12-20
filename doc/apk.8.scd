@@ -79,6 +79,8 @@ The following options are available for all commands.
 
 *-i, --interactive*
 	Ask confirmation before performing certain operations.
+	Interactive mode can be made the default when running on a tty,
+	by creating /etc/apk/interactive as an empty file.
 
 *-p, --root* <_ROOT_>
 	Manage file system at _ROOT_.
@@ -136,6 +138,9 @@ The following options are available for all commands.
 
 *--no-cache*
 	Do not use any local cache path.
+
+*--no-interactive*
+	Disable interactive mode.
 
 *--no-network*
 	Do not use the network. The cache is still used when possible.

@@ -319,7 +319,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 			printf("Do you want to continue [Y/n]? ");
 			fflush(stdout);
 			r = fgetc(stdin);
-			if (r != 'y' && r != 'Y' && r != '\n')
+			if (r != 'y' && r != 'Y' && r != '\n' && r != EOF)
 				return -1;
 		}
 	}

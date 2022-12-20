@@ -86,6 +86,7 @@ static struct apk_repository_list *apk_repository_new(const char *url)
 	OPT(OPT_GLOBAL_interactive,		APK_OPT_SH("i") "interactive") \
 	OPT(OPT_GLOBAL_keys_dir,		APK_OPT_ARG "keys-dir") \
 	OPT(OPT_GLOBAL_no_cache,		"no-cache") \
+	OPT(OPT_GLOBAL_no_interactive,		"no-interactive") \
 	OPT(OPT_GLOBAL_no_network,		"no-network") \
 	OPT(OPT_GLOBAL_no_progress,		"no-progress") \
 	OPT(OPT_GLOBAL_print_arch,		"print-arch") \
@@ -167,6 +168,9 @@ static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt
 		break;
 	case OPT_GLOBAL_interactive:
 		apk_flags |= APK_INTERACTIVE;
+		break;
+	case OPT_GLOBAL_no_interactive:
+		apk_flags &= ~APK_INTERACTIVE;
 		break;
 	case OPT_GLOBAL_progress:
 		apk_flags |= APK_PROGRESS;
