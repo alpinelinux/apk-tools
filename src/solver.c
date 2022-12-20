@@ -1023,13 +1023,13 @@ static int compare_name_dequeue(const struct apk_name *a, const struct apk_name 
 {
 	int r;
 
-	r = (!!a->ss.requirers) - (!!b->ss.requirers);
-	if (r) return -r;
-
 	r = (int)a->priority - (int)b->priority;
 	if (r) return r;
 
 	r = a->ss.max_dep_chain - b->ss.max_dep_chain;
+	if (r) return -r;
+
+	r = (!!a->ss.requirers) - (!!b->ss.requirers);
 	return -r;
 }
 
