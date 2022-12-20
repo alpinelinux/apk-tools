@@ -954,7 +954,7 @@ int apk_pkg_write_index_entry(struct apk_package *info,
 		return apk_ostream_cancel(os, -ENOBUFS);
 
 	bbuf = apk_blob_pushed(APK_BLOB_BUF(buf), bbuf);
-	if (apk_ostream_write(os, bbuf.ptr, bbuf.len) ||
+	if (apk_ostream_write(os, bbuf.ptr, bbuf.len) < 0 ||
 	    write_depends(os, "D:", info->depends) ||
 	    write_depends(os, "p:", info->provides) ||
 	    write_depends(os, "i:", info->install_if))

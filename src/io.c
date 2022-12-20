@@ -936,12 +936,11 @@ static int fdo_write(struct apk_ostream *os, const void *ptr, size_t size)
 
 	if (size + fos->bytes >= sizeof(fos->buffer)) {
 		r = fdo_flush(fos);
-		if (r != 0)
-			return r;
+		if (r != 0) return r;
 		if (size >= sizeof(fos->buffer) / 2) {
 			r = apk_write_fully(fos->fd, ptr, size);
-			if (r != size) apk_ostream_cancel(&fos->os, r < 0 ? r : -ENOSPC);
-			return r;
+			if (r == size) return 0;
+			return apk_ostream_cancel(&fos->os, r < 0 ? r : -ENOSPC);
 		}
 	}
 
