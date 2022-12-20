@@ -133,3 +133,18 @@ S:1
 I:1
 k:1
 p:pulseaudio=1 pulseaudio-alsa=1
+
+C:Q1FAFBeAhWPV1oiuybW+TSjrUghxU=
+P:sane-backends
+V:1
+S:1
+I:1
+
+C:Q1FAFBeAhWPV1asdfoW+TSjrUghxU=
+P:sane-backend-hpaio
+V:1
+S:1
+I:1
+i:sane-backends
+p:hplip-sane
+

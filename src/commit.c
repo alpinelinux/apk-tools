@@ -383,8 +383,9 @@ all_done:
 }
 
 enum {
-	STATE_PRESENT		= 0x80000000,
-	STATE_MISSING		= 0x40000000,
+	STATE_SEEN		= 0x80000000,
+	STATE_PRESENT		= 0x40000000,
+	STATE_MISSING		= 0x20000000,
 	STATE_COUNT_MASK	= 0x0000ffff,
 };
 
@@ -520,7 +521,7 @@ static void analyze_package(struct print_state *ps, struct apk_package *pkg, uns
 		print_deps(ps, pkg, APK_DEP_SATISFIES);
 }
 
-static void analyze_name(struct print_state *ps, struct apk_name *name)
+static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 {
 	struct apk_name **pname0, *name0;
 	struct apk_provider *p0;
@@ -598,12 +599,53 @@ static void analyze_deps(struct print_state *ps, struct apk_dependency_array *de
 
 	foreach_array_item(d0, deps) {
 		name0 = d0->name;
-		if (d0->conflict)
-			continue;
+		if (d0->conflict) continue;
 		if ((name0->state_int & (STATE_PRESENT | STATE_MISSING)) != 0)
 			continue;
 		name0->state_int |= STATE_MISSING;
-		analyze_name(ps, name0);
+		analyze_missing_name(ps, name0);
+	}
+}
+
+static void discover_deps(struct apk_dependency_array *deps);
+
+static void discover_name(struct apk_name *name)
+{
+	struct apk_provider *p;
+	struct apk_dependency *d;
+	int concrete;
+
+	if (name->state_int & STATE_SEEN) return;
+	name->state_int |= STATE_SEEN;
+
+	foreach_array_item(p, name->providers) {
+		if (!p->pkg->marked) continue;
+
+		concrete = p->pkg->name == name;
+		if (!concrete) {
+			foreach_array_item(d, p->pkg->provides) {
+				if (d->name != name) continue;
+				if (d->version == &apk_atom_null) continue;
+				concrete = 1;
+				break;
+			}
+		}
+		if (concrete) {
+			p->pkg->name->state_int |= STATE_PRESENT;
+			foreach_array_item(d, p->pkg->provides)
+				d->name->state_int |= STATE_PRESENT;
+		}
+		discover_deps(p->pkg->depends);
+	}
+}
+
+static void discover_deps(struct apk_dependency_array *deps)
+{
+	struct apk_dependency *d;
+
+	foreach_array_item(d, deps) {
+		if (d->conflict) continue;
+		discover_name(d->name);
 	}
 }
 
@@ -613,7 +655,6 @@ void apk_solver_print_errors(struct apk_database *db,
 {
 	struct print_state ps;
 	struct apk_change *change;
-	struct apk_dependency *p;
 
 	/* ERROR: unsatisfiable dependencies:
 	 *   name:
@@ -657,13 +698,9 @@ void apk_solver_print_errors(struct apk_database *db,
 	/* Construct information about names */
 	foreach_array_item(change, changeset->changes) {
 		struct apk_package *pkg = change->new_pkg;
-		if (pkg == NULL)
-			continue;
-		pkg->marked = 1;
-		pkg->name->state_int |= STATE_PRESENT;
-		foreach_array_item(p, pkg->provides)
-			p->name->state_int |= STATE_PRESENT;
+		if (pkg) pkg->marked = 1;
 	}
+	discover_deps(world);
 
 	/* Analyze is package, and missing names referred to */
 	ps = (struct print_state) {
@@ -673,8 +710,7 @@ void apk_solver_print_errors(struct apk_database *db,
 	analyze_deps(&ps, world);
 	foreach_array_item(change, changeset->changes) {
 		struct apk_package *pkg = change->new_pkg;
-		if (pkg == NULL)
-			continue;
+		if (!pkg) continue;
 		analyze_package(&ps, pkg, change->new_repository_tag);
 		analyze_deps(&ps, pkg->depends);
 	}
