@@ -84,7 +84,7 @@ INSTALL		:= install
 INSTALLDIR	:= $(INSTALL) -d
 
 CFLAGS		?= -g -O2
-CFLAGS_ALL	:= -Werror -Wall -Wstrict-prototypes -D_GNU_SOURCE -std=gnu99 -fPIC
+CFLAGS_ALL	:= -Wall -Wstrict-prototypes -D_GNU_SOURCE -std=gnu99 -fPIC
 CFLAGS_ALL	+= $(CFLAGS)
 
 LDFLAGS		?= -g
