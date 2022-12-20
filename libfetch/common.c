@@ -55,6 +55,8 @@
 
 /*** Local data **************************************************************/
 
+static int ssl_verify_mode = SSL_VERIFY_PEER;
+
 /*
  * Error messages for resolver errors
  */
@@ -77,6 +79,12 @@ fetch_finderr(struct fetcherr *p, int e)
 	while (p->num != -1 && p->num != e)
 		p++;
 	return (p);
+}
+
+void
+fetch_no_check_certificate(void)
+{
+	ssl_verify_mode = SSL_VERIFY_NONE;
 }
 
 /*
@@ -466,7 +474,7 @@ static int fetch_ssl_setup_peer_verification(SSL_CTX *ctx, int verbose)
 	else
 		SSL_CTX_set_default_verify_paths(ctx);
 
-	SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, 0);
+	SSL_CTX_set_verify(ctx, ssl_verify_mode, 0);
 	return 1;
 }
 
@@ -573,7 +581,8 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 				NULL) != 1) {
 			fprintf(stderr, "SSL certificate subject doesn't match host %s\n",
 				URL->host);
-			return -1;
+			if (ssl_verify_mode != SSL_VERIFY_NONE)
+				return -1;
 		}
 	}
 
