@@ -118,8 +118,7 @@ static void reevaluate_reverse_deps(struct apk_solver_state *ss, struct apk_name
 
 	foreach_array_item(pname0, name->rdepends) {
 		name0 = *pname0;
-		if (!name0->ss.seen)
-			continue;
+		if (!name0->ss.seen) continue;
 		name0->ss.reevaluate_deps = 1;
 		queue_dirty(ss, name0);
 	}
@@ -131,13 +130,19 @@ static void reevaluate_reverse_installif(struct apk_solver_state *ss, struct apk
 
 	foreach_array_item(pname0, name->rinstall_if) {
 		name0 = *pname0;
-		if (!name0->ss.seen)
-			continue;
-		if (name0->ss.no_iif)
-			continue;
+		if (!name0->ss.seen) continue;
+		if (name0->ss.no_iif) continue;
 		name0->ss.reevaluate_iif = 1;
 		queue_dirty(ss, name0);
 	}
+}
+
+static void reevaluate_reverse_installif_pkg(struct apk_solver_state *ss, struct apk_package *pkg)
+{
+	struct apk_dependency *d;
+	reevaluate_reverse_installif(ss, pkg->name);
+	foreach_array_item(d, pkg->provides)
+		reevaluate_reverse_installif(ss, d->name);
 }
 
 static void disqualify_package(struct apk_solver_state *ss, struct apk_package *pkg, const char *reason)
@@ -149,7 +154,7 @@ static void disqualify_package(struct apk_solver_state *ss, struct apk_package *
 	reevaluate_reverse_deps(ss, pkg->name);
 	foreach_array_item(p, pkg->provides)
 		reevaluate_reverse_deps(ss, p->name);
-	reevaluate_reverse_installif(ss, pkg->name);
+	reevaluate_reverse_installif_pkg(ss, pkg);
 }
 
 static int dependency_satisfiable(struct apk_solver_state *ss, struct apk_dependency *dep)
@@ -683,7 +688,10 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 		}
 	}
 	reevaluate_reverse_deps(ss, name);
-	reevaluate_reverse_installif(ss, name);
+	if (p.pkg)
+		reevaluate_reverse_installif_pkg(ss, p.pkg);
+	else
+		reevaluate_reverse_installif(ss, name);
 }
 
 static void select_package(struct apk_solver_state *ss, struct apk_name *name)
@@ -822,10 +830,8 @@ static void cset_check_install_by_iif(struct apk_solver_state *ss, struct apk_na
 
 	foreach_array_item(dep0, pkg->install_if) {
 		struct apk_name *name0 = dep0->name;
-		if (!name0->ss.in_changeset)
-			return;
-		if (!apk_dep_is_provided(dep0, &name0->ss.chosen))
-			return;
+		if (!name0->ss.in_changeset) return;
+		if (!apk_dep_is_provided(dep0, &name0->ss.chosen)) return;
 	}
 	cset_gen_name_change(ss, name);
 }
@@ -847,6 +853,19 @@ static void cset_check_removal_by_iif(struct apk_solver_state *ss, struct apk_na
 	}
 }
 
+static void cset_check_by_reverse_iif(struct apk_solver_state *ss, struct apk_package *pkg, void (*cb)(struct apk_solver_state *ss, struct apk_name *))
+{
+	struct apk_name **pname;
+	struct apk_dependency *d;
+
+	if (!pkg) return;
+	foreach_array_item(pname, pkg->name->rinstall_if)
+		cb(ss, *pname);
+	foreach_array_item(d, pkg->provides)
+		foreach_array_item(pname, d->name->rinstall_if)
+			cb(ss, *pname);
+}
+
 static void cset_gen_name_remove_orphan(struct apk_solver_state *ss, struct apk_name *name)
 {
 	struct apk_package *pkg = name->ss.chosen.pkg;
@@ -860,7 +879,6 @@ static void cset_gen_name_remove_orphan(struct apk_solver_state *ss, struct apk_
 
 static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *name)
 {
-	struct apk_name **pname;
 	struct apk_package *pkg, *opkg;
 	struct apk_dependency *d;
 
@@ -877,10 +895,7 @@ static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *n
 		cset_gen_name_remove_orphan(ss, d->name);
 
 	opkg = pkg->name->ss.installed_pkg;
-	if (opkg) {
-		foreach_array_item(pname, opkg->name->rinstall_if)
-			cset_check_removal_by_iif(ss, *pname);
-	}
+	cset_check_by_reverse_iif(ss, opkg, cset_check_removal_by_iif);
 
 	foreach_array_item(d, pkg->depends)
 		cset_gen_dep(ss, pkg, d);
@@ -888,8 +903,7 @@ static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *n
 	dbg_printf("Selecting: "PKG_VER_FMT"%s\n", PKG_VER_PRINTF(pkg), pkg->ss.pkg_selectable ? "" : " [NOT SELECTABLE]");
 	record_change(ss, opkg, pkg);
 
-	foreach_array_item(pname, pkg->name->rinstall_if)
-		cset_check_install_by_iif(ss, *pname);
+	cset_check_by_reverse_iif(ss, pkg, cset_check_install_by_iif);
 
 	cset_track_deps_added(pkg);
 	if (opkg)
@@ -903,7 +917,7 @@ static void cset_gen_name_remove0(struct apk_package *pkg0, struct apk_dependenc
 
 static void cset_gen_name_remove(struct apk_solver_state *ss, struct apk_package *pkg)
 {
-	struct apk_name *name = pkg->name, **pname;
+	struct apk_name *name = pkg->name;
 
 	if (pkg->ss.in_changeset ||
 	    (name->ss.chosen.pkg != NULL &&
@@ -913,8 +927,8 @@ static void cset_gen_name_remove(struct apk_solver_state *ss, struct apk_package
 	name->ss.in_changeset = 1;
 	pkg->ss.in_changeset = 1;
 	apk_pkg_foreach_reverse_dependency(pkg, APK_FOREACH_INSTALLED|APK_DEP_SATISFIES, cset_gen_name_remove0, ss);
-	foreach_array_item(pname, pkg->name->rinstall_if)
-		cset_check_removal_by_iif(ss, *pname);
+	cset_check_by_reverse_iif(ss, pkg, cset_check_removal_by_iif);
+
 	record_change(ss, pkg, NULL);
 	cset_track_deps_removed(ss, pkg);
 }
