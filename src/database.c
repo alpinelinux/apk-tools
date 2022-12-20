@@ -483,29 +483,29 @@ static struct apk_db_file *apk_db_file_get(struct apk_database *db,
 	return file;
 }
 
+static void add_name_to_array(struct apk_name *name, struct apk_name_array **a)
+{
+	struct apk_name **n;
+
+	foreach_array_item(n, *a)
+		if (*n == name) return;
+	*apk_name_array_add(a) = name;
+}
+
 static void apk_db_pkg_rdepends(struct apk_database *db, struct apk_package *pkg)
 {
-	struct apk_name *rname, **rd;
+	struct apk_name *rname;
 	struct apk_dependency *d;
 
 	foreach_array_item(d, pkg->depends) {
 		rname = d->name;
 		rname->is_dependency |= !d->conflict;
-		foreach_array_item(rd, rname->rdepends)
-			if (*rd == pkg->name)
-				goto rdeps_done;
-		*apk_name_array_add(&rname->rdepends) = pkg->name;
-rdeps_done: ;
+		add_name_to_array(pkg->name, &rname->rdepends);
 	}
 	foreach_array_item(d, pkg->install_if) {
 		rname = d->name;
-		foreach_array_item(rd, rname->rinstall_if)
-			if (*rd == pkg->name)
-				goto riif_done;
-		*apk_name_array_add(&rname->rinstall_if) = pkg->name;
-riif_done: ;
+		add_name_to_array(pkg->name, &rname->rinstall_if);
 	}
-	return;
 }
 
 static inline void add_provider(struct apk_name *name, struct apk_provider p)
