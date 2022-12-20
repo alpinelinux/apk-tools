@@ -385,9 +385,10 @@ all_done:
 }
 
 enum {
-	STATE_SEEN		= 0x80000000,
-	STATE_PRESENT		= 0x40000000,
-	STATE_MISSING		= 0x20000000,
+	STATE_PRESENT		= 0x80000000,
+	STATE_MISSING		= 0x40000000,
+	STATE_VIRTUAL_ONLY	= 0x20000000,
+	STATE_INSTALLIF		= 0x10000000,
 	STATE_COUNT_MASK	= 0x0000ffff,
 };
 
@@ -606,34 +607,71 @@ static void analyze_deps(struct print_state *ps, struct apk_dependency_array *de
 }
 
 static void discover_deps(struct apk_dependency_array *deps);
+static void discover_name(struct apk_name *name, int pkg_state);
 
-static void discover_name(struct apk_name *name)
+static void discover_reverse_iif(struct apk_name *name)
+{
+	struct apk_name **pname0, *name0;
+	struct apk_dependency *d;
+	struct apk_provider *p;
+
+	foreach_array_item(pname0, name->rinstall_if) {
+		name0 = *pname0;
+
+		foreach_array_item(p, name0->providers) {
+			int ok = 1;
+			if (!p->pkg->marked) continue;
+			if (p->pkg->install_if->num == 0) continue;
+			foreach_array_item(d, p->pkg->install_if) {
+				if (!!d->conflict == !!(d->name->state_int & STATE_PRESENT)) {
+					ok = 0;
+					break;
+				}
+			}
+			if (ok) {
+				discover_name(p->pkg->name, STATE_INSTALLIF);
+				foreach_array_item(d, p->pkg->provides)
+					discover_name(d->name, STATE_INSTALLIF);
+			}
+		}
+	}
+}
+
+static int is_name_concrete(struct apk_package *pkg, struct apk_name *name)
+{
+	struct apk_dependency *d;
+	if (pkg->name == name) return 1;
+	foreach_array_item(d, pkg->provides) {
+		if (d->name != name) continue;
+		if (d->version == &apk_atom_null) continue;
+		return 1;
+	}
+	return 0;
+}
+
+static void discover_name(struct apk_name *name, int pkg_state)
 {
 	struct apk_provider *p;
 	struct apk_dependency *d;
-	int concrete;
-
-	if (name->state_int & STATE_SEEN) return;
-	name->state_int |= STATE_SEEN;
 
 	foreach_array_item(p, name->providers) {
+		int state = pkg_state;
 		if (!p->pkg->marked) continue;
+		if (state == STATE_PRESENT && !is_name_concrete(p->pkg, name))
+			state = STATE_VIRTUAL_ONLY;
+		if (p->pkg->state_int & state) continue;
+		p->pkg->state_int |= state;
 
-		concrete = p->pkg->name == name;
-		if (!concrete) {
-			foreach_array_item(d, p->pkg->provides) {
-				if (d->name != name) continue;
-				if (d->version == &apk_atom_null) continue;
-				concrete = 1;
-				break;
-			}
-		}
-		if (concrete) {
-			p->pkg->name->state_int |= STATE_PRESENT;
-			foreach_array_item(d, p->pkg->provides)
-				d->name->state_int |= STATE_PRESENT;
-		}
+		p->pkg->name->state_int |= state;
+		foreach_array_item(d, p->pkg->provides)
+			d->name->state_int |= state;
+
 		discover_deps(p->pkg->depends);
+		if (state == STATE_PRESENT || state == STATE_INSTALLIF) {
+			discover_reverse_iif(p->pkg->name);
+			foreach_array_item(d, p->pkg->provides)
+				discover_reverse_iif(d->name);
+		}
 	}
 }
 
@@ -643,7 +681,7 @@ static void discover_deps(struct apk_dependency_array *deps)
 
 	foreach_array_item(d, deps) {
 		if (d->conflict) continue;
-		discover_name(d->name);
+		discover_name(d->name, STATE_PRESENT);
 	}
 }
 
