@@ -905,7 +905,7 @@ static int write_depends(struct apk_ostream *os, const char *field,
 int apk_pkg_write_index_entry(struct apk_package *info,
 			      struct apk_ostream *os)
 {
-	char buf[512];
+	char buf[2048];
 	apk_blob_t bbuf = APK_BLOB_BUF(buf);
 
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("C:"));
