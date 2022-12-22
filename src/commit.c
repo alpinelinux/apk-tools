@@ -659,7 +659,8 @@ static void discover_name(struct apk_name *name, int pkg_state)
 	foreach_array_item(p, name->providers) {
 		int state = pkg_state;
 		if (!p->pkg->marked) continue;
-		if (state == STATE_PRESENT && !is_name_concrete(p->pkg, name))
+		if (state == STATE_PRESENT && !p->pkg->provider_priority &&
+		    !is_name_concrete(p->pkg, name))
 			state = STATE_VIRTUAL_ONLY;
 		if (p->pkg->state_int & state) continue;
 		p->pkg->state_int |= state;
