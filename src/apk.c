@@ -433,6 +433,16 @@ static void on_sigint(int s)
 	exit(128 + s);
 }
 
+static int remove_empty_strings(int count, char **args)
+{
+	int i, j;
+	for (i = j = 0; i < count; i++) {
+		args[j] = args[i];
+		if (args[j][0]) j++;
+	}
+	return j;
+}
+
 int main(int argc, char **argv)
 {
 	void *ctx = NULL;
@@ -486,6 +496,7 @@ int main(int argc, char **argv)
 		argc--;
 		argv++;
 	}
+	argc = remove_empty_strings(argc, argv);
 
 	apk_db_init(&db);
 	signal(SIGINT, on_sigint);
