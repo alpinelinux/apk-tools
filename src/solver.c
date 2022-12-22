@@ -231,13 +231,6 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 				pkg->ss.max_dep_chain = max(pkg->ss.max_dep_chain,
 							    dep->name->ss.max_dep_chain+1);
 			}
-			foreach_array_item(pname0, pkg->name->rinstall_if)
-				discover_name(ss, *pname0);
-			foreach_array_item(dep, pkg->provides) {
-				if (dep->name->ss.seen) continue;
-				foreach_array_item(pname0, dep->name->rinstall_if)
-					discover_name(ss, *pname0);
-			}
 
 			dbg_printf("discover " PKG_VER_FMT ": tag_ok=%d, tag_pref=%d max_dep_chain=%d selectable=%d\n",
 				PKG_VER_PRINTF(pkg),
@@ -252,6 +245,16 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 
 		dbg_printf("discover %s: max_dep_chain=%d no_iif=%d\n",
 			name->name, name->ss.max_dep_chain, name->ss.no_iif);
+	}
+	foreach_array_item(p, name->providers) {
+		struct apk_package *pkg = p->pkg;
+		foreach_array_item(pname0, pkg->name->rinstall_if)
+			discover_name(ss, *pname0);
+		foreach_array_item(dep, pkg->provides) {
+			if (dep->name->ss.seen) continue;
+			foreach_array_item(pname0, dep->name->rinstall_if)
+				discover_name(ss, *pname0);
+		}
 	}
 }
 
