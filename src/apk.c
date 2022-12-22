@@ -557,6 +557,7 @@ int main(int argc, char **argv)
 	memcpy(args->item, argv, argc * sizeof(*argv));
 
 	r = applet->main(ctx, &db, args);
+	signal(SIGINT, SIG_IGN);
 	apk_db_close(&db);
 
 #ifdef TEST_MODE
