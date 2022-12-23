@@ -181,7 +181,7 @@ static inline uint32_t get_unaligned32(const void *ptr)
 	return *(const uint32_t *)ptr;
 #else
 	const uint8_t *p = ptr;
-	return p[0] | p[1] << 8 | p[2] << 16 | p[3] << 24;
+	return p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
 #endif
 }
 
