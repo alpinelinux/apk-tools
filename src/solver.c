@@ -51,6 +51,7 @@ void apk_solver_set_name_flags(struct apk_name *name,
 {
 	struct apk_provider *p;
 
+	name->solver_flags_set = 1;
 	foreach_array_item(p, name->providers) {
 		struct apk_package *pkg = p->pkg;
 		dbg_printf("marking '" PKG_VER_FMT "' = 0x%04x / 0x%04x\n",
@@ -1029,6 +1030,9 @@ static int cmp_pkgname(const void *p1, const void *p2)
 static int compare_name_dequeue(const struct apk_name *a, const struct apk_name *b)
 {
 	int r;
+
+	r = !!(a->solver_flags_set) - !!(b->solver_flags_set);
+	if (r) return -r;
 
 	r = (int)a->priority - (int)b->priority;
 	if (r) return r;

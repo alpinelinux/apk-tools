@@ -1,0 +1,9 @@
+@ARGS
+--test-repo basic17.repo
+--test-instdb basic17.installed
+--test-world b
+add --upgrade a
+@EXPECT
+(1/2) Upgrading b (1 -> 2)
+(2/2) Upgrading a (1 -> 2)
+OK: 0 MiB in 2 packages
