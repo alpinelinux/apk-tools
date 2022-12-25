@@ -102,6 +102,7 @@ struct apk_name {
 	unsigned auto_select_virtual: 1;
 	unsigned priority : 2;
 	unsigned layer : 4;
+	unsigned solver_flags_set : 1;
 	unsigned int foreach_genid;
 	union {
 		struct apk_solver_name_state ss;
