@@ -179,7 +179,10 @@ The following options are available for all commands.
 The following options are available for all commands which commit the database.
 
 *-s, --simulate*
-	Simulate the requested operation without making any changes.
+	Simulate the requested operation without making any changes. The database
+	is opened in read only mode, and auto-updating of indexes is disabled.
+	You may want to run "apk update" before running a simulation to make sure
+	it is done with up-to-date repository indexes.
 
 *--clean-protected*
 	Do not create .apk-new files in configuration directories.

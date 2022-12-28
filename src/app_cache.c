@@ -198,9 +198,17 @@ static int cache_main(void *ctx, struct apk_database *db, struct apk_string_arra
 		return -EINVAL;
 
 	if (!apk_db_cache_active(db)) {
-		apk_error("Package cache is not enabled.\n");
+		apk_error("Package cache is not enabled.");
 		r = 2;
 		goto err;
+	}
+
+	if ((actions & CACHE_DOWNLOAD) && (cctx->solver_flags || cctx->add_dependencies)) {
+		if (db->repositories.stale || db->repositories.unavailable) {
+			apk_error("Not continuing due to stale/unavailable repositories.");
+			r = 3;
+			goto err;
+		}
 	}
 
 	if (r == 0 && (actions & CACHE_CLEAN))
