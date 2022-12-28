@@ -22,7 +22,7 @@ static int update_main(void *ctx, struct apk_database *db, struct apk_string_arr
 	char buf[32] = "OK:";
 
 	if (apk_verbosity < 1)
-		return db->repo_update_errors;
+		return db->repositories.unavailable + db->repositories.stale;
 
 	for (i = 0; i < db->num_repos; i++) {
 		repo = &db->repos[i];
@@ -36,13 +36,15 @@ static int update_main(void *ctx, struct apk_database *db, struct apk_string_arr
 			    URL_PRINTF(urlp));
 	}
 
-	if (db->repo_update_errors != 0)
-		snprintf(buf, sizeof(buf), "%d errors;",
-			 db->repo_update_errors);
+	if (db->repositories.unavailable || db->repositories.stale)
+		snprintf(buf, sizeof(buf), "%d unavailable, %d stale;",
+			 db->repositories.unavailable,
+			 db->repositories.stale);
+
 	apk_message("%s %d distinct packages available", buf,
 		db->available.packages.num_items);
 
-	return db->repo_update_errors;
+	return db->repositories.unavailable + db->repositories.stale;
 }
 
 static struct apk_applet apk_update = {

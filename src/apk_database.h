@@ -153,7 +153,6 @@ struct apk_database {
 	unsigned long cache_remount_flags;
 	apk_blob_t *arch;
 	unsigned int local_repos, available_repos, cache_max_age;
-	unsigned int repo_update_errors, repo_update_counter;
 	unsigned int pending_triggers;
 	unsigned int extract_flags;
 	int performing_self_upgrade : 1;
@@ -170,6 +169,10 @@ struct apk_database {
 	struct apk_repository_tag repo_tags[APK_MAX_TAGS];
 	struct apk_id_cache id_cache;
 	struct apk_atom_pool atoms;
+
+	struct {
+		unsigned stale, updated, unavailable;
+	} repositories;
 
 	struct {
 		struct apk_hash names;

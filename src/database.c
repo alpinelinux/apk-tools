@@ -1715,7 +1715,7 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 			add_repos_from_file(db, AT_FDCWD, dbopts->repositories_file);
 		}
 
-		if (db->repo_update_counter)
+		if (db->repositories.updated > 0)
 			apk_db_index_write_nr_cache(db);
 
 		apk_hash_foreach(&db->available.names, apk_db_name_rdepends, db);
@@ -2170,24 +2170,6 @@ struct apk_repository *apk_db_select_repo(struct apk_database *db,
 	return &db->repos[APK_REPOSITORY_CACHED];
 }
 
-static int apk_repository_update(struct apk_database *db, struct apk_repository *repo)
-{
-	struct apk_url_print urlp;
-	int r, verify = (apk_flags & APK_ALLOW_UNTRUSTED) ? APK_SIGN_NONE : APK_SIGN_VERIFY;
-
-	r = apk_cache_download(db, repo, NULL, verify, 1, NULL, NULL);
-	if (r == -EALREADY) return 0;
-	if (r != 0) {
-		apk_url_parse(&urlp, repo->url);
-		apk_error(URL_FMT ": %s", URL_PRINTF(urlp), apk_error_str(r));
-		db->repo_update_errors++;
-	} else {
-		db->repo_update_counter++;
-	}
-
-	return r;
-}
-
 struct apkindex_ctx {
 	struct apk_database *db;
 	struct apk_sign_ctx sctx;
@@ -2259,8 +2241,10 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 	struct apk_repository *repo;
 	struct apk_url_print urlp;
 	apk_blob_t brepo, btag;
-	int repo_num, r, tag_id = 0, atfd = AT_FDCWD;
+	int repo_num, r, tag_id = 0, atfd = AT_FDCWD, update_error = 0;
 	char buf[PATH_MAX], *url;
+	const int verify = (apk_flags & APK_ALLOW_UNTRUSTED) ? APK_SIGN_NONE : APK_SIGN_VERIFY;
+	const char *error_action = "opening";
 
 	brepo = _repository;
 	btag = APK_BLOB_NULL;
@@ -2296,14 +2280,27 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 
 	apk_blob_checksum(brepo, apk_checksum_default(), &repo->csum);
 
-	if (apk_url_local_file(repo->url) == NULL) {
+	int is_remote = (apk_url_local_file(repo->url) == NULL);
+	if (is_remote) {
 		if (!(apk_flags & APK_NO_NETWORK))
 			db->available_repos |= BIT(repo_num);
 		if (apk_flags & APK_NO_CACHE) {
+			error_action = "fetching";
 			r = apk_repo_format_real_url(db->arch, repo, NULL, buf, sizeof(buf), &urlp);
 			if (r == 0) apk_message("fetch " URL_FMT, URL_PRINTF(urlp));
 		} else {
-			if (db->autoupdate) apk_repository_update(db, repo);
+			error_action = "opening from cache";
+			if (db->autoupdate) {
+				update_error = apk_cache_download(db, repo, NULL, verify, 1, NULL, NULL);
+				switch (update_error) {
+				case 0:
+					db->repositories.updated++;
+					break;
+				case -EALREADY:
+					update_error = 0;
+					break;
+				}
+			}
 			r = apk_repo_format_cache_index(APK_BLOB_BUF(buf), repo);
 			atfd = db->cache_fd;
 		}
@@ -2316,11 +2313,23 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 		r = load_index(db, apk_istream_from_fd_url(atfd, buf), 1, repo_num);
 	}
 
-	if (r != 0) {
+	if (r || update_error) {
+		if (is_remote) {
+			if (r) db->repositories.unavailable++;
+			else db->repositories.stale++;
+		}
 		apk_url_parse(&urlp, repo->url);
-		apk_warning("Ignoring " URL_FMT ": %s", URL_PRINTF(urlp), apk_error_str(r));
+		if (update_error)
+			error_action = r ? "updating and opening" : "updating";
+		else
+			update_error = r;
+		apk_warning("%s " URL_FMT ": %s", error_action, URL_PRINTF(urlp),
+			apk_error_str(update_error));
+	}
+
+	if (r != 0) {
 		db->available_repos &= ~BIT(repo_num);
-		r = 0;
+		if (is_remote) db->repositories.unavailable++;
 	} else {
 		db->repo_tags[tag_id].allowed_repos |= BIT(repo_num);
 	}
