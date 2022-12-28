@@ -170,6 +170,10 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 			"Use --force-broken-world to override.");
 		return -1;
 	}
+	if (db->repositories.stale || db->repositories.unavailable) {
+		apk_err(out, "Not continuing due to stale/unavailable repositories.");
+		return -1;
+	}
 
 	solver_flags = APK_SOLVERF_UPGRADE | uctx->solver_flags;
 	if (!uctx->no_self_upgrade && !args->num) {
