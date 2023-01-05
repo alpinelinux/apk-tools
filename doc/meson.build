@@ -19,6 +19,8 @@ man_files = files(
     'apk-stats.8.scd',
     'apk-update.8.scd',
     'apk-upgrade.8.scd',
+    'apk-v2.5.scd',
+    'apk-v3.5.scd',
     'apk-verify.8.scd',
     'apk-version.8.scd',
     'apk-world.5.scd',
