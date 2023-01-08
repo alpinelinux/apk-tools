@@ -43,7 +43,7 @@ not constrain any unspecified version numbers.
 *busybox>1.6.1*
 	Install a busybox version greater than 1.6.1.
 
-*busybox>1.6.1*
+*busybox>=1.6.1*
 	Install a busybox version greater than or equal to 1.6.1.
 
 *busybox<1.6.1*
