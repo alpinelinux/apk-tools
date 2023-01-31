@@ -143,20 +143,21 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db, struc
 	return ret;
 }
 
-static void cache_clean_item(struct apk_database *db, int dirfd, const char *name, struct apk_package *pkg)
+static void cache_clean_item(struct apk_database *db, int static_cache, int dirfd, const char *name, struct apk_package *pkg)
 {
 	struct apk_out *out = &db->ctx->out;
 	char tmp[PATH_MAX];
 	apk_blob_t b;
 	int i;
 
-	if (strcmp(name, "installed") == 0) return;
-
-	if (pkg) {
-		if ((db->ctx->flags & APK_PURGE) && pkg->ipkg == NULL) goto delete;
-		if (pkg->repos & db->local_repos & ~BIT(APK_REPOSITORY_CACHED)) goto delete;
-		if (pkg->ipkg == NULL && !(pkg->repos & ~BIT(APK_REPOSITORY_CACHED))) goto delete;
-		return;
+	if (!static_cache) {
+		if (strcmp(name, "installed") == 0) return;
+		if (pkg) {
+			if ((db->ctx->flags & APK_PURGE) && pkg->ipkg == NULL) goto delete;
+			if (pkg->repos & db->local_repos & ~BIT(APK_REPOSITORY_CACHED)) goto delete;
+			if (pkg->ipkg == NULL && !(pkg->repos & ~BIT(APK_REPOSITORY_CACHED))) goto delete;
+			return;
+		}
 	}
 
 	b = APK_BLOB_STR(name);
@@ -176,7 +177,11 @@ delete:
 
 static int cache_clean(struct apk_database *db)
 {
-	return apk_db_cache_foreach_item(db, cache_clean_item);
+	if (apk_db_cache_active(db)) {
+		int r = apk_db_cache_foreach_item(db, cache_clean_item, 0);
+		if (r) return r;
+	}
+	return apk_db_cache_foreach_item(db, cache_clean_item, 1);
 }
 
 static int cache_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
@@ -200,11 +205,8 @@ static int cache_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	else
 		return -EINVAL;
 
-	if (!apk_db_cache_active(db)) {
-		apk_err(out, "Package cache is not enabled.");
-		r = 2;
-		goto err;
-	}
+	if (!apk_db_cache_active(db))
+		actions &= CACHE_CLEAN;
 
 	if ((actions & CACHE_DOWNLOAD) && (cctx->solver_flags || cctx->add_dependencies)) {
 		if (db->repositories.stale || db->repositories.unavailable) {
