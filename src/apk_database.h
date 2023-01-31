@@ -259,10 +259,10 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		       struct apk_package *pkg, int verify, int autoupdate,
 		       apk_progress_cb cb, void *cb_ctx);
 
-typedef void (*apk_cache_item_cb)(struct apk_database *db,
+typedef void (*apk_cache_item_cb)(struct apk_database *db, int static_cache,
 				  int dirfd, const char *name,
 				  struct apk_package *pkg);
-int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb);
+int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb, int static_cache);
 
 int apk_db_install_pkg(struct apk_database *db,
 		       struct apk_package *oldpkg,
