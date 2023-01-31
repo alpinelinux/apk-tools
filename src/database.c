@@ -2171,9 +2171,17 @@ int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb, int
 	struct foreach_cache_item_ctx ctx = { db, cb, static_cache };
 
 	if (static_cache) {
-		return apk_dir_foreach_file(
-			openat(db->root_fd, apk_static_cache_dir, O_RDONLY | O_CLOEXEC),
-			foreach_cache_file, &ctx);
+		struct stat st1, st2;
+		int fd = openat(db->root_fd, apk_static_cache_dir, O_RDONLY | O_CLOEXEC);
+		if (fd < 0) return fd;
+		/* Do not handle static cache as static cache if the explicit
+		 * cache is enabled at the static cache location */
+		if (fstat(fd, &st1) == 0 && fstat(db->cache_fd, &st2) == 0 &&
+		    st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino) {
+			close(fd);
+			return 0;
+		}
+		return apk_dir_foreach_file(fd, foreach_cache_file, &ctx);
 	}
 	if (db->cache_fd < 0) return db->cache_fd;
 	return apk_dir_foreach_file(dup(db->cache_fd), foreach_cache_file, &ctx);
