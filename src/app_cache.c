@@ -151,7 +151,9 @@ static void cache_clean_item(struct apk_database *db, int static_cache, int dirf
 	if (!static_cache) {
 		if (strcmp(name, "installed") == 0) return;
 		if (pkg) {
-			if ((apk_flags & APK_PURGE) && pkg->ipkg == NULL) goto delete;
+			if (apk_flags & APK_PURGE) {
+				if (db->permanent || !pkg->ipkg) goto delete;
+			}
 			if (pkg->repos & db->local_repos & ~BIT(APK_REPOSITORY_CACHED)) goto delete;
 			if (pkg->ipkg == NULL && !(pkg->repos & ~BIT(APK_REPOSITORY_CACHED))) goto delete;
 			return;
@@ -193,13 +195,16 @@ static int cache_main(void *ctx, struct apk_database *db, struct apk_string_arra
 		return -EINVAL;
 
 	arg = args->item[0];
-	if (strcmp(arg, "sync") == 0)
+	if (strcmp(arg, "sync") == 0) {
 		actions = CACHE_CLEAN | CACHE_DOWNLOAD;
-	else if (strcmp(arg, "clean") == 0)
+	} else if (strcmp(arg, "clean") == 0) {
 		actions = CACHE_CLEAN;
-	else if (strcmp(arg, "download") == 0)
+	} else if (strcmp(arg, "purge") == 0) {
+		actions = CACHE_CLEAN;
+		apk_flags |= APK_PURGE;
+	} else if (strcmp(arg, "download") == 0) {
 		actions = CACHE_DOWNLOAD;
-	else
+	} else
 		return -EINVAL;
 
 	if (!apk_db_cache_active(db))
