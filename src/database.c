@@ -1391,7 +1391,7 @@ static char *find_mountpoint(int atfd, const char *rel_path)
 	return ret;
 }
 
-static void mark_in_cache(struct apk_database *db, int dirfd, const char *name, struct apk_package *pkg)
+static void mark_in_cache(struct apk_database *db, int static_cache, int dirfd, const char *name, struct apk_package *pkg)
 {
 	if (pkg == NULL)
 		return;
@@ -1722,7 +1722,7 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 	}
 
 	if (apk_db_cache_active(db) && (dbopts->open_flags & (APK_OPENF_NO_REPOS|APK_OPENF_NO_INSTALLED)) == 0)
-		apk_db_cache_foreach_item(db, mark_in_cache);
+		apk_db_cache_foreach_item(db, mark_in_cache, 0);
 
 	db->open_complete = 1;
 
@@ -2038,6 +2038,7 @@ int apk_db_cache_active(struct apk_database *db)
 struct foreach_cache_item_ctx {
 	struct apk_database *db;
 	apk_cache_item_cb cb;
+	int static_cache;
 };
 
 static int foreach_cache_file(void *pctx, int dirfd, const char *name)
@@ -2067,15 +2068,21 @@ static int foreach_cache_file(void *pctx, int dirfd, const char *name)
 		}
 	}
 no_pkg:
-	ctx->cb(db, dirfd, name, pkg);
+	ctx->cb(db, ctx->static_cache, dirfd, name, pkg);
 
 	return 0;
 }
 
-int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb)
+int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb, int static_cache)
 {
-	struct foreach_cache_item_ctx ctx = { db, cb };
+	struct foreach_cache_item_ctx ctx = { db, cb, static_cache };
 
+	if (static_cache) {
+		return apk_dir_foreach_file(
+			openat(db->root_fd, apk_static_cache_dir, O_RDONLY | O_CLOEXEC),
+			foreach_cache_file, &ctx);
+	}
+	if (db->cache_fd < 0) return db->cache_fd;
 	return apk_dir_foreach_file(dup(db->cache_fd), foreach_cache_file, &ctx);
 }
 
