@@ -171,8 +171,10 @@ The following options are available for all commands.
 	Write progress to the specified file descriptor.
 
 *--purge*
-	Delete modified configuration files on package removal and uninstalled
-	packages from cache on cache clean.
+	Purge modified configuration and cached packages. Enables deletion of
+	modified configuration files on package removal. On cache clean action
+	this enables deletion of unneeded cached packages (uninstalled packages
+	on tmpfs installations or all packages on disk installations).
 
 *--repositories-file* _REPOFILE_
 	Override system repositories, see *apk-repositories*(8). Specifying this

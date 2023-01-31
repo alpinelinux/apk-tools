@@ -10,6 +10,8 @@ apk cache - manage a local cache of package files
 
 *apk cache* [<_options_>...] download [_dependency_...]
 
+*apk cache* [<_options_>...] purge
+
 *apk cache* [<_options_>...] sync [_dependency_...]
 
 # DESCRIPTION
@@ -23,7 +25,11 @@ default _world_ dependencies are used to determine what to download. If
 _dependency_ arguments are given, they will by default replace the _world_.
 
 *apk cache clean* will remove package files which no longer exist in any
-repository index.
+repository index. Specifying the global option *--purge* will additionally
+remove all uninstalled package on tmpfs installations, and all packages on
+disk installations.
+
+*apk cache purge* is a synonym for *clean --purge*.
 
 *apk cache sync* performs both operations.
 
