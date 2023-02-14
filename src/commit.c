@@ -127,7 +127,7 @@ static void progress_cb(void *ctx, size_t installed_bytes)
 			   prog->total.bytes + prog->total.packages);
 }
 
-static int dump_packages(struct apk_out *out, struct apk_changeset *changeset,
+static int dump_packages(struct apk_out *out, struct apk_change_array *changes,
 			 int (*cmp)(struct apk_change *change),
 			 const char *msg)
 {
@@ -137,7 +137,7 @@ static int dump_packages(struct apk_out *out, struct apk_changeset *changeset,
 	int match = 0;
 
 	apk_print_indented_init(&indent, out, 0);
-	foreach_array_item(change, changeset->changes) {
+	foreach_array_item(change, changes) {
 		if (!cmp(change)) continue;
 		if (!match) apk_print_indented_group(&indent, 2, "%s:\n", msg);
 		if (change->new_pkg != NULL)
@@ -150,6 +150,15 @@ static int dump_packages(struct apk_out *out, struct apk_changeset *changeset,
 	}
 	apk_print_indented_end(&indent);
 	return match;
+}
+
+static int sort_change(const void *a, const void *b)
+{
+	const struct apk_change *ca = a;
+	const struct apk_change *cb = b;
+	const struct apk_name *na = ca->old_pkg ? ca->old_pkg->name : ca->new_pkg->name;
+	const struct apk_name *nb = cb->old_pkg ? cb->old_pkg->name : cb->new_pkg->name;
+	return strcmp(na->name, nb->name);
 }
 
 static int cmp_remove(struct apk_change *change)
@@ -293,16 +302,22 @@ int apk_solver_commit_changeset(struct apk_database *db,
 
 	if ((apk_out_verbosity(out) > 1 || (db->ctx->flags & APK_INTERACTIVE)) &&
 	    !(db->ctx->flags & APK_SIMULATE)) {
-		r = dump_packages(out, changeset, cmp_remove,
+		struct apk_change_array *sorted;
+
+		apk_change_array_init(&sorted);
+		apk_change_array_copy(&sorted, changeset->changes);
+		qsort(sorted->item, sorted->num, sizeof(struct apk_change), sort_change);
+
+		r = dump_packages(out, sorted, cmp_remove,
 				  "The following packages will be REMOVED");
-		r += dump_packages(out, changeset, cmp_downgrade,
+		r += dump_packages(out, sorted, cmp_downgrade,
 				   "The following packages will be DOWNGRADED");
 		if (r || (db->ctx->flags & APK_INTERACTIVE) || apk_out_verbosity(out) > 2) {
-			r += dump_packages(out, changeset, cmp_new,
+			r += dump_packages(out, sorted, cmp_new,
 					   "The following NEW packages will be installed");
-			r += dump_packages(out, changeset, cmp_upgrade,
+			r += dump_packages(out, sorted, cmp_upgrade,
 					   "The following packages will be upgraded");
-			r += dump_packages(out, changeset, cmp_reinstall,
+			r += dump_packages(out, sorted, cmp_reinstall,
 					   "The following packages will be reinstalled");
 			if (download_size) {
 				size_unit = apk_get_human_size(download_size, &humanized);
@@ -317,6 +332,8 @@ int apk_solver_commit_changeset(struct apk_database *db,
 				"disk space will be freed" :
 				"additional disk space will be used");
 		}
+		apk_change_array_free(&sorted);
+
 		if (r > 0 && (db->ctx->flags & APK_INTERACTIVE)) {
 			printf("Do you want to continue [Y/n]? ");
 			fflush(stdout);
