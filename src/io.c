@@ -1254,7 +1254,9 @@ uid_t apk_id_cache_resolve_uid(struct apk_id_cache *idc, apk_blob_t username, ui
 	struct cache_item *ci;
 	idcache_load_users(idc->root_fd, &idc->uid_cache);
 	ci = idcache_by_name(&idc->uid_cache, username);
-	return ci ? ci->id : default_uid;
+	if (ci) return ci->id;
+	if (!apk_blob_compare(username, APK_BLOB_STRLIT("root"))) return 0;
+	return default_uid;
 }
 
 gid_t apk_id_cache_resolve_gid(struct apk_id_cache *idc, apk_blob_t groupname, gid_t default_gid)
@@ -1262,7 +1264,9 @@ gid_t apk_id_cache_resolve_gid(struct apk_id_cache *idc, apk_blob_t groupname, g
 	struct cache_item *ci;
 	idcache_load_groups(idc->root_fd, &idc->gid_cache);
 	ci = idcache_by_name(&idc->gid_cache, groupname);
-	return ci ? ci->id : default_gid;
+	if (ci) return ci->id;
+	if (!apk_blob_compare(groupname, APK_BLOB_STRLIT("root"))) return 0;
+	return default_gid;
 }
 
 apk_blob_t apk_id_cache_resolve_user(struct apk_id_cache *idc, uid_t uid)
@@ -1270,7 +1274,9 @@ apk_blob_t apk_id_cache_resolve_user(struct apk_id_cache *idc, uid_t uid)
 	struct cache_item *ci;
 	idcache_load_users(idc->root_fd, &idc->uid_cache);
 	ci = idcache_by_id(&idc->uid_cache, uid);
-	return ci ? APK_BLOB_PTR_LEN(ci->name, ci->len) : APK_BLOB_STRLIT("nobody");
+	if (ci) return APK_BLOB_PTR_LEN(ci->name, ci->len);
+	if (uid == 0) return APK_BLOB_STRLIT("root");
+	return APK_BLOB_STRLIT("nobody");
 }
 
 apk_blob_t apk_id_cache_resolve_group(struct apk_id_cache *idc, gid_t gid)
@@ -1278,5 +1284,7 @@ apk_blob_t apk_id_cache_resolve_group(struct apk_id_cache *idc, gid_t gid)
 	struct cache_item *ci;
 	idcache_load_groups(idc->root_fd, &idc->gid_cache);
 	ci = idcache_by_id(&idc->gid_cache, gid);
-	return ci ? APK_BLOB_PTR_LEN(ci->name, ci->len) : APK_BLOB_STRLIT("nobody");
+	if (ci) return APK_BLOB_PTR_LEN(ci->name, ci->len);
+	if (gid == 0) return APK_BLOB_STRLIT("root");
+	return APK_BLOB_STRLIT("nobody");
 }

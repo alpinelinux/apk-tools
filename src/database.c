@@ -2857,7 +2857,7 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 	struct apk_fsdir d;
 	unsigned long hash;
 	apk_blob_t dirname;
-	int r, ctrl;
+	int r, ctrl, inetc;
 	uint8_t dir_priority, next_priority = 0xff;
 
 	hlist_for_each_entry_safe(diri, dc, dn, &ipkg->owned_dirs, pkg_dirs_list) {
@@ -2870,6 +2870,8 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 				next_priority = dir_priority;
 			continue;
 		}
+		// Used for passwd/group check later
+		inetc = !apk_blob_compare(dirname, APK_BLOB_STRLIT("etc"));
 
 		dir->modified = 1;
 		hlist_for_each_entry_safe(file, fc, fn, &diri->owned_files, diri_files_list) {
@@ -2912,6 +2914,15 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 					DIR_FILE_PRINTF(diri->dir, file),
 					apk_error_str(r));
 				ipkg->broken_files = 1;
+			} else if (inetc && ctrl == APK_FS_CTRL_COMMIT) {
+				// This is called when we successfully migrated the files
+				// in the filesystem; we explicitly do not care about apk-new
+				// or cancel cases, as that does not change the original file
+				if (!apk_blob_compare(key.filename, APK_BLOB_STRLIT("passwd")) ||
+				    !apk_blob_compare(key.filename, APK_BLOB_STRLIT("group"))) {
+					// Reset the idcache because we have a new passwd/group
+					apk_id_cache_reset(db->id_cache);
+				}
 			}
 
 			// Claim ownership of the file in db
