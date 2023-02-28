@@ -84,7 +84,7 @@ static int64_t get_token(int *type, apk_blob_t *blob)
 	case TOKEN_DIGIT_OR_ZERO:
 		/* Leading zero digits get a special treatment */
 		if (blob->ptr[i] == '0') {
-			while (i < blob->len && blob->ptr[i] == '0')
+			while (i+1 < blob->len && blob->ptr[i+1] == '0')
 				i++;
 			nt = TOKEN_DIGIT;
 			v = -i;
@@ -206,8 +206,8 @@ int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 		bv = get_token(&bt, &b);
 #if 0
 		fprintf(stderr,
-			"av=%d, at=%d, a.len=%d\n"
-			"bv=%d, bt=%d, b.len=%d\n",
+			"av=%ld, at=%d, a.len=%ld\n"
+			"bv=%ld, bt=%d, b.len=%ld\n",
 			av, at, a.len, bv, bt, b.len);
 #endif
 	}
