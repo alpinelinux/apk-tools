@@ -132,29 +132,23 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 	return ret;
 }
 
-static int foreach_pkg(apk_hash_item item, void *ctx)
+static int dump(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
-	dump_pkg((struct dot_ctx *) ctx, (struct apk_package *) item);
+	struct dot_ctx *ctx = pctx;
+	struct apk_provider *p;
+
+	if (!name) return 0;
+
+	foreach_array_item(p, name->providers)
+		dump_pkg(ctx, p->pkg);
 	return 0;
 }
 
 static int dot_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
 {
 	struct dot_ctx *ctx = (struct dot_ctx *) pctx;
-	struct apk_provider *p;
-	char **parg;
 
-	if (args->num) {
-		foreach_array_item(parg, args) {
-			struct apk_name *name = apk_db_get_name(db, APK_BLOB_STR(*parg));
-			if (!name)
-				continue;
-			foreach_array_item(p, name->providers)
-				dump_pkg(ctx, p->pkg);
-		}
-	} else {
-		apk_hash_foreach(&db->available.packages, foreach_pkg, pctx);
-	}
+	apk_db_foreach_matching_name(db, args, dump, pctx);
 
 	if (!ctx->not_empty)
 		return 1;
