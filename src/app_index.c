@@ -20,7 +20,9 @@
 #define APK_INDEXF_NO_WARNINGS	0x0001
 
 struct counts {
+	struct apk_indent indent;
 	int unsatisfied;
+	int header : 1;
 };
 
 struct index_ctx {
@@ -86,29 +88,26 @@ static int index_read_file(struct apk_database *db, struct index_ctx *ictx)
 	return apk_db_index_read_file(db, ictx->index, 0);
 }
 
-static int warn_if_no_providers(apk_hash_item item, void *ctx)
+static int warn_if_no_providers(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
 {
 	struct counts *counts = (struct counts *) ctx;
-	struct apk_name *name = (struct apk_name *) item;
 
 	if (!name->is_dependency) return 0;
 	if (name->providers->num) return 0;
 
-	if (++counts->unsatisfied < 10) {
-		apk_warning("No provider for dependency '%s'",
-			    name->name);
-	} else if (counts->unsatisfied == 10) {
-		apk_warning("Too many unsatisfiable dependencies, "
-			    "not reporting the rest.");
+	if (!counts->header) {
+		apk_print_indented_group(&counts->indent, 2, "WARNING: No provider for the dependencies:\n");
+		counts->header = 1;
 	}
-
+	apk_print_indented(&counts->indent, APK_BLOB_STR(name->name));
+	counts->unsatisfied++;
 	return 0;
 }
 
 static int index_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
-	struct counts counts = {0};
-	struct apk_ostream *os;
+	struct counts counts = { .unsatisfied=0 };
+	struct apk_ostream *os, *counter;
 	struct apk_file_info fi;
 	int total, r, found, newpkgs = 0, errors = 0;
 	struct index_ctx *ictx = (struct index_ctx *) ctx;
@@ -205,8 +204,6 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 	if (IS_ERR_OR_NULL(os)) return -1;
 
 	if (ictx->method == APK_SIGN_GENERATE) {
-		struct apk_ostream *counter;
-
 		memset(&fi, 0, sizeof(fi));
 		fi.mode = 0644 | S_IFREG;
 		fi.name = "APKINDEX";
@@ -243,7 +240,9 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 
 	total = r;
 	if (!(ictx->index_flags & APK_INDEXF_NO_WARNINGS)) {
-		apk_hash_foreach(&db->available.names, warn_if_no_providers, &counts);
+		apk_print_indented_init(&counts.indent, 1);
+		apk_db_foreach_sorted_name(db, NULL, warn_if_no_providers, &counts);
+		apk_print_indented_end(&counts.indent);
 	}
 
 	if (counts.unsatisfied != 0)
