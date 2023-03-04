@@ -107,7 +107,7 @@ static const struct apk_option_group optgroup_applet = {
 	.parse = option_parse_applet,
 };
 
-static void ver_print_package_status(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+static int ver_print_package_status(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
 	struct ver_ctx *ctx = (struct ver_ctx *) pctx;
 	struct apk_package *pkg;
@@ -119,10 +119,10 @@ static void ver_print_package_status(struct apk_database *db, const char *match,
 	int i, r = -1;
 	unsigned short tag, allowed_repos;
 
-	if (!name) return;
+	if (!name) return 0;
 
 	pkg = apk_pkg_get_installed(name);
-	if (!pkg) return;
+	if (!pkg) return 0;
 
 	tag = pkg->ipkg->repository_tag;
 	allowed_repos = db->repo_tags[tag].allowed_repos;
@@ -148,10 +148,10 @@ static void ver_print_package_status(struct apk_database *db, const char *match,
 			: APK_VERSION_UNKNOWN;
 	opstr = apk_version_op_string(r);
 	if ((ctx->limchars != NULL) && (strchr(ctx->limchars, *opstr) == NULL))
-		return;
+		return 0;
 	if (apk_verbosity <= 0) {
 		printf("%s\n", pkg->name->name);
-		return;
+		return 0;
 	}
 
 	tag = APK_DEFAULT_REPOSITORY_TAG;
@@ -167,6 +167,7 @@ static void ver_print_package_status(struct apk_database *db, const char *match,
 		pkgname, opstr,
 		BLOB_PRINTF(*latest),
 		BLOB_PRINTF(db->repo_tags[tag].tag));
+	return 0;
 }
 
 static int ver_main(void *pctx, struct apk_database *db, struct apk_string_array *args)
@@ -186,10 +187,7 @@ static int ver_main(void *pctx, struct apk_database *db, struct apk_string_array
 	if (apk_verbosity > 0)
 		printf("%-42sAvailable:\n", "Installed:");
 
-	apk_name_foreach_matching(
-		db, args, APK_FOREACH_NULL_MATCHES_ALL | apk_foreach_genid(),
-		ver_print_package_status, ctx);
-
+	apk_db_foreach_sorted_name(db, args, ver_print_package_status, ctx);
 	return 0;
 }
 

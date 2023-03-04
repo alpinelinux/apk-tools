@@ -350,18 +350,19 @@ static void info_subaction(struct info_ctx *ctx, struct apk_package *pkg)
 	}
 }
 
-static void print_name_info(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+static int print_name_info(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
 	struct info_ctx *ctx = (struct info_ctx *) pctx;
 	struct apk_provider *p;
 
 	if (name == NULL) {
 		ctx->errors++;
-		return;
+		return 0;
 	}
 
 	foreach_array_item(p, name->providers)
 		info_subaction(ctx, p->pkg);
+	return 0;
 }
 
 #define INFO_OPTIONS(OPT) \
@@ -454,9 +455,7 @@ static int info_main(void *ctx, struct apk_database *db, struct apk_string_array
 		ictx->action(ictx, db, args);
 	} else if (args->num > 0) {
 		/* Print info on given names */
-		apk_name_foreach_matching(
-			db, args, APK_FOREACH_NULL_MATCHES_ALL | apk_foreach_genid(),
-			print_name_info, ctx);
+		apk_db_foreach_sorted_name(db, args, print_name_info, ctx);
 	} else {
 		/* Print all installed packages */
 		list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list)

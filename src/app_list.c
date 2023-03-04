@@ -147,8 +147,7 @@ static void iterate_providers(const struct apk_name *name, const struct list_ctx
 {
 	struct apk_provider *p;
 
-	foreach_array_item(p, name->providers)
-	{
+	foreach_array_item(p, name->providers) {
 		if (!ctx->match_providers && p->pkg->name != name)
 			continue;
 
@@ -159,22 +158,20 @@ static void iterate_providers(const struct apk_name *name, const struct list_ctx
 	}
 }
 
-static void print_result(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+static int print_result(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
 	struct list_ctx *ctx = pctx;
 
-	if (name == NULL)
-		return;
+	if (!name) return 0;
 
-	if (ctx->match_depends)
-	{
+	if (ctx->match_depends) {
 		struct apk_name **pname;
-
 		foreach_array_item(pname, name->rdepends)
 			iterate_providers(*pname, ctx);
-	}
-	else
+	} else {
 		iterate_providers(name, ctx);
+	}
+	return 0;
 }
 
 #define LIST_OPTIONS(OPT) \
@@ -242,10 +239,7 @@ static int list_main(void *pctx, struct apk_database *db, struct apk_string_arra
 	if (ctx->match_origin)
 		args = NULL;
 
-	apk_name_foreach_matching(
-		db, args, APK_FOREACH_NULL_MATCHES_ALL | apk_foreach_genid(),
-		print_result, ctx);
-
+	apk_db_foreach_sorted_name(db, args, print_result, ctx);
 	return 0;
 }
 

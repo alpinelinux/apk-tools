@@ -1024,7 +1024,7 @@ static int free_package(apk_hash_item item, void *ctx)
 static int cmp_pkgname(const void *p1, const void *p2)
 {
 	const struct apk_dependency *d1 = p1, *d2 = p2;
-	return strcmp(d1->name->name, d2->name->name);
+	return apk_name_cmp_display(d1->name, d2->name);
 }
 
 static int compare_name_dequeue(const struct apk_name *a, const struct apk_name *b)
