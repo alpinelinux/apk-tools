@@ -21,8 +21,9 @@
 #define APK_INDEXF_NO_WARNINGS	0x0001
 
 struct counts {
-	struct apk_out *out;
+	struct apk_indent indent;
 	int unsatisfied;
+	int header : 1;
 };
 
 struct index_ctx {
@@ -87,21 +88,19 @@ static int index_read_file(struct apk_database *db, struct index_ctx *ictx)
 	return apk_db_index_read_file(db, ictx->index, 0);
 }
 
-static int warn_if_no_providers(apk_hash_item item, void *ctx)
+static int warn_if_no_providers(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
 {
 	struct counts *counts = (struct counts *) ctx;
-	struct apk_name *name = (struct apk_name *) item;
-	struct apk_out *out = counts->out;
 
 	if (!name->is_dependency) return 0;
 	if (name->providers->num) return 0;
 
-	if (++counts->unsatisfied < 10) {
-		apk_warn(out, "No provider for dependency '%s'", name->name);
-	} else if (counts->unsatisfied == 10) {
-		apk_warn(out, "Too many unsatisfiable dependencies, not reporting the rest.");
+	if (!counts->header) {
+		apk_print_indented_group(&counts->indent, 2, "WARNING: No provider for the dependencies:\n");
+		counts->header = 1;
 	}
-
+	apk_print_indented(&counts->indent, APK_BLOB_STR(name->name));
+	counts->unsatisfied++;
 	return 0;
 }
 
@@ -109,7 +108,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 {
 	struct apk_out *out = &ac->out;
 	struct apk_database *db = ac->db;
-	struct counts counts = { .out = out };
+	struct counts counts = { .unsatisfied=0 };
 	struct apk_ostream *os, *counter;
 	struct apk_file_info fi;
 	int total, r, found, newpkgs = 0, errors = 0;
@@ -234,7 +233,9 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 
 	total = r;
 	if (!(ictx->index_flags & APK_INDEXF_NO_WARNINGS)) {
-		apk_hash_foreach(&db->available.names, warn_if_no_providers, &counts);
+		apk_print_indented_init(&counts.indent, out, 1);
+		apk_db_foreach_sorted_name(db, NULL, warn_if_no_providers, &counts);
+		apk_print_indented_end(&counts.indent);
 	}
 
 	if (counts.unsatisfied != 0)
