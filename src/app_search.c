@@ -93,7 +93,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 		break;
 	case OPT_SEARCH_description:
 		ictx->search_description = 1;
-		ictx->search_exact = 1;
 		ictx->show_all = 1;
 		break;
 	case OPT_SEARCH_exact:
@@ -127,15 +126,16 @@ static void print_result_pkg(struct search_ctx *ctx, struct apk_package *pkg)
 
 	if (ctx->search_description) {
 		foreach_array_item(pmatch, ctx->filter) {
-			if (strstr(pkg->description, *pmatch) != NULL ||
-			    strstr(pkg->name->name, *pmatch) != NULL)
+			if (fnmatch(*pmatch, pkg->description, 0) == 0 ||
+			    fnmatch(*pmatch, pkg->name->name, 0) == 0)
 				goto match;
 		}
 		return;
 	}
 	if (ctx->search_origin) {
 		foreach_array_item(pmatch, ctx->filter) {
-			if (pkg->origin && apk_blob_compare(APK_BLOB_STR(*pmatch), *pkg->origin) == 0)
+			if (!pkg->origin) continue;
+			if (apk_blob_compare(APK_BLOB_STR(*pmatch), *pkg->origin) == 0)
 				goto match;
 		}
 		return;
@@ -167,12 +167,6 @@ static int print_result(struct apk_database *db, const char *match, struct apk_n
 	return 0;
 }
 
-static int print_pkg(apk_hash_item item, void *pctx)
-{
-	print_result_pkg((struct search_ctx *) pctx, (struct apk_package *) item);
-	return 0;
-}
-
 static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_database *db = ac->db;
@@ -187,8 +181,11 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 	if (ctx->print_result == NULL)
 		ctx->print_result = ctx->print_package;
 
-	if (ctx->search_description || ctx->search_origin)
-		return apk_hash_foreach(&db->available.packages, print_pkg, ctx);
+	if (ctx->search_description || ctx->search_origin) {
+		// Just enumerate all names in sorted order, and do the
+		// filtering in the callback.
+		args = NULL;
+	}
 
 	if (!ctx->search_exact) {
 		foreach_array_item(pmatch, ctx->filter) {
