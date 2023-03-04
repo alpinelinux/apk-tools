@@ -222,6 +222,7 @@ struct apk_name *apk_db_get_name(struct apk_database *db, apk_blob_t name)
 	apk_name_array_init(&pn->rdepends);
 	apk_name_array_init(&pn->rinstall_if);
 	apk_hash_insert_hashed(&db->available.names, pn, hash);
+	db->sorted_names = 0;
 
 	return pn;
 }
@@ -1650,6 +1651,7 @@ void apk_db_init(struct apk_database *db)
 	list_init(&db->installed.triggers);
 	apk_dependency_array_init(&db->world);
 	apk_protected_path_array_init(&db->protected_paths);
+	apk_name_array_init(&db->available.sorted_names);
 	db->permanent = 1;
 	db->root_fd = -1;
 }
@@ -1944,6 +1946,7 @@ void apk_db_close(struct apk_database *db)
 
 	apk_dependency_array_free(&db->world);
 
+	apk_name_array_free(&db->available.sorted_names);
 	apk_hash_free(&db->available.packages);
 	apk_hash_free(&db->available.names);
 	apk_hash_free(&db->installed.files);
@@ -3096,8 +3099,7 @@ ret_r:
 struct match_ctx {
 	struct apk_database *db;
 	struct apk_string_array *filter;
-	unsigned int match;
-	void (*cb)(struct apk_database *db, const char *match, struct apk_name *name, void *ctx);
+	apk_db_foreach_name_cb cb;
 	void *cb_ctx;
 };
 
@@ -3105,67 +3107,138 @@ static int match_names(apk_hash_item item, void *pctx)
 {
 	struct match_ctx *ctx = (struct match_ctx *) pctx;
 	struct apk_name *name = (struct apk_name *) item;
-	unsigned int genid = ctx->match & APK_FOREACH_GENID_MASK;
 	char **pmatch;
 
-	if (genid) {
-		if (name->foreach_genid >= genid)
-			return 0;
-		name->foreach_genid = genid;
-	}
-
-	if (ctx->filter->num == 0) {
-		ctx->cb(ctx->db, NULL, name, ctx->cb_ctx);
-		return 0;
-	}
+	if (!ctx->filter)
+		return ctx->cb(ctx->db, NULL, name, ctx->cb_ctx);
 
 	foreach_array_item(pmatch, ctx->filter) {
-		if (fnmatch(*pmatch, name->name, 0) == 0) {
-			ctx->cb(ctx->db, *pmatch, name, ctx->cb_ctx);
-			if (genid)
-				break;
-		}
+		if (fnmatch(*pmatch, name->name, 0) == 0)
+			return ctx->cb(ctx->db, *pmatch, name, ctx->cb_ctx);
 	}
 
 	return 0;
 }
 
-void apk_name_foreach_matching(struct apk_database *db, struct apk_string_array *filter, unsigned int match,
-			       void (*cb)(struct apk_database *db, const char *match, struct apk_name *name, void *ctx),
-			       void *ctx)
+int apk_db_foreach_matching_name(
+	struct apk_database *db, struct apk_string_array *filter,
+	apk_db_foreach_name_cb cb, void *ctx)
 {
 	char **pmatch;
-	unsigned int genid = match & APK_FOREACH_GENID_MASK;
 	struct apk_name *name;
 	struct match_ctx mctx = {
 		.db = db,
-		.filter = filter,
-		.match = match,
 		.cb = cb,
 		.cb_ctx = ctx,
 	};
+	int r;
 
-	if (filter == NULL || filter->num == 0) {
-		if (!(match & APK_FOREACH_NULL_MATCHES_ALL))
-			return;
-		apk_string_array_init(&mctx.filter);
-		goto all;
-	}
+	if (!filter || !filter->num) goto all;
+
+	mctx.filter = filter;
 	foreach_array_item(pmatch, filter)
 		if (strchr(*pmatch, '*') != NULL)
 			goto all;
 
 	foreach_array_item(pmatch, filter) {
 		name = (struct apk_name *) apk_hash_get(&db->available.names, APK_BLOB_STR(*pmatch));
-		if (genid && name) {
-			if (name->foreach_genid >= genid)
-				continue;
-			name->foreach_genid = genid;
-		}
-		cb(db, *pmatch, name, ctx);
+		r = cb(db, *pmatch, name, ctx);
+		if (r) return r;
 	}
-	return;
+	return 0;
 
 all:
-	apk_hash_foreach(&db->available.names, match_names, &mctx);
+	return apk_hash_foreach(&db->available.names, match_names, &mctx);
+}
+
+static int cmp_name(const void *a, const void *b)
+{
+	const struct apk_name * const* na = a, * const* nb = b;
+	return apk_name_cmp_display(*na, *nb);
+}
+
+struct add_name_ctx {
+	struct apk_name_array *a;
+	size_t i;
+};
+
+static int add_name(apk_hash_item item, void *ctx)
+{
+	struct apk_name *name = (struct apk_name *) item;
+	struct add_name_ctx *a = ctx;
+	a->a->item[a->i++] = name;
+	return 0;
+}
+
+static struct apk_name_array *apk_db_sorted_names(struct apk_database *db)
+{
+	if (!db->sorted_names) {
+		apk_name_array_resize(&db->available.sorted_names, db->available.names.num_items);
+
+		struct add_name_ctx ctx = { .a = db->available.sorted_names, .i = 0 };
+		apk_hash_foreach(&db->available.names, add_name, &ctx);
+
+		qsort(db->available.sorted_names->item, db->available.sorted_names->num,
+		      sizeof(db->available.sorted_names->item[0]), cmp_name);
+		db->sorted_names = 1;
+	}
+	return db->available.sorted_names;
+}
+
+int apk_db_foreach_sorted_name(struct apk_database *db, struct apk_string_array *filter,
+			       apk_db_foreach_name_cb cb, void *cb_ctx)
+{
+	int r, walk_all = 0;
+	char **pmatch;
+	struct apk_name *name;
+	struct apk_name *results[128], **res;
+	size_t i, num_res = 0;
+
+	if (filter && filter->num) {
+		foreach_array_item(pmatch, filter) {
+			name = (struct apk_name *) apk_hash_get(&db->available.names, APK_BLOB_STR(*pmatch));
+			if (strchr(*pmatch, '*')) {
+				walk_all = 1;
+				continue;
+			}
+			if (!name) {
+				cb(db, *pmatch, NULL, cb_ctx);
+				continue;
+			}
+			if (walk_all) continue;
+			if (num_res >= ARRAY_SIZE(results)) {
+				walk_all = 1;
+				continue;
+			}
+			results[num_res++] = name;
+		}
+	} else {
+		filter = NULL;
+		walk_all = 1;
+	}
+
+	if (walk_all) {
+		struct apk_name_array *a = apk_db_sorted_names(db);
+		res = a->item;
+		num_res = a->num;
+	} else {
+		qsort(results, num_res, sizeof results[0], cmp_name);
+		res = results;
+	}
+
+	for (i = 0; i < num_res; i++) {
+		name = res[i];
+		if (!filter) {
+			r = cb(db, NULL, name, cb_ctx);
+		} else {
+			foreach_array_item(pmatch, filter) {
+				if (fnmatch(*pmatch, name->name, 0) == 0) {
+					r = cb(db, *pmatch, name, cb_ctx);
+					break;
+				}
+			}
+		}
+		if (r) return r;
+	}
+	return 0;
 }

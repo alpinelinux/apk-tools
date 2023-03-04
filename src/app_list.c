@@ -165,13 +165,12 @@ static void iterate_providers(const struct apk_name *name, const struct list_ctx
 	}
 }
 
-static void print_result(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+static int print_result(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
 	struct list_ctx *ctx = pctx;
 	struct apk_name **pname;
 
-	if (name == NULL)
-		return;
+	if (!name) return 0;
 
 	if (ctx->match_depends) {
 		foreach_array_item(pname, name->rdepends)
@@ -179,6 +178,7 @@ static void print_result(struct apk_database *db, const char *match, struct apk_
 	} else {
 		iterate_providers(name, ctx);
 	}
+	return 0;
 }
 
 #define LIST_OPTIONS(OPT) \
@@ -254,10 +254,7 @@ static int list_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 	if (ctx->match_origin)
 		args = NULL;
 
-	apk_name_foreach_matching(
-		db, args, APK_FOREACH_NULL_MATCHES_ALL | apk_foreach_genid(),
-		print_result, ctx);
-
+	apk_db_foreach_sorted_name(db, args, print_result, ctx);
 	return 0;
 }
 

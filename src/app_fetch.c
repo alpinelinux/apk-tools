@@ -230,7 +230,7 @@ static void mark_dep_flags(struct fetch_ctx *ctx, struct apk_dependency *dep)
 	apk_deps_add(&ctx->world, dep);
 }
 
-static void mark_name_flags(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+static int mark_name_flags(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
 	struct apk_dependency dep = (struct apk_dependency) {
@@ -239,12 +239,13 @@ static void mark_name_flags(struct apk_database *db, const char *match, struct a
 		.result_mask = APK_DEPMASK_ANY,
 	};
 
-	if (name) {
-		mark_dep_flags(ctx, &dep);
-	} else {
+	if (!name) {
 		ctx->errors++;
 		mark_error(ctx, match, name);
+		return 0;
 	}
+	mark_dep_flags(ctx, &dep);
+	return 0;
 }
 
 static void mark_names_recursive(struct apk_database *db, struct apk_string_array *args, void *pctx)
@@ -265,7 +266,7 @@ static void mark_names_recursive(struct apk_database *db, struct apk_string_arra
 	apk_change_array_free(&changeset.changes);
 }
 
-static void mark_name(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
+static int mark_name(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
 {
 	struct apk_package *pkg = NULL;
 	struct apk_provider *p;
@@ -278,10 +279,11 @@ static void mark_name(struct apk_database *db, const char *match, struct apk_nam
 
 	if (!pkg) goto err;
 	mark_package(ctx, pkg);
-	return;
+	return 0;
 
 err:
 	mark_error(ctx, match, name);
+	return 0;
 }
 
 static int purge_package(void *pctx, int dirfd, const char *filename)
@@ -343,12 +345,14 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		apk_dependency_array_init(&ctx->world);
 		foreach_array_item(dep, db->world)
 			mark_dep_flags(ctx, dep);
-		apk_name_foreach_matching(db, args, apk_foreach_genid(), mark_name_flags, ctx);
+		if (args->num)
+			apk_db_foreach_matching_name(db, args, mark_name_flags, ctx);
 		if (ctx->errors == 0)
 			mark_names_recursive(db, args, ctx);
 		apk_dependency_array_free(&ctx->world);
 	} else {
-		apk_name_foreach_matching(db, args, apk_foreach_genid(), mark_name, ctx);
+		if (args->num)
+			apk_db_foreach_matching_name(db, args, mark_name, ctx);
 	}
 	if (!ctx->errors)
 		apk_hash_foreach(&db->available.packages, fetch_package, ctx);

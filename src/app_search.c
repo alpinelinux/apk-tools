@@ -144,13 +144,13 @@ match:
 	ctx->print_result(ctx, pkg);
 }
 
-static void print_result(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+static int print_result(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
 	struct search_ctx *ctx = pctx;
 	struct apk_provider *p;
 	struct apk_package *pkg = NULL;
 
-	if (!name) return;
+	if (!name) return 0;
 
 	if (ctx->show_all) {
 		foreach_array_item(p, name->providers)
@@ -164,6 +164,7 @@ static void print_result(struct apk_database *db, const char *match, struct apk_
 		if (pkg)
 			print_result_pkg(ctx, pkg);
 	}
+	return 0;
 }
 
 static int print_pkg(apk_hash_item item, void *pctx)
@@ -196,9 +197,7 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 			*pmatch = tmp;
 		}
 	}
-	apk_name_foreach_matching(
-		db, args, APK_FOREACH_NULL_MATCHES_ALL | apk_foreach_genid(),
-		print_result, ctx);
+	apk_db_foreach_sorted_name(db, args, print_result, ctx);
 	return 0;
 }
 

@@ -152,6 +152,7 @@ struct apk_database {
 	int open_complete : 1;
 	int compat_newfeatures : 1;
 	int compat_notinstallable : 1;
+	int sorted_names : 1;
 
 	struct apk_dependency_array *world;
 	struct apk_id_cache *id_cache;
@@ -165,6 +166,7 @@ struct apk_database {
 	} repositories;
 
 	struct {
+		struct apk_name_array *sorted_names;
 		struct apk_hash names;
 		struct apk_hash packages;
 	} available;
@@ -187,6 +189,10 @@ typedef union apk_database_or_void {
 	struct apk_database *db;
 	void *ptr;
 } apk_database_t __attribute__ ((__transparent_union__));
+
+static inline int apk_name_cmp_display(const struct apk_name *a, const struct apk_name *b) {
+	return strcmp(a->name, b->name);
+}
 
 struct apk_name *apk_db_get_name(struct apk_database *db, apk_blob_t name);
 struct apk_name *apk_db_query_name(struct apk_database *db, apk_blob_t name);
@@ -246,9 +252,13 @@ int apk_db_install_pkg(struct apk_database *db,
 		       struct apk_package *newpkg,
 		       apk_progress_cb cb, void *cb_ctx);
 
-void apk_name_foreach_matching(struct apk_database *db, struct apk_string_array *filter, unsigned int match,
-			       void (*cb)(struct apk_database *db, const char *match, struct apk_name *name, void *ctx),
-			       void *ctx);
+typedef int (*apk_db_foreach_name_cb)(struct apk_database *db, const char *match, struct apk_name *name, void *ctx);
+
+int apk_db_foreach_matching_name(struct apk_database *db, struct apk_string_array *filter,
+				 apk_db_foreach_name_cb cb, void *ctx);
+
+int apk_db_foreach_sorted_name(struct apk_database *db, struct apk_string_array *filter,
+			       apk_db_foreach_name_cb cb, void *ctx);
 
 static inline uint8_t apk_dbf_digest(struct apk_db_file *dbf)
 {

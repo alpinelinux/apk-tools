@@ -158,7 +158,7 @@ static int sort_change(const void *a, const void *b)
 	const struct apk_change *cb = b;
 	const struct apk_name *na = ca->old_pkg ? ca->old_pkg->name : ca->new_pkg->name;
 	const struct apk_name *nb = cb->old_pkg ? cb->old_pkg->name : cb->new_pkg->name;
-	return strcmp(na->name, nb->name);
+	return apk_name_cmp_display(na, nb);
 }
 
 static int cmp_remove(struct apk_change *change)

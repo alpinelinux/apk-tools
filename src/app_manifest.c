@@ -151,22 +151,24 @@ static void process_file(struct apk_database *db, const char *match)
 	if (r < 0) apk_err(out, "%s: %s", match, apk_error_str(r));
 }
 
-static void process_match(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
+static int process_match(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
 {
 	struct apk_provider *p;
 
-	if (name == NULL) {
+	if (!name) {
 		process_file(db, match);
-		return;
+		return 0;
 	}
 
 	foreach_array_item(p, name->providers)
 		process_package(db, p->pkg);
+	return 0;
 }
 
 static int manifest_main(void *applet_ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	apk_name_foreach_matching(ac->db, args, apk_foreach_genid(), process_match, NULL);
+	if (!args->num) return 0;
+	apk_db_foreach_sorted_name(ac->db, args, process_match, NULL);
 	return 0;
 }
 

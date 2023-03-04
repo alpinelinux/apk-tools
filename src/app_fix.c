@@ -74,7 +74,7 @@ static void mark_fix(struct fix_ctx *ctx, struct apk_name *name)
 	apk_solver_set_name_flags(name, ctx->solver_flags, ctx->fix_depends ? ctx->solver_flags : 0);
 }
 
-static void set_solver_flags(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+static int set_solver_flags(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct fix_ctx *ctx = pctx;
@@ -82,8 +82,11 @@ static void set_solver_flags(struct apk_database *db, const char *match, struct 
 	if (!name) {
 		apk_err(out, "Package '%s' not found", match);
 		ctx->errors++;
-	} else
-		mark_fix(ctx, name);
+		return 0;
+	}
+
+	mark_fix(ctx, name);
+	return 0;
 }
 
 static int fix_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
@@ -105,7 +108,7 @@ static int fix_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 				mark_fix(ctx, ipkg->pkg->name);
 		}
 	} else
-		apk_name_foreach_matching(db, args, apk_foreach_genid(), set_solver_flags, ctx);
+		apk_db_foreach_matching_name(db, args, set_solver_flags, ctx);
 
 	if (ctx->errors) return ctx->errors;
 

@@ -139,7 +139,7 @@ ret:
 	return r;
 }
 
-static void set_upgrade_for_name(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+static int set_upgrade_for_name(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) pctx;
@@ -147,10 +147,11 @@ static void set_upgrade_for_name(struct apk_database *db, const char *match, str
 	if (!name) {
 		apk_err(out, "Package '%s' not found", match);
 		uctx->errors++;
-		return;
+		return 0;
 	}
 
 	apk_solver_set_name_flags(name, uctx->ignore ? APK_SOLVERF_INSTALLED : APK_SOLVERF_UPGRADE, 0);
+	return 0;
 }
 
 static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
@@ -213,7 +214,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 	if (args->num > 0) {
 		/* if specific packages are listed, we don't want to upgrade world. */
 		if (!uctx->ignore) solver_flags &= ~APK_SOLVERF_UPGRADE;
-		apk_name_foreach_matching(db, args, apk_foreach_genid(), set_upgrade_for_name, uctx);
+		apk_db_foreach_matching_name(db, args, set_upgrade_for_name, uctx);
 		if (uctx->errors) return uctx->errors;
 	}
 

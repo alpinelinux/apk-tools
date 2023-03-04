@@ -13,14 +13,14 @@
 #include "apk_version.h"
 #include "apk_print.h"
 
-static void print_policy(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
+static int print_policy(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_provider *p;
 	struct apk_repository *repo;
 	int i, j, num = 0;
 
-	if (!name) return;
+	if (!name) return 0;
 
 /*
 zlib1g policy:
@@ -57,11 +57,13 @@ zlib1g policy:
 			}
 		}
 	}
+	return 0;
 }
 
 static int policy_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	apk_name_foreach_matching(ac->db, args, apk_foreach_genid(), print_policy, NULL);
+	if (!args->num) return 0;
+	apk_db_foreach_sorted_name(ac->db, args, print_policy, NULL);
 	return 0;
 }
 
