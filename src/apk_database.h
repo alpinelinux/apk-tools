@@ -103,6 +103,7 @@ struct apk_name {
 	unsigned priority : 2;
 	unsigned layer : 4;
 	unsigned solver_flags_set : 1;
+	unsigned providers_sorted : 1;
 	unsigned int foreach_genid;
 	union {
 		struct apk_solver_name_state ss;
@@ -193,6 +194,7 @@ typedef union apk_database_or_void {
 static inline int apk_name_cmp_display(const struct apk_name *a, const struct apk_name *b) {
 	return strcmp(a->name, b->name);
 }
+struct apk_provider_array *apk_name_sorted_providers(struct apk_name *);
 
 struct apk_name *apk_db_get_name(struct apk_database *db, apk_blob_t name);
 struct apk_name *apk_db_query_name(struct apk_database *db, apk_blob_t name);
@@ -259,6 +261,22 @@ int apk_db_foreach_matching_name(struct apk_database *db, struct apk_string_arra
 
 int apk_db_foreach_sorted_name(struct apk_database *db, struct apk_string_array *filter,
 			       apk_db_foreach_name_cb cb, void *ctx);
+
+typedef int (*apk_db_foreach_package_cb)(struct apk_database *db, const char *match, struct apk_package *pkg, void *ctx);
+
+int __apk_db_foreach_sorted_package(struct apk_database *db, struct apk_string_array *filter,
+				    apk_db_foreach_package_cb cb, void *cb_ctx, int provides);
+
+static inline int apk_db_foreach_sorted_package(struct apk_database *db, struct apk_string_array *filter,
+						apk_db_foreach_package_cb cb, void *cb_ctx) {
+	return __apk_db_foreach_sorted_package(db, filter, cb, cb_ctx, 0);
+}
+
+static inline int apk_db_foreach_sorted_providers(struct apk_database *db, struct apk_string_array *filter,
+						  apk_db_foreach_package_cb cb, void *cb_ctx) {
+	return __apk_db_foreach_sorted_package(db, filter, cb, cb_ctx, 1);
+}
+
 
 static inline uint8_t apk_dbf_digest(struct apk_db_file *dbf)
 {

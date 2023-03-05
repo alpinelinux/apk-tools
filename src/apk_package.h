@@ -91,6 +91,7 @@ struct apk_package {
 	time_t build_time;
 	unsigned short provider_priority;
 	unsigned repos : APK_MAX_REPOS;
+	unsigned seen : 1;
 	unsigned marked : 1;
 	unsigned uninstallable : 1;
 	unsigned cached_non_repository : 1;
@@ -158,7 +159,8 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg, struct apk_database
 struct apk_package *apk_pkg_parse_index_entry(struct apk_database *db, apk_blob_t entry);
 int apk_pkg_write_index_entry(struct apk_package *pkg, struct apk_ostream *os);
 
-int apk_pkg_version_compare(struct apk_package *a, struct apk_package *b);
+int apk_pkg_version_compare(const struct apk_package *a, const struct apk_package *b);
+int apk_pkg_cmp_display(const struct apk_package *a, const struct apk_package *b);
 
 unsigned int apk_foreach_genid(void);
 int apk_pkg_match_genid(struct apk_package *pkg, unsigned int match);

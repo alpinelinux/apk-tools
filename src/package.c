@@ -963,12 +963,26 @@ int apk_pkg_write_index_entry(struct apk_package *info,
 	return 0;
 }
 
-int apk_pkg_version_compare(struct apk_package *a, struct apk_package *b)
+int apk_pkg_version_compare(const struct apk_package *a, const struct apk_package *b)
 {
 	if (a->version == b->version)
 		return APK_VERSION_EQUAL;
 
 	return apk_version_compare_blob(*a->version, *b->version);
+}
+
+int apk_pkg_cmp_display(const struct apk_package *a, const struct apk_package *b)
+{
+	if (a->name != b->name)
+		return apk_name_cmp_display(a->name, b->name);
+	switch (apk_pkg_version_compare(a, b)) {
+	case APK_VERSION_LESS:
+		return -1;
+	case APK_VERSION_GREATER:
+		return 1;
+	default:
+		return 0;
+	}
 }
 
 unsigned int apk_foreach_genid(void)

@@ -139,6 +139,7 @@ static int dump(struct apk_database *db, const char *match, struct apk_name *nam
 
 	if (!name) return 0;
 
+	apk_name_sorted_providers(name);
 	foreach_array_item(p, name->providers)
 		dump_pkg(ctx, p->pkg);
 	return 0;

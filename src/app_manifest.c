@@ -160,8 +160,11 @@ static int process_match(struct apk_database *db, const char *match, struct apk_
 		return 0;
 	}
 
-	foreach_array_item(p, name->providers)
+	apk_name_sorted_providers(name);
+	foreach_array_item(p, name->providers) {
+		if (p->pkg->name != name) continue;
 		process_package(db, p->pkg);
+	}
 	return 0;
 }
 

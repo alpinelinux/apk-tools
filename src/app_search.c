@@ -26,18 +26,11 @@ struct search_ctx {
 
 	unsigned int matches;
 	struct apk_string_array *filter;
+	struct apk_package *prev_match;
 };
-
-static int unique_match(struct apk_package *pkg)
-{
-	if (pkg->state_int) return 0;
-	pkg->state_int = 1;
-	return 1;
-}
 
 static void print_package_name(struct search_ctx *ctx, struct apk_package *pkg)
 {
-	if (!unique_match(pkg)) return;
 	printf("%s", pkg->name->name);
 	if (ctx->verbosity > 0)
 		printf("-" BLOB_FMT, BLOB_PRINTF(*pkg->version));
@@ -48,7 +41,6 @@ static void print_package_name(struct search_ctx *ctx, struct apk_package *pkg)
 
 static void print_origin_name(struct search_ctx *ctx, struct apk_package *pkg)
 {
-	if (!unique_match(pkg)) return;
 	if (pkg->origin != NULL)
 		printf(BLOB_FMT, BLOB_PRINTF(*pkg->origin));
 	else
@@ -144,26 +136,28 @@ match:
 	ctx->print_result(ctx, pkg);
 }
 
-static int print_result(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+static int print_result(struct apk_database *db, const char *match, struct apk_package *pkg, void *pctx)
 {
 	struct search_ctx *ctx = pctx;
-	struct apk_provider *p;
-	struct apk_package *pkg = NULL;
 
-	if (!name) return 0;
+	if (!pkg) return 0;
 
 	if (ctx->show_all) {
-		foreach_array_item(p, name->providers)
-			print_result_pkg(ctx, p->pkg);
-	} else {
-		foreach_array_item(p, name->providers) {
-			if (pkg == NULL ||
-			    apk_version_compare_blob(*p->version, *pkg->version) == APK_VERSION_GREATER)
-				pkg = p->pkg;
-		}
-		if (pkg)
-			print_result_pkg(ctx, pkg);
+		print_result_pkg(ctx, pkg);
+		return 0;
 	}
+
+	if (!ctx->prev_match) {
+		ctx->prev_match = pkg;
+		return 0;
+	}
+	if (ctx->prev_match->name != pkg->name) {
+		print_result_pkg(ctx, ctx->prev_match);
+		ctx->prev_match = pkg;
+		return 0;
+	}
+	if (apk_pkg_version_compare(pkg, ctx->prev_match) == APK_VERSION_GREATER)
+		ctx->prev_match = pkg;
 	return 0;
 }
 
@@ -194,7 +188,9 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 			*pmatch = tmp;
 		}
 	}
-	apk_db_foreach_sorted_name(db, args, print_result, ctx);
+	apk_db_foreach_sorted_providers(db, args, print_result, ctx);
+	if (ctx->prev_match) print_result_pkg(ctx, ctx->prev_match);
+
 	return 0;
 }
 

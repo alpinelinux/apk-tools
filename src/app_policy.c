@@ -36,11 +36,10 @@ zlib1g policy:
   1.1:
     http://nl.alpinelinux.org/alpine/v2.4/main
 */
+	apk_name_sorted_providers(name);
 	foreach_array_item(p, name->providers) {
-		if (p->pkg->name != name)
-			continue;
-		if (num++ == 0)
-			apk_out(out, "%s policy:", name->name);
+		if (p->pkg->name != name) continue;
+		if (num++ == 0) apk_out(out, "%s policy:", name->name);
 		apk_out(out, "  " BLOB_FMT ":", BLOB_PRINTF(*p->version));
 		if (p->pkg->ipkg)
 			apk_out(out, "    %s/installed", apk_db_layer_name(p->pkg->layer));
