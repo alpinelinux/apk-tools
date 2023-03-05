@@ -123,11 +123,9 @@ static void progress_cb(void *pctx, size_t bytes_done)
 	apk_print_progress(ctx->done + bytes_done, ctx->total);
 }
 
-static int fetch_package(apk_hash_item item, void *pctx)
+static int fetch_package(struct apk_database *db, const char *match, struct apk_package *pkg, void *pctx)
 {
-	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	struct apk_database *db = ctx->db;
-	struct apk_package *pkg = (struct apk_package *) item;
+	struct fetch_ctx *ctx = pctx;
 	struct apk_istream *is;
 	struct apk_repository *repo;
 	struct apk_file_info fi;
@@ -357,7 +355,7 @@ static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_arr
 		apk_db_foreach_matching_name(db, args, mark_name, ctx);
 	}
 	if (!ctx->errors)
-		apk_hash_foreach(&db->available.packages, fetch_package, ctx);
+		apk_db_foreach_sorted_package(db, NULL, fetch_package, ctx);
 
 	/* Remove packages not matching download spec from the output directory */
 	if (!ctx->errors && (apk_flags & APK_PURGE) &&

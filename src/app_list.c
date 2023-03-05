@@ -164,6 +164,7 @@ static int print_result(struct apk_database *db, const char *match, struct apk_n
 
 	if (!name) return 0;
 
+	apk_name_sorted_providers(name);
 	if (ctx->match_depends) {
 		struct apk_name **pname;
 		foreach_array_item(pname, name->rdepends)
