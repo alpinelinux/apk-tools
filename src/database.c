@@ -1266,7 +1266,8 @@ static int write_index_entry(apk_hash_item item, void *ctx)
 static int apk_db_index_write_nr_cache(struct apk_database *db)
 {
 	struct index_write_ctx ctx = { NULL, 0, TRUE };
-	struct apk_installed_package *ipkg;
+	struct apk_package_array *pkgs;
+	struct apk_package **ppkg;
 	struct apk_ostream *os;
 	int r;
 
@@ -1278,8 +1279,9 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 	if (IS_ERR(os)) return PTR_ERR(os);
 
 	ctx.os = os;
-	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
-		struct apk_package *pkg = ipkg->pkg;
+	pkgs = apk_db_sorted_installed_packages(db);
+	foreach_array_item(ppkg, pkgs) {
+		struct apk_package *pkg = *ppkg;
 		if ((pkg->repos == BIT(APK_REPOSITORY_CACHED) ||
 		     (pkg->repos == 0 && !pkg->installed_size))) {
 			r = write_index_entry(pkg, &ctx);
@@ -1667,6 +1669,7 @@ void apk_db_init(struct apk_database *db)
 	apk_dependency_array_init(&db->world);
 	apk_protected_path_array_init(&db->protected_paths);
 	apk_name_array_init(&db->available.sorted_names);
+	apk_package_array_init(&db->installed.sorted_packages);
 	db->permanent = 1;
 	db->root_fd = -1;
 }
@@ -1838,8 +1841,9 @@ static int apk_db_write_layers(struct apk_database *db)
 		int fd;
 		struct apk_ostream *installed, *scripts, *triggers;
 	} layers[APK_DB_LAYER_NUM] = {0};
-	struct apk_installed_package *ipkg;
 	struct apk_ostream *os;
+	struct apk_package **ppkg;
+	struct apk_package_array *pkgs;
 	int i, r, rr = 0;
 
 	for (i = 0; i < APK_DB_LAYER_NUM; i++) {
@@ -1869,12 +1873,14 @@ static int apk_db_write_layers(struct apk_database *db)
 		if (!rr) rr = r;
 	}
 
-	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
-		struct layer_data *ld = &layers[ipkg->pkg->layer];
+	pkgs = apk_db_sorted_installed_packages(db);
+	foreach_array_item(ppkg, pkgs) {
+		struct apk_package *pkg = *ppkg;
+		struct layer_data *ld = &layers[pkg->layer];
 		if (!ld->fd) continue;
-		apk_db_fdb_write(db, ipkg, ld->installed);
-		apk_db_scriptdb_write(db, ipkg, ld->scripts);
-		apk_db_triggers_write(db, ipkg, ld->triggers);
+		apk_db_fdb_write(db, pkg->ipkg, ld->installed);
+		apk_db_scriptdb_write(db, pkg->ipkg, ld->scripts);
+		apk_db_triggers_write(db, pkg->ipkg, ld->triggers);
 	}
 
 	for (i = 0; i < APK_DB_LAYER_NUM; i++) {
@@ -1962,6 +1968,7 @@ void apk_db_close(struct apk_database *db)
 	apk_dependency_array_free(&db->world);
 
 	apk_name_array_free(&db->available.sorted_names);
+	apk_package_array_free(&db->installed.sorted_packages);
 	apk_hash_free(&db->available.packages);
 	apk_hash_free(&db->available.names);
 	apk_hash_free(&db->installed.files);
@@ -3232,6 +3239,22 @@ static struct apk_name_array *apk_db_sorted_names(struct apk_database *db)
 		db->sorted_names = 1;
 	}
 	return db->available.sorted_names;
+}
+
+struct apk_package_array *apk_db_sorted_installed_packages(struct apk_database *db)
+{
+	struct apk_installed_package *ipkg;
+	int n = 0;
+
+	if (!db->sorted_installed_packages) {
+		db->sorted_installed_packages = 1;
+		apk_package_array_resize(&db->installed.sorted_packages, db->installed.stats.packages);
+		list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list)
+			db->installed.sorted_packages->item[n++] = ipkg->pkg;
+		qsort(db->installed.sorted_packages->item, db->installed.sorted_packages->num,
+		      sizeof db->installed.sorted_packages->item[0], cmp_package);
+	}
+	return db->installed.sorted_packages;
 }
 
 int apk_db_foreach_sorted_name(struct apk_database *db, struct apk_string_array *filter,
