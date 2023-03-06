@@ -164,6 +164,7 @@ struct apk_database {
 	int compat_newfeatures : 1;
 	int compat_notinstallable : 1;
 	int sorted_names : 1;
+	int sorted_installed_packages : 1;
 
 	struct apk_dependency_array *world;
 	struct apk_protected_path_array *protected_paths;
@@ -183,6 +184,7 @@ struct apk_database {
 	} available;
 
 	struct {
+		struct apk_package_array *sorted_packages;
 		struct list_head packages;
 		struct list_head triggers;
 		struct apk_hash dirs;
@@ -276,6 +278,9 @@ int apk_db_install_pkg(struct apk_database *db,
 		       struct apk_package *oldpkg,
 		       struct apk_package *newpkg,
 		       apk_progress_cb cb, void *cb_ctx);
+
+
+struct apk_package_array *apk_db_sorted_installed_packages(struct apk_database *db);
 
 typedef int (*apk_db_foreach_name_cb)(struct apk_database *db, const char *match, struct apk_name *name, void *ctx);
 

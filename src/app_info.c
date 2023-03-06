@@ -444,7 +444,6 @@ static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int op
 static int info_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
 	struct info_ctx *ictx = (struct info_ctx *) ctx;
-	struct apk_installed_package *ipkg;
 
 	ictx->db = db;
 	if (ictx->subaction_mask == 0)
@@ -456,8 +455,10 @@ static int info_main(void *ctx, struct apk_database *db, struct apk_string_array
 		apk_db_foreach_sorted_providers(db, args, print_name_info, ctx);
 	} else {
 		/* Print all installed packages */
-		list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list)
-			verbose_print_pkg(ipkg->pkg, 1);
+		struct apk_package_array *pkgs = apk_db_sorted_installed_packages(db);
+		struct apk_package **ppkg;
+		foreach_array_item(ppkg, pkgs)
+			verbose_print_pkg(*ppkg, 1);
 	}
 
 	return ictx->errors;

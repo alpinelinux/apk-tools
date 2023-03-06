@@ -82,6 +82,7 @@ struct apk_installed_package *apk_pkg_install(struct apk_database *db,
 
 	/* Overlay override information resides in a nameless package */
 	if (pkg->name != NULL) {
+		db->sorted_installed_packages = 0;
 		db->installed.stats.packages++;
 		db->installed.stats.bytes += pkg->installed_size;
 		list_add_tail(&ipkg->installed_pkgs_list,
