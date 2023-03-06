@@ -3123,7 +3123,7 @@ static int apk_string_match(const char *str, struct apk_string_array *filter, co
 	char **pmatch;
 
 	foreach_array_item(pmatch, filter) {
-		if (fnmatch(*pmatch, str, 0) == 0) {
+		if (fnmatch(*pmatch, str, FNM_CASEFOLD) == 0) {
 			*res = *pmatch;
 			return 1;
 		}

@@ -192,7 +192,7 @@ typedef union apk_database_or_void {
 } apk_database_t __attribute__ ((__transparent_union__));
 
 static inline int apk_name_cmp_display(const struct apk_name *a, const struct apk_name *b) {
-	return strcmp(a->name, b->name);
+	return strcasecmp(a->name, b->name) ?: strcmp(a->name, b->name);
 }
 struct apk_provider_array *apk_name_sorted_providers(struct apk_name *);
 
