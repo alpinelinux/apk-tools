@@ -117,8 +117,8 @@ static void print_result_pkg(struct search_ctx *ctx, struct apk_package *pkg)
 
 	if (ctx->search_description) {
 		foreach_array_item(pmatch, ctx->filter) {
-			if (fnmatch(*pmatch, pkg->description, 0) == 0 ||
-			    fnmatch(*pmatch, pkg->name->name, 0) == 0)
+			if (fnmatch(*pmatch, pkg->description, FNM_CASEFOLD) == 0 ||
+			    fnmatch(*pmatch, pkg->name->name, FNM_CASEFOLD) == 0)
 				goto match;
 		}
 		return;
