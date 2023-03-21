@@ -188,10 +188,10 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 		fd = STDOUT_FILENO;
 	} else {
 		if ((ctx->flags & FETCH_LINK) && urlfd >= 0) {
-			if (linkat(urlfd, url,
-				   ctx->outdir_fd, filename,
-				   AT_SYMLINK_FOLLOW) == 0)
-				return 0;
+			const char *urlfile = apk_url_local_file(url);
+			if (urlfile &&
+			    linkat(urlfd, urlfile, ctx->outdir_fd, filename, AT_SYMLINK_FOLLOW) == 0)
+				goto done;
 		}
 		fd = openat(ctx->outdir_fd, filename,
 			    O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0644);
@@ -221,13 +221,13 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 		if (r >= 0) r = -EIO;
 		goto err;
 	}
-
-	ctx->done += pkg->size;
-	return 0;
+	goto done;
 
 err:
 	apk_error(PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
 	ctx->errors++;
+done:
+	ctx->done += pkg->size;
 	return 0;
 }
 
