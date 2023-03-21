@@ -29,6 +29,7 @@
 struct fetch_ctx {
 	unsigned int flags;
 	int outdir_fd, errors;
+	time_t built_after;
 	struct apk_database *db;
 	size_t done, total;
 	struct apk_dependency_array *world;
@@ -69,6 +70,7 @@ static int cup(void)
 }
 
 #define FETCH_OPTIONS(OPT) \
+	OPT(OPT_FETCH_built_after,	APK_OPT_ARG "built-after") \
 	OPT(OPT_FETCH_link,		APK_OPT_SH("l") "link") \
 	OPT(OPT_FETCH_recursive,	APK_OPT_SH("R") "recursive") \
 	OPT(OPT_FETCH_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
@@ -79,11 +81,30 @@ static int cup(void)
 
 APK_OPT_APPLET(option_desc, FETCH_OPTIONS);
 
+static time_t parse_time(const char *timestr)
+{
+	struct tm tm;
+	char *p;
+	time_t t;
+
+	p = strptime(optarg, "%Y-%m-%d %H:%M:%S", &tm);
+	if (p && *p == 0) return mktime(&tm);
+
+	t = strtoul(optarg, &p, 10);
+	if (p && *p == 0) return t;
+
+	return 0;
+}
+
 static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt, const char *optarg)
 {
 	struct fetch_ctx *fctx = (struct fetch_ctx *) ctx;
 
 	switch (opt) {
+	case OPT_FETCH_built_after:
+		fctx->built_after = parse_time(optarg);
+		if (!fctx->built_after) return -EINVAL;
+		break;
 	case OPT_FETCH_simulate:
 		apk_flags |= APK_SIMULATE;
 		break;
@@ -213,6 +234,8 @@ err:
 static void mark_package(struct fetch_ctx *ctx, struct apk_package *pkg)
 {
 	if (pkg == NULL || pkg->marked)
+		return;
+	if (ctx->built_after && pkg->build_time && ctx->built_after >= pkg->build_time)
 		return;
 	ctx->total += pkg->size;
 	pkg->marked = 1;
