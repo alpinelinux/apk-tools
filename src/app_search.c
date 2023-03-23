@@ -198,7 +198,7 @@ static struct apk_applet apk_search = {
 	.name = "search",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
 	.context_size = sizeof(struct search_ctx),
-	.optgroups = { &optgroup_global, &optgroup_applet },
+	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
 	.main = search_main,
 };
 

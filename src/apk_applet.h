@@ -53,7 +53,7 @@ struct apk_applet {
 	int (*main)(void *ctx, struct apk_ctx *ac, struct apk_string_array *args);
 };
 
-extern const struct apk_option_group optgroup_global, optgroup_commit, optgroup_signing;
+extern const struct apk_option_group optgroup_global, optgroup_commit, optgroup_signing, optgroup_source;
 
 void apk_applet_register(struct apk_applet *);
 struct apk_applet *apk_applet_find(const char *name);

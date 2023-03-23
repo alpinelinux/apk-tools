@@ -278,6 +278,43 @@ const struct apk_option_group optgroup_commit = {
 	.parse = option_parse_commit,
 };
 
+#define SOURCE_OPTIONS(OPT) \
+	OPT(OPT_SOURCE_from,		APK_OPT_ARG "from")
+
+APK_OPT_GROUP(optiondesc_source, "Source", SOURCE_OPTIONS);
+
+static int option_parse_source(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+{
+	const unsigned long all_flags = APK_OPENF_NO_SYS_REPOS | APK_OPENF_NO_INSTALLED_REPO | APK_OPENF_NO_INSTALLED;
+	unsigned long flags;
+
+	switch (opt) {
+	case OPT_SOURCE_from:
+		if (strcmp(optarg, "none") == 0) {
+			flags = APK_OPENF_NO_SYS_REPOS | APK_OPENF_NO_INSTALLED_REPO | APK_OPENF_NO_INSTALLED;
+		} else if (strcmp(optarg, "repositories") == 0) {
+			flags = APK_OPENF_NO_INSTALLED_REPO | APK_OPENF_NO_INSTALLED;
+		} else if (strcmp(optarg, "installed") == 0) {
+			flags = APK_OPENF_NO_SYS_REPOS;
+		} else if (strcmp(optarg, "system") == 0) {
+			flags = 0;
+		} else
+			return -ENOTSUP;
+
+		ac->open_flags &= ~all_flags;
+		ac->open_flags |= flags;
+		break;
+	default:
+		return -ENOTSUP;
+	}
+	return 0;
+}
+
+const struct apk_option_group optgroup_source = {
+	.desc = optiondesc_source,
+	.parse = option_parse_source,
+};
+
 static int usage(struct apk_out *out, struct apk_applet *applet)
 {
 	version(out, NULL);

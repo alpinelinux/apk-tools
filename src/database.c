@@ -1786,12 +1786,13 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		}
 	}
 
-	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS)) {
+	if (!(ac->open_flags & APK_OPENF_NO_CMDLINE_REPOS)) {
 		char **repo;
-
 		foreach_array_item(repo, ac->repository_list)
 			apk_db_add_repository(db, APK_BLOB_STR(*repo));
+	}
 
+	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS)) {
 		if (ac->repositories_file == NULL) {
 			add_repos_from_file(db, db->root_fd, "etc/apk/repositories");
 			apk_dir_foreach_file(openat(db->root_fd, "etc/apk/repositories.d", O_RDONLY | O_CLOEXEC),
