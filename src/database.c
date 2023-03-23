@@ -1726,10 +1726,12 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 		}
 	}
 
-	if (!(dbopts->open_flags & APK_OPENF_NO_SYS_REPOS)) {
+	if (!(dbopts->open_flags & APK_OPENF_NO_CMDLINE_REPOS)) {
 		list_for_each_entry(repo, &dbopts->repository_list, list)
 			apk_db_add_repository(db, APK_BLOB_STR(repo->url));
+	}
 
+	if (!(dbopts->open_flags & APK_OPENF_NO_SYS_REPOS)) {
 		if (dbopts->repositories_file == NULL) {
 			add_repos_from_file(db, db->root_fd, "etc/apk/repositories");
 			apk_dir_foreach_file(openat(db->root_fd, "etc/apk/repositories.d", O_RDONLY | O_CLOEXEC),

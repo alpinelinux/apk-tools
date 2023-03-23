@@ -55,7 +55,7 @@ Each command is documented in detail on its manual page.
 |[ *apk-index*(8)
 :< Create repository index file from packages
 |  *apk-fetch*(8)
-:  Download packages from global repositories to a local directory
+:  Download packages from repositories to a local directory
 |  *apk-manifest*(8)
 :  Show checksums of package contents
 |  *apk-verify*(8)
@@ -204,6 +204,17 @@ The following options are available for all commands which commit the database.
 	Used by initramfs when it's recreating root tmpfs. This enables selected
 	force options to minimize failure, and disables commit hooks, among
 	other features.
+
+
+# SOURCE OPTIONS
+
+The following options are available for all commands which operate on the
+package indexes only.
+
+*--from* _FROMSPEC_
+	Search packages from: *system* (all system sources), *repositories*
+	(exclude installed database), *installed* (exclude normal repositories)
+	or *none* (commandline repositories only).
 
 # NOTES
 

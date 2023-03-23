@@ -162,7 +162,7 @@ static struct apk_applet apk_dot = {
 	.name = "dot",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
 	.context_size = sizeof(struct dot_ctx),
-	.optgroups = { &optgroup_global, &optgroup_applet },
+	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
 	.main = dot_main,
 };
 

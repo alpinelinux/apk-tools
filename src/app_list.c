@@ -248,7 +248,7 @@ static struct apk_applet apk_list = {
 	.name = "list",
 	.open_flags = APK_OPENF_READ,
 	.context_size = sizeof(struct list_ctx),
-	.optgroups = { &optgroup_global, &optgroup_applet },
+	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
 	.main = list_main,
 };
 
