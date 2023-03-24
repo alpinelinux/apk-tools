@@ -2570,7 +2570,7 @@ static int apk_db_install_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *p
 	// Extract the information not available in index
 	adb_ro_obj(pkg, ADBI_PKG_PKGINFO, &pkginfo);
 	apk_deps_from_adb(&ipkg->replaces, db, adb_ro_obj(&pkginfo, ADBI_PI_REPLACES, &obj));
-	ipkg->replaces_priority = adb_ro_int(&pkginfo, ADBI_PI_PRIORITY);
+	ipkg->replaces_priority = adb_ro_int(pkg, ADBI_PKG_REPLACES_PRIORITY);
 	ipkg->v3 = 1;
 
 	adb_ro_obj(pkg, ADBI_PKG_SCRIPTS, &scripts);

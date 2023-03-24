@@ -611,6 +611,7 @@ void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct a
 	pkg->license = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_LICENSE));
 	pkg->arch = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_ARCH));
 	pkg->installed_size = adb_ro_int(pkginfo, ADBI_PI_INSTALLED_SIZE);
+	pkg->provider_priority = adb_ro_int(pkginfo, ADBI_PI_PROVIDER_PRIORITY);
 	pkg->origin = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_ORIGIN));
 	pkg->maintainer = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_MAINTAINER));
 	pkg->build_time = adb_ro_int(pkginfo, ADBI_PI_BUILD_TIME);

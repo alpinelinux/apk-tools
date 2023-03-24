@@ -25,7 +25,7 @@
 #define ADBI_PI_BUILD_TIME	0x0b
 #define ADBI_PI_INSTALLED_SIZE	0x0c
 #define ADBI_PI_FILE_SIZE	0x0d
-#define ADBI_PI_PRIORITY	0x0e
+#define ADBI_PI_PROVIDER_PRIORITY	0x0e
 #define ADBI_PI_DEPENDS		0x0f
 #define ADBI_PI_PROVIDES	0x10
 #define ADBI_PI_REPLACES	0x11
@@ -71,7 +71,7 @@
 #define ADBI_PKG_PATHS		0x02
 #define ADBI_PKG_SCRIPTS	0x03
 #define ADBI_PKG_TRIGGERS	0x04
-#define ADBI_PKG_PASSWD		0x05
+#define ADBI_PKG_REPLACES_PRIORITY	0x05
 #define ADBI_PKG_MAX		0x06
 
 struct adb_data_package {

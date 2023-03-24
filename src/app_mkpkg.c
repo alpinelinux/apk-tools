@@ -71,11 +71,9 @@ static int parse_info(struct mkpkg_ctx *ictx, struct apk_out *out, const char *o
 
 	i = adb_s_field_by_name_blob(&schema_package, l);
 	switch (i) {
-#if 0
-	case ADBI_PKG_xxx:
+	case ADBI_PKG_REPLACES_PRIORITY:
 		ictx->package[i] = r;
-		break;
-#endif
+		return 0;
 	default:
 		break;
 	}

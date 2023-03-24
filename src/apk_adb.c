@@ -65,12 +65,12 @@ unsigned int adb_pkg_field_index(char f)
 		MAP('D', ADBI_PI_DEPENDS),
 		MAP('i', ADBI_PI_INSTALL_IF),
 		MAP('p', ADBI_PI_PROVIDES),
+		MAP('k', ADBI_PI_PROVIDER_PRIORITY),
 		MAP('o', ADBI_PI_ORIGIN),
 		MAP('m', ADBI_PI_MAINTAINER),
 		MAP('t', ADBI_PI_BUILD_TIME),
 		MAP('c', ADBI_PI_REPO_COMMIT),
 		MAP('r', ADBI_PI_REPLACES),
-		MAP('k', ADBI_PI_PRIORITY),
 	};
 	if (f < 'A' || f-'A' >= ARRAY_SIZE(map)) return 0;
 	return map[(unsigned char)f - 'A'];
@@ -396,7 +396,7 @@ const struct adb_object_schema schema_pkginfo = {
 		ADB_FIELD(ADBI_PI_BUILD_TIME,	"build-time",	scalar_int),
 		ADB_FIELD(ADBI_PI_INSTALLED_SIZE,"installed-size",scalar_hsize),
 		ADB_FIELD(ADBI_PI_FILE_SIZE,	"file-size",	scalar_hsize),
-		ADB_FIELD(ADBI_PI_PRIORITY,	"priority",	scalar_int),
+		ADB_FIELD(ADBI_PI_PROVIDER_PRIORITY,	"provider-priority",	scalar_int),
 		ADB_FIELD(ADBI_PI_DEPENDS,	"depends",	schema_dependency_array),
 		ADB_FIELD(ADBI_PI_PROVIDES,	"provides",	schema_dependency_array),
 		ADB_FIELD(ADBI_PI_REPLACES,	"replaces",	schema_dependency_array),
@@ -495,7 +495,7 @@ const struct adb_object_schema schema_package = {
 		ADB_FIELD(ADBI_PKG_PATHS,	"paths",	schema_dir_array),
 		ADB_FIELD(ADBI_PKG_SCRIPTS,	"scripts",	schema_scripts),
 		ADB_FIELD(ADBI_PKG_TRIGGERS,	"triggers",	schema_string_array),
-		//ADB_FIELD(ADBI_PKG_PASSWD,	"passwd",	schema_string_array),
+		ADB_FIELD(ADBI_PKG_REPLACES_PRIORITY,	"replaces-priority",	scalar_int),
 	},
 };
 
