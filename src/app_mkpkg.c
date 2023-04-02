@@ -31,6 +31,7 @@ struct mkpkg_ctx {
 	struct adb db;
 	struct adb_obj paths, *files;
 	struct apk_extract_ctx ectx;
+	apk_blob_t package[ADBI_PKG_MAX];
 	apk_blob_t info[ADBI_PI_MAX];
 	apk_blob_t script[ADBI_SCRPT_MAX];
 	struct apk_string_array *triggers;
@@ -48,6 +49,42 @@ struct mkpkg_ctx {
 
 APK_OPT_APPLET(option_desc, MKPKG_OPTIONS);
 
+static int parse_info(struct mkpkg_ctx *ictx, struct apk_out *out, const char *optarg)
+{
+	apk_blob_t l, r;
+	int i;
+
+	if (!apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r))
+		goto inval;
+
+	i = adb_s_field_by_name_blob(&schema_pkginfo, l);
+	switch (i) {
+	case 0:
+		break;
+	case ADBI_PI_FILE_SIZE:
+	case ADBI_PI_INSTALLED_SIZE:
+		return -EINVAL;
+	default:
+		ictx->info[i] = r;
+		return 0;
+	}
+
+	i = adb_s_field_by_name_blob(&schema_package, l);
+	switch (i) {
+#if 0
+	case ADBI_PKG_xxx:
+		ictx->package[i] = r;
+		break;
+#endif
+	default:
+		break;
+	}
+
+inval:
+	apk_err(out, "invalid info field: " BLOB_FMT, BLOB_PRINTF(l));
+	return -EINVAL;
+}
+
 static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
 {
 	struct apk_out *out = &ac->out;
@@ -57,14 +94,7 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 
 	switch (optch) {
 	case OPT_MKPKG_info:
-		apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r);
-		i = adb_s_field_by_name_blob(&schema_pkginfo, l);
-		if (!i || i == ADBI_PI_FILE_SIZE || i == ADBI_PI_INSTALLED_SIZE) {
-			apk_err(out, "invalid pkginfo field: " BLOB_FMT, BLOB_PRINTF(l));
-			return -EINVAL;
-		}
-		ictx->info[i] = r;
-		break;
+		return parse_info(ictx, out, optarg);
 	case OPT_MKPKG_files:
 		ictx->files_dir = optarg;
 		break;
@@ -221,6 +251,33 @@ static char *pkgi_filename(struct adb_obj *pkgi, char *buf, size_t n)
 	return buf;
 }
 
+static int check_required(struct apk_out *out, apk_blob_t *vals, int index, const struct adb_object_schema *schema)
+{
+	if (!APK_BLOB_IS_NULL(vals[index])) return 0;
+	apk_err(out, "required info field '%s' not provided",
+		schema->fields[index-1].name);
+	return -EINVAL;
+}
+
+static int assign_fields(struct apk_out *out, apk_blob_t *vals, int num_vals, struct adb_obj *obj)
+{
+	int i, r;
+
+	for (i = 0; i < num_vals; i++) {
+		apk_blob_t b = vals[i];
+		if (APK_BLOB_IS_NULL(b)) continue;
+
+		adb_val_t val = adb_wo_val_fromstring(obj, i, b);
+		if (ADB_IS_ERROR(val)) {
+			r = ADB_VAL_VALUE(val);
+			apk_err(out, "info field '%s' has invalid value: %s",
+				obj->schema->fields[i-1].name, apk_error_str(r));
+			return r;
+		}
+	}
+	return 0;
+}
+
 static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
@@ -241,29 +298,19 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	adb_wo_alloca(&ctx->paths, &schema_dir_array, &ctx->db);
 
 	// prepare package info
-	for (i = 0; i < ARRAY_SIZE(ctx->info); i++) {
-		apk_blob_t b = ctx->info[i];
-		if (APK_BLOB_IS_NULL(b)) {
-			switch (i) {
-			case ADBI_PI_NAME:
-			case ADBI_PI_VERSION:
-				r = -EINVAL;
-				apk_err(out, "required pkginfo field '%s' not provided",
-					schema_pkginfo.fields[i-1].name);
-				goto err;
-			}
-			continue;
-		}
-		adb_val_t val = adb_wo_val_fromstring(&pkgi, i, b);
-		if (ADB_IS_ERROR(val)) {
-			r = ADB_VAL_VALUE(val);
-			apk_err(out, "field '%s' has invalid value: %s",
-				schema_pkginfo.fields[i-1].name, apk_error_str(r));
-			goto err;
-		}
-	}
-	if (adb_ro_val(&pkgi, ADBI_PI_ARCH) == ADB_VAL_NULL)
-		adb_wo_blob(&pkgi, ADBI_PI_ARCH, APK_BLOB_STRLIT(APK_DEFAULT_ARCH));
+	r = -EINVAL;
+	if (check_required(out, ctx->info, ADBI_PI_NAME, &schema_pkginfo) ||
+	    check_required(out, ctx->info, ADBI_PI_VERSION, &schema_pkginfo))
+		goto err;
+
+	if (APK_BLOB_IS_NULL(ctx->info[ADBI_PI_ARCH]))
+		ctx->info[ADBI_PI_ARCH] = APK_BLOB_STRLIT(APK_DEFAULT_ARCH);
+
+	r = assign_fields(out, ctx->info, ARRAY_SIZE(ctx->info), &pkgi);
+	if (r) goto err;
+
+	r = assign_fields(out, ctx->package, ARRAY_SIZE(ctx->package), &pkg);
+	if (r) goto err;
 
 	// scan and add all files
 	if (ctx->files_dir) {
@@ -281,6 +328,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 	adb_wo_int(&pkgi, ADBI_PI_INSTALLED_SIZE, ctx->installed_size);
 	adb_wo_blob(&pkgi, ADBI_PI_UNIQUE_ID, uid);
+
 	adb_wo_obj(&pkg, ADBI_PKG_PKGINFO, &pkgi);
 	adb_wo_obj(&pkg, ADBI_PKG_PATHS, &ctx->paths);
 	if (ctx->has_scripts) {
