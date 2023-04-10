@@ -1653,11 +1653,15 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 		}
 	}
 
-	blob = APK_BLOB_STR("+etc\n" "@etc/init.d\n" "!etc/apk\n");
-	apk_blob_for_each_segment(blob, "\n", add_protected_path, db);
+	if (!APK_BLOB_IS_NULL(dbopts->protected_paths)) {
+		apk_blob_for_each_segment(dbopts->protected_paths, "\n", add_protected_path, db);
+	} else {
+		blob = APK_BLOB_STR("+etc\n" "@etc/init.d\n" "!etc/apk\n");
+		apk_blob_for_each_segment(blob, "\n", add_protected_path, db);
 
-	apk_dir_foreach_file(openat(db->root_fd, "etc/apk/protected_paths.d", O_RDONLY | O_CLOEXEC),
-			     add_protected_paths_from_file, db);
+		apk_dir_foreach_file(openat(db->root_fd, "etc/apk/protected_paths.d", O_RDONLY | O_CLOEXEC),
+				     add_protected_paths_from_file, db);
+	}
 
 	/* figure out where to have the cache */
 	fd = openat(db->root_fd, dbopts->cache_dir, O_RDONLY | O_CLOEXEC);

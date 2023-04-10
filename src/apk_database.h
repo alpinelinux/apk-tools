@@ -131,6 +131,7 @@ struct apk_db_options {
 	const char *keys_dir;
 	const char *cache_dir;
 	const char *repositories_file;
+	apk_blob_t protected_paths;
 	struct list_head repository_list;
 };
 
