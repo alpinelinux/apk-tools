@@ -13,17 +13,21 @@ apk audit - audit directories for changes
 *apk audit* audits the system or specified directories for changes compared to
 the package database.
 
-The audit can be done against configuration files only (--backup) to generate
+The audit can be done against configuration files only (*--backup*) to generate
 list of files needed to be stored in the overlay in run-from-tmps configuration.
-Alternatively, it can audit all installed files (--system or --full) to
+Alternatively, it can audit all installed files (*--system* or *--full*) to
 e.g. detect unauthorized modifications of system files.
 
 By default, the output format is one file per line, for each modified file.
-A character is printed indicating the change detected, followed by a space,
-then the affected path. The changes detected are:
+A character is printed indicating the line type, followed by a space,
+then the affected path or details. The changes detected are:
 
-|[ A
-:< File added
+|[ -
+:< Database detail record
+|  \+
+:  On-disk detail record
+|  A
+:  File added
 |  d
 :  Directory added
 |  D
@@ -50,6 +54,9 @@ then the affected path. The changes detected are:
 *--check-permissions*
 	Check file permissions too. Namely, the uid, gid and file mode will
 	be checked in addition to the file content.
+
+*--details*
+	Enable reporting of detail records.
 
 *--full*
 	Audit all system files. Same as *--system*, but in addition reports
