@@ -88,7 +88,7 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 	struct apk_out *out = &ac->out;
 	struct mkpkg_ctx *ictx = ctx;
 	apk_blob_t l, r;
-	int i;
+	int i, ret;
 
 	switch (optch) {
 	case OPT_MKPKG_info:
@@ -106,10 +106,11 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 			apk_err(out, "invalid script type: " BLOB_FMT, BLOB_PRINTF(l));
 			return -EINVAL;
 		}
-		ictx->script[i] = apk_blob_from_file(AT_FDCWD, r.ptr);
-		if (APK_BLOB_IS_NULL(ictx->script[i])) {
-			apk_err(out, "failed to load script: " BLOB_FMT, BLOB_PRINTF(r));
-			return -ENOENT;
+		ret = apk_blob_from_file(AT_FDCWD, r.ptr, &ictx->script[i]);
+		if (ret) {
+			apk_err(out, "failed to load script: " BLOB_FMT ": %s",
+				BLOB_PRINTF(r), apk_error_str(ret));
+			return ret;
 		}
 		ictx->has_scripts = 1;
 		break;

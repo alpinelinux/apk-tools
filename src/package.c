@@ -767,7 +767,9 @@ int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 			struct apk_istream *is,
 			unsigned int type, unsigned int size)
 {
-	return apk_ipkg_assign_script(ipkg, type, apk_blob_from_istream(is, size));
+	apk_blob_t b;
+	apk_blob_from_istream(is, size, &b);
+	return apk_ipkg_assign_script(ipkg, type, b);
 }
 
 #ifdef __linux__

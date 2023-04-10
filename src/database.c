@@ -1208,11 +1208,11 @@ static int apk_db_read_layer(struct apk_database *db, unsigned layer)
 
 	if (!(flags & APK_OPENF_NO_WORLD)) {
 		if (layer == APK_DB_LAYER_ROOT)
-			world = apk_blob_from_file(db->root_fd, apk_world_file);
+			ret = apk_blob_from_file(db->root_fd, apk_world_file, &world);
 		else
-			world = apk_blob_from_file(fd, "world");
+			ret = apk_blob_from_file(fd, "world", &world);
 
-		if (!APK_BLOB_IS_NULL(world)) {
+		if (!ret) {
 			blob = apk_blob_trim(world);
 			apk_blob_pull_deps(&blob, db, &db->world);
 			free(world.ptr);
@@ -1367,8 +1367,7 @@ static int add_protected_paths_from_file(void *ctx, int dirfd, const char *file)
 	if (!file_ends_with_dot_list(file))
 		return 0;
 
-	blob = apk_blob_from_file(dirfd, file);
-	if (APK_BLOB_IS_NULL(blob))
+	if (apk_blob_from_file(dirfd, file, &blob))
 		return 0;
 
 	apk_blob_for_each_segment(blob, "\n", add_protected_path, db);
@@ -1401,8 +1400,10 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 			return 0;
 	}
 
-	blob = apk_blob_from_file(dirfd, file);
-	if (APK_BLOB_IS_NULL(blob)) {
+	if (!file_ends_with_dot_list(file))
+		return 0;
+
+	if (apk_blob_from_file(dirfd, file, &blob)) {
 		if (dirfd != AT_FDCWD) return 0;
 		apk_err(out, "failed to read repositories: %s", file);
 		apk_msg(out, "NOTE: --repositories-file is relative to the startup directory since apk 2.12.0_rc2");
@@ -1705,8 +1706,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		db->write_arch = 1;
 	} else {
 		apk_blob_t arch;
-		arch = apk_blob_from_file(db->root_fd, apk_arch_file);
-		if (!APK_BLOB_IS_NULL(arch)) {
+		if (!apk_blob_from_file(db->root_fd, apk_arch_file, &arch)) {
 			db->arch = apk_atomize_dup(&db->atoms, apk_blob_trim(arch));
 			free(arch.ptr);
 		} else {

@@ -166,7 +166,7 @@ static int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx, const struct apk_
 	if (pkey) {
 		ctx->md = md;
 		ctx->signature.pkey = pkey->key;
-		ctx->signature.data = apk_blob_from_istream(is, fi->size);
+		apk_blob_from_istream(is, fi->size, &ctx->signature.data);
 	}
 	return 0;
 }
@@ -322,7 +322,7 @@ static int apk_extract_v2_entry(void *pctx, const struct apk_file_info *fi, stru
 			if (!ectx->ops->v2index) return -APKE_FORMAT_NOT_SUPPORTED;
 			if (strcmp(fi->name, "DESCRIPTION") == 0) {
 				free(ectx->desc.ptr);
-				ectx->desc = apk_blob_from_istream(is, fi->size);
+				apk_blob_from_istream(is, fi->size, &ectx->desc);
 			} else if (strcmp(fi->name, "APKINDEX") == 0) {
 				return ectx->ops->v2index(ectx, &ectx->desc, is);
 			}
