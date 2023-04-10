@@ -1400,9 +1400,6 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 			return 0;
 	}
 
-	if (!file_ends_with_dot_list(file))
-		return 0;
-
 	if (apk_blob_from_file(dirfd, file, &blob)) {
 		if (dirfd != AT_FDCWD) return 0;
 		apk_err(out, "failed to read repositories: %s", file);
