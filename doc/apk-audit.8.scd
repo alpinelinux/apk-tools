@@ -28,6 +28,8 @@ then the affected path. The changes detected are:
 :  Directory added
 |  D
 :  Directory added (with non-listed files/subdirs)
+|  e
+:  error occured during audit (e.g. no permissions to read file)
 |  M
 :  File metadata changed (uid, gid, or mode)
 |  m

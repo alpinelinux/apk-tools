@@ -127,15 +127,14 @@ static int audit_file(struct audit_ctx *actx,
 	struct apk_file_info fi;
 	int rv = 0;
 
-	if (dbf == NULL)
-		return 'A';
+	if (!dbf) return 'A';
 
 	if (apk_fileinfo_get(dirfd, name,
 				APK_FI_NOFOLLOW |
 				APK_FI_XATTR_CSUM(dbf->acl->xattr_csum.type ?: APK_CHECKSUM_DEFAULT) |
 				APK_FI_DIGEST(apk_dbf_digest(dbf)),
 				&fi, &db->atoms) != 0)
-		return -EPERM;
+		return 'e';
 
 	if (dbf->csum.type != APK_CHECKSUM_NONE &&
 	    apk_digest_cmp_csum(&fi.digest, &dbf->csum) != 0)
@@ -224,15 +223,22 @@ static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
 	struct audit_ctx *actx = atctx->actx;
 	struct apk_database *db = atctx->db;
 	struct apk_db_dir *dir = atctx->dir, *child = NULL;
+	struct apk_db_file *dbf;
 	struct apk_file_info fi;
 	int reason = 0;
 
 	if (bdir.len + bent.len + 1 >= sizeof(atctx->path)) return 0;
-	if (apk_fileinfo_get(dirfd, name, APK_FI_NOFOLLOW, &fi, &db->atoms) < 0) return 0;
 
 	memcpy(&atctx->path[atctx->pathlen], bent.ptr, bent.len);
 	atctx->pathlen += bent.len;
 	bfull = APK_BLOB_PTR_LEN(atctx->path, atctx->pathlen);
+
+	if (apk_fileinfo_get(dirfd, name, APK_FI_NOFOLLOW, &fi, &db->atoms) < 0) {
+		dbf = apk_db_file_query(db, bdir, bent);
+		if (dbf) dbf->audited = 1;
+		report_audit(actx, 'e', bfull, dbf ? dbf->diri->pkg : NULL);
+		goto done;
+	}
 
 	if (S_ISDIR(fi.mode)) {
 		int recurse = TRUE;
@@ -257,8 +263,6 @@ static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
 		}
 
 		reason = audit_directory(actx, db, child, &fi);
-		if (reason < 0)
-			goto done;
 
 recurse_check:
 		atctx->path[atctx->pathlen++] = '/';
@@ -274,7 +278,6 @@ recurse_check:
 		bfull.len--;
 		atctx->pathlen--;
 	} else {
-		struct apk_db_file *dbf;
 		int protect_mode = determine_file_protect_mode(dir, name);
 
 		dbf = apk_db_file_query(db, bdir, bent);
@@ -327,7 +330,6 @@ recurse_check:
 				goto done;
 		}
 		if (!reason) reason = audit_file(actx, db, dbf, dirfd, name);
-		if (reason < 0) goto done;
 		report_audit(actx, reason, bfull, dbf ? dbf->diri->pkg : NULL);
 	}
 
