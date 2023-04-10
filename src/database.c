@@ -362,7 +362,7 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 	} else if (apk_blob_rsplit(name, '/', &bparent, NULL)) {
 		dir->parent = apk_db_dir_get(db, bparent);
 		dir->protect_mode = dir->parent->protect_mode;
-		dir->has_protected_children = (dir->protect_mode != APK_PROTECT_NONE);
+		dir->has_protected_children = !apk_protect_mode_none(dir->protect_mode);
 		ppaths = dir->parent->protected_paths;
 	} else {
 		dir->parent = apk_db_dir_get(db, APK_BLOB_NULL);
@@ -393,7 +393,7 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 
 			dir->protect_mode = ppath->protect_mode;
 		}
-		dir->has_protected_children |= (ppath->protect_mode != APK_PROTECT_NONE);
+		dir->has_protected_children |= !apk_protect_mode_none(ppath->protect_mode);
 	}
 
 	return dir;
@@ -1318,7 +1318,7 @@ static int add_protected_path(void *ctx, apk_blob_t blob)
 	case '#':
 		return 0;
 	case '-':
-		protect_mode = APK_PROTECT_NONE;
+		protect_mode = APK_PROTECT_IGNORE;
 		break;
 	case '+':
 		protect_mode = APK_PROTECT_CHANGED;
@@ -2857,7 +2857,7 @@ static void apk_db_purge_pkg(struct apk_database *db,
 			};
 			hash = apk_blob_hash_seed(key.filename, diri->dir->hash);
 			if (!is_installed ||
-			    (diri->dir->protect_mode == APK_PROTECT_NONE) ||
+			    apk_protect_mode_none(diri->dir->protect_mode) ||
 			    (db->ctx->flags & APK_PURGE) ||
 			    apk_db_audit_file(&d, key.filename, file) == 0)
 				apk_fsdir_file_control(&d, key.filename, ctrl);
@@ -2920,7 +2920,7 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 			if (ofile && ofile->diri->pkg->name == NULL) {
 				// File was from overlay, delete the package's version
 				ctrl = APK_FS_CTRL_CANCEL;
-			} else if (diri->dir->protect_mode != APK_PROTECT_NONE &&
+			} else if (!apk_protect_mode_none(diri->dir->protect_mode) &&
 				   apk_db_audit_file(&d, key.filename, ofile) != 0) {
 				// Protected directory, and a file without db entry
 				// or with local modifications. Keep the filesystem file.
