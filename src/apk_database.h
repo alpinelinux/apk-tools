@@ -45,10 +45,16 @@ struct apk_db_file {
 
 enum apk_protect_mode {
 	APK_PROTECT_NONE = 0,
+	APK_PROTECT_IGNORE,
 	APK_PROTECT_CHANGED,
 	APK_PROTECT_SYMLINKS_ONLY,
 	APK_PROTECT_ALL,
 };
+
+static inline int apk_protect_mode_none(enum apk_protect_mode mode)
+{
+	return mode == APK_PROTECT_NONE || mode == APK_PROTECT_IGNORE;
+}
 
 struct apk_protected_path {
 	char *relative_pattern;

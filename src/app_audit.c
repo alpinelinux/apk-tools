@@ -25,11 +25,12 @@
 
 enum {
 	MODE_BACKUP = 0,
-	MODE_SYSTEM
+	MODE_SYSTEM,
+	MODE_FULL,
 };
 
 struct audit_ctx {
-	unsigned mode : 1;
+	unsigned mode : 2;
 	unsigned recursive : 1;
 	unsigned check_permissions : 1;
 	unsigned packages_only : 1;
@@ -38,6 +39,7 @@ struct audit_ctx {
 #define AUDIT_OPTIONS(OPT) \
 	OPT(OPT_AUDIT_backup,			"backup") \
 	OPT(OPT_AUDIT_check_permissions,	"check-permissions") \
+	OPT(OPT_AUDIT_full,			"full") \
 	OPT(OPT_AUDIT_packages,			"packages") \
 	OPT(OPT_AUDIT_protected_paths,		APK_OPT_ARG "protected-paths") \
 	OPT(OPT_AUDIT_recursive,		APK_OPT_SH("r") "recursive") \
@@ -53,6 +55,24 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 	switch (opt) {
 	case OPT_AUDIT_backup:
 		actx->mode = MODE_BACKUP;
+		break;
+	case OPT_AUDIT_full:
+		actx->mode = MODE_FULL;
+		if (APK_BLOB_IS_NULL(dbopts->protected_paths))
+			dbopts->protected_paths = APK_BLOB_STR(
+				"+etc\n"
+				"@etc/init.d\n"
+				"-dev\n"
+				"-home\n"
+				"-lib/apk\n"
+				"-lib/rc/cache\n"
+				"-proc\n"
+				"-root\n"
+				"-run\n"
+				"-sys\n"
+				"-tmp\n"
+				"-var\n"
+				);
 		break;
 	case OPT_AUDIT_system:
 		actx->mode = MODE_SYSTEM;
@@ -102,8 +122,6 @@ static int audit_file(struct audit_ctx *actx,
 
 	if (dbf == NULL)
 		return 'A';
-
-	dbf->audited = 1;
 
 	if (apk_fileinfo_get(dirfd, name,
 				APK_FI_NOFOLLOW |
@@ -172,6 +190,23 @@ static void report_audit(struct audit_ctx *actx,
 		printf("%c " BLOB_FMT "\n", reason, BLOB_PRINTF(bfull));
 }
 
+static int determine_file_protect_mode(struct apk_db_dir *dir, const char *name)
+{
+	struct apk_protected_path *ppath;
+	int protect_mode = dir->protect_mode;
+
+	/* inherit file's protection mask */
+	foreach_array_item(ppath, dir->protected_paths) {
+		char *slash = strchr(ppath->relative_pattern, '/');
+		if (slash == NULL) {
+			if (fnmatch(ppath->relative_pattern, name, FNM_PATHNAME) != 0)
+				continue;
+			protect_mode = ppath->protect_mode;
+		}
+	}
+	return protect_mode;
+}
+
 static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
 {
 	struct audit_tree_ctx *atctx = (struct audit_tree_ctx *) ctx;
@@ -194,17 +229,23 @@ static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
 	if (S_ISDIR(fi.mode)) {
 		int recurse = TRUE;
 
-		if (actx->mode == MODE_BACKUP) {
+		switch (actx->mode) {
+		case MODE_BACKUP:
 			child = apk_db_dir_get(db, bfull);
 			if (!child->has_protected_children)
 				recurse = FALSE;
-			if (child->protect_mode == APK_PROTECT_NONE)
+			if (apk_protect_mode_none(child->protect_mode))
 				goto recurse_check;
-		} else {
+			break;
+		case MODE_SYSTEM:
 			child = apk_db_dir_query(db, bfull);
-			if (child == NULL)
-				goto done;
+			if (child == NULL) goto done;
 			child = apk_db_dir_ref(child);
+			break;
+		case MODE_FULL:
+			child = apk_db_dir_get(db, bfull);
+			if (child->protect_mode == APK_PROTECT_NONE) break;
+			goto recurse_check;
 		}
 
 		reason = audit_directory(actx, db, child, &fi);
@@ -226,47 +267,50 @@ recurse_check:
 		atctx->pathlen--;
 	} else {
 		struct apk_db_file *dbf;
-		struct apk_protected_path *ppath;
-		int protect_mode = dir->protect_mode;
+		int protect_mode = determine_file_protect_mode(dir, name);
 
-		/* inherit file's protection mask */
-		foreach_array_item(ppath, dir->protected_paths) {
-			char *slash = strchr(ppath->relative_pattern, '/');
-			if (slash == NULL) {
-				if (fnmatch(ppath->relative_pattern, name, FNM_PATHNAME) != 0)
-					continue;
-				protect_mode = ppath->protect_mode;
-			}
-		}
+		dbf = apk_db_file_query(db, bdir, bent);
+		if (dbf) dbf->audited = 1;
 
-		if (actx->mode == MODE_BACKUP) {
+		switch (actx->mode) {
+		case MODE_FULL:
 			switch (protect_mode) {
 			case APK_PROTECT_NONE:
+				break;
+			case APK_PROTECT_SYMLINKS_ONLY:
+				if (S_ISLNK(fi.mode)) goto done;
+				break;
+			case APK_PROTECT_IGNORE:
+			case APK_PROTECT_ALL:
+			case APK_PROTECT_CHANGED:
+				goto done;
+			}
+			break;
+		case MODE_BACKUP:
+			switch (protect_mode) {
+			case APK_PROTECT_NONE:
+			case APK_PROTECT_IGNORE:
 				goto done;
 			case APK_PROTECT_CHANGED:
 				break;
 			case APK_PROTECT_SYMLINKS_ONLY:
-				if (!S_ISLNK(fi.mode))
-					goto done;
+				if (!S_ISLNK(fi.mode)) goto done;
 				break;
 			case APK_PROTECT_ALL:
 				reason = 'A';
 				break;
 			}
+			if ((!dbf || reason == 'A') &&
+			    apk_blob_ends_with(bent, APK_BLOB_STR(".apk-new")))
+				goto done;
+			break;
+		case MODE_SYSTEM:
+			if (!dbf || !apk_protect_mode_none(protect_mode)) goto done;
+			break;
 		}
 
-		dbf = apk_db_file_query(db, bdir, bent);
-		if (reason == 0)
-			reason = audit_file(actx, db, dbf, dirfd, name);
-		if (reason < 0)
-			goto done;
-		if (actx->mode == MODE_SYSTEM &&
-		    (reason == 'A' || protect_mode != APK_PROTECT_NONE))
-			goto done;
-		if (actx->mode == MODE_BACKUP &&
-		    reason == 'A' &&
-		    apk_blob_ends_with(bent, APK_BLOB_STR(".apk-new")))
-			goto done;
+		if (reason == 0) reason = audit_file(actx, db, dbf, dirfd, name);
+		if (reason < 0) goto done;
 		report_audit(actx, reason, bfull, dbf ? dbf->diri->pkg : NULL);
 	}
 
@@ -306,11 +350,11 @@ static int audit_missing_files(apk_hash_item item, void *pctx)
 	if (file->audited) return 0;
 
 	dir = file->diri->dir;
-	if (dir->mode & S_SEENFLAG) {
-		len = snprintf(path, sizeof(path), DIR_FILE_FMT, DIR_FILE_PRINTF(dir, file));
-		report_audit(actx, 'X', APK_BLOB_PTR_LEN(path, len), file->diri->pkg);
-	}
+	if (!(dir->mode & S_SEENFLAG)) return 0;
+	if (determine_file_protect_mode(dir, file->name) == APK_PROTECT_IGNORE) return 0;
 
+	len = snprintf(path, sizeof(path), DIR_FILE_FMT, DIR_FILE_PRINTF(dir, file));
+	report_audit(actx, 'X', APK_BLOB_PTR_LEN(path, len), file->diri->pkg);
 	return 0;
 }
 
@@ -344,7 +388,7 @@ static int audit_main(void *ctx, struct apk_database *db, struct apk_string_arra
 			r |= audit_directory_tree(&atctx, openat(db->root_fd, arg, O_RDONLY|O_CLOEXEC));
 		}
 	}
-	if (actx->mode == MODE_SYSTEM)
+	if (actx->mode == MODE_SYSTEM || actx->mode == MODE_FULL)
 		apk_hash_foreach(&db->installed.files, audit_missing_files, ctx);
 
 	return r;

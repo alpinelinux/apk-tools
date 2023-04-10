@@ -15,8 +15,8 @@ the package database.
 
 The audit can be done against configuration files only (--backup) to generate
 list of files needed to be stored in the overlay in run-from-tmps configuration.
-Alternatively, it can audit all installed files (--system) to e.g. detect
-unauthorized modifications of system files.
+Alternatively, it can audit all installed files (--system or --full) to
+e.g. detect unauthorized modifications of system files.
 
 By default, the output format is one file per line, for each modified file.
 A character is printed indicating the change detected, followed by a space,
@@ -49,6 +49,12 @@ then the affected path. The changes detected are:
 	Check file permissions too. Namely, the uid, gid and file mode will
 	be checked in addition to the file content.
 
+*--full*
+	Audit all system files. Same as *--system*, but in addition reports
+	all added directories and files. A built-in default override for
+	protected paths is used, unless a *--protected-paths* is explicitly
+	specified.
+
 *--packages*
 	Print only the packages with changed files. Instead of the full output
 	each modification, the set of packages with at least one modified file
@@ -65,6 +71,7 @@ then the affected path. The changes detected are:
 	Audit all system files. All files provided by packages are verified
 	for integrity with the exception of configuration files (listed in
 	protected_paths.d). This is useful detecting unauthorized file changes.
+	New files or directories are not reported.
 
 *-r, --recursive*
 	Descend into directories and audit them as well.

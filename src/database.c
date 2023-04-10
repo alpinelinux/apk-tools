@@ -341,7 +341,7 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 	} else if (apk_blob_rsplit(name, '/', &bparent, NULL)) {
 		dir->parent = apk_db_dir_get(db, bparent);
 		dir->protect_mode = dir->parent->protect_mode;
-		dir->has_protected_children = (dir->protect_mode != APK_PROTECT_NONE);
+		dir->has_protected_children = !apk_protect_mode_none(dir->protect_mode);
 		ppaths = dir->parent->protected_paths;
 	} else {
 		dir->parent = apk_db_dir_get(db, APK_BLOB_NULL);
@@ -372,7 +372,7 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 
 			dir->protect_mode = ppath->protect_mode;
 		}
-		dir->has_protected_children |= (ppath->protect_mode != APK_PROTECT_NONE);
+		dir->has_protected_children |= !apk_protect_mode_none(ppath->protect_mode);
 	}
 
 	return dir;
@@ -1287,7 +1287,7 @@ static int add_protected_path(void *ctx, apk_blob_t blob)
 	case '#':
 		return 0;
 	case '-':
-		protect_mode = APK_PROTECT_NONE;
+		protect_mode = APK_PROTECT_IGNORE;
 		break;
 	case '+':
 		protect_mode = APK_PROTECT_CHANGED;
@@ -2735,7 +2735,7 @@ static void apk_db_purge_pkg(struct apk_database *db,
 			};
 			hash = apk_blob_hash_seed(key.filename, diri->dir->hash);
 			if (!is_installed ||
-			    (diri->dir->protect_mode == APK_PROTECT_NONE) ||
+			    apk_protect_mode_none(diri->dir->protect_mode) ||
 			    (apk_flags & APK_PURGE) ||
 			    (file->csum.type != APK_CHECKSUM_NONE &&
 			     apk_fileinfo_get(db->root_fd, name, APK_FI_NOFOLLOW | file->csum.type, &fi, &db->atoms) == 0 &&
@@ -2799,7 +2799,7 @@ static void apk_db_migrate_files(struct apk_database *db,
 				/* File was from overlay, delete the
 				 * packages version */
 				unlinkat(db->root_fd, tmpname, 0);
-			} else if ((diri->dir->protect_mode != APK_PROTECT_NONE) &&
+			} else if (!apk_protect_mode_none(diri->dir->protect_mode) &&
 				   (r == 0) &&
 				   (ofile == NULL ||
 				    ofile->csum.type == APK_CHECKSUM_NONE ||
