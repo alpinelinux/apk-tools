@@ -158,8 +158,8 @@ static inline int apk_ostream_close(struct apk_ostream *os)
 	return os->ops->close(os);
 }
 
-apk_blob_t apk_blob_from_istream(struct apk_istream *istream, size_t size);
-apk_blob_t apk_blob_from_file(int atfd, const char *file);
+int apk_blob_from_istream(struct apk_istream *is, size_t size, apk_blob_t *b);
+int apk_blob_from_file(int atfd, const char *file, apk_blob_t *b);
 
 #define APK_BTF_ADD_EOL		0x00000001
 int apk_blob_to_file(int atfd, const char *file, apk_blob_t b, unsigned int flags);

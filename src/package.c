@@ -599,7 +599,7 @@ int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
 	ctx->signature.pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
 	if (ctx->signature.pkey != NULL) {
 		ctx->md = md;
-		ctx->signature.data = apk_blob_from_istream(is, fi->size);
+		apk_blob_from_istream(is, fi->size, &ctx->signature.data);
 	}
 	BIO_free(bio);
 
@@ -974,28 +974,24 @@ void apk_pkg_free(struct apk_package *pkg)
 	free(pkg);
 }
 
+static int apk_ipkg_assign_script(struct apk_installed_package *ipkg, unsigned int type, apk_blob_t b)
+{
+	if (type >= APK_SCRIPT_MAX) {
+		free(b.ptr);
+		return -1;
+	}
+	if (ipkg->script[type].ptr) free(ipkg->script[type].ptr);
+	ipkg->script[type] = b;
+	return 0;
+ }
+
 int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 			struct apk_istream *is,
 			unsigned int type, unsigned int size)
 {
-	void *ptr;
-	int r;
-
-	if (type >= APK_SCRIPT_MAX)
-		return -1;
-
-	ptr = malloc(size);
-	r = apk_istream_read(is, ptr, size);
-	if (r < 0) {
-		free(ptr);
-		return r;
-	}
-
-	if (ipkg->script[type].ptr)
-		free(ipkg->script[type].ptr);
-	ipkg->script[type].ptr = ptr;
-	ipkg->script[type].len = size;
-	return 0;
+	apk_blob_t b;
+	apk_blob_from_istream(is, size, &b);
+	return apk_ipkg_assign_script(ipkg, type, b);
 }
 
 static inline int make_dirs(int root_fd, const char *dirname, mode_t dirmode, mode_t parentmode)

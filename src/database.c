@@ -1180,9 +1180,9 @@ static int apk_db_read_state(struct apk_database *db, int flags)
 	 * 4. scripts db
 	 */
 	if (!(flags & APK_OPENF_NO_WORLD)) {
-		blob = world = apk_blob_from_file(db->root_fd, apk_world_file);
-		if (APK_BLOB_IS_NULL(blob)) return -ENOENT;
-		blob = apk_blob_trim(blob);
+		r = apk_blob_from_file(db->root_fd, apk_world_file, &world);
+		if (r) return r;
+		blob = apk_blob_trim(world);
 		apk_blob_pull_deps(&blob, db, &db->world);
 		free(world.ptr);
 	}
@@ -1336,8 +1336,7 @@ static int add_protected_paths_from_file(void *ctx, int dirfd, const char *file)
 	if (!file_ends_with_dot_list(file))
 		return 0;
 
-	blob = apk_blob_from_file(dirfd, file);
-	if (APK_BLOB_IS_NULL(blob))
+	if (apk_blob_from_file(dirfd, file, &blob))
 		return 0;
 
 	apk_blob_for_each_segment(blob, "\n", add_protected_path, db);
@@ -1431,8 +1430,7 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 			return 0;
 	}
 
-	blob = apk_blob_from_file(dirfd, file);
-	if (APK_BLOB_IS_NULL(blob)) {
+	if (apk_blob_from_file(dirfd, file, &blob)) {
 		if (dirfd != AT_FDCWD) return 0;
 		apk_error("failed to read repositories: %s", file);
 		apk_message("NOTE: --repositories-file is relative to the startup directory since apk 2.12.0_rc2");
@@ -1591,8 +1589,7 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 		write_arch = TRUE;
 	} else {
 		apk_blob_t arch;
-		arch = apk_blob_from_file(db->root_fd, apk_arch_file);
-		if (!APK_BLOB_IS_NULL(arch)) {
+		if (!apk_blob_from_file(db->root_fd, apk_arch_file, &arch)) {
 			db->arch = apk_atomize_dup(&db->atoms, apk_blob_trim(arch));
 			free(arch.ptr);
 		} else {
@@ -2233,7 +2230,7 @@ static int load_apkindex(void *sctx, const struct apk_file_info *fi,
 	repo = &ctx->db->repos[ctx->repo];
 
 	if (strcmp(fi->name, "DESCRIPTION") == 0) {
-		repo->description = apk_blob_from_istream(is, fi->size);
+		r = apk_blob_from_istream(is, fi->size, &repo->description);
 	} else if (strcmp(fi->name, "APKINDEX") == 0) {
 		ctx->found = 1;
 		r = apk_db_index_read(ctx->db, is, ctx->repo);

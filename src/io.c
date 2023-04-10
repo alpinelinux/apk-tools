@@ -586,55 +586,62 @@ err:
 	return r;
 }
 
-apk_blob_t apk_blob_from_istream(struct apk_istream *is, size_t size)
+int apk_blob_from_istream(struct apk_istream *is, size_t size, apk_blob_t *b)
 {
 	void *ptr;
 	ssize_t rsize;
 
+	*b = APK_BLOB_NULL;
+
 	ptr = malloc(size);
-	if (ptr == NULL)
-		return APK_BLOB_NULL;
+	if (!ptr) return -ENOMEM;
 
 	rsize = apk_istream_read(is, ptr, size);
 	if (rsize < 0) {
 		free(ptr);
-		return APK_BLOB_NULL;
+		return rsize;
 	}
 	if (rsize != size)
 		ptr = realloc(ptr, rsize);
 
-	return APK_BLOB_PTR_LEN(ptr, rsize);
+	*b = APK_BLOB_PTR_LEN(ptr, rsize);
+	return 0;
 }
 
-apk_blob_t apk_blob_from_file(int atfd, const char *file)
+int apk_blob_from_file(int atfd, const char *file, apk_blob_t *b)
 {
-	int fd;
 	struct stat st;
 	char *buf;
+	ssize_t n;
+	int fd;
 
-	if (atfd_error(atfd)) return APK_BLOB_NULL;
+	*b = APK_BLOB_NULL;
+
+	if (atfd_error(atfd)) return atfd;
 
 	fd = openat(atfd, file, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return APK_BLOB_NULL;
-
-	if (fstat(fd, &st) < 0)
-		goto err_fd;
+	if (fd < 0) goto err;
+	if (fstat(fd, &st) < 0) goto err_fd;
 
 	buf = malloc(st.st_size);
-	if (buf == NULL)
-		goto err_fd;
+	if (!buf) goto err_fd;
 
-	if (read(fd, buf, st.st_size) != st.st_size)
+	n = read(fd, buf, st.st_size);
+	if (n != st.st_size) {
+		if (n >= 0) errno = EIO;
 		goto err_read;
+	}
 
 	close(fd);
-	return APK_BLOB_PTR_LEN(buf, st.st_size);
+	*b = APK_BLOB_PTR_LEN(buf, st.st_size);
+	return 0;
+
 err_read:
 	free(buf);
 err_fd:
 	close(fd);
-	return APK_BLOB_NULL;
+err:
+	return -errno;
 }
 
 int apk_blob_to_file(int atfd, const char *file, apk_blob_t b, unsigned int flags)
