@@ -34,12 +34,14 @@ struct audit_ctx {
 	unsigned recursive : 1;
 	unsigned check_permissions : 1;
 	unsigned packages_only : 1;
+	unsigned ignore_busybox_symlinks : 1;
 };
 
 #define AUDIT_OPTIONS(OPT) \
 	OPT(OPT_AUDIT_backup,			"backup") \
 	OPT(OPT_AUDIT_check_permissions,	"check-permissions") \
 	OPT(OPT_AUDIT_full,			"full") \
+	OPT(OPT_AUDIT_ignore_busybox_symlinks,	"ignore-busybox-symlinks") \
 	OPT(OPT_AUDIT_packages,			"packages") \
 	OPT(OPT_AUDIT_protected_paths,		APK_OPT_ARG "protected-paths") \
 	OPT(OPT_AUDIT_recursive,		APK_OPT_SH("r") "recursive") \
@@ -79,6 +81,9 @@ static int option_parse_applet(void *ctx, struct apk_db_options *dbopts, int opt
 		break;
 	case OPT_AUDIT_check_permissions:
 		actx->check_permissions = 1;
+		break;
+	case OPT_AUDIT_ignore_busybox_symlinks:
+		actx->ignore_busybox_symlinks = 1;
 		break;
 	case OPT_AUDIT_packages:
 		actx->packages_only = 1;
@@ -309,7 +314,16 @@ recurse_check:
 			break;
 		}
 
-		if (reason == 0) reason = audit_file(actx, db, dbf, dirfd, name);
+		if (!dbf && actx->ignore_busybox_symlinks && S_ISLNK(fi.mode)) {
+			char target[16];
+			ssize_t n;
+			n = readlinkat(dirfd, name, target, sizeof target);
+			if (n == 12 && memcmp(target, "/bin/busybox", 12) == 0)
+				goto done;
+			if (n == 11 && memcmp(target, "/bin/bbsuid", 11) == 0)
+				goto done;
+		}
+		if (!reason) reason = audit_file(actx, db, dbf, dirfd, name);
 		if (reason < 0) goto done;
 		report_audit(actx, reason, bfull, dbf ? dbf->diri->pkg : NULL);
 	}

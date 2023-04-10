@@ -55,6 +55,9 @@ then the affected path. The changes detected are:
 	protected paths is used, unless a *--protected-paths* is explicitly
 	specified.
 
+*--ignore-busybox-symlinks*
+	Ignore symlinks whose target is the busybox binary.
+
 *--packages*
 	Print only the packages with changed files. Instead of the full output
 	each modification, the set of packages with at least one modified file
