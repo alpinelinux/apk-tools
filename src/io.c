@@ -793,7 +793,7 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		.device = st.st_rdev,
 	};
 
-	if (xattr_hash_alg != APK_DIGEST_NONE) {
+	if (xattr_hash_alg != APK_DIGEST_NONE && !S_ISLNK(fi->mode)) {
 		ssize_t len, vlen;
 		int fd, i, r;
 		char val[1024], buf[1024];
@@ -831,12 +831,10 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 
 	/* Checksum file content */
 	if ((flags & APK_FI_NOFOLLOW) && S_ISLNK(st.st_mode)) {
-		char *target = alloca(st.st_size);
-		if (target == NULL)
-			return -ENOMEM;
+		char target[PATH_MAX];
+		if (st.st_size > sizeof target) return -ENOMEM;
 		if (readlinkat(atfd, filename, target, st.st_size) < 0)
 			return -errno;
-
 		apk_digest_calc(&fi->digest, hash_alg, target, st.st_size);
 	} else {
 		struct apk_istream *is = apk_istream_from_file(atfd, filename);
