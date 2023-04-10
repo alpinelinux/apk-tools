@@ -36,11 +36,13 @@ struct audit_ctx {
 	unsigned check_permissions : 1;
 	unsigned packages_only : 1;
 	unsigned ignore_busybox_symlinks : 1;
+	unsigned details : 1;
 };
 
 #define AUDIT_OPTIONS(OPT) \
 	OPT(OPT_AUDIT_backup,			"backup") \
 	OPT(OPT_AUDIT_check_permissions,	"check-permissions") \
+	OPT(OPT_AUDIT_details,			"details") \
 	OPT(OPT_AUDIT_full,			"full") \
 	OPT(OPT_AUDIT_ignore_busybox_symlinks,	"ignore-busybox-symlinks") \
 	OPT(OPT_AUDIT_packages,			"packages") \
@@ -84,6 +86,9 @@ static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, co
 	case OPT_AUDIT_check_permissions:
 		actx->check_permissions = 1;
 		break;
+	case OPT_AUDIT_details:
+		actx->details = 1;
+		break;
 	case OPT_AUDIT_ignore_busybox_symlinks:
 		actx->ignore_busybox_symlinks = 1;
 		break;
@@ -122,9 +127,9 @@ struct audit_tree_ctx {
 static int audit_file(struct audit_ctx *actx,
 		      struct apk_database *db,
 		      struct apk_db_file *dbf,
-		      int dirfd, const char *name)
+		      int dirfd, const char *name,
+		      struct apk_file_info *fi)
 {
-	struct apk_file_info fi;
 	int rv = 0;
 
 	if (!dbf) return 'A';
@@ -133,24 +138,23 @@ static int audit_file(struct audit_ctx *actx,
 				APK_FI_NOFOLLOW |
 				APK_FI_XATTR_CSUM(dbf->acl->xattr_csum.type ?: APK_CHECKSUM_DEFAULT) |
 				APK_FI_DIGEST(apk_dbf_digest(dbf)),
-				&fi, &db->atoms) != 0)
+				fi, &db->atoms) != 0)
 		return 'e';
 
 	if (dbf->csum.type != APK_CHECKSUM_NONE &&
-	    apk_digest_cmp_csum(&fi.digest, &dbf->csum) != 0)
+	    apk_digest_cmp_csum(&fi->digest, &dbf->csum) != 0)
 		rv = 'U';
-	else if (!S_ISLNK(fi.mode) && !dbf->diri->pkg->ipkg->broken_xattr &&
-	         apk_digest_cmp_csum(&fi.xattr_digest, &dbf->acl->xattr_csum) != 0)
+	else if (!S_ISLNK(fi->mode) && !dbf->diri->pkg->ipkg->broken_xattr &&
+		 apk_digest_cmp_csum(&fi->xattr_digest, &dbf->acl->xattr_csum) != 0)
 		rv = 'x';
-	else if (S_ISLNK(fi.mode) && dbf->csum.type == APK_CHECKSUM_NONE)
+	else if (S_ISLNK(fi->mode) && dbf->csum.type == APK_CHECKSUM_NONE)
 		rv = 'U';
 	else if (actx->check_permissions) {
-		if ((fi.mode & 07777) != (dbf->acl->mode & 07777))
+		if ((fi->mode & 07777) != (dbf->acl->mode & 07777))
 			rv = 'M';
-		else if (fi.uid != dbf->acl->uid || fi.gid != dbf->acl->gid)
+		else if (fi->uid != dbf->acl->uid || fi->gid != dbf->acl->gid)
 			rv = 'M';
 	}
-	apk_fileinfo_free(&fi);
 
 	return rv;
 }
@@ -176,16 +180,30 @@ static int audit_directory(struct audit_ctx *actx,
 	return 0;
 }
 
-static void report_audit(struct audit_ctx *actx,
-			 char reason, apk_blob_t bfull, struct apk_package *pkg)
+static const char *format_checksum(const apk_blob_t csum, apk_blob_t b)
 {
+	const char *ret = b.ptr;
+	if (csum.len == 0) return "";
+	apk_blob_push_blob(&b, APK_BLOB_STR(" hash="));
+	apk_blob_push_hexdump(&b, csum);
+	apk_blob_push_blob(&b, APK_BLOB_PTR_LEN("", 1));
+	return ret;
+}
+
+static void report_audit(struct audit_ctx *actx,
+			 char reason, apk_blob_t bfull,
+			 struct apk_db_dir *dir,
+			 struct apk_db_file *file,
+			 struct apk_file_info *fi)
+{
+	struct apk_package *pkg = file ? file->diri->pkg : NULL;
+	char csum_buf[8+2*APK_DIGEST_MAX_LENGTH];
 	int verbosity = actx->verbosity;
 
 	if (!reason) return;
 
 	if (actx->packages_only) {
-		if (pkg == NULL || pkg->state_int != 0)
-			return;
+		if (!pkg || pkg->state_int != 0) return;
 		pkg->state_int = 1;
 		if (verbosity < 1)
 			printf("%s\n", pkg->name->name);
@@ -193,8 +211,21 @@ static void report_audit(struct audit_ctx *actx,
 			printf(PKG_VER_FMT "\n", PKG_VER_PRINTF(pkg));
 	} else if (verbosity < 1) {
 		printf(BLOB_FMT "\n", BLOB_PRINTF(bfull));
-	} else
+	} else {
+		if (actx->details) {
+			if (file)
+				printf("- mode=%o uid=%d gid=%d%s\n",
+					file->acl->mode & 07777, file->acl->uid, file->acl->gid,
+					format_checksum(APK_BLOB_CSUM(file->csum), APK_BLOB_BUF(csum_buf)));
+			else if (dir && reason != 'D' && reason != 'd')
+				printf("- mode=%o uid=%d gid=%d\n",
+					dir->mode & 07777, dir->uid, dir->gid);
+			if (fi) printf("+ mode=%o uid=%d gid=%d%s\n",
+				fi->mode & 07777, fi->uid, fi->gid,
+				format_checksum(APK_DIGEST_BLOB(fi->digest), APK_BLOB_BUF(csum_buf)));
+		}
 		printf("%c " BLOB_FMT "\n", reason, BLOB_PRINTF(bfull));
+	}
 }
 
 static int determine_file_protect_mode(struct apk_db_dir *dir, const char *name)
@@ -236,7 +267,7 @@ static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
 	if (apk_fileinfo_get(dirfd, name, APK_FI_NOFOLLOW, &fi, &db->atoms) < 0) {
 		dbf = apk_db_file_query(db, bdir, bent);
 		if (dbf) dbf->audited = 1;
-		report_audit(actx, 'e', bfull, dbf ? dbf->diri->pkg : NULL);
+		report_audit(actx, 'e', bfull, NULL, dbf, NULL);
 		goto done;
 	}
 
@@ -267,7 +298,7 @@ static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
 recurse_check:
 		atctx->path[atctx->pathlen++] = '/';
 		bfull.len++;
-		report_audit(actx, reason, bfull, NULL);
+		report_audit(actx, reason, bfull, dir, NULL, &fi);
 		if (reason != 'D' && recurse) {
 			atctx->dir = child;
 			reason = apk_dir_foreach_file(
@@ -329,8 +360,9 @@ recurse_check:
 			if (n == 11 && memcmp(target, "/bin/bbsuid", 11) == 0)
 				goto done;
 		}
-		if (!reason) reason = audit_file(actx, db, dbf, dirfd, name);
-		report_audit(actx, reason, bfull, dbf ? dbf->diri->pkg : NULL);
+		if (!reason) reason = audit_file(actx, db, dbf, dirfd, name, &fi);
+		report_audit(actx, reason, bfull, NULL, dbf, &fi);
+		apk_fileinfo_free(&fi);
 	}
 
 done:
@@ -373,7 +405,7 @@ static int audit_missing_files(apk_hash_item item, void *pctx)
 	if (determine_file_protect_mode(dir, file->name) == APK_PROTECT_IGNORE) return 0;
 
 	len = snprintf(path, sizeof(path), DIR_FILE_FMT, DIR_FILE_PRINTF(dir, file));
-	report_audit(actx, 'X', APK_BLOB_PTR_LEN(path, len), file->diri->pkg);
+	report_audit(actx, 'X', APK_BLOB_PTR_LEN(path, len), NULL, file, NULL);
 	return 0;
 }
 
