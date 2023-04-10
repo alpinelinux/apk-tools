@@ -72,6 +72,7 @@ struct apk_ctx {
 	const char *repositories_file;
 	const char *uvol;
 	struct apk_string_array *repository_list;
+	apk_blob_t protected_paths;
 
 	struct apk_trust trust;
 	struct apk_id_cache id_cache;

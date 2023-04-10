@@ -57,6 +57,10 @@ then the affected path. The changes detected are:
 	To repair all packages with modified files, one could use:
 		apk audit --packages -q | xargs apk fix
 
+*--protected-paths* _FILE_
+	Use given FILE for protected paths listings. This also makes apk ignore
+	the regular protected_paths.d directories.
+
 *--system*
 	Audit all system files. All files provided by packages are verified
 	for integrity with the exception of configuration files (listed in

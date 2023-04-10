@@ -40,6 +40,7 @@ struct audit_ctx {
 	OPT(OPT_AUDIT_backup,			"backup") \
 	OPT(OPT_AUDIT_check_permissions,	"check-permissions") \
 	OPT(OPT_AUDIT_packages,			"packages") \
+	OPT(OPT_AUDIT_protected_paths,		APK_OPT_ARG "protected-paths") \
 	OPT(OPT_AUDIT_recursive,		APK_OPT_SH("r") "recursive") \
 	OPT(OPT_AUDIT_system,			"system")
 
@@ -48,6 +49,8 @@ APK_OPT_APPLET(option_desc, AUDIT_OPTIONS);
 static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct audit_ctx *actx = (struct audit_ctx *) applet_ctx;
+	struct apk_out *out = &ac->out;
+	int r;
 
 	switch (opt) {
 	case OPT_AUDIT_backup:
@@ -61,6 +64,13 @@ static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, co
 		break;
 	case OPT_AUDIT_packages:
 		actx->packages_only = 1;
+		break;
+	case OPT_AUDIT_protected_paths:
+		r = apk_blob_from_file(AT_FDCWD, optarg, &ac->protected_paths);
+		if (r) {
+			apk_err(out, "unable to read protected path file: %s: %s", optarg, apk_error_str(r));
+			return r;
+		}
 		break;
 	case OPT_AUDIT_recursive:
 		actx->recursive = 1;
