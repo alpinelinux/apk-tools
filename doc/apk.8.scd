@@ -84,7 +84,7 @@ The following options are available for all commands.
 	Interactive mode can be made the default when running on a tty,
 	by creating /etc/apk/interactive as an empty file.
 
-*-p, --root* <_ROOT_>
+*-p, --root* _ROOT_
 	Manage file system at _ROOT_.
 
 *-q, --quiet*
@@ -99,7 +99,7 @@ The following options are available for all commands.
 *-V, --version*
 	Print program version and exit.
 
-*-X, --repository* <_REPO_>
+*-X, --repository* _REPO_
 	Specify additional package repository. This option can be specified
 	multiple times.
 
