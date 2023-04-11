@@ -78,6 +78,7 @@ static struct apk_repository_list *apk_repository_new(const char *url)
 	OPT(OPT_GLOBAL_force,			APK_OPT_SH("f") "force") \
 	OPT(OPT_GLOBAL_force_binary_stdout,	"force-binary-stdout") \
 	OPT(OPT_GLOBAL_force_broken_world,	"force-broken-world") \
+	OPT(OPT_GLOBAL_force_missing_repositories, "force-missing-repositories") \
 	OPT(OPT_GLOBAL_force_non_repository,	"force-non-repository") \
 	OPT(OPT_GLOBAL_force_old_apk,		"force-old-apk") \
 	OPT(OPT_GLOBAL_force_overwrite,		"force-overwrite") \
@@ -166,6 +167,9 @@ static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt
 		break;
 	case OPT_GLOBAL_force_binary_stdout:
 		apk_force |= APK_FORCE_BINARY_STDOUT;
+		break;
+	case OPT_GLOBAL_force_missing_repositories:
+		apk_force |= APK_FORCE_MISSING_REPOSITORIES;
 		break;
 	case OPT_GLOBAL_interactive:
 		apk_flags |= APK_INTERACTIVE;

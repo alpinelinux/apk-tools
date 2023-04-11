@@ -211,18 +211,13 @@ static int cache_main(void *ctx, struct apk_database *db, struct apk_string_arra
 		actions &= CACHE_CLEAN;
 
 	if ((actions & CACHE_DOWNLOAD) && (cctx->solver_flags || cctx->add_dependencies)) {
-		if (db->repositories.stale || db->repositories.unavailable) {
-			apk_error("Not continuing due to stale/unavailable repositories.");
-			r = 3;
-			goto err;
-		}
+		if (apk_db_repository_check(db) != 0) return 3;
 	}
 
 	if (r == 0 && (actions & CACHE_CLEAN))
 		r = cache_clean(db);
 	if (r == 0 && (actions & CACHE_DOWNLOAD))
 		r = cache_download(cctx, db, args);
-err:
 	return r;
 }
 

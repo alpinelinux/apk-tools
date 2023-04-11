@@ -120,6 +120,9 @@ The following options are available for all commands.
 *--force-broken-world*
 	Continue even if _world_ cannot be satisfied.
 
+*--force-missing-repositories*
+	Continue even if some of the repository indexes are not available.
+
 *--force-non-repository*
 	Continue even if packages may be lost on reboot. This can happen when
 	running in run-from-tmpfs mode, and installing non-repository package.

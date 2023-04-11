@@ -164,10 +164,7 @@ static int upgrade_main(void *ctx, struct apk_database *db, struct apk_string_ar
 			  "Use --force-broken-world to override.");
 		return -1;
 	}
-	if (db->repositories.stale || db->repositories.unavailable) {
-		apk_error("Not continuing due to stale/unavailable repositories.");
-		return -1;
-	}
+	if (apk_db_repository_check(db) != 0) return -1;
 
 	solver_flags = APK_SOLVERF_UPGRADE | uctx->solver_flags;
 	if (!uctx->no_self_upgrade && !args->num) {

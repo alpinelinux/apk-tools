@@ -91,6 +91,7 @@ extern char **apk_argv;
 #define APK_FORCE_REFRESH		BIT(3)
 #define APK_FORCE_NON_REPOSITORY	BIT(4)
 #define APK_FORCE_BINARY_STDOUT		BIT(5)
+#define APK_FORCE_MISSING_REPOSITORIES	BIT(6)
 
 /* default architecture for APK packages. */
 #if defined(__x86_64__)
