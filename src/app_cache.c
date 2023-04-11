@@ -188,7 +188,6 @@ static int cache_clean(struct apk_database *db)
 
 static int cache_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &ac->out;
 	struct apk_database *db = ac->db;
 	struct cache_ctx *cctx = (struct cache_ctx *) ctx;
 	char *arg;
@@ -214,18 +213,14 @@ static int cache_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		actions &= CACHE_CLEAN;
 
 	if ((actions & CACHE_DOWNLOAD) && (cctx->solver_flags || cctx->add_dependencies)) {
-		if (db->repositories.stale || db->repositories.unavailable) {
-			apk_err(out, "Not continuing due to stale/unavailable repositories.");
-			r = 3;
-			goto err;
-		}
+		if (apk_db_repository_check(db) != 0) return 3;
 	}
 
 	if (r == 0 && (actions & CACHE_CLEAN))
 		r = cache_clean(db);
 	if (r == 0 && (actions & CACHE_DOWNLOAD))
 		r = cache_download(cctx, db, args);
-err:
+
 	return r;
 }
 

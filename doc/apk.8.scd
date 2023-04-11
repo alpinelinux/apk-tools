@@ -122,6 +122,9 @@ The following options are available for all commands.
 *--force-broken-world*
 	Continue even if _world_ cannot be satisfied.
 
+*--force-missing-repositories*
+	Continue even if some of the repository indexes are not available.
+
 *--force-no-chroot*
 	Disable chroot for scripts. This can be used for rootfs creation when
 	chroot is not available. Scripts running outside a chroot environment

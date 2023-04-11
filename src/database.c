@@ -2367,6 +2367,16 @@ int apk_db_index_read_file(struct apk_database *db, const char *file, int repo)
 	return load_index(db, apk_istream_from_file(AT_FDCWD, file), repo);
 }
 
+int apk_db_repository_check(struct apk_database *db)
+{
+	if (db->ctx->force & APK_FORCE_MISSING_REPOSITORIES) return 0;
+	if (!db->repositories.stale && !db->repositories.unavailable) return 0;
+	apk_err(&db->ctx->out,
+		"Not continuing due to stale/unavailable repositories."
+		"Use --force-missing-repositories to continue.");
+	return -1;
+}
+
 int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 {
 	struct apk_database *db = _db.db;
