@@ -23,8 +23,15 @@ will accept it. See *abuild-sign*(1) for details.
 	information based on the git commit SHA of aports HEAD at the time of
 	index generation.
 
+*--merge*
+	Merge _packages_ into the existing _INDEX_.
+
 *-o, --output* _FILE_
 	Output generated index to _FILE_.
+
+*--prune-origin*
+	Prune packages from the existing _INDEX_ with same origin as any of
+	the new _packages_ during merge.
 
 *-x, --index* _INDEX_
 	Read an existing index from _INDEX_ to speed up the creation of the new
