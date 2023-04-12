@@ -906,8 +906,7 @@ static int write_depends(struct apk_ostream *os, const char *field,
 	return 0;
 }
 
-int apk_pkg_write_index_entry(struct apk_package *info,
-			      struct apk_ostream *os)
+int apk_pkg_write_index_header(struct apk_package *info, struct apk_ostream *os)
 {
 	char buf[2048];
 	apk_blob_t bbuf = APK_BLOB_BUF(buf);
@@ -965,6 +964,13 @@ int apk_pkg_write_index_entry(struct apk_package *info,
 		return apk_ostream_cancel(os, -EIO);
 
 	return 0;
+}
+
+int apk_pkg_write_index_entry(struct apk_package *pkg, struct apk_ostream *os)
+{
+	int r = apk_pkg_write_index_header(pkg, os);
+	if (r < 0) return r;
+	return apk_ostream_write(os, "\n", 1);
 }
 
 int apk_pkg_version_compare(const struct apk_package *a, const struct apk_package *b)

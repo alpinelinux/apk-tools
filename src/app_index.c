@@ -75,6 +75,32 @@ static const struct apk_option_group optgroup_applet = {
 	.parse = option_parse_applet,
 };
 
+struct index_writer {
+	struct apk_ostream *os;
+	int count;
+};
+
+static int index_write_entry(struct apk_database *db, const char *match, struct apk_package *pkg, void *ctx)
+{
+	struct index_writer *iw = ctx;
+
+	if (!pkg->filename) return 0;
+
+	iw->count++;
+	return apk_pkg_write_index_entry(pkg, iw->os);
+}
+
+static int index_write(struct apk_database *db, struct apk_ostream *os)
+{
+	struct index_writer iw = {
+		.os = os,
+	};
+
+	apk_db_foreach_sorted_package(db, NULL, index_write_entry, &iw);
+
+	return iw.count;
+}
+
 static int index_read_file(struct apk_database *db, struct index_ctx *ictx)
 {
 	struct apk_file_info fi;
@@ -204,7 +230,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	fi.mode = 0644 | S_IFREG;
 	fi.name = "APKINDEX";
 	counter = apk_ostream_counter(&fi.size);
-	r = apk_db_index_write(db, counter);
+	r = index_write(db, counter);
 	apk_ostream_close(counter);
 
 	if (r >= 0) {
@@ -219,7 +245,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		}
 
 		apk_tar_write_entry(os, &fi, NULL);
-		r = apk_db_index_write(db, os);
+		r = index_write(db, os);
 		apk_tar_write_padding(os, &fi);
 
 		apk_tar_write_entry(os, NULL, NULL);
