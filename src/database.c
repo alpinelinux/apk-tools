@@ -955,7 +955,7 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 	foreach_array_item(ppkg, pkgs) {
 		pkg = *ppkg;
 		ipkg = pkg->ipkg;
-		r = apk_pkg_write_index_entry(pkg, os);
+		r = apk_pkg_write_index_header(pkg, os);
 		if (r < 0)
 			return r;
 
@@ -1203,35 +1203,8 @@ static int apk_db_read_state(struct apk_database *db, int flags)
 	return 0;
 }
 
-struct index_write_ctx {
-	struct apk_ostream *os;
-	int count;
-	int force;
-};
-
-static int write_index_entry(apk_hash_item item, void *ctx)
-{
-	struct index_write_ctx *iwctx = (struct index_write_ctx *) ctx;
-	struct apk_package *pkg = (struct apk_package *) item;
-	int r;
-
-	if (!iwctx->force && pkg->filename == NULL)
-		return 0;
-
-	r = apk_pkg_write_index_entry(pkg, iwctx->os);
-	if (r < 0)
-		return r;
-
-	if (apk_ostream_write(iwctx->os, "\n", 1) != 1)
-		return -EIO;
-
-	iwctx->count++;
-	return 0;
-}
-
 static int apk_db_index_write_nr_cache(struct apk_database *db)
 {
-	struct index_write_ctx ctx = { NULL, 0, TRUE };
 	struct apk_package_array *pkgs;
 	struct apk_package **ppkg;
 	struct apk_ostream *os;
@@ -1247,31 +1220,16 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 				 0644);
 	if (IS_ERR_OR_NULL(os)) return PTR_ERR(os);
 
-	ctx.os = os;
 	pkgs = apk_db_sorted_installed_packages(db);
 	foreach_array_item(ppkg, pkgs) {
 		struct apk_package *pkg = *ppkg;
 		if ((pkg->repos == BIT(APK_REPOSITORY_CACHED) ||
 		     (pkg->repos == 0 && !pkg->installed_size))) {
-			r = write_index_entry(pkg, &ctx);
+			r = apk_pkg_write_index_entry(pkg, os);
 			if (r != 0) return r;
 		}
 	}
-	r = apk_ostream_close(os);
-	if (r < 0) return r;
-	return ctx.count;
-}
-
-int apk_db_index_write(struct apk_database *db, struct apk_ostream *os)
-{
-	struct index_write_ctx ctx = { os, 0, FALSE };
-	int r;
-
-	r = apk_hash_foreach(&db->available.packages, write_index_entry, &ctx);
-	if (r < 0)
-		return r;
-
-	return ctx.count;
+	return apk_ostream_close(os);
 }
 
 static int add_protected_path(void *ctx, apk_blob_t blob)
