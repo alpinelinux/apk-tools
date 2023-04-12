@@ -18,7 +18,9 @@
 #include "apk_print.h"
 #include "apk_tar.h"
 
-#define APK_INDEXF_NO_WARNINGS	0x0001
+#define APK_INDEXF_NO_WARNINGS	BIT(0)
+#define APK_INDEXF_MERGE	BIT(1)
+#define APK_INDEXF_PRUNE_ORIGIN	BIT(2)
 
 struct counts {
 	struct apk_indent indent;
@@ -38,8 +40,10 @@ struct index_ctx {
 #define INDEX_OPTIONS(OPT) \
 	OPT(OPT_INDEX_description,	APK_OPT_ARG APK_OPT_SH("d") "description") \
 	OPT(OPT_INDEX_index,		APK_OPT_ARG APK_OPT_SH("x") "index") \
+	OPT(OPT_INDEX_merge,		"merge") \
 	OPT(OPT_INDEX_no_warnings,	"no-warnings") \
 	OPT(OPT_INDEX_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
+	OPT(OPT_INDEX_prune_origin,	"prune-origin") \
 	OPT(OPT_INDEX_rewrite_arch,	APK_OPT_ARG "rewrite-arch")
 
 APK_OPT_APPLET(option_desc, INDEX_OPTIONS);
@@ -55,8 +59,14 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 	case OPT_INDEX_index:
 		ictx->index = optarg;
 		break;
+	case OPT_INDEX_merge:
+		ictx->index_flags |= APK_INDEXF_MERGE;
+		break;
 	case OPT_INDEX_output:
 		ictx->output = optarg;
+		break;
+	case OPT_INDEX_prune_origin:
+		ictx->index_flags |= APK_INDEXF_PRUNE_ORIGIN;
 		break;
 	case OPT_INDEX_rewrite_arch:
 		ictx->rewrite_arch = optarg;
@@ -78,21 +88,41 @@ static const struct apk_option_group optgroup_applet = {
 struct index_writer {
 	struct apk_ostream *os;
 	int count;
+	unsigned short index_flags;
 };
+
+static int mark_origin(struct apk_database *db, struct apk_package *pkg, int mark)
+{
+	struct apk_name *n;
+	if (pkg->origin == NULL) return 0;
+	n = apk_db_get_name(db, *pkg->origin);
+	n->state_int |= mark;
+	return n->state_int;
+}
 
 static int index_write_entry(struct apk_database *db, const char *match, struct apk_package *pkg, void *ctx)
 {
 	struct index_writer *iw = ctx;
 
-	if (!pkg->filename) return 0;
+	switch (iw->index_flags & (APK_INDEXF_MERGE|APK_INDEXF_PRUNE_ORIGIN)) {
+	case APK_INDEXF_MERGE:
+		break;
+	case APK_INDEXF_MERGE|APK_INDEXF_PRUNE_ORIGIN:
+		if (mark_origin(db, pkg, 0) && !pkg->marked) return 0;
+		break;
+	default:
+		if (!pkg->marked) return 0;
+		break;
+	}
 
 	iw->count++;
 	return apk_pkg_write_index_entry(pkg, iw->os);
 }
 
-static int index_write(struct apk_database *db, struct apk_ostream *os)
+static int index_write(struct index_ctx *ictx, struct apk_database *db, struct apk_ostream *os)
 {
 	struct index_writer iw = {
+		.index_flags = ictx->index_flags,
 		.os = os,
 	};
 
@@ -128,6 +158,13 @@ static int warn_if_no_providers(struct apk_database *db, const char *match, stru
 	apk_print_indented(&counts->indent, APK_BLOB_STR(name->name));
 	counts->unsatisfied++;
 	return 0;
+}
+
+static void index_mark_package(struct apk_database *db, struct apk_package *pkg, apk_blob_t *rewrite_arch)
+{
+	if (rewrite_arch) pkg->arch = rewrite_arch;
+	pkg->marked = 1;
+	mark_origin(db, pkg, 1);
 }
 
 static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
@@ -199,8 +236,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 				if (pkg->name != name) continue;
 				if (apk_blob_compare(bver, *pkg->version) != 0) continue;
 				if (pkg->size != fi.size) continue;
-				pkg->filename = strdup(*parg);
-				if (rewrite_arch) pkg->arch = rewrite_arch;
+				index_mark_package(db, pkg, rewrite_arch);
 				found = TRUE;
 				break;
 			}
@@ -212,8 +248,8 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 				apk_err(out, "%s: %s", *parg, apk_error_str(r));
 				errors++;
 			} else {
+				index_mark_package(db, pkg, rewrite_arch);
 				newpkgs++;
-				if (rewrite_arch) pkg->arch = rewrite_arch;
 			}
 		}
 	}
@@ -230,7 +266,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	fi.mode = 0644 | S_IFREG;
 	fi.name = "APKINDEX";
 	counter = apk_ostream_counter(&fi.size);
-	r = index_write(db, counter);
+	r = index_write(ictx, db, counter);
 	apk_ostream_close(counter);
 
 	if (r >= 0) {
@@ -245,7 +281,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		}
 
 		apk_tar_write_entry(os, &fi, NULL);
-		r = index_write(db, os);
+		r = index_write(ictx, db, os);
 		apk_tar_write_padding(os, &fi);
 
 		apk_tar_write_entry(os, NULL, NULL);
