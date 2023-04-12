@@ -1208,7 +1208,6 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 	struct apk_package_array *pkgs;
 	struct apk_package **ppkg;
 	struct apk_ostream *os;
-	int r;
 
 	if (!apk_db_cache_active(db)) return 0;
 
@@ -1225,8 +1224,7 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 		struct apk_package *pkg = *ppkg;
 		if ((pkg->repos == BIT(APK_REPOSITORY_CACHED) ||
 		     (pkg->repos == 0 && !pkg->installed_size))) {
-			r = apk_pkg_write_index_entry(pkg, os);
-			if (r != 0) return r;
+			if (apk_pkg_write_index_entry(pkg, os) < 0) break;
 		}
 	}
 	return apk_ostream_close(os);

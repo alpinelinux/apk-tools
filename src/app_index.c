@@ -265,31 +265,29 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 		fi.mode = 0644 | S_IFREG;
 		fi.name = "APKINDEX";
 		counter = apk_ostream_counter(&fi.size);
-		r = index_write(ictx, db, counter);
+		index_write(ictx, db, counter);
 		apk_ostream_close(counter);
 
-		if (r >= 0) {
-			os = apk_ostream_gzip(os);
-			if (ictx->description != NULL) {
-				struct apk_file_info fi_desc;
-				memset(&fi_desc, 0, sizeof(fi));
-				fi_desc.mode = 0644 | S_IFREG;
-				fi_desc.name = "DESCRIPTION";
-				fi_desc.size = strlen(ictx->description);
-				apk_tar_write_entry(os, &fi_desc, ictx->description);
-			}
-
-			apk_tar_write_entry(os, &fi, NULL);
-			r = index_write(ictx, db, os);
-			apk_tar_write_padding(os, &fi);
-
-			apk_tar_write_entry(os, NULL, NULL);
+		os = apk_ostream_gzip(os);
+		if (ictx->description) {
+			struct apk_file_info fi_desc;
+			memset(&fi_desc, 0, sizeof(fi));
+			fi_desc.mode = 0644 | S_IFREG;
+			fi_desc.name = "DESCRIPTION";
+			fi_desc.size = strlen(ictx->description);
+			apk_tar_write_entry(os, &fi_desc, ictx->description);
 		}
-	} else {
-		r = index_write(ictx, db, os);
-	}
-	apk_ostream_close(os);
 
+		apk_tar_write_entry(os, &fi, NULL);
+		index_write(ictx, db, os);
+		apk_tar_write_padding(os, &fi);
+
+		apk_tar_write_entry(os, NULL, NULL);
+	} else {
+		index_write(ictx, db, os);
+	}
+
+	r = apk_ostream_close(os);
 	if (r < 0) {
 		apk_error("Index generation failed: %s", apk_error_str(r));
 		return r;
