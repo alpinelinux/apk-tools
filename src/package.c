@@ -958,19 +958,16 @@ err:
 
 void apk_pkg_free(struct apk_package *pkg)
 {
-	if (pkg == NULL)
-		return;
+	if (pkg == NULL) return;
 
 	apk_pkg_uninstall(NULL, pkg);
 	apk_dependency_array_free(&pkg->depends);
 	apk_dependency_array_free(&pkg->provides);
 	apk_dependency_array_free(&pkg->install_if);
-	if (pkg->url)
-		free(pkg->url);
-	if (pkg->description)
-		free(pkg->description);
-	if (pkg->commit)
-		free(pkg->commit);
+	if (pkg->url) free(pkg->url);
+	if (pkg->description) free(pkg->description);
+	if (pkg->commit) free(pkg->commit);
+	if (pkg->filename) free(pkg->filename);
 	free(pkg);
 }
 
