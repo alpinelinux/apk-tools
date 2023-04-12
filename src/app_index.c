@@ -91,15 +91,6 @@ struct index_writer {
 	unsigned short index_flags;
 };
 
-static int mark_origin(struct apk_database *db, struct apk_package *pkg, int mark)
-{
-	struct apk_name *n;
-	if (pkg->origin == NULL) return 0;
-	n = apk_db_get_name(db, *pkg->origin);
-	n->state_int |= mark;
-	return n->state_int;
-}
-
 static int index_write_entry(struct apk_database *db, const char *match, struct apk_package *pkg, void *ctx)
 {
 	struct index_writer *iw = ctx;
@@ -108,7 +99,10 @@ static int index_write_entry(struct apk_database *db, const char *match, struct 
 	case APK_INDEXF_MERGE:
 		break;
 	case APK_INDEXF_MERGE|APK_INDEXF_PRUNE_ORIGIN:
-		if (mark_origin(db, pkg, 0) && !pkg->marked) return 0;
+		if (!pkg->marked && pkg->origin) {
+			struct apk_name *n = apk_db_query_name(db, *pkg->origin);
+			if (n && n->state_int) return 0;
+		}
 		break;
 	default:
 		if (!pkg->marked) return 0;
@@ -165,7 +159,7 @@ static void index_mark_package(struct apk_database *db, struct apk_package *pkg,
 {
 	if (rewrite_arch) pkg->arch = rewrite_arch;
 	pkg->marked = 1;
-	mark_origin(db, pkg, 1);
+	if (pkg->origin) apk_db_get_name(db, *pkg->origin)->state_int = 1;
 }
 
 static int index_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
