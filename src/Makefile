@@ -16,7 +16,7 @@ ZLIB_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags zlib)
 ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 
 # Dynamic library
-libapk_soname		:= 3.12.0
+libapk_soname		:= 2.14.0
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
 	common.o database.o package.o commit.o solver.o \
