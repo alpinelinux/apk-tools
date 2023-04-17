@@ -130,16 +130,25 @@ static int audit_file(struct audit_ctx *actx,
 		      int dirfd, const char *name,
 		      struct apk_file_info *fi)
 {
+	int digest_type = APK_DIGEST_SHA256;
+	int xattr_csum_type = APK_CHECKSUM_DEFAULT;
 	int rv = 0;
 
-	if (!dbf) return 'A';
+	if (dbf) {
+		digest_type = apk_dbf_digest(dbf);
+		xattr_csum_type = dbf->acl->xattr_csum.type ?: APK_CHECKSUM_DEFAULT;
+	} else {
+		if (!actx->details) return 'A';
+	}
 
 	if (apk_fileinfo_get(dirfd, name,
 				APK_FI_NOFOLLOW |
-				APK_FI_XATTR_CSUM(dbf->acl->xattr_csum.type ?: APK_CHECKSUM_DEFAULT) |
-				APK_FI_DIGEST(apk_dbf_digest(dbf)),
+				APK_FI_XATTR_CSUM(xattr_csum_type) |
+				APK_FI_DIGEST(digest_type),
 				fi, &db->atoms) != 0)
 		return 'e';
+
+	if (!dbf) return 'A';
 
 	if (dbf->csum.type != APK_CHECKSUM_NONE &&
 	    apk_digest_cmp_csum(&fi->digest, &dbf->csum) != 0)
