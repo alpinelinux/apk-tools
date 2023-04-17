@@ -2504,6 +2504,19 @@ static int contains_control_character(const char *str)
 	return 0;
 }
 
+static int need_checksum(mode_t mode)
+{
+	switch (mode & S_IFMT) {
+	case S_IFSOCK:
+	case S_IFBLK:
+	case S_IFCHR:
+	case S_IFIFO:
+		return FALSE;
+	default:
+		return TRUE;
+	}
+}
+
 static int apk_db_install_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
 {
 	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
@@ -2733,19 +2746,21 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 				ipkg->sha256_160 = 1;
 				file->csum.type = APK_CHECKSUM_SHA1;
 				memcpy(file->csum.data, ae->digest.data, file->csum.type);
-			} else if (ae->digest.alg == APK_DIGEST_NONE && !ctx->missing_checksum) {
-				apk_warn(out,
-					PKG_VER_FMT": support for packages without embedded "
-					"checksums will be dropped in apk-tools 3.",
-					PKG_VER_PRINTF(pkg));
-				ipkg->broken_files = 1;
-				ctx->missing_checksum = 1;
-			} else if (file->csum.type == APK_CHECKSUM_NONE && !ctx->missing_checksum) {
-				apk_warn(out,
-					PKG_VER_FMT": unknown v3 checksum",
-					PKG_VER_PRINTF(pkg));
-				ipkg->broken_files = 1;
-				ctx->missing_checksum = 1;
+			} else if (need_checksum(ae->mode) && !ctx->missing_checksum) {
+				if (ae->digest.alg == APK_DIGEST_NONE) {
+					apk_warn(out,
+						PKG_VER_FMT": support for packages without embedded "
+						"checksums will be dropped in apk-tools 3.",
+						PKG_VER_PRINTF(pkg));
+					ipkg->broken_files = 1;
+					ctx->missing_checksum = 1;
+				} else if (file->csum.type == APK_CHECKSUM_NONE) {
+					apk_warn(out,
+						PKG_VER_FMT": unknown v3 checksum",
+						PKG_VER_PRINTF(pkg));
+					ipkg->broken_files = 1;
+					ctx->missing_checksum = 1;
+				}
 			}
 			break;
 		case -ENOTSUP:
