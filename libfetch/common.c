@@ -32,6 +32,7 @@
  */
 
 #include <poll.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -279,6 +280,18 @@ fetch_bind(int sd, int af, const char *addr)
 }
 
 
+static int
+compute_timeout(const struct timeval *tv)
+{
+	struct timeval cur;
+	int timeout;
+
+	gettimeofday(&cur, NULL);
+	timeout = (tv->tv_sec - cur.tv_sec) * 1000 + (tv->tv_usec - cur.tv_usec) / 1000;
+	return timeout;
+}
+
+
 /*
  * Establish a TCP connection to the specified port on the specified host.
  */
@@ -289,7 +302,7 @@ fetch_connect(struct url *cache_url, struct url *url, int af, int verbose)
 	char pbuf[10];
 	const char *bindaddr;
 	struct addrinfo hints, *res, *res0;
-	int sd, error;
+	int sd, error, sock_flags = SOCK_CLOEXEC;
 
 	if (verbose)
 		fetch_info("looking up %s", url->host);
@@ -309,9 +322,12 @@ fetch_connect(struct url *cache_url, struct url *url, int af, int verbose)
 	if (verbose)
 		fetch_info("connecting to %s:%d", url->host, url->port);
 
+	if (fetchTimeout)
+		sock_flags |= SOCK_NONBLOCK;
+
 	/* try to connect */
 	for (sd = -1, res = res0; res; sd = -1, res = res->ai_next) {
-		if ((sd = socket(res->ai_family, res->ai_socktype,
+		if ((sd = socket(res->ai_family, res->ai_socktype | sock_flags,
 			 res->ai_protocol)) == -1)
 			continue;
 		if (bindaddr != NULL && *bindaddr != '\0' &&
@@ -320,8 +336,41 @@ fetch_connect(struct url *cache_url, struct url *url, int af, int verbose)
 			close(sd);
 			continue;
 		}
+
 		if (connect(sd, res->ai_addr, res->ai_addrlen) == 0)
 			break;
+
+		if (fetchTimeout) {
+			struct timeval timeout_end;
+			struct pollfd pfd = { .fd = sd, .events = POLLOUT };
+			int r = -1;
+
+			gettimeofday(&timeout_end, NULL);
+			timeout_end.tv_sec += fetchTimeout;
+
+			do {
+				int timeout_cur = compute_timeout(&timeout_end);
+				if (timeout_cur < 0) {
+					errno = ETIMEDOUT;
+					break;
+				}
+				errno = 0;
+				r = poll(&pfd, 1, timeout_cur);
+				if (r == -1) {
+					if (errno == EINTR && fetchRestartCalls)
+						continue;
+					break;
+				}
+			} while (pfd.revents == 0);
+
+			if (r == 1 && (pfd.revents & POLLOUT) == POLLOUT) {
+				socklen_t len = sizeof(error);
+				if (getsockopt(sd, SOL_SOCKET, SO_ERROR, &error, &len) == 0 &&
+				    error == 0)
+					break;
+				errno = error;
+			}
+		}
 		close(sd);
 	}
 	freeaddrinfo(res0);
@@ -329,6 +378,9 @@ fetch_connect(struct url *cache_url, struct url *url, int af, int verbose)
 		fetch_syserr();
 		return (NULL);
 	}
+
+	if (sock_flags & SOCK_NONBLOCK)
+		fcntl(sd, F_SETFL, fcntl(sd, F_GETFL) & ~O_NONBLOCK);
 
 	if ((conn = fetch_reopen(sd)) == NULL) {
 		fetch_syserr();
@@ -602,17 +654,6 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 	}
 
 	return (0);
-}
-
-static int
-compute_timeout(const struct timeval *tv)
-{
-	struct timeval cur;
-	int timeout;
-
-	gettimeofday(&cur, NULL);
-	timeout = (tv->tv_sec - cur.tv_sec) * 1000 + (tv->tv_usec - cur.tv_usec) / 1000;
-	return timeout;
 }
 
 /*

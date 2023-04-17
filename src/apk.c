@@ -99,6 +99,7 @@ static struct apk_repository_list *apk_repository_new(const char *url)
 	OPT(OPT_GLOBAL_repositories_file,	APK_OPT_ARG "repositories-file") \
 	OPT(OPT_GLOBAL_repository,		APK_OPT_ARG APK_OPT_SH("X") "repository") \
 	OPT(OPT_GLOBAL_root,			APK_OPT_ARG APK_OPT_SH("p") "root") \
+	OPT(OPT_GLOBAL_timeout,			APK_OPT_ARG "timeout") \
 	OPT(OPT_GLOBAL_update_cache,		APK_OPT_SH("U") "update-cache") \
 	OPT(OPT_GLOBAL_verbose,			APK_OPT_SH("v") "verbose") \
 	OPT(OPT_GLOBAL_version,			APK_OPT_SH("V") "version") \
@@ -214,6 +215,9 @@ static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt
 		break;
 	case OPT_GLOBAL_cache_max_age:
 		dbopts->cache_max_age = atoi(optarg) * 60;
+		break;
+	case OPT_GLOBAL_timeout:
+		fetchTimeout = atoi(optarg);
 		break;
 	case OPT_GLOBAL_arch:
 		dbopts->arch = optarg;
@@ -518,6 +522,7 @@ int main(int argc, char **argv)
 
 	init_openssl();
 	setup_automatic_flags();
+	fetchTimeout = 60;
 	fetchConnectionCacheInit(32, 4);
 
 	r = parse_options(argc, argv, applet, ctx, &dbopts);

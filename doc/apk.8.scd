@@ -175,6 +175,10 @@ The following options are available for all commands.
 	processing. The given _REPOFILE_ is relative to the startup directory since
 	apk 2.12.0_rc2.
 
+*--timeout* _TIME_
+	Timeout network connections if no progress is made in TIME seconds.
+	The default is 60 seconds.
+
 *--wait* _TIME_
 	Wait for TIME seconds to get an exclusive repository lock before
 	failing.
