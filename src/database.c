@@ -2448,6 +2448,19 @@ static int contains_control_character(const char *str)
 	return 0;
 }
 
+static int need_checksum(mode_t mode)
+{
+	switch (mode & S_IFMT) {
+	case S_IFSOCK:
+	case S_IFBLK:
+	case S_IFCHR:
+	case S_IFIFO:
+		return FALSE;
+	default:
+		return TRUE;
+	}
+}
+
 static int apk_db_install_archive_entry(void *_ctx,
 					const struct apk_file_info *ae,
 					struct apk_istream *is)
@@ -2637,7 +2650,8 @@ static int apk_db_install_archive_entry(void *_ctx,
 			else
 				memcpy(&file->csum, &ae->csum, sizeof file->csum);
 			/* only warn once per package */
-			if (file->csum.type == APK_CHECKSUM_NONE && !ctx->missing_checksum) {
+			if (file->csum.type == APK_CHECKSUM_NONE &&
+			    need_checksum(ae->mode) && !ctx->missing_checksum) {
 				apk_warning(PKG_VER_FMT": support for packages without embedded "
 					    "checksums will be dropped in apk-tools 3.",
 					    PKG_VER_PRINTF(pkg));
