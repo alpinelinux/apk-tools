@@ -692,7 +692,7 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file, const char *op_ar
 retry_mode:
 
 	/* open data socket */
-	if ((sd = socket(u.ss.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+	if ((sd = socket(u.ss.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 		fetch_syserr();
 		return (NULL);
 	}

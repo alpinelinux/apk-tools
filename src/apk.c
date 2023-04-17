@@ -86,6 +86,7 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_repositories_file,	APK_OPT_ARG "repositories-file") \
 	OPT(OPT_GLOBAL_repository,		APK_OPT_ARG APK_OPT_SH("X") "repository") \
 	OPT(OPT_GLOBAL_root,			APK_OPT_ARG APK_OPT_SH("p") "root") \
+	OPT(OPT_GLOBAL_timeout,			APK_OPT_ARG "timeout") \
 	OPT(OPT_GLOBAL_update_cache,		APK_OPT_SH("U") "update-cache") \
 	OPT(OPT_GLOBAL_verbose,			APK_OPT_SH("v") "verbose") \
 	OPT(OPT_GLOBAL_version,			APK_OPT_SH("V") "version") \
@@ -208,6 +209,9 @@ static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const cha
 		break;
 	case OPT_GLOBAL_cache_max_age:
 		ac->cache_max_age = atoi(optarg) * 60;
+		break;
+	case OPT_GLOBAL_timeout:
+		fetchTimeout = atoi(optarg);
 		break;
 	case OPT_GLOBAL_arch:
 		ac->arch = optarg;
@@ -502,6 +506,7 @@ int main(int argc, char **argv)
 
 	apk_crypto_init();
 	setup_automatic_flags(&ctx);
+	fetchTimeout = 60;
 	fetchConnectionCacheInit(32, 4);
 
 	r = parse_options(argc, argv, applet, applet_ctx, &ctx);
