@@ -474,6 +474,18 @@ static int remove_empty_strings(int count, char **args)
 	return j;
 }
 
+static void fetch_redirect(int code, const struct url *cur, const struct url *next)
+{
+	switch (code) {
+	case 301: // Moved Permanently
+	case 308: // Permanent Redirect
+		char *url = fetchStringifyURL(next);
+		apk_warn(&ctx.out, "Permanently redirected to %s", url);
+		free(url);
+		break;
+	}
+}
+
 int main(int argc, char **argv)
 {
 	void *applet_ctx = NULL;
@@ -507,6 +519,7 @@ int main(int argc, char **argv)
 	apk_crypto_init();
 	setup_automatic_flags(&ctx);
 	fetchTimeout = 60;
+	fetchRedirectMethod = fetch_redirect;
 	fetchConnectionCacheInit(32, 4);
 
 	r = parse_options(argc, argv, applet, applet_ctx, &ctx);
@@ -594,6 +607,7 @@ int main(int argc, char **argv)
 
 	apk_string_array_resize(&args, argc);
 	memcpy(args->item, argv, argc * sizeof(*argv));
+	fetchRedirectMethod = NULL;
 
 	r = applet->main(applet_ctx, &ctx, args);
 	signal(SIGINT, SIG_IGN);

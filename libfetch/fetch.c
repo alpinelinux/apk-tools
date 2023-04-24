@@ -39,6 +39,7 @@
 #include "fetch.h"
 #include "common.h"
 
+fetch_redirect_t fetchRedirectMethod;
 auth_t	 fetchAuthMethod;
 int	 fetchLastErrCode;
 char	 fetchLastErrString[MAXERRSTRING];
