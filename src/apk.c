@@ -476,10 +476,12 @@ static int remove_empty_strings(int count, char **args)
 
 static void fetch_redirect(int code, const struct url *cur, const struct url *next)
 {
+	char *url;
+
 	switch (code) {
 	case 301: // Moved Permanently
 	case 308: // Permanent Redirect
-		char *url = fetchStringifyURL(next);
+		url = fetchStringifyURL(next);
 		apk_warn(&ctx.out, "Permanently redirected to %s", url);
 		free(url);
 		break;
