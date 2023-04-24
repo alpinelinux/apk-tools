@@ -1061,6 +1061,8 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 				}
 				new->offset = url->offset;
 				new->length = url->length;
+				if (fetchRedirectMethod)
+					fetchRedirectMethod(conn->err, url, new);
 				break;
 			case hdr_transfer_encoding:
 				/* XXX weak test*/

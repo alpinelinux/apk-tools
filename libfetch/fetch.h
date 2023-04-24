@@ -164,6 +164,10 @@ char		*fetchUnquoteFilename(struct url *);
 void		 fetchConnectionCacheInit(int, int);
 void		 fetchConnectionCacheClose(void);
 
+/* Redirects */
+typedef void (*fetch_redirect_t)(int, const struct url *, const struct url *);
+extern fetch_redirect_t	 fetchRedirectMethod;
+
 /* Authentication */
 typedef int (*auth_t)(struct url *);
 extern auth_t		 fetchAuthMethod;
