@@ -370,12 +370,14 @@ static int fetch_main(void *pctx, struct apk_database *db, struct apk_string_arr
 		apk_dependency_array_init(&ctx->world);
 		foreach_array_item(dep, db->world)
 			mark_dep_flags(ctx, dep);
-		apk_db_foreach_matching_name(db, args, mark_name_flags, ctx);
+		if (args->num)
+			apk_db_foreach_matching_name(db, args, mark_name_flags, ctx);
 		if (ctx->errors == 0)
 			mark_names_recursive(db, args, ctx);
 		apk_dependency_array_free(&ctx->world);
 	} else {
-		apk_db_foreach_matching_name(db, args, mark_name, ctx);
+		if (args->num)
+			apk_db_foreach_matching_name(db, args, mark_name, ctx);
 	}
 	if (!ctx->errors)
 		apk_db_foreach_sorted_package(db, NULL, fetch_package, ctx);

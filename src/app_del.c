@@ -145,7 +145,7 @@ static int del_main(void *pctx, struct apk_database *db, struct apk_string_array
 	int r = 0;
 
 	apk_dependency_array_copy(&ctx->world, db->world);
-	apk_db_foreach_matching_name(db, args, delete_name, ctx);
+	if (args->num) apk_db_foreach_matching_name(db, args, delete_name, ctx);
 	if (ctx->errors) return ctx->errors;
 
 	r = apk_solver_solve(db, 0, ctx->world, &changeset);

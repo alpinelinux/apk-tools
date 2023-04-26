@@ -3049,14 +3049,14 @@ int apk_db_foreach_matching_name(struct apk_database *db, struct apk_string_arra
 	struct apk_name *name;
 	struct match_ctx mctx = {
 		.db = db,
-		.filter = filter,
 		.cb = cb,
 		.cb_ctx = ctx,
 	};
 	int r;
 
-	if (!filter || !filter->num) return 0;
+	if (!filter || !filter->num) goto all;
 
+	mctx.filter = filter;
 	foreach_array_item(pmatch, filter)
 		if (strchr(*pmatch, '*') != NULL)
 			goto all;
