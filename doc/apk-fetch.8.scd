@@ -21,7 +21,7 @@ specified.
 	Only fetch packages that have buildtime more recent than TIMESPEC.
 	TIMESPEC can be a "YYYY-MM-DD HH:MM:SS" date, or seconds since epoch.
 
-*-L, --link*
+*-l, --link*
 	Create hard links if possible.
 
 *-o, --output* _DIR_
