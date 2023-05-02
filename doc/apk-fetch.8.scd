@@ -17,7 +17,7 @@ specified.
 
 # OPTIONS
 
-*-L, --link*
+*-l, --link*
 	Create hard links if possible.
 
 *-o, --output* _DIR_
