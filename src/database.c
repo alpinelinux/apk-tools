@@ -1761,9 +1761,9 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 
 		if (db->repositories.updated > 0)
 			apk_db_index_write_nr_cache(db);
-
-		apk_hash_foreach(&db->available.names, apk_db_name_rdepends, db);
 	}
+
+	apk_hash_foreach(&db->available.names, apk_db_name_rdepends, db);
 
 	if (apk_db_cache_active(db) && (ac->open_flags & (APK_OPENF_NO_REPOS|APK_OPENF_NO_INSTALLED)) == 0)
 		apk_db_cache_foreach_item(db, mark_in_cache, 0);
