@@ -108,13 +108,15 @@ static void delete_pkg(struct apk_package *pkg0, struct apk_dependency *dep0,
 	struct apk_dependency *d;
 
 	apk_deps_del(&ctx->world, pkg0->name);
-	foreach_array_item(d, pkg0->provides)
-		apk_deps_del(&ctx->world, d->name);
 
-	if (ctx->recursive_delete)
+	if (ctx->recursive_delete) {
+		foreach_array_item(d, pkg0->provides)
+			apk_deps_del(&ctx->world, d->name);
+
 		apk_pkg_foreach_reverse_dependency(
 			pkg0, ctx->genid | APK_FOREACH_INSTALLED | APK_DEP_SATISFIES,
 			delete_pkg, pctx);
+	}
 }
 
 static void delete_name(struct apk_database *db, const char *match,
