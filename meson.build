@@ -16,12 +16,14 @@ scdoc_dep = dependency('scdoc', version: '>=1.10', required: get_option('docs'))
 
 shared_deps = [
 	dependency('zlib'),
+	dependency('libzstd'),
 	dependency('openssl'),
 ]
 
 static_deps = [
 	dependency('openssl', static: true),
 	dependency('zlib', static: true),
+	dependency('libzstd', static: true),
 ]
 
 add_project_arguments('-D_GNU_SOURCE', language: 'c')

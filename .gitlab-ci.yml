@@ -12,7 +12,7 @@ test-legacy:alpine:
     stage: test
     script:
         - apk update
-        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib
+        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib zstd-dev
         - make -j$(nproc) check
     tags:
         - docker-alpine
@@ -23,7 +23,7 @@ test:alpine:
     stage: test
     script:
         - apk update
-        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib meson zlib-static openssl-libs-static
+        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib meson zlib-static zstd-static openssl-libs-static
         - meson build
         - ninja -C build
     tags:
@@ -35,7 +35,7 @@ test:debian:
     stage: test
     script:
         - apt-get update
-        - apt-get install -y make gcc git libssl-dev zlib1g-dev lua5.3-dev lua5.2 lua-zlib-dev sudo meson
+        - apt-get install -y make gcc git libssl-dev zlib1g-dev libzstd-dev lua5.3-dev lua5.2 lua-zlib-dev sudo meson
         - unlink /bin/sh
         - ln -s /bin/bash /bin/sh
         - meson build
@@ -48,7 +48,7 @@ build-static:
     stage: build
     image: alpinelinux/build-base:latest-$ARCH
     script:
-        - abuild-apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib zlib-static openssl-libs-static
+        - abuild-apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib zlib-static zstd-static openssl-libs-static
         - make -j$(nproc) static
         - install -s -m0755 src/apk.static src/apk.static-$ARCH
     parallel:

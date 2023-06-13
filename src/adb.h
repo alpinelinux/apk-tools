@@ -340,6 +340,7 @@ struct adb_compression_spec {
 // none/1 is "no compression"
 #define ADB_COMP_NONE		0x00
 #define ADB_COMP_DEFLATE	0x01
+#define ADB_COMP_ZSTD		0x02
 
 int adb_parse_compression(const char *spec_string, struct adb_compression_spec *spec);
 struct apk_istream *adb_decompress(struct apk_istream *is, struct adb_compression_spec *spec);

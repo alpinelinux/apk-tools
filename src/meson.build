@@ -22,6 +22,7 @@ libapk_src = [
 	'io.c',
 	'io_url.c',
 	'io_gunzip.c',
+	'io_zstd.c',
 	'package.c',
 	'pathbuilder.c',
 	'print.c',

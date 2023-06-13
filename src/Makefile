@@ -15,14 +15,17 @@ OPENSSL_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
 ZLIB_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags zlib)
 ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 
+ZSTD_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags libzstd)
+ZSTD_LIBS		:= $(shell $(PKG_CONFIG) --libs libzstd)
+
 # Dynamic library
 libapk_soname		:= 2.99.0
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
 	adb.o adb_comp.o adb_walk_adb.o adb_walk_genadb.o adb_walk_gentext.o adb_walk_text.o apk_adb.o \
 	atom.o blob.o commit.o common.o context.o crypto_openssl.o database.o hash.o \
-	extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o io.o io_gunzip.o io_url.o tar.o \
-	package.o pathbuilder.o print.o solver.o trust.o version.o
+	extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o io.o io_gunzip.o io_zstd.o io_url.o \
+	tar.o package.o pathbuilder.o print.o solver.o trust.o version.o
 
 libapk.so.$(libapk_soname)-libs := libfetch/libfetch.a
 
@@ -90,9 +93,9 @@ LIBS_apk.static		:= -Wl,--as-needed -ldl -Wl,--no-as-needed
 LDFLAGS_apk		+= -L$(obj)
 LDFLAGS_apk-test	+= -L$(obj)
 
-CFLAGS_ALL		+= $(OPENSSL_CFLAGS) $(ZLIB_CFLAGS)
+CFLAGS_ALL		+= $(OPENSSL_CFLAGS) $(ZLIB_CFLAGS) $(ZSTD_CFLAGS)
 LIBS			:= -Wl,--as-needed \
-				$(OPENSSL_LIBS) $(ZLIB_LIBS) \
+				$(OPENSSL_LIBS) $(ZLIB_LIBS) $(ZSTD_LIBS) \
 			   -Wl,--no-as-needed
 
 # Help generation

@@ -235,4 +235,7 @@ static inline struct apk_ostream *apk_ostream_deflate(struct apk_ostream *os, ui
 	return apk_ostream_zlib(os, 1, level);
 }
 
+struct apk_istream *apk_istream_zstd(struct apk_istream *);
+struct apk_ostream *apk_ostream_zstd(struct apk_ostream *, uint8_t);
+
 #endif
