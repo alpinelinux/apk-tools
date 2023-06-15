@@ -195,12 +195,12 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 	case S_IFBLK:
 	case S_IFCHR:
 	case S_IFIFO:
-		ft.dev.mode = fi.mode & S_IFMT;
-		ft.dev.dev = fi.device;
+		ft.dev.mode = htole16(fi.mode & S_IFMT);
+		ft.dev.dev = htole64(fi.device);
 		target = APK_BLOB_STRUCT(ft.dev);
 		break;
 	case S_IFLNK:
-		ft.symlink.mode = fi.mode & S_IFMT;
+		ft.symlink.mode = htole16(fi.mode & S_IFMT);
 		r = readlinkat(dirfd, entry, ft.symlink.target, sizeof ft.symlink.target);
 		if (r < 0) return r;
 		target = APK_BLOB_PTR_LEN((void*)&ft.symlink, sizeof(ft.symlink.mode) + r);
@@ -385,8 +385,8 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			if (!APK_BLOB_IS_NULL(target)) continue;
 			if (!sz) continue;
 			struct adb_data_package hdr = {
-				.path_idx = i,
-				.file_idx = j,
+				.path_idx = htole32(i),
+				.file_idx = htole32(j),
 			};
 			int n = apk_pathbuilder_pushb(&ctx->pb, filename);
 			adb_c_block_data(

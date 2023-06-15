@@ -696,8 +696,10 @@ static adb_val_t adb_w_blob_raw(struct adb *db, apk_blob_t b)
 
 adb_val_t adb_w_int(struct adb *db, uint32_t val)
 {
-	if (val >= 0x10000000)
+	if (val >= 0x10000000) {
+		val = htole32(val);
 		return ADB_VAL(ADB_TYPE_INT_32, adb_w_data1(db, &val, sizeof val, sizeof val));
+	}
 	return ADB_VAL(ADB_TYPE_INT, val);
 }
 
@@ -1035,7 +1037,7 @@ int adb_s_field_by_name(const struct adb_object_schema *schema, const char *name
 int adb_c_header(struct apk_ostream *os, struct adb *db)
 {
 	struct adb_file_header hdr = {
-		.magic = ADB_FORMAT_MAGIC,
+		.magic = htole32(ADB_FORMAT_MAGIC),
 		.schema = htole32(db->schema),
 	};
 	return apk_ostream_write(os, &hdr, sizeof hdr);
@@ -1166,6 +1168,8 @@ static int adb_digest_v0_signature(struct apk_digest_ctx *dctx, uint32_t schema,
 {
 	int r;
 
+	/* it is imporant to normalize this before including it in the digest */
+	schema = htole32(schema);
 	if ((r = apk_digest_ctx_update(dctx, &schema, sizeof schema)) != 0 ||
 	    (r = apk_digest_ctx_update(dctx, sig0, sizeof *sig0)) != 0 ||
 	    (r = apk_digest_ctx_update(dctx, md.ptr, md.len)) != 0)

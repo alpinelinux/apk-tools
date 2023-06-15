@@ -51,7 +51,7 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 		uint16_t mode;
 
 		if (target.len < 2) return -APKE_ADB_SCHEMA;
-		mode = *(uint16_t*)target.ptr;
+		mode = le16toh(*(uint16_t*)target.ptr);
 		target.ptr += 2;
 		target.len -= 2;
 		switch (mode) {
@@ -62,7 +62,7 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 			struct unaligned64 {
 				uint64_t value;
 			} __attribute__((packed));
-			fi.device = ((struct unaligned64 *)target.ptr)->value;
+			fi.device = le64toh(((struct unaligned64 *)target.ptr)->value);
 			break;
 		case S_IFLNK:
 			target_path = alloca(target.len + 1);
@@ -168,8 +168,8 @@ static int apk_extract_v3_data_block(struct adb *db, struct adb_block *b, struct
 	sz -= sizeof *hdr;
 	if (IS_ERR(hdr)) return PTR_ERR(hdr);
 
-	if (hdr->path_idx != ctx->cur_path ||
-	    hdr->file_idx != ctx->cur_file ||
+	if (le32toh(hdr->path_idx) != ctx->cur_path ||
+	    le32toh(hdr->file_idx) != ctx->cur_file ||
 	    sz != adb_ro_int(&ctx->file, ADBI_FI_SIZE)) {
 		// got data for some unexpected file
 		return -APKE_ADB_BLOCK;
