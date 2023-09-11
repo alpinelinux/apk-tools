@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <inttypes.h>
 #include "adb.h"
 #include "apk_adb.h"
 #include "apk_print.h"
@@ -221,7 +222,7 @@ static struct adb_scalar_schema scalar_hexblob = {
 
 static apk_blob_t int_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%u", adb_r_int(db, val)));
+	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%" PRIu64, adb_r_int(db, val)));
 }
 
 static adb_val_t int_fromstring(struct adb *db, apk_blob_t val)
@@ -233,8 +234,8 @@ static adb_val_t int_fromstring(struct adb *db, apk_blob_t val)
 
 static int int_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2)
 {
-	uint32_t r1 = adb_r_int(db1, v1);
-	uint32_t r2 = adb_r_int(db1, v2);
+	uint64_t r1 = adb_r_int(db1, v1);
+	uint64_t r2 = adb_r_int(db1, v2);
 	if (r1 < r2) return -1;
 	if (r1 > r2) return 1;
 	return 0;
@@ -249,7 +250,7 @@ static struct adb_scalar_schema scalar_int = {
 
 static apk_blob_t oct_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%o", adb_r_int(db, val)));
+	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%" PRIo64, adb_r_int(db, val)));
 }
 
 static adb_val_t oct_fromstring(struct adb *db, apk_blob_t val)

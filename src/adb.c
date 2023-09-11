@@ -354,9 +354,10 @@ adb_val_t adb_r_root(const struct adb *db)
 	return ((struct adb_hdr*)db->adb.ptr)->root;
 }
 
-uint32_t adb_r_int(const struct adb *db, adb_val_t v)
+uint64_t adb_r_int(const struct adb *db, adb_val_t v)
 {
 	uint32_t *int4;
+	uint64_t *int8;
 
 	switch (ADB_VAL_TYPE(v)) {
 	case ADB_TYPE_INT:
@@ -365,6 +366,10 @@ uint32_t adb_r_int(const struct adb *db, adb_val_t v)
 		int4 = adb_r_deref(db, v, 0, sizeof int4);
 		if (!int4) return 0;
 		return le32toh(*int4);
+	case ADB_TYPE_INT_64:
+		int8 = adb_r_deref(db, v, 0, sizeof int8);
+		if (!int8) return 0;
+		return le64toh(*int8);
 	default:
 		return 0;
 	}
@@ -445,7 +450,7 @@ adb_val_t adb_ro_val(const struct adb_obj *o, unsigned i)
 	return o->obj[i];
 }
 
-uint32_t adb_ro_int(const struct adb_obj *o, unsigned i)
+uint64_t adb_ro_int(const struct adb_obj *o, unsigned i)
 {
 	return adb_r_int(o->db, adb_ro_val(o, i));
 }
@@ -702,11 +707,15 @@ static adb_val_t adb_w_blob_raw(struct adb *db, apk_blob_t b)
 	return val;
 }
 
-adb_val_t adb_w_int(struct adb *db, uint32_t val)
+adb_val_t adb_w_int(struct adb *db, uint64_t val)
 {
+	if (val >= 0x100000000) {
+		val = htole64(val);
+		return ADB_VAL(ADB_TYPE_INT_64, adb_w_data1(db, &val, sizeof val, sizeof val));
+	}
 	if (val >= 0x10000000) {
-		val = htole32(val);
-		return ADB_VAL(ADB_TYPE_INT_32, adb_w_data1(db, &val, sizeof val, sizeof val));
+		uint32_t val32 = htole32(val);
+		return ADB_VAL(ADB_TYPE_INT_32, adb_w_data1(db, &val32, sizeof val32, sizeof val32));
 	}
 	return ADB_VAL(ADB_TYPE_INT, val);
 }
@@ -724,6 +733,9 @@ adb_val_t adb_w_copy(struct adb *db, struct adb *srcdb, adb_val_t v)
 		return v;
 	case ADB_TYPE_INT_32:
 		sz = align = sizeof(uint32_t);
+		goto copy;
+	case ADB_TYPE_INT_64:
+		sz = align = sizeof(uint64_t);
 		goto copy;
 	case ADB_TYPE_BLOB_8:
 		ptr = adb_r_deref(srcdb, v, 0, 1);
@@ -744,7 +756,6 @@ adb_val_t adb_w_copy(struct adb *db, struct adb *srcdb, adb_val_t v)
 		for (int i = ADBI_FIRST; i < sz; i++) cpy[i] = adb_w_copy(db, srcdb, adb_ro_val(&obj, i));
 		return ADB_VAL(ADB_VAL_TYPE(v), adb_w_data1(db, cpy, sizeof(adb_val_t[sz]), sizeof(adb_val_t)));
 	}
-	case ADB_TYPE_INT_64:
 	case ADB_TYPE_BLOB_32:
 	default:
 		return adb_w_error(db, ENOSYS);
@@ -910,7 +921,7 @@ adb_val_t adb_wo_val_fromstring(struct adb_obj *o, unsigned i, apk_blob_t val)
 	return o->obj[i] = adb_w_fromstring(o->db, o->schema->fields[i-1].kind, val);
 }
 
-adb_val_t adb_wo_int(struct adb_obj *o, unsigned i, uint32_t v)
+adb_val_t adb_wo_int(struct adb_obj *o, unsigned i, uint64_t v)
 {
 	return adb_wo_val(o, i, adb_w_int(o->db, v));
 }

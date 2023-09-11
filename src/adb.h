@@ -204,7 +204,7 @@ int adb_w_init_static(struct adb *db, void *buf, size_t bufsz);
 /* Primitive read */
 adb_val_t adb_r_root(const struct adb *);
 struct adb_obj *adb_r_rootobj(struct adb *a, struct adb_obj *o, const struct adb_object_schema *);
-uint32_t adb_r_int(const struct adb *, adb_val_t);
+uint64_t adb_r_int(const struct adb *, adb_val_t);
 apk_blob_t adb_r_blob(const struct adb *, adb_val_t);
 struct adb_obj *adb_r_obj(struct adb *, adb_val_t, struct adb_obj *o, const struct adb_object_schema *);
 
@@ -214,7 +214,7 @@ static inline uint32_t adb_ra_num(const struct adb_obj *o) { return (o->num ?: 1
 
 const uint8_t *adb_ro_kind(const struct adb_obj *o, unsigned i);
 adb_val_t adb_ro_val(const struct adb_obj *o, unsigned i);
-uint32_t adb_ro_int(const struct adb_obj *o, unsigned i);
+uint64_t adb_ro_int(const struct adb_obj *o, unsigned i);
 apk_blob_t adb_ro_blob(const struct adb_obj *o, unsigned i);
 struct adb_obj *adb_ro_obj(const struct adb_obj *o, unsigned i, struct adb_obj *);
 int adb_ro_cmpobj(const struct adb_obj *o1, const struct adb_obj *o2, unsigned mode);
@@ -226,7 +226,7 @@ void adb_w_root(struct adb *, adb_val_t);
 void adb_w_rootobj(struct adb_obj *);
 adb_val_t adb_w_blob_vec(struct adb *, uint32_t, apk_blob_t *);
 adb_val_t adb_w_blob(struct adb *, apk_blob_t);
-adb_val_t adb_w_int(struct adb *, uint32_t);
+adb_val_t adb_w_int(struct adb *, uint64_t);
 adb_val_t adb_w_copy(struct adb *, struct adb *, adb_val_t);
 adb_val_t adb_w_adb(struct adb *, struct adb *);
 adb_val_t adb_w_fromstring(struct adb *, const uint8_t *kind, apk_blob_t);
@@ -245,7 +245,7 @@ int adb_wo_fromstring(struct adb_obj *o, apk_blob_t);
 int adb_wo_copyobj(struct adb_obj *o, struct adb_obj *);
 adb_val_t adb_wo_val(struct adb_obj *o, unsigned i, adb_val_t);
 adb_val_t adb_wo_val_fromstring(struct adb_obj *o, unsigned i, apk_blob_t);
-adb_val_t adb_wo_int(struct adb_obj *o, unsigned i, uint32_t);
+adb_val_t adb_wo_int(struct adb_obj *o, unsigned i, uint64_t);
 adb_val_t adb_wo_blob(struct adb_obj *o, unsigned i, apk_blob_t);
 adb_val_t adb_wo_blob_raw(struct adb_obj *o, unsigned i, apk_blob_t);
 adb_val_t adb_wo_obj(struct adb_obj *o, unsigned i, struct adb_obj *);

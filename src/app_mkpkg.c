@@ -423,7 +423,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			adb_ro_obj(&files, j, &file);
 			apk_blob_t filename = adb_ro_blob(&file, ADBI_FI_NAME);
 			apk_blob_t target = adb_ro_blob(&file, ADBI_FI_TARGET);
-			size_t sz = adb_ro_int(&file, ADBI_FI_SIZE);
+			uint64_t sz = adb_ro_int(&file, ADBI_FI_SIZE);
 			if (!APK_BLOB_IS_NULL(target)) continue;
 			if (!sz) continue;
 			struct adb_data_package hdr = {
