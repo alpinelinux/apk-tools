@@ -182,7 +182,7 @@ static int apk_extract_v3_data_block(struct adb *db, struct adb_block *b, struct
 	struct apk_extract_v3_ctx *ctx = container_of(db, struct apk_extract_v3_ctx, db);
 	struct apk_extract_ctx *ectx = ctx->ectx;
 	struct adb_data_package *hdr;
-	size_t sz = adb_block_length(b);
+	uint64_t sz = adb_block_length(b);
 	int r;
 
 	if (adb_block_type(b) != ADB_BLOCK_DATA) return 0;

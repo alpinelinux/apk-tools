@@ -57,21 +57,41 @@ struct adb_file_header {
 #define ADB_BLOCK_ADB		0
 #define ADB_BLOCK_SIG		1
 #define ADB_BLOCK_DATA		2
-#define ADB_BLOCK_DATAX		3
+#define ADB_BLOCK_EXT		3
 
 struct adb_block {
 	uint32_t type_size;
+	uint32_t reserved;
+	uint64_t x_size;
 };
 
-static inline struct adb_block adb_block_init(uint32_t type, uint32_t length) {
-	return (struct adb_block) { .type_size = htole32((type << 30) + sizeof(struct adb_block) + length)};
+static inline struct adb_block adb_block_init(uint32_t type, uint64_t length) {
+	if (length <= 0x3fffffff) {
+		return (struct adb_block) {
+			.type_size = htole32((type << 30) + sizeof(uint32_t) + length),
+		};
+	}
+	return (struct adb_block) {
+		.type_size = htole32((ADB_BLOCK_EXT << 30) + type),
+		.x_size = htole64(sizeof(struct adb_block) + length),
+	};
 }
-static inline uint32_t adb_block_type(struct adb_block *b) { return le32toh((b)->type_size) >> 30; }
-static inline uint32_t adb_block_rawsize(struct adb_block *b) { return le32toh((b)->type_size) & 0x3fffffff; }
-static inline uint32_t adb_block_size(struct adb_block *b) { return ROUND_UP(adb_block_rawsize(b), ADB_BLOCK_ALIGNMENT); }
-static inline uint32_t adb_block_length(struct adb_block *b) { return adb_block_rawsize(b) - sizeof(struct adb_block); }
+static inline uint32_t adb_block_is_ext(struct adb_block *b) {
+	return (le32toh((b)->type_size) >> 30) == ADB_BLOCK_EXT;
+}
+static inline uint32_t adb_block_type(struct adb_block *b) {
+	return adb_block_is_ext(b) ? (le32toh(b->type_size) & 0x3fffffff) : (le32toh(b->type_size) >> 30);
+}
+static inline uint64_t adb_block_rawsize(struct adb_block *b) {
+	return adb_block_is_ext(b) ? le64toh(b->x_size) : (le32toh(b->type_size) & 0x3fffffff);
+}
+static inline uint32_t adb_block_hdrsize(struct adb_block *b) {
+	return adb_block_is_ext(b) ? sizeof *b : sizeof b->type_size;
+}
+static inline uint64_t adb_block_size(struct adb_block *b) { return ROUND_UP(adb_block_rawsize(b), ADB_BLOCK_ALIGNMENT); }
+static inline uint64_t adb_block_length(struct adb_block *b) { return adb_block_rawsize(b) - adb_block_hdrsize(b); }
 static inline uint32_t adb_block_padding(struct adb_block *b) { return adb_block_size(b) - adb_block_rawsize(b); }
-static inline void *adb_block_payload(struct adb_block *b) { return b + 1; }
+static inline void *adb_block_payload(struct adb_block *b) { return (char*)b + adb_block_hdrsize(b); }
 static inline apk_blob_t adb_block_blob(struct adb_block *b) {
 	return APK_BLOB_PTR_LEN(adb_block_payload(b), adb_block_length(b));
 }
@@ -243,7 +263,7 @@ int adb_s_field_by_name(const struct adb_object_schema *, const char *);
 /* Creation */
 int adb_c_header(struct apk_ostream *os, struct adb *db);
 int adb_c_block(struct apk_ostream *os, uint32_t type, apk_blob_t);
-int adb_c_block_data(struct apk_ostream *os, apk_blob_t hdr, uint32_t size, struct apk_istream *is);
+int adb_c_block_data(struct apk_ostream *os, apk_blob_t hdr, uint64_t size, struct apk_istream *is);
 int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_istream *is, struct adb_verify_ctx *);
 int adb_c_adb(struct apk_ostream *os, struct adb *db, struct apk_trust *t);
 int adb_c_create(struct apk_ostream *os, struct adb *db, struct apk_trust *t);

@@ -115,7 +115,7 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 	struct adb_sign_hdr *s;
 	uint32_t schema_magic = ctx->db.schema;
 	const struct adb_db_schema *ds;
-	size_t sz = adb_block_length(b);
+	uint64_t sz = adb_block_length(b);
 	apk_blob_t data, c = APK_BLOB_BUF(tmp);
 	int r;
 
@@ -142,10 +142,10 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 		apk_blob_push_fmt(&c, ": %s", r ? apk_error_str(r) : "OK");
 		break;
 	case ADB_BLOCK_DATA:
-		apk_blob_push_fmt(&c, "data block, size: %zu", sz);
+		apk_blob_push_fmt(&c, "data block, size: %" PRIu64, sz);
 		break;
 	default:
-		apk_blob_push_fmt(&c, "unknown block %d, size: %zu", adb_block_type(b), sz);
+		apk_blob_push_fmt(&c, "unknown block %d, size: %" PRIu64, adb_block_type(b), sz);
 		break;
 	}
 	d->ops->comment(d, apk_blob_pushed(APK_BLOB_BUF(tmp), c));
