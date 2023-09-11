@@ -649,37 +649,47 @@ void adb_w_rootobj(struct adb_obj *obj)
 	adb_w_root(obj->db, adb_w_obj(obj));
 }
 
-adb_val_t adb_w_blob(struct adb *db, apk_blob_t b)
+adb_val_t adb_w_blob_vec(struct adb *db, uint32_t n, apk_blob_t *b)
 {
 	union {
 		uint32_t u32;
 		uint16_t u16;
 		uint8_t u8;
 	} val;
-	uint32_t n = b.len;
-	struct iovec vec[2] = {
-		{ .iov_base = &val,		.iov_len = sizeof val },
-		{ .iov_base = (void *) b.ptr,	.iov_len = n },
-	};
+	const int max_vec_size = 4;
+	struct iovec vec[1+max_vec_size];
 	adb_val_t o;
+	uint32_t i, align = 1;
 
-	if (n > 0xffff) {
-		val.u32 = htole32(n);
-		vec[0].iov_len = sizeof val.u32;
+	assert(n <= max_vec_size);
+
+	vec[0] = (struct iovec) { .iov_base = &val, .iov_len = sizeof val };
+	for (i = 0; i < n; i++)
+		vec[i+1] = (struct iovec) { .iov_base = b[i].ptr, .iov_len = b[i].len };
+
+	size_t sz = iovec_len(&vec[1], n);
+	if (sz > 0xffff) {
+		val.u32 = htole32(sz);
+		vec[0].iov_len = align = sizeof val.u32;
 		o = ADB_TYPE_BLOB_32;
-	} else if (n > 0xff) {
-		val.u16 = htole16(n);
-		vec[0].iov_len = sizeof val.u16;
+	} else if (sz > 0xff) {
+		val.u16 = htole16(sz);
+		vec[0].iov_len = align = sizeof val.u16;
 		o = ADB_TYPE_BLOB_16;
-	} else if (n > 0) {
-		val.u8 = n;
-		vec[0].iov_len = sizeof val.u8;
+	} else if (sz > 0) {
+		val.u8 = sz;
+		vec[0].iov_len = align = sizeof val.u8;
 		o = ADB_TYPE_BLOB_8;
 	} else {
 		return ADB_VAL_NULL;
 	}
 
-	return ADB_VAL(o, adb_w_data(db, vec, ARRAY_SIZE(vec), vec[0].iov_len));
+	return ADB_VAL(o, adb_w_data(db, vec, n+1, align));
+}
+
+adb_val_t adb_w_blob(struct adb *db, apk_blob_t b)
+{
+	return adb_w_blob_vec(db, 1, &b);
 }
 
 static adb_val_t adb_w_blob_raw(struct adb *db, apk_blob_t b)
@@ -968,9 +978,18 @@ adb_val_t adb_wa_append_fromstring(struct adb_obj *o, apk_blob_t b)
 
 struct wacmp_param {
 	struct adb *db1, *db2;
-	const struct adb_object_schema *schema;
+	union {
+		const struct adb_object_schema *schema;
+		int (*compare)(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2);
+	};
 	int mode;
 };
+
+static int wacmpscalar(const void *p1, const void *p2, void *arg)
+{
+	struct wacmp_param *wp = arg;
+	return wp->compare(wp->db1, *(adb_val_t *)p1, wp->db2, *(adb_val_t *)p2);
+}
 
 static int wacmp(const void *p1, const void *p2, void *arg)
 {
@@ -1005,6 +1024,10 @@ void adb_wa_sort(struct adb_obj *arr)
 	assert(schema->kind == ADB_KIND_ARRAY);
 
 	switch (*arr->schema->fields[0].kind) {
+	case ADB_KIND_BLOB:
+		arg.compare = container_of(arr->schema->fields[0].kind, struct adb_scalar_schema, kind)->compare;
+		qsort_r(&arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wacmpscalar, &arg);
+		break;
 	case ADB_KIND_OBJECT:
 		arg.schema = container_of(arr->schema->fields[0].kind, struct adb_object_schema, kind);
 		qsort_r(&arr->obj[ADBI_FIRST], adb_ra_num(arr), sizeof(arr->obj[0]), wacmp, &arg);

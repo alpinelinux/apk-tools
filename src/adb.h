@@ -204,6 +204,7 @@ int adb_ra_find(struct adb_obj *arr, int cur, struct adb_obj *tmpl);
 /* Primitive write */
 void adb_w_root(struct adb *, adb_val_t);
 void adb_w_rootobj(struct adb_obj *);
+adb_val_t adb_w_blob_vec(struct adb *, uint32_t, apk_blob_t *);
 adb_val_t adb_w_blob(struct adb *, apk_blob_t);
 adb_val_t adb_w_int(struct adb *, uint32_t);
 adb_val_t adb_w_copy(struct adb *, struct adb *, adb_val_t);

@@ -92,6 +92,7 @@ struct adb_data_package {
 extern const struct adb_object_schema
 	schema_dependency, schema_dependency_array,
 	schema_pkginfo, schema_pkginfo_array,
+	schema_xattr_array,
 	schema_acl, schema_file, schema_file_array, schema_dir, schema_dir_array,
 	schema_string_array, schema_scripts, schema_package, schema_package_adb_array,
 	schema_index, schema_idb;

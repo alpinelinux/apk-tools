@@ -24,9 +24,26 @@ struct apk_extract_v3_ctx {
 
 static void apk_extract_v3_acl(struct apk_file_info *fi, struct adb_obj *o, struct apk_id_cache *idc)
 {
+	struct adb_obj xa;
+	apk_blob_t x, key, value;
+	int i;
+
 	fi->mode = adb_ro_int(o, ADBI_ACL_MODE);
 	fi->uid = apk_id_cache_resolve_uid(idc, adb_ro_blob(o, ADBI_ACL_USER), 65534);
 	fi->gid = apk_id_cache_resolve_gid(idc, adb_ro_blob(o, ADBI_ACL_GROUP), 65534);
+
+	adb_ro_obj(o, ADBI_ACL_XATTRS, &xa);
+
+	apk_xattr_array_resize(&fi->xattrs, adb_ra_num(&xa));
+	for (i = ADBI_FIRST; i <= adb_ra_num(&xa); i++) {
+		x = adb_ro_blob(&xa, i);
+		apk_blob_rsplit(x, 0, &key, &value);
+
+		fi->xattrs->item[i-1] = (struct apk_xattr) {
+			.name = key.ptr,
+			.value = value,
+		};
+	}
 }
 
 static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct apk_istream *is)
@@ -43,6 +60,7 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 	apk_blob_t target;
 	int r;
 
+	apk_xattr_array_init(&fi.xattrs);
 	apk_extract_v3_acl(&fi, adb_ro_obj(&ctx->file, ADBI_FI_ACL, &acl), apk_ctx_get_id_cache(ectx->ac));
 
 	target = adb_ro_blob(&ctx->file, ADBI_FI_TARGET);
@@ -50,7 +68,7 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 		char *target_path;
 		uint16_t mode;
 
-		if (target.len < 2) return -APKE_ADB_SCHEMA;
+		if (target.len < 2) goto err_schema;
 		mode = le16toh(*(uint16_t*)target.ptr);
 		target.ptr += 2;
 		target.len -= 2;
@@ -58,7 +76,7 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 		case S_IFBLK:
 		case S_IFCHR:
 		case S_IFIFO:
-			if (target.len != sizeof(uint64_t)) return -APKE_ADB_SCHEMA;
+			if (target.len != sizeof(uint64_t)) goto err_schema;
 			struct unaligned64 {
 				uint64_t value;
 			} __attribute__((packed));
@@ -71,19 +89,28 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 			fi.link_target = target_path;
 			break;
 		default:
-			return -APKE_ADB_SCHEMA;
+		err_schema:
+			r = -APKE_ADB_SCHEMA;
+			goto done;
 		}
 		fi.mode |= mode;
-		return ectx->ops->file(ectx, &fi, is);
+		r = ectx->ops->file(ectx, &fi, is);
+		goto done;
 	}
 
 	apk_digest_from_blob(&fi.digest, adb_ro_blob(&ctx->file, ADBI_FI_HASHES));
-	if (fi.digest.alg == APK_DIGEST_NONE) return -APKE_ADB_SCHEMA;
+	if (fi.digest.alg == APK_DIGEST_NONE) goto err_schema;
 	fi.mode |= S_IFREG;
-	if (!is) return ectx->ops->file(ectx, &fi, 0);
+	if (!is) {
+		r = ectx->ops->file(ectx, &fi, 0);
+		goto done;
+	}
 
 	r = ectx->ops->file(ectx, &fi, apk_istream_verify(&dis, is, fi.size, &fi.digest));
-	return apk_istream_close_error(&dis.is, r);
+	r = apk_istream_close_error(&dis.is, r);
+done:
+	apk_fileinfo_free(&fi);
+	return r;
 }
 
 static int apk_extract_v3_directory(struct apk_extract_ctx *ectx)
@@ -93,11 +120,15 @@ static int apk_extract_v3_directory(struct apk_extract_ctx *ectx)
 		.name = apk_pathbuilder_cstr(&ctx->pb),
 	};
 	struct adb_obj acl;
+	int r;
 
+	apk_xattr_array_init(&fi.xattrs);
 	apk_extract_v3_acl(&fi, adb_ro_obj(&ctx->path, ADBI_DI_ACL, &acl), apk_ctx_get_id_cache(ectx->ac));
 	fi.mode |= S_IFDIR;
+	r = ectx->ops->file(ectx, &fi, 0);
+	apk_fileinfo_free(&fi);
 
-	return ectx->ops->file(ectx, &fi, 0);
+	return r;
 }
 
 static int apk_extract_v3_next_file(struct apk_extract_ctx *ectx)

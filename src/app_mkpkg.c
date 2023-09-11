@@ -22,6 +22,7 @@
 #include "apk_pathbuilder.h"
 #include "apk_extract.h"
 #include "apk_print.h"
+#include "apk_xattr.h"
 
 #define BLOCK_SIZE 4096
 
@@ -128,6 +129,42 @@ static const struct apk_option_group optgroup_applet = {
 	.parse = option_parse_applet,
 };
 
+static adb_val_t create_xattrs(struct adb *db, int fd)
+{
+	struct adb_obj xa;
+	char names[1024], buf[1024];
+	ssize_t len, vlen;
+	adb_val_t val;
+	int i;
+
+	len = apk_flistxattr(fd, names, sizeof names);
+	if (len <= 0) return ADB_NULL;
+
+	adb_wo_alloca(&xa, &schema_xattr_array, db);
+	for (i = 0; i < len; i += strlen(&names[i]) + 1) {
+		vlen = apk_fgetxattr(fd, &names[i], buf, sizeof buf);
+		if (vlen < 0) continue;
+
+		apk_blob_t vec[] = {
+			APK_BLOB_PTR_LEN(&names[i], strlen(&names[i])+1),
+			APK_BLOB_PTR_LEN(buf, vlen),
+		};
+		adb_wa_append(&xa, adb_w_blob_vec(db, ARRAY_SIZE(vec), vec));
+	}
+	close(fd);
+	val = adb_w_arr(&xa);
+	adb_wo_free(&xa);
+
+	return val;
+}
+
+static adb_val_t create_xattrs_closefd(struct adb *db, int fd)
+{
+	adb_val_t val = create_xattrs(db, fd);
+	close(fd);
+	return val;
+}
+
 static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry);
 
 static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int dirfd, struct apk_file_info *fi)
@@ -145,6 +182,7 @@ static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int dirfd, struct apk_
 	adb_wo_int(&acl, ADBI_ACL_MODE, fi->mode & ~S_IFMT);
 	adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi->uid));
 	adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi->gid));
+	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs(&ctx->db, dirfd));
 	adb_wo_obj(&fio, ADBI_DI_ACL, &acl);
 
 	adb_wo_alloca(&files, &schema_file_array, &ctx->db);
@@ -233,6 +271,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 	adb_wo_int(&acl, ADBI_ACL_MODE, fi.mode & 07777);
 	adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi.uid));
 	adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi.gid));
+	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs_closefd(&ctx->db, openat(dirfd, entry, O_RDONLY)));
 	adb_wo_obj(&fio, ADBI_FI_ACL, &acl);
 
 	adb_wa_append_obj(ctx->files, &fio);

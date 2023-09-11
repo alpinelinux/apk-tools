@@ -114,6 +114,53 @@ const struct adb_object_schema schema_string_array = {
 	.fields = ADB_ARRAY_ITEM(scalar_string),
 };
 
+static apk_blob_t xattr_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
+{
+	apk_blob_t b = adb_r_blob(db, val), to = APK_BLOB_PTR_LEN(buf, bufsz), k, v;
+
+	if (APK_BLOB_IS_NULL(b)) return b;
+	if (!apk_blob_rsplit(b, 0, &k, &v)) return APK_BLOB_NULL;
+
+	apk_blob_push_blob(&to, k);
+	apk_blob_push_blob(&to, APK_BLOB_PTR_LEN("=", 1));
+	apk_blob_push_hexdump(&to, v);
+	if (!APK_BLOB_IS_NULL(to))
+		return APK_BLOB_PTR_PTR(buf, to.ptr-1);
+	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, BLOB_FMT "=(%d bytes)",
+		BLOB_PRINTF(k), (int)v.len));
+}
+
+static adb_val_t xattr_fromstring(struct adb *db, apk_blob_t val)
+{
+	char buf[256];
+	apk_blob_t b[2], hex;
+
+	if (!apk_blob_rsplit(val, '=', &b[0], &hex)) return ADB_ERROR(APKE_ADB_SCHEMA);
+	b[0].len++;
+
+	if (hex.len & 1) return ADB_ERROR(EINVAL);
+	if (hex.len/2 > sizeof buf) return ADB_ERROR(E2BIG);
+	b[1] = APK_BLOB_PTR_LEN(buf, hex.len / 2);
+	apk_blob_pull_hexdump(&hex, b[1]);
+	if (APK_BLOB_IS_NULL(hex)) return ADB_ERROR(EINVAL);
+
+	return adb_w_blob_vec(db, ARRAY_SIZE(b), b);
+}
+
+static const struct adb_scalar_schema schema_xattr = {
+	.kind = ADB_KIND_BLOB,
+	.tostring = xattr_tostring,
+	.fromstring = xattr_fromstring,
+	.compare = string_compare,
+};
+
+const struct adb_object_schema schema_xattr_array = {
+	.kind = ADB_KIND_ARRAY,
+	.num_fields = 8,
+	.pre_commit = adb_wa_sort,
+	.fields = ADB_ARRAY_ITEM(schema_xattr),
+};
+
 static adb_val_t version_fromstring(struct adb *db, apk_blob_t val)
 {
 	if (!apk_version_validate(val)) return ADB_ERROR(APKE_PKGVERSION_FORMAT);
@@ -154,10 +201,8 @@ static adb_val_t hexblob_fromstring(struct adb *db, apk_blob_t val)
 {
 	char buf[256];
 
-	if (val.len & 1)
-		return ADB_ERROR(EINVAL);
-	if (val.len > sizeof buf)
-		return ADB_ERROR(E2BIG);
+	if (val.len & 1) return ADB_ERROR(EINVAL);
+	if (val.len/2 > sizeof buf) return ADB_ERROR(E2BIG);
 
 	apk_blob_t b = APK_BLOB_PTR_LEN(buf, val.len / 2);
 	apk_blob_pull_hexdump(&val, b);
@@ -429,7 +474,7 @@ const struct adb_object_schema schema_acl = {
 		ADB_FIELD(ADBI_ACL_MODE,	"mode",		scalar_oct),
 		ADB_FIELD(ADBI_ACL_USER,	"user",		scalar_string),
 		ADB_FIELD(ADBI_ACL_GROUP,	"group",	scalar_string),
-		//ADB_FIELD(ADBI_ACL_XATTRS,	"xattr",	schema_string_array),
+		ADB_FIELD(ADBI_ACL_XATTRS,	"xattrs",	schema_xattr_array),
 	},
 };
 
