@@ -155,12 +155,14 @@ static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int dirfd, struct apk_
 	if (r) {
 		apk_err(out, "failed to process directory '%s': %d",
 			apk_pathbuilder_cstr(&ctx->pb), r);
-		return r;
+		goto done;
 	}
 
 	adb_wo_obj(&fio, ADBI_DI_FILES, &files);
 	adb_wa_append_obj(&ctx->paths, &fio);
-	return 0;
+done:
+	adb_wo_free(&files);
+	return r;
 }
 
 static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
@@ -343,6 +345,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		for (i = 0; i < ctx->triggers->num; i++)
 			adb_wa_append_fromstring(&triggers, APK_BLOB_STR(ctx->triggers->item[i]));
 		adb_wo_obj(&pkg, ADBI_PKG_TRIGGERS, &triggers);
+		adb_wo_free(&triggers);
 	}
 	adb_w_rootobj(&pkg);
 
@@ -401,6 +404,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	r = apk_ostream_close(os);
 
 err:
+	adb_wo_free(&ctx->paths);
 	adb_free(&ctx->db);
 	if (r) apk_err(out, "failed to create package: %s: %s", ctx->output, apk_error_str(r));
 	return r;

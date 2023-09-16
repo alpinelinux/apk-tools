@@ -819,6 +819,12 @@ struct adb_obj *adb_wo_init_val(struct adb_obj *o, adb_val_t *p, const struct ad
 	return adb_wo_init(o, p, schema, parent->db);
 }
 
+void adb_wo_free(struct adb_obj *o)
+{
+	if (o->dynamic) free(o->obj);
+	o->obj = 0;
+}
+
 void adb_wo_reset(struct adb_obj *o)
 {
 	uint32_t max = o->obj[ADBI_NUM_ENTRIES];
@@ -930,9 +936,20 @@ adb_val_t adb_wo_arr(struct adb_obj *o, unsigned i, struct adb_obj *no)
 adb_val_t adb_wa_append(struct adb_obj *o, adb_val_t v)
 {
 	assert(o->schema->kind == ADB_KIND_ARRAY);
-	if (o->num >= o->obj[ADBI_NUM_ENTRIES]) return adb_w_error(o->db, E2BIG);
 	if (ADB_IS_ERROR(v)) return adb_w_error(o->db, ADB_VAL_VALUE(v));
-	if (v != ADB_VAL_NULL) o->obj[o->num++] = v;
+	if (v == ADB_VAL_NULL) return v;
+
+	if (o->num >= o->obj[ADBI_NUM_ENTRIES]) {
+		int num = o->obj[ADBI_NUM_ENTRIES];
+		adb_val_t *obj = reallocarray(o->dynamic ? o->obj : NULL, num * 2, sizeof(adb_val_t));
+		if (!obj) return adb_w_error(o->db, ENOMEM);
+		if (!o->dynamic) memcpy(obj, o->obj, sizeof(adb_val_t) * num);
+		memset(&obj[num], 0, sizeof(adb_val_t) * num);
+		o->obj = obj;
+		o->obj[ADBI_NUM_ENTRIES] = num * 2;
+		o->dynamic = 1;
+	}
+	o->obj[o->num++] = v;
 	return v;
 }
 

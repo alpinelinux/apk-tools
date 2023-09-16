@@ -219,7 +219,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			ADB_SCHEMA_INDEX, trust);
 		if (r) {
 			apk_err(out, "%s: %s", ctx->index, apk_error_str(r));
-			return r;
+			goto done;
 		}
 		adb_ro_obj(adb_r_rootobj(&odb, &oroot, &schema_index), ADBI_NDX_PACKAGES, &opkgs);
 	}
@@ -286,7 +286,8 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	}
 	if (errors) {
 		apk_err(out, "%d errors, not creating index", errors);
-		return -1;
+		r = -1;
+		goto done;
 	}
 
 	numpkgs = adb_ra_num(&ctx->pkgs);
@@ -298,14 +299,15 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		apk_ostream_to_file(AT_FDCWD, ctx->output, 0644),
 		&ctx->db, trust);
 
-	adb_free(&ctx->db);
-	adb_free(&odb);
-
 	if (r == 0)
 		apk_msg(out, "Index has %d packages (of which %d are new)", numpkgs, newpkgs);
 	else
 		apk_err(out, "Index creation failed: %s", apk_error_str(r));
 
+done:
+	adb_wo_free(&ctx->pkgs);
+	adb_free(&ctx->db);
+	adb_free(&odb);
 
 #if 0
 	apk_hash_foreach(&db->available.names, warn_if_no_providers, &counts);

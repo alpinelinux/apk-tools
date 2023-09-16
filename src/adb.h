@@ -161,8 +161,9 @@ struct adb {
 struct adb_obj {
 	struct adb *db;
 	const struct adb_object_schema *schema;
-	uint32_t num;
 	adb_val_t *obj;
+	uint32_t num;
+	uint32_t dynamic : 1;
 };
 
 /* Container read interface */
@@ -214,6 +215,7 @@ adb_val_t adb_w_fromstring(struct adb *, const uint8_t *kind, apk_blob_t);
 
 struct adb_obj *adb_wo_init(struct adb_obj *, adb_val_t *, const struct adb_object_schema *, struct adb *);
 struct adb_obj *adb_wo_init_val(struct adb_obj *, adb_val_t *, const struct adb_obj *, unsigned i);
+void adb_wo_free(struct adb_obj *);
 void adb_wo_reset(struct adb_obj *);
 void adb_wo_resetdb(struct adb_obj *);
 adb_val_t adb_w_obj(struct adb_obj *);

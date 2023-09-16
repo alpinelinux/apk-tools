@@ -89,13 +89,6 @@ struct adb_data_package {
 #define ADBI_IDB_MAX		0x02
 
 /* */
-#define APK_MAX_PKG_DEPENDENCIES	512
-#define APK_MAX_PKG_REPLACES		32
-#define APK_MAX_PKG_TRIGGERS		32
-#define APK_MAX_INDEX_PACKAGES		20000
-#define APK_MAX_MANIFEST_FILES		12000
-#define APK_MAX_MANIFEST_PATHS		6000
-
 extern const struct adb_object_schema
 	schema_dependency, schema_dependency_array,
 	schema_pkginfo, schema_pkginfo_array,

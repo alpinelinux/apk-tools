@@ -190,6 +190,9 @@ static int convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 			break;
 		}
 	}
+	adb_wo_free(&triggers);
+	adb_wo_free(&files);
+	adb_wo_free(&paths);
 	return apk_istream_close(is);
 }
 

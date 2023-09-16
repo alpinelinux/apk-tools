@@ -110,7 +110,7 @@ static struct adb_scalar_schema scalar_mstring = {
 
 const struct adb_object_schema schema_string_array = {
 	.kind = ADB_KIND_ARRAY,
-	.num_fields = APK_MAX_PKG_TRIGGERS,
+	.num_fields = 32,
 	.fields = ADB_ARRAY_ITEM(scalar_string),
 };
 
@@ -373,7 +373,7 @@ static int dependencies_fromstring(struct adb_obj *obj, apk_blob_t b)
 const struct adb_object_schema schema_dependency_array = {
 	.kind = ADB_KIND_ARRAY,
 	.fromstring = dependencies_fromstring,
-	.num_fields = APK_MAX_PKG_DEPENDENCIES,
+	.num_fields = 32,
 	.pre_commit = adb_wa_sort_unique,
 	.fields = ADB_ARRAY_ITEM(schema_dependency),
 };
@@ -408,7 +408,7 @@ const struct adb_object_schema schema_pkginfo = {
 
 const struct adb_object_schema schema_pkginfo_array = {
 	.kind = ADB_KIND_ARRAY,
-	.num_fields = APK_MAX_INDEX_PACKAGES,
+	.num_fields = 128,
 	.pre_commit = adb_wa_sort,
 	.fields = ADB_ARRAY_ITEM(schema_pkginfo),
 };
@@ -450,7 +450,7 @@ const struct adb_object_schema schema_file = {
 const struct adb_object_schema schema_file_array = {
 	.kind = ADB_KIND_ARRAY,
 	.pre_commit = adb_wa_sort,
-	.num_fields = APK_MAX_MANIFEST_FILES,
+	.num_fields = 128,
 	.fields = ADB_ARRAY_ITEM(schema_file),
 };
 
@@ -468,7 +468,7 @@ const struct adb_object_schema schema_dir = {
 const struct adb_object_schema schema_dir_array = {
 	.kind = ADB_KIND_ARRAY,
 	.pre_commit = adb_wa_sort,
-	.num_fields = APK_MAX_MANIFEST_PATHS,
+	.num_fields = 128,
 	.fields = ADB_ARRAY_ITEM(schema_dir),
 };
 
@@ -508,7 +508,7 @@ const struct adb_adb_schema schema_package_adb = {
 const struct adb_object_schema schema_package_adb_array = {
 	.kind = ADB_KIND_ARRAY,
 	.pre_commit = adb_wa_sort,
-	.num_fields = APK_MAX_INDEX_PACKAGES,
+	.num_fields = 128,
 	.fields = ADB_ARRAY_ITEM(schema_package_adb),
 };
 
