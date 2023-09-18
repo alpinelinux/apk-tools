@@ -1923,6 +1923,7 @@ int apk_db_fire_triggers(struct apk_database *db)
 
 int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 {
+	char buf[APK_EXIT_STATUS_MAX_SIZE];
 	int status;
 	pid_t pid;
 	static char * const environment[] = {
@@ -1952,8 +1953,8 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 		exit(127); /* should not get here */
 	}
 	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-		apk_error("%s: script exited with error %d", basename(fn), WEXITSTATUS(status));
+	if (apk_exit_status_str(status, buf, sizeof buf)) {
+		apk_error("%s: script %s", basename(fn), buf);
 		return -1;
 	}
 	return 0;

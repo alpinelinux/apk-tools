@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #include "apk_defines.h"
 #include "apk_print.h"
@@ -115,6 +116,21 @@ const char *apk_error_str(int error)
 	default:
 		return strerror(error);
 	}
+}
+
+int apk_exit_status_str(int status, char *buf, size_t sz)
+{
+	if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
+		return 0;
+	if (WIFEXITED(status))
+		return snprintf(buf, sz, "exited with error %d", WEXITSTATUS(status));
+	if (WIFSIGNALED(status))
+		return snprintf(buf, sz, "killed by signal %d", WTERMSIG(status));
+	if (WIFSTOPPED(status))
+		return snprintf(buf, sz, "stopped by signal %d", WSTOPSIG(status));
+	if (WIFCONTINUED(status))
+		return snprintf(buf, sz, "continued");
+	return snprintf(buf, sz, "status unknown %x", status);
 }
 
 static void log_internal(FILE *dest, const char *prefix, const char *format, va_list va)

@@ -12,6 +12,8 @@
 
 #include "apk_blob.h"
 
+#define APK_EXIT_STATUS_MAX_SIZE	128
+
 struct apk_url_print {
 	const char *url;
 	const char *pwmask;
@@ -35,6 +37,7 @@ void apk_log(const char *prefix, const char *format, ...)
 void apk_log_err(const char *prefix, const char *format, ...)
 	__attribute__ ((format (printf, 2, 3)));
 const char *apk_error_str(int error);
+int apk_exit_status_str(int status, char *buf, size_t sz);
 
 void apk_reset_screen_width(void);
 int apk_get_screen_width(void);
