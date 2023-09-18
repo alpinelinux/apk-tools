@@ -18,6 +18,20 @@
 
 #include "apk_print.h"
 
+struct apk_stats {
+	size_t bytes;
+	unsigned int changes;
+	unsigned int packages;
+};
+
+struct progress {
+	struct apk_progress prog;
+	struct apk_stats done;
+	struct apk_stats total;
+	struct apk_package *pkg;
+	int total_changes_digits;
+};
+
 static inline int pkg_available(struct apk_database *db, struct apk_package *pkg)
 {
 	if (pkg->repos & db->available_repos)
@@ -26,7 +40,7 @@ static inline int pkg_available(struct apk_database *db, struct apk_package *pkg
 }
 
 static int print_change(struct apk_database *db, struct apk_change *change,
-			int cur, int total)
+			struct progress *prog)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_name *name;
@@ -37,7 +51,9 @@ static int print_change(struct apk_database *db, struct apk_change *change,
 	apk_blob_t *oneversion = NULL;
 	int r;
 
-	snprintf(status, sizeof(status), "(%i/%i)", cur+1, total);
+	snprintf(status, sizeof status, "(%*i/%i)",
+		prog->total_changes_digits, prog->done.changes+1,
+		prog->total.changes);
 
 	name = newpkg ? newpkg->name : oldpkg->name;
 	if (oldpkg == NULL) {
@@ -90,12 +106,6 @@ static int print_change(struct apk_database *db, struct apk_change *change,
 	return TRUE;
 }
 
-struct apk_stats {
-	unsigned int changes;
-	size_t bytes;
-	unsigned int packages;
-};
-
 static void count_change(struct apk_change *change, struct apk_stats *stats)
 {
 	if (change->new_pkg != change->old_pkg || change->reinstall) {
@@ -111,13 +121,6 @@ static void count_change(struct apk_change *change, struct apk_stats *stats)
 		stats->changes++;
 	}
 }
-
-struct progress {
-	struct apk_progress prog;
-	struct apk_stats done;
-	struct apk_stats total;
-	struct apk_package *pkg;
-};
 
 static void progress_cb(void *ctx, size_t installed_bytes)
 {
@@ -265,6 +268,16 @@ static int run_commit_hooks(struct apk_database *db, int type)
 				    run_commit_hook, &hook);
 }
 
+static int calc_precision(unsigned int num)
+{
+	int precision = 1;
+	while (num >= 10) {
+		precision++;
+		num /= 10;
+	}
+	return precision;
+}
+
 int apk_solver_commit_changeset(struct apk_database *db,
 				struct apk_changeset *changeset,
 				struct apk_dependency_array *world)
@@ -299,6 +312,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		if (change->old_pkg)
 			size_diff -= change->old_pkg->installed_size;
 	}
+	prog.total_changes_digits = calc_precision(prog.total.changes);
 
 	if ((apk_out_verbosity(out) > 1 || (db->ctx->flags & APK_INTERACTIVE)) &&
 	    !(db->ctx->flags & APK_SIMULATE)) {
@@ -351,7 +365,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		r = change->old_pkg &&
 			(change->old_pkg->ipkg->broken_files ||
 			 change->old_pkg->ipkg->broken_script);
-		if (print_change(db, change, prog.done.changes, prog.total.changes)) {
+		if (print_change(db, change, &prog)) {
 			prog.pkg = change->new_pkg;
 			progress_cb(&prog, 0);
 
