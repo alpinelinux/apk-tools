@@ -616,7 +616,7 @@ static void analyze_deps(struct print_state *ps, struct apk_dependency_array *de
 	foreach_array_item(d0, deps) {
 		name0 = d0->name;
 		if (d0->conflict) continue;
-		if ((name0->state_int & (STATE_PRESENT | STATE_MISSING)) != 0)
+		if ((name0->state_int & (STATE_INSTALLIF | STATE_PRESENT | STATE_MISSING)) != 0)
 			continue;
 		name0->state_int |= STATE_MISSING;
 		analyze_missing_name(ps, name0);
@@ -674,15 +674,19 @@ static void discover_name(struct apk_name *name, int pkg_state)
 	foreach_array_item(p, name->providers) {
 		int state = pkg_state;
 		if (!p->pkg->marked) continue;
-		if (state == STATE_PRESENT && !p->pkg->provider_priority &&
-		    !is_name_concrete(p->pkg, name))
+		if ((state == STATE_PRESENT || state == STATE_INSTALLIF) &&
+		    !p->pkg->provider_priority && !is_name_concrete(p->pkg, name))
 			state = STATE_VIRTUAL_ONLY;
 		if (p->pkg->state_int & state) continue;
 		p->pkg->state_int |= state;
 
 		p->pkg->name->state_int |= state;
-		foreach_array_item(d, p->pkg->provides)
-			d->name->state_int |= state;
+		foreach_array_item(d, p->pkg->provides) {
+			int dep_state = state;
+			if (dep_state == STATE_INSTALLIF && d->version == &apk_atom_null)
+				dep_state = STATE_VIRTUAL_ONLY;
+			d->name->state_int |= dep_state;
+		}
 
 		discover_deps(p->pkg->depends);
 		if (state == STATE_PRESENT || state == STATE_INSTALLIF) {
