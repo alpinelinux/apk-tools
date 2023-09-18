@@ -17,6 +17,7 @@
 
 static int uvol_run(struct apk_ctx *ac, char *action, const char *volname, char *arg1, char *arg2)
 {
+	char buf[APK_EXIT_STATUS_MAX_SIZE];
 	struct apk_out *out = &ac->out;
 	pid_t pid;
 	int r, status;
@@ -28,12 +29,13 @@ static int uvol_run(struct apk_ctx *ac, char *action, const char *volname, char 
 	r = posix_spawn(&pid, apk_ctx_get_uvol(ac), &act, 0, argv, environ);
 	posix_spawn_file_actions_destroy(&act);
 	if (r != 0) {
-		apk_err(out, "%s: uvol exec error: %s", volname, apk_error_str(r));
+		apk_err(out, "%s: uvol run exec error: %s", volname, apk_error_str(r));
 		return r;
 	}
 	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-		apk_err(out, "%s: uvol exited with error %d", volname, WEXITSTATUS(status));
+
+	if (apk_exit_status_str(status, buf, sizeof buf)) {
+		apk_err(out, "%s: uvol run %s", volname, buf);
 		return -APKE_UVOL_ERROR;
 	}
 	return 0;
@@ -42,6 +44,7 @@ static int uvol_run(struct apk_ctx *ac, char *action, const char *volname, char 
 static int uvol_extract(struct apk_ctx *ac, const char *volname, char *arg1, off_t sz,
 	struct apk_istream *is, apk_progress_cb cb, void *cb_ctx)
 {
+	char buf[APK_EXIT_STATUS_MAX_SIZE];
 	struct apk_out *out = &ac->out;
 	struct apk_ostream *os;
 	pid_t pid;
@@ -70,11 +73,11 @@ static int uvol_extract(struct apk_ctx *ac, const char *volname, char *arg1, off
 	}
 
 	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-		apk_err(out, "%s: uvol exited with error %d", volname, WEXITSTATUS(status));
+
+	if (apk_exit_status_str(status, buf, sizeof buf)) {
+		apk_err(out, "%s: uvol extract %s", volname, buf);
 		return -APKE_UVOL_ERROR;
 	}
-
 	return 0;
 }
 

@@ -12,7 +12,10 @@
 
 #include "apk_blob.h"
 
+#define APK_EXIT_STATUS_MAX_SIZE	128
+
 const char *apk_error_str(int error);
+int apk_exit_status_str(int status, char *buf, size_t sz);
 int apk_get_human_size_unit(apk_blob_t b);
 const char *apk_get_human_size(off_t size, off_t *dest);
 
