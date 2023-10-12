@@ -62,10 +62,11 @@ static int ssl_verify_mode = SSL_VERIFY_PEER;
  * Error messages for resolver errors
  */
 static struct fetcherr netdb_errlist[] = {
-	{ EAI_NODATA,	FETCH_RESOLV,	"Host not found" },
+	{ EAI_ADDRFAMILY, FETCH_RESOLV, "Address family for host not supported" },
+	{ EAI_NODATA,	FETCH_RESOLV,	"No address for host" },
 	{ EAI_AGAIN,	FETCH_TEMP,	"Transient resolver failure" },
 	{ EAI_FAIL,	FETCH_RESOLV,	"Non-recoverable resolver failure" },
-	{ EAI_NONAME,	FETCH_RESOLV,	"No address record" },
+	{ EAI_NONAME,	FETCH_RESOLV,	"Host does not resolve" },
 	{ -1,		FETCH_UNKNOWN,	"Unknown resolver error" }
 };
 
