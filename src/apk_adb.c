@@ -119,7 +119,7 @@ static apk_blob_t xattr_tostring(struct adb *db, adb_val_t val, char *buf, size_
 	apk_blob_t b = adb_r_blob(db, val), to = APK_BLOB_PTR_LEN(buf, bufsz), k, v;
 
 	if (APK_BLOB_IS_NULL(b)) return b;
-	if (!apk_blob_rsplit(b, 0, &k, &v)) return APK_BLOB_NULL;
+	if (!apk_blob_split(b, APK_BLOB_BUF(""), &k, &v)) return APK_BLOB_NULL;
 
 	apk_blob_push_blob(&to, k);
 	apk_blob_push_blob(&to, APK_BLOB_PTR_LEN("=", 1));

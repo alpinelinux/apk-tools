@@ -37,7 +37,7 @@ static void apk_extract_v3_acl(struct apk_file_info *fi, struct adb_obj *o, stru
 	apk_xattr_array_resize(&fi->xattrs, adb_ra_num(&xa));
 	for (i = ADBI_FIRST; i <= adb_ra_num(&xa); i++) {
 		x = adb_ro_blob(&xa, i);
-		apk_blob_rsplit(x, 0, &key, &value);
+		apk_blob_split(x, APK_BLOB_BUF(""), &key, &value);
 
 		fi->xattrs->item[i-1] = (struct apk_xattr) {
 			.name = key.ptr,
