@@ -31,5 +31,5 @@ those signatures.
 # UPDATING INDICIES
 
 *apk*(8) fetches and stores the index for each package repository at
-/var/lib/cache. To fetch fresh indicies for all configured repositories, use
+*/var/cache/apk*. To fetch fresh indicies for all configured repositories, use
 *apk-update*(8).
