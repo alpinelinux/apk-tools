@@ -6,8 +6,8 @@ apk-cache(5)
 
 # DESCRIPTION
 
-If */etc/apk/cache* is a symlink to a local directory, *apk*(8) will it as a
-local cache for downloaded package files and repository indicies. The cache
+If */etc/apk/cache* is a symlink to a local directory, *apk*(8) will use it as
+a local cache for downloaded package files and repository indicies. The cache
 must not reside on a tmpfs.
 
 To enable the apk cache, run the following commands as root:
