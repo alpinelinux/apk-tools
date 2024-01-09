@@ -358,12 +358,14 @@ recurse_check:
 		}
 
 		if (!dbf && actx->ignore_busybox_symlinks && S_ISLNK(fi.mode)) {
-			char target[16];
+			char target[20];
 			ssize_t n;
 			n = readlinkat(dirfd, name, target, sizeof target);
 			if (n == 12 && memcmp(target, "/bin/busybox", 12) == 0)
 				goto done;
 			if (n == 11 && memcmp(target, "/bin/bbsuid", 11) == 0)
+				goto done;
+			if (n == 19 && memcmp(target, "/bin/busybox-extras", 19) == 0)
 				goto done;
 		}
 		if (!reason) reason = audit_file(actx, db, dbf, dirfd, name, &fi);
