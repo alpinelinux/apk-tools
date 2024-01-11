@@ -76,6 +76,9 @@ Each command is documented in detail on its manual page.
 
 The following options are available for all commands.
 
+*-h, --help*
+	Print the list of all commands with descriptions.
+
 *-f, --force*
 	Enable selected --force-\* options (deprecated).
 
@@ -154,6 +157,9 @@ The following options are available for all commands.
 
 *--no-interactive*
 	Disable interactive mode.
+
+*--no-logfile*
+	Disable writing to the log file.
 
 *--no-network*
 	Do not use the network. The cache is still used when possible.
@@ -238,6 +244,13 @@ package indexes only.
 	Search packages from: *system* (all system sources), *repositories*
 	(exclude installed database), *installed* (exclude normal repositories)
 	or *none* (commandline repositories only).
+
+# SIGNING OPTIONS
+
+The following options are available for all commands which sign files.
+
+*--sign-key* _KEYFILE_
+	Sign files with the specified _KEYFILE_.
 
 # NOTES
 
