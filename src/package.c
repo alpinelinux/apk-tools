@@ -102,6 +102,7 @@ void apk_pkg_uninstall(struct apk_database *db, struct apk_package *pkg)
 		return;
 
 	if (db != NULL) {
+		db->sorted_installed_packages = 0;
 		db->installed.stats.packages--;
 		db->installed.stats.bytes -= pkg->installed_size;
 	}
