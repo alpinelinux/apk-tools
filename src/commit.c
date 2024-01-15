@@ -379,17 +379,23 @@ all_done:
 				 errors > 1 ? "s" : "");
 		else
 			strcpy(buf, "OK:");
+
+		off_t installed_bytes = db->installed.stats.bytes;
+
+		if (apk_flags & APK_SIMULATE)
+			installed_bytes += size_diff;
+
 		if (apk_verbosity > 1) {
 			apk_message("%s %d packages, %d dirs, %d files, %zu MiB",
 				    buf,
 				    db->installed.stats.packages,
 				    db->installed.stats.dirs,
 				    db->installed.stats.files,
-				    db->installed.stats.bytes / (1024 * 1024));
+				    installed_bytes / (1024 * 1024));
 		} else {
 			apk_message("%s %zu MiB in %d packages",
 				    buf,
-				    db->installed.stats.bytes / (1024 * 1024),
+				    installed_bytes / (1024 * 1024),
 				    db->installed.stats.packages);
 		}
 	}
