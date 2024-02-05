@@ -78,15 +78,15 @@ static int adbsign_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 {
 	struct apk_out *out = &ac->out;
 	struct sign_ctx *ctx = pctx;
-	adb_comp_t comp;
+	struct adb_compression_spec spec;
 	char **arg;
 	int r;
 
 	ctx->ac = ac;
 	foreach_array_item(arg, args) {
 		memset(&ctx->vfy, 0, sizeof ctx->vfy);
-		struct apk_istream *is = adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, *arg), &comp);
-		ctx->os = adb_compress(apk_ostream_to_file(AT_FDCWD, *arg, 0644), comp);
+		struct apk_istream *is = adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, *arg), &spec);
+		ctx->os = adb_compress(apk_ostream_to_file(AT_FDCWD, *arg, 0644), &spec);
 		apk_ostream_cancel(ctx->os, adb_m_process(&ctx->db, is, 0, 0, process_block));
 		apk_ostream_cancel(ctx->os, process_signatures(ctx));
 		adb_free(&ctx->db);

@@ -38,15 +38,17 @@ struct mkpkg_ctx {
 	struct apk_string_array *triggers;
 	uint64_t installed_size;
 	struct apk_pathbuilder pb;
+	struct adb_compression_spec spec;
 	unsigned has_scripts : 1;
 };
 
 #define MKPKG_OPTIONS(OPT) \
-	OPT(OPT_MKPKG_files,	APK_OPT_ARG APK_OPT_SH("F") "files") \
-	OPT(OPT_MKPKG_info,	APK_OPT_ARG APK_OPT_SH("I") "info") \
-	OPT(OPT_MKPKG_output,	APK_OPT_ARG APK_OPT_SH("o") "output") \
-	OPT(OPT_MKPKG_script,	APK_OPT_ARG APK_OPT_SH("s") "script") \
-	OPT(OPT_MKPKG_trigger,	APK_OPT_ARG APK_OPT_SH("t") "trigger") \
+	OPT(OPT_MKPKG_compression,      APK_OPT_ARG APK_OPT_SH("c") "compression") \
+	OPT(OPT_MKPKG_files,		APK_OPT_ARG APK_OPT_SH("F") "files") \
+	OPT(OPT_MKPKG_info,		APK_OPT_ARG APK_OPT_SH("I") "info") \
+	OPT(OPT_MKPKG_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
+	OPT(OPT_MKPKG_script,		APK_OPT_ARG APK_OPT_SH("s") "script") \
+	OPT(OPT_MKPKG_trigger,		APK_OPT_ARG APK_OPT_SH("t") "trigger") \
 
 APK_OPT_APPLET(option_desc, MKPKG_OPTIONS);
 
@@ -92,6 +94,12 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 	int i, ret;
 
 	switch (optch) {
+	case OPT_MKPKG_compression:
+		if (adb_parse_compression(optarg, &ictx->spec) != 0) {
+			apk_err(out, "invalid compression type: %s", optarg);
+			return -EINVAL;
+		}
+		break;
 	case OPT_MKPKG_info:
 		return parse_info(ictx, out, optarg);
 	case OPT_MKPKG_files:
@@ -404,7 +412,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 	// construct package with ADB as header, and the file data in
 	// concatenated data blocks
-	os = adb_compress(apk_ostream_to_file(AT_FDCWD, ctx->output, 0644), ADB_COMP_DEFLATE);
+	os = adb_compress(apk_ostream_to_file(AT_FDCWD, ctx->output, 0644), &ctx->spec);
 	if (IS_ERR(os)) {
 		r = PTR_ERR(os);
 		goto err;

@@ -229,7 +229,7 @@ static const struct apk_ostream_ops gzip_ostream_ops = {
 	.close = gzo_close,
 };
 
-struct apk_ostream *apk_ostream_zlib(struct apk_ostream *output, int raw)
+struct apk_ostream *apk_ostream_zlib(struct apk_ostream *output, int raw, uint8_t level)
 {
 	struct apk_gzip_ostream *gos;
 
@@ -243,7 +243,7 @@ struct apk_ostream *apk_ostream_zlib(struct apk_ostream *output, int raw)
 		.output = output,
 	};
 
-	if (deflateInit2(&gos->zs, 9, Z_DEFLATED, window_bits(15, raw), 8,
+	if (deflateInit2(&gos->zs, level ?: 9, Z_DEFLATED, window_bits(15, raw), 8,
 			 Z_DEFAULT_STRATEGY) != Z_OK) {
 		free(gos);
 		goto err;

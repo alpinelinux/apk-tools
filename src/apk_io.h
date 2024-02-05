@@ -227,12 +227,12 @@ static inline struct apk_istream *apk_istream_deflate(struct apk_istream *is) {
 	return apk_istream_zlib(is, 1, NULL, NULL);
 }
 
-struct apk_ostream *apk_ostream_zlib(struct apk_ostream *, int);
+struct apk_ostream *apk_ostream_zlib(struct apk_ostream *, int, uint8_t);
 static inline struct apk_ostream *apk_ostream_gzip(struct apk_ostream *os) {
-	return apk_ostream_zlib(os, 0);
+	return apk_ostream_zlib(os, 0, 0);
 }
-static inline struct apk_ostream *apk_ostream_deflate(struct apk_ostream *os) {
-	return apk_ostream_zlib(os, 1);
+static inline struct apk_ostream *apk_ostream_deflate(struct apk_ostream *os, uint8_t level) {
+	return apk_ostream_zlib(os, 1, level);
 }
 
 #endif
