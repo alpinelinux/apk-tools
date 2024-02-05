@@ -271,7 +271,7 @@ static struct apk_db_acl *apk_db_acl_atomize_digest(struct apk_database *db, mod
 	return __apk_db_acl_atomize(db, mode, uid, gid, dig->len, dig->data);
 }
 
-static void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir, mode_t newmode)
+static void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir)
 {
 	struct apk_fsdir d;
 	mode_t dir_mode;
@@ -442,12 +442,7 @@ static void apk_db_diri_free(struct apk_database *db,
 			     struct apk_db_dir_instance *diri,
 			     int rmdir_mode)
 {
-	struct apk_db_dir *dir = diri->dir;
-
-	if (rmdir_mode == APK_DIR_REMOVE)
-		apk_db_dir_prepare(db, diri->dir, 0);
-
-	apk_db_dir_unref(db, dir, rmdir_mode);
+	apk_db_dir_unref(db, diri->dir, rmdir_mode);
 	free(diri);
 }
 
@@ -2780,11 +2775,9 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 			name.len--;
 
 		diri = ctx->diri = find_diri(ipkg, name, NULL, &ctx->file_diri_node);
-		if (!diri) {
-			diri = apk_db_install_directory_entry(ctx, name);
-			apk_db_dir_prepare(db, diri->dir, ae->mode);
-		}
+		if (!diri) diri = apk_db_install_directory_entry(ctx, name);
 		apk_db_diri_set(diri, apk_db_acl_atomize_digest(db, ae->mode, ae->uid, ae->gid, &ae->xattr_digest));
+		apk_db_dir_prepare(db, diri->dir);
 	}
 	ctx->installed_size += ctx->current_file_size;
 
