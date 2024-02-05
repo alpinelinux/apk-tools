@@ -149,7 +149,6 @@ struct apk_database {
 	apk_blob_t *arch;
 	unsigned int local_repos, available_repos;
 	unsigned int pending_triggers;
-	unsigned int extract_flags;
 	unsigned int active_layers;
 	int performing_self_upgrade : 1;
 	int permanent : 1;

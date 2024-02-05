@@ -210,12 +210,18 @@ The following options are available for all commands which commit the database.
 	Read list of overlay files from stdin. Normally this is used only during
 	initramfs when booting run-from-tmpfs installation.
 
-*--no-scripts*
-	Do not execute any scripts. Useful for extracting a system image for
-	different architecture on alternative _ROOT_.
+*--no-chown*
+	Do not change file owner or group. By default apk will manage the file
+	ownership when running as root. However, this option is turned on when
+	running as non-root user, as changing file ownership is not permitted
+	by the system then.
 
 *--no-commit-hooks*
 	Skip pre/post hook scripts (but not other scripts).
+
+*--no-scripts*
+	Do not execute any scripts. Useful for extracting a system image for
+	different architecture on alternative _ROOT_.
 
 *--initramfs-diskless-boot*
 	Used by initramfs when it's recreating root tmpfs. This enables selected

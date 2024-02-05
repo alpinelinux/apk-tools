@@ -86,7 +86,7 @@ static mode_t apk_db_dir_get_mode(struct apk_database *db, mode_t mode)
 {
 	// when using --no-chown, we are presumably running as a regular user,
 	// in which case init directories so that regular user can write in them
-	if (db->extract_flags & APK_FSEXTRACTF_NO_CHOWN)
+	if (db->ctx->extract_flags & APK_FSEXTRACTF_NO_CHOWN)
 		return mode | S_IWUSR | S_IXUSR;
 	return mode;
 }
@@ -2728,7 +2728,7 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 
 		/* Extract the file with temporary name */
 		file->acl = apk_db_acl_atomize_digest(db, ae->mode, ae->uid, ae->gid, &ae->xattr_digest);
-		r = apk_fs_extract(ac, ae, is, extract_cb, ctx, db->extract_flags, apk_pkg_ctx(pkg));
+		r = apk_fs_extract(ac, ae, is, extract_cb, ctx, ac->extract_flags, apk_pkg_ctx(pkg));
 		switch (r) {
 		case 0:
 			// Hardlinks need special care for checksum

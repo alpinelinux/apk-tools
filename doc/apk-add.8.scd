@@ -49,9 +49,3 @@ following options:
 	One can use this to ensure that selected set of packages are installed,
 	and later the temporary modification be undone with *apk-del*(8) _NAME_
 	without removing packages that were installed earlier.
-
-*--no-chown*
-	Do not change file owner or group. By default apk will manage the file
-	ownership when running as root. However, this option is turned on when
-	running as non-root user, as changing file ownership is not permitted
-	by the system then.

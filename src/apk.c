@@ -28,6 +28,7 @@
 #include "apk_blob.h"
 #include "apk_print.h"
 #include "apk_io.h"
+#include "apk_fs.h"
 
 #ifdef TEST_MODE
 static const char *test_installed_db = NULL;
@@ -244,6 +245,7 @@ const struct apk_option_group optgroup_global = {
 #define COMMIT_OPTIONS(OPT) \
 	OPT(OPT_COMMIT_clean_protected,		"clean-protected") \
 	OPT(OPT_COMMIT_initramfs_diskless_boot,	"initramfs-diskless-boot") \
+	OPT(OPT_COMMIT_no_chown,		"no-chown") \
 	OPT(OPT_COMMIT_no_commit_hooks,		"no-commit-hooks") \
 	OPT(OPT_COMMIT_no_scripts,		"no-scripts") \
 	OPT(OPT_COMMIT_overlay_from_stdin,	"overlay-from-stdin") \
@@ -262,6 +264,9 @@ static int option_parse_commit(void *ctx, struct apk_ctx *ac, int opt, const cha
 		break;
 	case OPT_COMMIT_overlay_from_stdin:
 		ac->flags |= APK_OVERLAY_FROM_STDIN;
+		break;
+	case OPT_COMMIT_no_chown:
+		ac->extract_flags |= APK_FSEXTRACTF_NO_CHOWN;
 		break;
 	case OPT_COMMIT_no_scripts:
 		ac->flags |= APK_NO_SCRIPTS;

@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include "apk_context.h"
+#include "apk_fs.h"
 
 void apk_ctx_init(struct apk_ctx *ac)
 {
@@ -22,6 +23,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 	ac->out.err = stderr;
 	ac->out.verbosity = 1;
 	apk_digest_ctx_init(&ac->dctx, APK_DIGEST_SHA256);
+	if (getuid() != 0) ac->extract_flags |= APK_FSEXTRACTF_NO_CHOWN;
 }
 
 void apk_ctx_free(struct apk_ctx *ac)

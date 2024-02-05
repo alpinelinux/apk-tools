@@ -10,24 +10,19 @@
 #include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
-
 #include "apk_applet.h"
 #include "apk_database.h"
 #include "apk_print.h"
 #include "apk_solver.h"
-#include "apk_extract.h"
-#include "apk_fs.h"
 
 struct add_ctx {
 	const char *virtpkg;
 	unsigned short solver_flags;
-	unsigned short extract_flags;
 };
 
 #define ADD_OPTIONS(OPT) \
 	OPT(OPT_ADD_initdb,	"initdb") \
 	OPT(OPT_ADD_latest,	APK_OPT_SH("l") "latest") \
-	OPT(OPT_ADD_no_chown,	"no-chown") \
 	OPT(OPT_ADD_upgrade,	APK_OPT_SH("u") "upgrade") \
 	OPT(OPT_ADD_virtual,	APK_OPT_ARG APK_OPT_SH("t") "virtual")
 
@@ -43,9 +38,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 		break;
 	case OPT_ADD_latest:
 		actx->solver_flags |= APK_SOLVERF_LATEST;
-		break;
-	case OPT_ADD_no_chown:
-		actx->extract_flags |= APK_FSEXTRACTF_NO_CHOWN;
 		break;
 	case OPT_ADD_upgrade:
 		actx->solver_flags |= APK_SOLVERF_UPGRADE;
@@ -131,9 +123,6 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 	int r = 0;
 
 	apk_dependency_array_copy(&world, db->world);
-
-	if (getuid() != 0 || (actx->extract_flags & APK_FSEXTRACTF_NO_CHOWN))
-		db->extract_flags |= APK_FSEXTRACTF_NO_CHOWN;
 
 	if (actx->virtpkg) {
 		apk_blob_t b = APK_BLOB_STR(actx->virtpkg);
