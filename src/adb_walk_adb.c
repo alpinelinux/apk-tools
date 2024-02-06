@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include "apk_adb.h"
 #include "apk_applet.h"
 #include "apk_print.h"
