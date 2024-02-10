@@ -71,5 +71,5 @@ display the appropriate information, then an empty line terminates that field.
 *--rinstall-if*
 	List other packages whose install_if rules refer to this package.
 
-*--triggers*
+*-t, --triggers*
 	Print active triggers for the package.
