@@ -36,7 +36,7 @@ specified).
 *-a, --all*
 	Consider packages from all repository tags.
 
-*-c, --check* _versions_...
+*-c, --check*
 	Check versions for validity. If a given version is invalid, it is
 	printed. Exits with status code zero if all versions are valid, and
 	non-zero otherwise.
@@ -49,7 +49,7 @@ specified).
 	Limit to packages with output matching given _operand_. The _operand_
 	can be specified as any combination of *>*, *=*, and *<*.
 
-*-t, --test* _version1_ _version2_
+*-t, --test*
 	Compare two version strings. Does not consult the database. Prints one
 	of *>*, *=*, or *<*, if _version1_ is, respectively, greater than,
 	equal to, or lesser than _version2_.
