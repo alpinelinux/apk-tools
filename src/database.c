@@ -1714,7 +1714,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	/* figure out where to have the cache */
 	if (!(db->ctx->flags & APK_NO_CACHE)) {
 		if ((r = setup_cache(db, ac)) < 0) {
-			apk_err(out, "Unable to remount cache read/write");
+			apk_err(out, "Unable to setup the cache");
 			goto ret_r;
 		}
 	}
