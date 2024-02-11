@@ -42,7 +42,7 @@ struct mkpkg_ctx {
 };
 
 #define MKPKG_OPTIONS(OPT) \
-	OPT(OPT_MKPKG_files,	APK_OPT_ARG APK_OPT_SH("f") "files") \
+	OPT(OPT_MKPKG_files,	APK_OPT_ARG APK_OPT_SH("F") "files") \
 	OPT(OPT_MKPKG_info,	APK_OPT_ARG APK_OPT_SH("I") "info") \
 	OPT(OPT_MKPKG_output,	APK_OPT_ARG APK_OPT_SH("o") "output") \
 	OPT(OPT_MKPKG_script,	APK_OPT_ARG APK_OPT_SH("s") "script") \
