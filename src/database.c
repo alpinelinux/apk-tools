@@ -2340,7 +2340,7 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 	apk_blob_t brepo, btag;
 	int repo_num, r, tag_id = 0, atfd = AT_FDCWD, update_error = 0;
 	char buf[PATH_MAX], *url;
-	const char *error_action = "opening";
+	const char *error_action = "constructing url";
 
 	brepo = _repository;
 	btag = APK_BLOB_NULL;
@@ -2374,16 +2374,20 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 		.url = url,
 	};
 
-	apk_blob_checksum(brepo, apk_checksum_default(), &repo->csum);
-
 	int is_remote = (apk_url_local_file(repo->url) == NULL);
+
+	r = apk_repo_format_real_url(db->arch, repo, NULL, buf, sizeof(buf), &urlp);
+	if (r != 0) goto err;
+
+	error_action = "opening";
+	apk_blob_checksum(APK_BLOB_STR(buf), apk_checksum_default(), &repo->csum);
+
 	if (is_remote) {
 		if (!(db->ctx->flags & APK_NO_NETWORK))
 			db->available_repos |= BIT(repo_num);
 		if (db->ctx->flags & APK_NO_CACHE) {
 			error_action = "fetching";
-			r = apk_repo_format_real_url(db->arch, repo, NULL, buf, sizeof(buf), &urlp);
-			if (r == 0) apk_msg(out, "fetch " URL_FMT, URL_PRINTF(urlp));
+			apk_msg(out, "fetch " URL_FMT, URL_PRINTF(urlp));
 		} else {
 			error_action = "opening from cache";
 			if (db->autoupdate) {
@@ -2398,17 +2402,16 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 				}
 			}
 			r = apk_repo_format_cache_index(APK_BLOB_BUF(buf), repo);
+			if (r != 0) goto err;
 			atfd = db->cache_fd;
 		}
 	} else {
 		db->local_repos |= BIT(repo_num);
 		db->available_repos |= BIT(repo_num);
-		r = apk_repo_format_real_url(db->arch, repo, NULL, buf, sizeof(buf), &urlp);
 	}
-	if (r == 0) {
-		r = load_index(db, apk_istream_from_fd_url(atfd, buf, apk_db_url_since(db, 0)), repo_num);
-	}
+	r = load_index(db, apk_istream_from_fd_url(atfd, buf, apk_db_url_since(db, 0)), repo_num);
 
+err:
 	if (r || update_error) {
 		if (is_remote) {
 			if (r) db->repositories.unavailable++;
