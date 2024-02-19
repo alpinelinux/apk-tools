@@ -2620,9 +2620,6 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 			bfile = name;
 		}
 
-		if (bfile.len > 6 && memcmp(bfile.ptr, ".keep_", 6) == 0)
-			return 0;
-
 		/* Make sure the file is part of the cached directory tree */
 		diri = ctx->diri = find_diri(ipkg, bdir, diri, &ctx->file_diri_node);
 		if (diri == NULL) {
