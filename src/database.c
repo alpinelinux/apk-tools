@@ -1063,6 +1063,7 @@ static int apk_db_scriptdb_write(struct apk_database *db, struct apk_installed_p
 			.name = filename,
 			.size = ipkg->script[i].len,
 			.mode = 0755 | S_IFREG,
+			.mtime = pkg->build_time,
 		};
 		/* The scripts db expects file names in format:
 		 * pkg-version.<hexdump of package checksum>.action */

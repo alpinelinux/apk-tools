@@ -15,6 +15,7 @@
 
 #include "apk_applet.h"
 #include "apk_database.h"
+#include "apk_defines.h"
 #include "apk_print.h"
 #include "apk_tar.h"
 
@@ -259,6 +260,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	memset(&fi, 0, sizeof(fi));
 	fi.mode = 0644 | S_IFREG;
 	fi.name = "APKINDEX";
+	fi.mtime = apk_get_build_time();
 	counter = apk_ostream_counter(&fi.size);
 	index_write(ictx, db, counter);
 	apk_ostream_close(counter);
@@ -270,6 +272,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		fi_desc.mode = 0644 | S_IFREG;
 		fi_desc.name = "DESCRIPTION";
 		fi_desc.size = strlen(ictx->description);
+		fi_desc.mtime = apk_get_build_time();
 		apk_tar_write_entry(os, &fi_desc, ictx->description);
 	}
 
