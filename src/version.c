@@ -49,7 +49,7 @@ static void next_token(int *type, apk_blob_t *blob)
 			n = TOKEN_SUFFIX;
 			break;
 		case '-':
-			if (blob->len > 1 && blob->ptr[1] == 'r') {
+			if (*type != TOKEN_REVISION_NO && blob->len > 1 && blob->ptr[1] == 'r') {
 				n = TOKEN_REVISION_NO;
 				blob->ptr++;
 				blob->len--;
