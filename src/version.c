@@ -16,6 +16,7 @@
 
 enum PARTS {
 	TOKEN_INVALID = -1,
+	TOKEN_INITIAL,
 	TOKEN_DIGIT_OR_ZERO,
 	TOKEN_DIGIT,
 	TOKEN_LETTER,
@@ -30,7 +31,8 @@ static void next_token(int *type, apk_blob_t *blob)
 	int n = TOKEN_INVALID;
 
 	if (blob->len == 0 || blob->ptr[0] == 0) {
-		n = TOKEN_END;
+		if (*type != TOKEN_INITIAL)
+			n = TOKEN_END;
 	} else if ((*type == TOKEN_DIGIT || *type == TOKEN_DIGIT_OR_ZERO) &&
 	           islower(blob->ptr[0])) {
 		n = TOKEN_LETTER;
@@ -76,6 +78,8 @@ static int64_t get_token(int *type, apk_blob_t *blob)
 	int64_t v = 0;
 
 	if (blob->len <= 0) {
+		if (*type == TOKEN_INITIAL)
+			goto invalid;
 		*type = TOKEN_END;
 		return 0;
 	}
@@ -90,6 +94,7 @@ static int64_t get_token(int *type, apk_blob_t *blob)
 			v = -i;
 			break;
 		}
+	case TOKEN_INITIAL:
 	case TOKEN_DIGIT:
 	case TOKEN_SUFFIX_NO:
 	case TOKEN_REVISION_NO:
@@ -192,7 +197,7 @@ int apk_version_result_mask(const char *op)
 
 int apk_version_validate(apk_blob_t ver)
 {
-	int t = TOKEN_DIGIT;
+	int t = TOKEN_INITIAL;
 
 	while (t != TOKEN_END && t != TOKEN_INVALID)
 		get_token(&t, &ver);
@@ -202,7 +207,7 @@ int apk_version_validate(apk_blob_t ver)
 
 int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 {
-	int at = TOKEN_DIGIT, bt = TOKEN_DIGIT, tt;
+	int at = TOKEN_INITIAL, bt = TOKEN_INITIAL, tt;
 	int64_t av = 0, bv = 0;
 
 	if (APK_BLOB_IS_NULL(a) || APK_BLOB_IS_NULL(b)) {
