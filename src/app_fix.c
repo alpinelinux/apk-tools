@@ -118,6 +118,7 @@ static int fix_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 static struct apk_applet apk_fix = {
 	.name = "fix",
 	.open_flags = APK_OPENF_WRITE,
+	.remove_empty_arguments = 1,
 	.context_size = sizeof(struct fix_ctx),
 	.optgroups = { &optgroup_global, &optgroup_commit, &optgroup_applet },
 	.main = fix_main,
