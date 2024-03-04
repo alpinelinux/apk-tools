@@ -557,7 +557,8 @@ int main(int argc, char **argv)
 		argc--;
 		argv++;
 	}
-	argc = remove_empty_strings(argc, argv);
+	if (applet->remove_empty_arguments)
+		argc = remove_empty_strings(argc, argv);
 
 	apk_db_init(&db);
 	signal(SIGINT, on_sigint);
