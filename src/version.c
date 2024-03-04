@@ -53,8 +53,7 @@ static void next_token(int *type, apk_blob_t *blob)
 				n = TOKEN_REVISION_NO;
 				blob->ptr++;
 				blob->len--;
-			} else
-				n = TOKEN_INVALID;
+			}
 			break;
 		}
 		blob->ptr++;
