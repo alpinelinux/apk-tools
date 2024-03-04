@@ -198,8 +198,9 @@ int apk_version_validate(apk_blob_t ver)
 {
 	int t = TOKEN_INITIAL;
 
-	while (t != TOKEN_END && t != TOKEN_INVALID)
+	do {
 		get_token(&t, &ver);
+	} while (t != TOKEN_END && t != TOKEN_INVALID);
 
 	return t == TOKEN_END;
 }
@@ -215,7 +216,7 @@ int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 		return APK_VERSION_EQUAL | APK_VERSION_GREATER | APK_VERSION_LESS;
 	}
 
-	while (at == bt && at != TOKEN_END && at != TOKEN_INVALID && av == bv) {
+	do {
 		av = get_token(&at, &a);
 		bv = get_token(&bt, &b);
 #if 0
@@ -224,7 +225,7 @@ int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 			"bv=%ld, bt=%d, b.len=%ld\n",
 			av, at, a.len, bv, bt, b.len);
 #endif
-	}
+	} while (at == bt && at != TOKEN_END && at != TOKEN_INVALID && av == bv);
 
 	/* value of this token differs? */
 	if (av < bv)
