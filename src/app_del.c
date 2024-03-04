@@ -180,6 +180,7 @@ static int del_main(void *pctx, struct apk_database *db, struct apk_string_array
 static struct apk_applet apk_del = {
 	.name = "del",
 	.open_flags = APK_OPENF_WRITE | APK_OPENF_NO_AUTOUPDATE,
+	.remove_empty_arguments = 1,
 	.context_size = sizeof(struct del_ctx),
 	.optgroups = { &optgroup_global, &optgroup_commit, &optgroup_applet },
 	.main = del_main,

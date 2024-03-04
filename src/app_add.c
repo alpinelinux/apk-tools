@@ -218,6 +218,7 @@ static int add_main(void *ctx, struct apk_database *db, struct apk_string_array 
 static struct apk_applet apk_add = {
 	.name = "add",
 	.open_flags = APK_OPENF_WRITE,
+	.remove_empty_arguments = 1,
 	.context_size = sizeof(struct add_ctx),
 	.optgroups = { &optgroup_global, &optgroup_commit, &optgroup_applet },
 	.main = add_main,

@@ -166,6 +166,7 @@ static int dot_main(void *pctx, struct apk_database *db, struct apk_string_array
 static struct apk_applet apk_dot = {
 	.name = "dot",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
+	.remove_empty_arguments = 1,
 	.context_size = sizeof(struct dot_ctx),
 	.optgroups = { &optgroup_global, &optgroup_applet },
 	.main = dot_main,
