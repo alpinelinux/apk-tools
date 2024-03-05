@@ -8,37 +8,66 @@
  */
 
 #include <stdio.h>
+#include <unistd.h>
 #include "apk_defines.h"
 #include "apk_applet.h"
 #include "apk_database.h"
 #include "apk_version.h"
 #include "apk_print.h"
 
-static int vertest_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int vertest_one(struct apk_ctx *ac, apk_blob_t arg)
 {
 	struct apk_out *out = &ac->out;
-	apk_blob_t arg, ver, op, space = APK_BLOB_STRLIT(" ");
+	apk_blob_t ver1, ver2, op, space = APK_BLOB_STRLIT(" ");
+	int ok = 0;
+
+	// trim comments and trailing whitespace
+	apk_blob_split(arg, APK_BLOB_STRLIT("#"), &arg, &op);
+	arg = apk_blob_trim(arg);
+	if (arg.len == 0) return 0;
+
+	// arguments are either:
+	//   "version"		-> check validity
+	//   "!version"		-> check invalid
+	//   "ver1 op ver2"	-> check if that the comparison is true
+	if (apk_blob_split(arg, space, &ver1, &op) &&
+	    apk_blob_split(op,  space, &op,   &ver2)) {
+		if (apk_version_compare_blob(ver1, ver2) & apk_version_result_mask_blob(op))
+			ok = 1;
+	} else if (arg.len > 0 && arg.ptr[0] == '!') {
+		ok = !apk_version_validate(APK_BLOB_PTR_LEN(arg.ptr+1, arg.len-1));
+	} else {
+		ok = apk_version_validate(arg);
+	}
+
+	if (!ok) {
+		apk_msg(out, "FAIL: " BLOB_FMT, BLOB_PRINTF(arg));
+		return 1;
+	}
+
+	apk_dbg(out, "OK: " BLOB_FMT, BLOB_PRINTF(arg));
+	return 0;
+}
+
+static int vertest_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
+{
+	struct apk_istream *is;
 	char **parg;
+	apk_blob_t l;
 	int errors = 0;
 
-	foreach_array_item(parg, args) {
-		int ok = 0;
+	if (args->num != 0) {
+		foreach_array_item(parg, args)
+			errors += vertest_one(ac, APK_BLOB_STR(*parg));
+	} else {
+		is = apk_istream_from_fd(STDIN_FILENO);
+		if (IS_ERR(is)) return 1;
 
-		// arguments are either:
-		//   "version"		-> check validty
-		//   "ver1 op ver2"	-> check if that the comparison is true
-		arg = APK_BLOB_STR(*parg);
-		if (apk_blob_split(arg, space, &ver, &arg) &&
-		    apk_blob_split(arg, space, &op,  &arg)) {
-			if (apk_version_compare_blob(ver, arg) & apk_version_result_mask_blob(op))
-				ok = 1;
-		} else {
-			ok = apk_version_validate(arg);
-		}
-		if (!ok) {
-			apk_msg(out, "%s", *parg);
+		while (apk_istream_get_delim(is, APK_BLOB_STR("\n"), &l) == 0)
+			errors += vertest_one(ac, l);
+
+		if (apk_istream_close(is) != 0)
 			errors++;
-		}
 	}
 
 	return errors ? 1 : 0;
