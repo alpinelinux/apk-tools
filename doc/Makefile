@@ -1,6 +1,7 @@
 scdocs-y += \
 	apk-cache.5 \
 	apk-keys.5 \
+	apk-package.5 \
 	apk-repositories.5 \
 	apk-v2.5 \
 	apk-v3.5 \
