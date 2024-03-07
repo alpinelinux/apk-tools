@@ -101,7 +101,7 @@ static int64_t get_token(int *type, apk_blob_t *blob)
 			v *= 10;
 			v += blob->ptr[i++] - '0';
 		}
-		if (i >= 18) goto invalid;
+		if (i == 0 || i >= 18) goto invalid;
 		break;
 	case TOKEN_LETTER:
 		v = blob->ptr[i++];
