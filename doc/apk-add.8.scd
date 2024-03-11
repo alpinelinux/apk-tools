@@ -47,6 +47,7 @@ following options:
 	in such a way that root access is not required. Currently this implies:
 	- checking that we are running as non-root
 	- not changing file owner or group
+	- not setting system xattrs
 
 	This implies that the installation might not be fully functional.
 	However, this is useful mode for testing purposes or to create
