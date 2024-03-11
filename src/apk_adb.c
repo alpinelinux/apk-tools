@@ -157,6 +157,40 @@ const struct adb_object_schema schema_xattr_array = {
 	.fields = ADB_ARRAY_ITEM(schema_xattr),
 };
 
+static adb_val_t name_fromstring(struct adb *db, apk_blob_t val)
+{
+	static const apk_spn_match_def spn_pkgname = {
+		[5]  = 0x68, /* +-. */
+		[6]  = 0xff, /* 0-7 */
+		[7]  = 0x03, /* 8-9 */
+		[8]  = 0xfe, /* A-G */
+		[9]  = 0xff, /* H-O */
+		[10] = 0xff, /* P-W */
+		[11] = 0x87, /* X-Z _ */
+		[12] = 0xfe, /* a-g */
+		[13] = 0xff, /* h-o */
+		[14] = 0xff, /* p-w */
+		[15] = 0x07, /* x-z */
+	};
+	apk_blob_t spn;
+
+	// Check invalid first character
+	if (val.len == 0 || !isascii(val.ptr[0]) || !isalnum(val.ptr[0])) goto fail;
+	// Shall consist of characters
+	apk_blob_spn(val, spn_pkgname, &spn, NULL);
+	if (spn.len != val.len) goto fail;
+	return adb_w_blob(db, val);
+fail:
+	return ADB_ERROR(APKE_PKGNAME_FORMAT);
+}
+
+static struct adb_scalar_schema scalar_name = {
+	.kind = ADB_KIND_BLOB,
+	.tostring = string_tostring,
+	.fromstring = name_fromstring,
+	.compare = string_compare,
+};
+
 static adb_val_t version_fromstring(struct adb *db, apk_blob_t val)
 {
 	if (!apk_version_validate(val)) return ADB_ERROR(APKE_PKGVERSION_FORMAT);
@@ -178,7 +212,6 @@ static struct adb_scalar_schema scalar_version = {
 	.fromstring = version_fromstring,
 	.compare = version_compare,
 };
-
 
 static apk_blob_t hexblob_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
@@ -424,7 +457,7 @@ const struct adb_object_schema schema_pkginfo = {
 	.num_fields = ADBI_PI_MAX,
 	.num_compare = ADBI_PI_UNIQUE_ID,
 	.fields = {
-		ADB_FIELD(ADBI_PI_NAME,		"name",		scalar_string),
+		ADB_FIELD(ADBI_PI_NAME,		"name",		scalar_name),
 		ADB_FIELD(ADBI_PI_VERSION,	"version",	scalar_version),
 		ADB_FIELD(ADBI_PI_UNIQUE_ID,	"unique-id",	scalar_hexblob),
 		ADB_FIELD(ADBI_PI_DESCRIPTION,	"description",	scalar_string),
