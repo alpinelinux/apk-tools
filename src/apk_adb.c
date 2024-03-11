@@ -353,7 +353,7 @@ static apk_blob_t dependency_tostring(struct adb_obj *obj, char *buf, size_t buf
 static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)
 {
 	static const apk_spn_match_def spn_depname = {
-		[5]  = 0x68, /* +-. */
+		[5]  = 0xe8, /* +-./ */
 		[6]  = 0xff, /* 0-7 */
 		[7]  = 0x07, /* 8-9 : */
 		[8]  = 0xfe, /* A-G */
