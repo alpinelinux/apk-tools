@@ -223,7 +223,7 @@ int apk_db_permanent(struct apk_database *db);
 int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *world);
 int apk_db_fire_triggers(struct apk_database *db);
 int apk_db_run_script(struct apk_database *db, char *fn, char **argv);
-void apk_db_update_directory_permissions(struct apk_database *db);
+int apk_db_update_directory_permissions(struct apk_database *db);
 static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
 	return apk_ctx_since(db->ctx, since);
 }

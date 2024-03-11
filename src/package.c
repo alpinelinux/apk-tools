@@ -791,9 +791,9 @@ static inline int make_device_tree(struct apk_database *db)
 }
 #endif
 
-void apk_ipkg_run_script(struct apk_installed_package *ipkg,
-			 struct apk_database *db,
-			 unsigned int type, char **argv)
+int apk_ipkg_run_script(struct apk_installed_package *ipkg,
+			struct apk_database *db,
+			unsigned int type, char **argv)
 {
 	// script_exec_dir is the directory to which the script is extracted,
 	// executed from, and removed. It needs to not be 'noexec' mounted, and
@@ -806,10 +806,10 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	struct apk_out *out = &db->ctx->out;
 	struct apk_package *pkg = ipkg->pkg;
 	char fn[PATH_MAX];
-	int fd, root_fd = db->root_fd;
+	int fd, root_fd = db->root_fd, ret = 0;
 
 	if (type >= APK_SCRIPT_MAX || ipkg->script[type].ptr == NULL)
-		return;
+		return 0;
 
 	argv[0] = (char *) apk_script_types[type];
 
@@ -818,7 +818,7 @@ void apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		apk_script_types[type]);
 
 	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
-		return;
+		return 0;
 
 	if (!db->script_dirs_checked) {
 		if (apk_make_dirs(root_fd, "tmp", 01777, 0) <0 ||
@@ -855,8 +855,10 @@ err_log:
 	apk_err(out, "%s: failed to execute: %s", &fn[strlen(script_exec_dir)+1], apk_error_str(errno));
 err:
 	ipkg->broken_script = 1;
+	ret = 1;
 cleanup:
 	unlinkat(root_fd, fn, 0);
+	return ret;
 }
 
 static int parse_index_line(void *ctx, apk_blob_t line)

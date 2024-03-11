@@ -206,13 +206,14 @@ static int cmp_upgrade(struct apk_change *change)
 	return 0;
 }
 
-static void run_triggers(struct apk_database *db, struct apk_changeset *changeset)
+static int run_triggers(struct apk_database *db, struct apk_changeset *changeset)
 {
 	struct apk_change *change;
 	struct apk_installed_package *ipkg;
+	int errors = 1;
 
 	if (apk_db_fire_triggers(db) == 0)
-		return;
+		return 0;
 
 	foreach_array_item(change, changeset->changes) {
 		struct apk_package *pkg = change->new_pkg;
@@ -223,10 +224,11 @@ static void run_triggers(struct apk_database *db, struct apk_changeset *changese
 			continue;
 
 		*apk_string_array_add(&ipkg->pending_triggers) = NULL;
-		apk_ipkg_run_script(ipkg, db, APK_SCRIPT_TRIGGER,
-				    ipkg->pending_triggers->item);
+		errors += apk_ipkg_run_script(ipkg, db, APK_SCRIPT_TRIGGER,
+					      ipkg->pending_triggers->item) != 0;
 		apk_string_array_free(&ipkg->pending_triggers);
 	}
+	return errors;
 }
 
 #define PRE_COMMIT_HOOK		0
@@ -384,8 +386,8 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	apk_print_progress(&prog.prog, prog.total.bytes + prog.total.packages,
 			   prog.total.bytes + prog.total.packages);
 
-	apk_db_update_directory_permissions(db);
-	run_triggers(db, changeset);
+	errors += apk_db_update_directory_permissions(db) != 0;
+	errors += run_triggers(db, changeset);
 
 all_done:
 	apk_dependency_array_copy(&db->world, world);

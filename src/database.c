@@ -2077,7 +2077,7 @@ static int update_permissions(apk_hash_item item, void *pctx)
 	return 0;
 }
 
-void apk_db_update_directory_permissions(struct apk_database *db)
+int apk_db_update_directory_permissions(struct apk_database *db)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_installed_package *ipkg;
@@ -2103,6 +2103,7 @@ void apk_db_update_directory_permissions(struct apk_database *db)
 	}
 	apk_hash_foreach(&db->installed.dirs, update_permissions, &ctx);
 	if (ctx.errors) apk_err(out, "%d errors updating directory permissions", ctx.errors);
+	return ctx.errors;
 }
 
 int apk_db_cache_active(struct apk_database *db)
