@@ -98,6 +98,11 @@ static apk_blob_t get_dirname(const char *fullname)
 	return APK_BLOB_PTR_PTR((char*)fullname, slash);
 }
 
+static int is_system_xattr(const char *name)
+{
+	return strncmp(name, "user.", 5) != 0;
+}
+
 static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct apk_istream *is,
 	apk_progress_cb cb, void *cb_ctx, unsigned int extract_flags, apk_blob_t pkgctx)
 {
@@ -192,6 +197,8 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 		fd = openat(atfd, fn, O_RDWR);
 		if (fd >= 0) {
 			foreach_array_item(xattr, fi->xattrs) {
+				if ((extract_flags & APK_FSEXTRACTF_NO_SYS_XATTRS) && is_system_xattr(xattr->name))
+					continue;
 				if (apk_fsetxattr(fd, xattr->name, xattr->value.ptr, xattr->value.len) < 0) {
 					r = -errno;
 					if (r != -ENOTSUP) break;

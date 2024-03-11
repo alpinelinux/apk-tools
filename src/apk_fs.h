@@ -47,6 +47,7 @@ struct apk_fsdir_ops {
 
 #define APK_FSEXTRACTF_NO_CHOWN		0x0001
 #define APK_FSEXTRACTF_NO_OVERWRITE	0x0002
+#define APK_FSEXTRACTF_NO_SYS_XATTRS	0x0004
 
 int apk_fs_extract(struct apk_ctx *, const struct apk_file_info *, struct apk_istream *, apk_progress_cb, void *, unsigned int, apk_blob_t);
 
