@@ -42,8 +42,7 @@ Unfortunately it is not possible to deduce if a given string is of format
 *name* (*pkgname*, *P*)
 	Package name. This is the primary package name. The name shall
 	consist only of the following characters [a-zA-Z0-9.\_-+].
-	The package name must start with a non-special character
-	[a-zA-Z0-9].
+	The name must start with an alphanumeric character [a-zA-Z0-9].
 
 *version* (*pkgver*, *V*)
 	Package version. The Alpine version specification originally
