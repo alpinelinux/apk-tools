@@ -50,6 +50,7 @@
 #define APK_OPENF_CACHE_WRITE		0x0400
 #define APK_OPENF_NO_AUTOUPDATE		0x0800
 #define APK_OPENF_NO_CMDLINE_REPOS	0x1000
+#define APK_OPENF_USERMODE		0x2000
 
 #define APK_OPENF_NO_REPOS	(APK_OPENF_NO_SYS_REPOS |	\
 				 APK_OPENF_NO_CMDLINE_REPOS |	\
@@ -61,7 +62,7 @@
 struct apk_database;
 
 struct apk_ctx {
-	unsigned int flags, force, extract_flags, lock_wait;
+	unsigned int flags, force, lock_wait;
 	struct apk_out out;
 	struct apk_progress progress;
 	unsigned int cache_max_age;

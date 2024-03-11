@@ -33,11 +33,24 @@ following options:
 	the default heuristic and will cause an error to displayed if all
 	dependencies cannot be satisfied.
 
+*--no-chown*
+	Deperecated alias for --usermode.
+
 *-u, --upgrade*
 	Upgrade _packages_ and their dependencies. Normally *apk add* will
 	avoid changing installed package unless it is required by the newly
 	added _packages_ or their dependencies. This changes the default
 	preference to upgrading the package to the latest installable version.
+
+*--usermode*
+	Create usermode database with --initdb. In usermode, apk will operate
+	in such a way that root access is not required. Currently this implies:
+	- checking that we are running as non-root
+	- not changing file owner or group
+
+	This implies that the installation might not be fully functional.
+	However, this is useful mode for testing purposes or to create
+	chroot where some specific applications can run as non-root.
 
 *-t, --virtual* _NAME_
 	Create virtual package _NAME_ with given dependencies. This new package

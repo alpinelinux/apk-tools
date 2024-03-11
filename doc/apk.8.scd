@@ -216,12 +216,6 @@ The following options are available for all commands which commit the database.
 	Read list of overlay files from stdin. Normally this is used only during
 	initramfs when booting run-from-tmpfs installation.
 
-*--no-chown*
-	Do not change file owner or group. By default apk will manage the file
-	ownership when running as root. However, this option is turned on when
-	running as non-root user, as changing file ownership is not permitted
-	by the system then.
-
 *--no-commit-hooks*
 	Skip pre/post hook scripts (but not other scripts).
 

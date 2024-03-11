@@ -23,7 +23,6 @@ void apk_ctx_init(struct apk_ctx *ac)
 	ac->out.err = stderr;
 	ac->out.verbosity = 1;
 	apk_digest_ctx_init(&ac->dctx, APK_DIGEST_SHA256);
-	if (getuid() != 0) ac->extract_flags |= APK_FSEXTRACTF_NO_CHOWN;
 }
 
 void apk_ctx_free(struct apk_ctx *ac)
@@ -59,7 +58,6 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		ac->uvol = ERR_PTR(-APKE_UVOL_ROOT);
 	}
 
-
 	ac->root_fd = openat(AT_FDCWD, ac->root, O_RDONLY | O_CLOEXEC);
 	if (ac->root_fd < 0 && (ac->open_flags & APK_OPENF_CREATE)) {
 		mkdirat(AT_FDCWD, ac->root, 0755);
@@ -70,6 +68,21 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		return -errno;
 	}
 	ac->dest_fd = ac->root_fd;
+
+	if (ac->open_flags & APK_OPENF_CREATE) {
+		uid_t uid = getuid();
+		if (ac->open_flags & APK_OPENF_USERMODE) {
+			if (uid == 0) {
+				apk_err(&ac->out, "--usermode not allowed as root");
+				return -EINVAL;
+			}
+		} else {
+			if (uid != 0) {
+				apk_err(&ac->out, "Use --usermode to allow creating database as non-root");
+				return -EINVAL;
+			}
+		}
+	}
 
 	if ((ac->open_flags & APK_OPENF_WRITE) && !(ac->flags & APK_NO_LOGFILE)) {
 		const char *log_path = "var/log/apk.log";

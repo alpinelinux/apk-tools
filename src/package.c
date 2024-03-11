@@ -822,11 +822,14 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 
 	if (!db->script_dirs_checked) {
 		if (apk_make_dirs(root_fd, "tmp", 01777, 0) <0 ||
-		    apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0||
-		    make_device_tree(db) < 0) {
+		    apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0) {
 			apk_err(out, "failed to prepare dirs for hook scripts: %s",
 				apk_error_str(errno));
 			goto err;
+		}
+		if (make_device_tree(db) < 0) {
+			apk_warn(out, "failed to create initial device nodes for scripts: %s",
+				apk_error_str(errno));
 		}
 		db->script_dirs_checked = 1;
 	}

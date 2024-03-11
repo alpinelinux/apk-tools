@@ -84,10 +84,8 @@ struct install_ctx {
 
 static mode_t apk_db_dir_get_mode(struct apk_database *db, mode_t mode)
 {
-	// when using --no-chown, we are presumably running as a regular user,
-	// in which case init directories so that regular user can write in them
-	if (db->ctx->extract_flags & APK_FSEXTRACTF_NO_CHOWN)
-		return mode | S_IWUSR | S_IXUSR;
+	// in usermode, return mode that makes the file readable for user
+	if (db->usermode) return mode | S_IWUSR | S_IXUSR;
 	return mode;
 }
 
@@ -1630,7 +1628,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	struct apk_out *out = &ac->out;
 	const char *msg = NULL;
 	apk_blob_t blob;
-	int r, i;
+	int r = -1, i;
 
 	apk_default_acl_dir = apk_db_acl_atomize(db, 0755, 0, 0);
 	apk_default_acl_file = apk_db_acl_atomize(db, 0644, 0, 0);
@@ -1638,7 +1636,6 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	db->ctx = ac;
 	if (ac->open_flags == 0) {
 		msg = "Invalid open flags (internal error)";
-		r = -1;
 		goto ret_r;
 	}
 	if ((ac->open_flags & APK_OPENF_WRITE) &&
@@ -1650,6 +1647,16 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	db->root_fd = apk_ctx_fd_root(ac);
 	db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
 	db->permanent = !detect_tmpfs_root(db);
+	db->usermode = !!(ac->open_flags & APK_OPENF_USERMODE);
+
+	if (!(ac->open_flags & APK_OPENF_CREATE)) {
+		// Autodetect usermode from the installeddb owner
+		struct stat st;
+		if (fstatat(db->root_fd, apk_db_layer_name(APK_DB_LAYER_ROOT), &st, 0) == 0 &&
+		    st.st_uid != 0)
+			db->usermode = 1;
+	}
+	if (db->usermode) db->extract_flags |= APK_FSEXTRACTF_NO_CHOWN;
 
 	if (ac->root && ac->arch) {
 		db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(ac->arch));
@@ -2725,7 +2732,7 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 
 		/* Extract the file with temporary name */
 		file->acl = apk_db_acl_atomize_digest(db, ae->mode, ae->uid, ae->gid, &ae->xattr_digest);
-		r = apk_fs_extract(ac, ae, is, extract_cb, ctx, ac->extract_flags, apk_pkg_ctx(pkg));
+		r = apk_fs_extract(ac, ae, is, extract_cb, ctx, db->extract_flags, apk_pkg_ctx(pkg));
 		switch (r) {
 		case 0:
 			// Hardlinks need special care for checksum

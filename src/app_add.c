@@ -23,7 +23,9 @@ struct add_ctx {
 #define ADD_OPTIONS(OPT) \
 	OPT(OPT_ADD_initdb,	"initdb") \
 	OPT(OPT_ADD_latest,	APK_OPT_SH("l") "latest") \
+	OPT(OPT_ADD_no_chown,   "no-chown") \
 	OPT(OPT_ADD_upgrade,	APK_OPT_SH("u") "upgrade") \
+	OPT(OPT_ADD_usermode,	"usermode") \
 	OPT(OPT_ADD_virtual,	APK_OPT_ARG APK_OPT_SH("t") "virtual")
 
 APK_OPT_APPLET(option_desc, ADD_OPTIONS);
@@ -38,6 +40,10 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 		break;
 	case OPT_ADD_latest:
 		actx->solver_flags |= APK_SOLVERF_LATEST;
+		break;
+	case OPT_ADD_usermode:
+	case OPT_ADD_no_chown:
+		ac->open_flags |= APK_OPENF_USERMODE;
 		break;
 	case OPT_ADD_upgrade:
 		actx->solver_flags |= APK_SOLVERF_UPGRADE;
