@@ -11,17 +11,12 @@ int apk_dep_split(apk_blob_t *b, apk_blob_t *bdep)
 {
 	extern const apk_spn_match_def apk_spn_dependency_separator;
 
-	if (APK_BLOB_IS_NULL(*b)) return 0;
-	if (apk_blob_cspn(*b, apk_spn_dependency_separator, bdep, b)) {
-		/* found separator - update b to skip over after all separators */
-		if (!apk_blob_spn(*b, apk_spn_dependency_separator, NULL, b))
-			*b = APK_BLOB_NULL;
-	} else {
-		/* no separator - return this as the last dependency, signal quit */
-		*bdep = *b;
-		*b = APK_BLOB_NULL;
-	}
-	return 1;
+	if (b->len == 0) return 0;
+	// skip all separator characters
+	apk_blob_spn(*b, apk_spn_dependency_separator, NULL, b);
+	// split the dependency string
+	apk_blob_cspn(*b, apk_spn_dependency_separator, bdep, b);
+	return bdep->len != 0;
 }
 
 adb_val_t adb_wo_pkginfo(struct adb_obj *obj, unsigned int f, apk_blob_t val)

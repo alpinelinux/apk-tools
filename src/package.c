@@ -200,16 +200,12 @@ void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_depend
 		goto fail;
 
 	/* grap one token */
-	if (!apk_blob_cspn(*b, apk_spn_dependency_separator, &bdep, NULL))
-		bdep = *b;
+	apk_blob_cspn(*b, apk_spn_dependency_separator, &bdep, NULL);
 	b->ptr += bdep.len;
 	b->len -= bdep.len;
 
 	/* skip also all separator chars */
-	if (!apk_blob_spn(*b, apk_spn_dependency_separator, NULL, b)) {
-		b->ptr += b->len;
-		b->len = 0;
-	}
+	apk_blob_spn(*b, apk_spn_dependency_separator, NULL, b);
 
 	/* parse the version */
 	if (bdep.ptr[0] == '!') {

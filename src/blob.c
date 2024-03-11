@@ -40,84 +40,6 @@ apk_blob_t apk_blob_dup(apk_blob_t blob)
 	return APK_BLOB_PTR_LEN(ptr, blob.len);
 }
 
-
-#if defined(__i386__)
-static unsigned long inline memspn(
-		const unsigned char *ptr,
-		unsigned long len,
-		const unsigned char *array)
-{
-	unsigned long p = len;
-
-	__asm__("cld ; xorl %%eax, %%eax\n"
-		"1:\n"
-		"lodsb\n"
-		"btl %%eax, %2\n"
-		"jnc 2f\n"
-		"decl %1\n"
-		"jnz 1b\n"
-		"2:\n"
-		: "+&S" (ptr), "+&r" (p)
-		: "m" (*array)
-		: "cc", "%eax");
-
-	return p;
-}
-
-static unsigned long inline memcspn(
-		const unsigned char *ptr,
-		unsigned long len,
-		const unsigned char *array)
-{
-	unsigned long p = len;
-
-	__asm__("cld ; xorl %%eax, %%eax\n"
-		"1:\n"
-		"lodsb\n"
-		"btl %%eax, %2\n"
-		"jc 2f\n"
-		"decl %1\n"
-		"jnz 1b\n"
-		"2:\n"
-		: "+&S" (ptr), "+&r" (p)
-		: "m" (*array)
-		: "cc", "%eax");
-
-	return p;
-}
-
-int apk_blob_spn(apk_blob_t blob, const apk_spn_match accept, apk_blob_t *l, apk_blob_t *r)
-{
-	unsigned int i;
-
-	if (blob.len == 0)
-		return 0;
-	i = blob.len - memspn((unsigned char*) blob.ptr, blob.len, accept);
-	if (i == blob.len)
-		return 0;
-	if (l != NULL)
-		*l = APK_BLOB_PTR_LEN(blob.ptr, i);
-	if (r != NULL)
-		*r = APK_BLOB_PTR_LEN(blob.ptr+i, blob.len-i);
-	return 1;
-}
-
-int apk_blob_cspn(apk_blob_t blob, const apk_spn_match reject, apk_blob_t *l, apk_blob_t *r)
-{
-	unsigned int i;
-
-	if (blob.len == 0)
-		return 0;
-	i = blob.len - memcspn((unsigned char*) blob.ptr, blob.len, reject);
-	if (i == blob.len)
-		return 0;
-	if (l != NULL)
-		*l = APK_BLOB_PTR_LEN(blob.ptr, i);
-	if (r != NULL)
-		*r = APK_BLOB_PTR_LEN(blob.ptr+i, blob.len-i);
-	return 1;
-}
-#else
 static int inline test_bit(const unsigned char *array, unsigned char bit)
 {
 	return array[bit >> 3] & (1 << (bit & 7));
@@ -125,36 +47,33 @@ static int inline test_bit(const unsigned char *array, unsigned char bit)
 
 int apk_blob_spn(apk_blob_t blob, const apk_spn_match accept, apk_blob_t *l, apk_blob_t *r)
 {
-	int i;
+	int i, ret = 0;
 
 	for (i = 0; i < blob.len; i++) {
 		if (!test_bit(accept, blob.ptr[i])) {
-			if (l != NULL)
-				*l = APK_BLOB_PTR_LEN(blob.ptr, i);
-			if (r != NULL)
-				*r = APK_BLOB_PTR_LEN(blob.ptr+i, blob.len-i);
-			return 1;
+			ret = 1;
+			break;
 		}
 	}
-	return 0;
+	if (l != NULL) *l = APK_BLOB_PTR_LEN(blob.ptr, i);
+	if (r != NULL) *r = APK_BLOB_PTR_LEN(blob.ptr+i, blob.len-i);
+	return ret;
 }
 
 int apk_blob_cspn(apk_blob_t blob, const apk_spn_match reject, apk_blob_t *l, apk_blob_t *r)
 {
-	int i;
+	int i, ret = 0;
 
 	for (i = 0; i < blob.len; i++) {
 		if (test_bit(reject, blob.ptr[i])) {
-			if (l != NULL)
-				*l = APK_BLOB_PTR_LEN(blob.ptr, i);
-			if (r != NULL)
-				*r = APK_BLOB_PTR_LEN(blob.ptr+i, blob.len-i);
-			return 1;
+			ret = 1;
+			break;
 		}
 	}
-	return 0;
+	if (l != NULL) *l = APK_BLOB_PTR_LEN(blob.ptr, i);
+	if (r != NULL) *r = APK_BLOB_PTR_LEN(blob.ptr+i, blob.len-i);
+	return ret;
 }
-#endif
 
 int apk_blob_rsplit(apk_blob_t blob, char split, apk_blob_t *l, apk_blob_t *r)
 {
