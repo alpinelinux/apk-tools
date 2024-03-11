@@ -429,6 +429,11 @@ static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	char **parg, *arg;
 	int r = 0;
 
+	if (db->usermode) {
+		apk_err(out, "audit does not support usermode!");
+		return -ENOSYS;
+	}
+
 	actx->verbosity = apk_out_verbosity(&db->ctx->out);
 	atctx.db = db;
 	atctx.actx = actx;
@@ -441,7 +446,7 @@ static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		foreach_array_item(parg, args) {
 			arg = *parg;
 			if (arg[0] != '/') {
-				apk_warn(out, "%s: relative path skipped.\n", arg);
+				apk_warn(out, "%s: relative path skipped.", arg);
 				continue;
 			}
 			arg++;
