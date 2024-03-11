@@ -39,7 +39,7 @@ const apk_spn_match_def apk_spn_dependency_separator = {
 	[4] = (1<<0) /* */,
 };
 
-const apk_spn_match_def apk_spn_repotag_separator = {
+static const apk_spn_match_def apk_spn_repotag_separator = {
 	[8] = (1<<0) /*@*/
 };
 

@@ -352,9 +352,21 @@ static apk_blob_t dependency_tostring(struct adb_obj *obj, char *buf, size_t buf
 
 static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)
 {
+	static const apk_spn_match_def spn_depname = {
+		[5]  = 0x68, /* +-. */
+		[6]  = 0xff, /* 0-7 */
+		[7]  = 0x07, /* 8-9 : */
+		[8]  = 0xfe, /* A-G */
+		[9]  = 0xff, /* H-O */
+		[10] = 0xff, /* P-W */
+		[11] = 0x87, /* X-Z _ */
+		[12] = 0xfe, /* a-g */
+		[13] = 0xff, /* h-o */
+		[14] = 0xff, /* p-w */
+		[15] = 0x07, /* x-z */
+	};
 	extern const apk_spn_match_def apk_spn_dependency_comparer;
-	extern const apk_spn_match_def apk_spn_repotag_separator;
-	apk_blob_t bname, bop, bver = APK_BLOB_NULL, btag;
+	apk_blob_t bname, bop, bver = APK_BLOB_NULL, spn;
 	int mask = APK_DEPMASK_ANY;
 
 	/* [!]name[<,<=,<~,=,~,>~,>=,>,><]ver */
@@ -400,8 +412,8 @@ static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)
 		bver = APK_BLOB_NULL;
 	}
 
-	if (apk_blob_cspn(bname, apk_spn_repotag_separator, &bname, &btag))
-		; /* tag = repository tag */
+	apk_blob_spn(bname, spn_depname, &spn, NULL);
+	if (bname.len != spn.len) goto fail;
 
 	adb_wo_blob(obj, ADBI_DEP_NAME, bname);
 	if (mask != APK_DEPMASK_ANY) {
