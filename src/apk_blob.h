@@ -121,7 +121,7 @@ void apk_blob_push_fmt(apk_blob_t *to, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
 void apk_blob_pull_char(apk_blob_t *b, int expected);
-unsigned int apk_blob_pull_uint(apk_blob_t *b, int radix);
+uint64_t apk_blob_pull_uint(apk_blob_t *b, int radix);
 void apk_blob_pull_csum(apk_blob_t *b, struct apk_checksum *csum);
 void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to);
 void apk_blob_pull_hexdump(apk_blob_t *b, apk_blob_t to);

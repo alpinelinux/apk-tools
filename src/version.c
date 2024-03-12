@@ -12,135 +12,176 @@
 #include "apk_defines.h"
 #include "apk_version.h"
 
-/* Gentoo version: {digit}{.digit}...{letter}{_suf{#}}...{-r#} */
+#define DEBUG 0
+
+/* Alpine version: digit{.digit}...{letter}{_suf{#}}...{-r#} */
+
+static const apk_spn_match_def spn_digits = {
+	[6]  = 0xff, /* 0-7 */
+	[7]  = 0x03, /* 8-9 */
+};
+
+static const apk_spn_match_def spn_suffix = {
+	[12] = 0xfe, /* a-g */
+	[13] = 0xff, /* h-o */
+	[14] = 0xff, /* p-w */
+	[15] = 0x07, /* x-z */
+};
 
 enum PARTS {
-	TOKEN_INVALID = -1,
-	TOKEN_INITIAL,
-	TOKEN_DIGIT_OR_ZERO,
+	TOKEN_INITIAL_DIGIT,
 	TOKEN_DIGIT,
 	TOKEN_LETTER,
 	TOKEN_SUFFIX,
 	TOKEN_SUFFIX_NO,
 	TOKEN_REVISION_NO,
 	TOKEN_END,
+	TOKEN_INVALID,
 };
 
-static void next_token(int *type, apk_blob_t *blob)
+enum SUFFIX {
+	SUFFIX_INVALID = 0,
+	SUFFIX_ALPHA,
+	SUFFIX_BETA,
+	SUFFIX_PRE,
+	SUFFIX_RC,
+
+	SUFFIX_NONE,
+	SUFFIX_CVS,
+	SUFFIX_SVN,
+	SUFFIX_GIT,
+	SUFFIX_HG,
+	SUFFIX_P
+};
+
+struct token_state {
+	unsigned int token;
+	unsigned int suffix;
+	apk_blob_t value;
+};
+
+static int suffix_value(apk_blob_t suf)
 {
-	int n = TOKEN_INVALID;
+	static const char *suffixes[] = {
+		"", "alpha", "beta", "pre", "rc",
+		"", "cvs", "svn", "git", "hg", "p",
+	};
+	int val;
 
-	if (blob->len == 0 || blob->ptr[0] == 0) {
-		if (*type != TOKEN_INITIAL)
-			n = TOKEN_END;
-	} else if ((*type == TOKEN_DIGIT || *type == TOKEN_DIGIT_OR_ZERO) &&
-	           islower(blob->ptr[0])) {
-		n = TOKEN_LETTER;
-	} else if (*type == TOKEN_LETTER && isdigit(blob->ptr[0])) {
-		n = TOKEN_DIGIT;
-	} else if (*type == TOKEN_SUFFIX && isdigit(blob->ptr[0])) {
-		n = TOKEN_SUFFIX_NO;
-	} else {
-		switch (blob->ptr[0]) {
-		case '.':
-			n = TOKEN_DIGIT_OR_ZERO;
-			break;
-		case '_':
-			n = TOKEN_SUFFIX;
-			break;
-		case '-':
-			if (*type != TOKEN_REVISION_NO && blob->len > 1 && blob->ptr[1] == 'r') {
-				n = TOKEN_REVISION_NO;
-				blob->ptr++;
-				blob->len--;
-			}
-			break;
-		}
-		blob->ptr++;
-		blob->len--;
+	if (suf.len == 0) return SUFFIX_NONE;
+	switch (suf.ptr[0]) {
+	case 'a': val = SUFFIX_ALPHA; break;
+	case 'b': val = SUFFIX_BETA; break;
+	case 'c': val = SUFFIX_CVS; break;
+	case 'g': val = SUFFIX_GIT; break;
+	case 'h': val = SUFFIX_HG; break;
+	case 'p': val = suf.len > 1 ? SUFFIX_PRE : SUFFIX_P; break;
+	case 'r': val = SUFFIX_RC; break;
+	case 's': val = SUFFIX_SVN; break;
+	default: return SUFFIX_INVALID;
 	}
-
-	if (n < *type) {
-		if (! ((n == TOKEN_DIGIT_OR_ZERO && *type == TOKEN_DIGIT) ||
-		       (n == TOKEN_SUFFIX && *type == TOKEN_SUFFIX_NO) ||
-		       (n == TOKEN_DIGIT && *type == TOKEN_LETTER)))
-			n = TOKEN_INVALID;
-	}
-	*type = n;
+	if (apk_blob_compare(suf, APK_BLOB_STR(suffixes[val])) != 0)
+		return SUFFIX_INVALID;
+	return val;
 }
 
-static int64_t get_token(int *type, apk_blob_t *blob)
+static int token_cmp(struct token_state *ta, struct token_state *tb)
 {
-	static const char *pre_suffixes[] = { "alpha", "beta", "pre", "rc" };
-	static const char *post_suffixes[] = { "cvs", "svn", "git", "hg", "p" };
-	int i = 0, nt = TOKEN_INVALID;
-	int64_t v = 0;
+	uint64_t a, b;
 
-	if (blob->len <= 0) {
-		if (*type == TOKEN_INITIAL)
-			goto invalid;
-		*type = TOKEN_END;
-		return 0;
-	}
-
-	switch (*type) {
-	case TOKEN_DIGIT_OR_ZERO:
-		/* Leading zero digits get a special treatment */
-		if (blob->ptr[i] == '0') {
-			while (i+1 < blob->len && blob->ptr[i+1] == '0')
-				i++;
-			nt = TOKEN_DIGIT;
-			v = -i;
-			break;
-		}
-	case TOKEN_INITIAL:
+	switch (ta->token) {
 	case TOKEN_DIGIT:
+		if (ta->value.ptr[0] == '0' || tb->value.ptr[0] == '0') {
+			// if either of the digits have a leading zero, use
+			// raw string comparison similar to Gentoo spec
+			goto use_string_sort;
+		}
+		// fall throught to numeric comparison
+	case TOKEN_INITIAL_DIGIT:
 	case TOKEN_SUFFIX_NO:
 	case TOKEN_REVISION_NO:
-		while (i < blob->len && isdigit(blob->ptr[i])) {
-			v *= 10;
-			v += blob->ptr[i++] - '0';
-		}
-		if (i == 0 || i >= 18) goto invalid;
+		a = apk_blob_pull_uint(&ta->value, 10);
+		b = apk_blob_pull_uint(&tb->value, 10);
 		break;
 	case TOKEN_LETTER:
-		v = blob->ptr[i++];
+		a = ta->value.ptr[0];
+		b = tb->value.ptr[0];
 		break;
 	case TOKEN_SUFFIX:
-		for (v = 0; v < ARRAY_SIZE(pre_suffixes); v++) {
-			i = strlen(pre_suffixes[v]);
-			if (i <= blob->len &&
-			    strncmp(pre_suffixes[v], blob->ptr, i) == 0)
-				break;
-		}
-		if (v < ARRAY_SIZE(pre_suffixes)) {
-			v = v - ARRAY_SIZE(pre_suffixes);
-			break;
-		}
-		for (v = 0; v < ARRAY_SIZE(post_suffixes); v++) {
-			i = strlen(post_suffixes[v]);
-			if (i <= blob->len &&
-			    strncmp(post_suffixes[v], blob->ptr, i) == 0)
-				break;
-		}
-		if (v < ARRAY_SIZE(post_suffixes))
-			break;
-		/* fallthrough: invalid suffix */
+		a = ta->suffix;
+		b = tb->suffix;
+		break;
+	use_string_sort:
 	default:
-	invalid:
-		*type = TOKEN_INVALID;
-		return -1;
+		int r = apk_blob_sort(ta->value, tb->value);
+		if (r < 0) return APK_VERSION_LESS;
+		if (r > 0) return APK_VERSION_GREATER;
+		return APK_VERSION_EQUAL;
 	}
-	blob->ptr += i;
-	blob->len -= i;
-	if (blob->len == 0)
-		*type = TOKEN_END;
-	else if (nt != TOKEN_INVALID)
-		*type = nt;
-        else
-		next_token(type, blob);
+	if (a < b) return APK_VERSION_LESS;
+	if (a > b) return APK_VERSION_GREATER;
+	return APK_VERSION_EQUAL;
+}
 
-	return v;
+static void token_first(struct token_state *t, apk_blob_t *b)
+{
+	apk_blob_spn(*b, spn_digits, &t->value, b);
+	t->token = t->value.len ? TOKEN_INITIAL_DIGIT : TOKEN_INVALID;
+}
+
+static void token_next(struct token_state *t, apk_blob_t *b)
+{
+	if (b->len == 0) {
+		t->token = TOKEN_END;
+		return;
+	}
+	// determine the token type from the first letter and parse
+	// the content just as a blob. validate also that the previous
+	// token allows the subsequent token.
+	switch (b->ptr[0]) {
+	case 'a' ... 'z':
+		if (t->token > TOKEN_DIGIT) goto invalid;
+		t->value = APK_BLOB_PTR_LEN(b->ptr, 1);
+		t->token = TOKEN_LETTER;
+		b->ptr++, b->len--;
+		break;
+	case '.':
+		if (t->token > TOKEN_DIGIT) goto invalid;
+		b->ptr++, b->len--;
+		// fallthrough to parse number
+	case '0' ... '9':
+		apk_blob_spn(*b, spn_digits, &t->value, b);
+		switch (t->token) {
+		case TOKEN_SUFFIX:
+			t->token = TOKEN_SUFFIX_NO;
+			break;
+		case TOKEN_INITIAL_DIGIT:
+		case TOKEN_DIGIT:
+			t->token = TOKEN_DIGIT;
+			break;
+		default:
+			goto invalid;
+		}
+		break;
+	case '_':
+		if (t->token > TOKEN_SUFFIX_NO) goto invalid;
+		b->ptr++, b->len--;
+		apk_blob_spn(*b, spn_suffix, &t->value, b);
+		t->suffix = suffix_value(t->value);
+		if (t->suffix == SUFFIX_INVALID) goto invalid;
+		t->token = TOKEN_SUFFIX;
+		break;
+	case '-':
+		if (t->token >= TOKEN_REVISION_NO) goto invalid;
+		if (!apk_blob_pull_blob_match(b, APK_BLOB_STRLIT("-r"))) goto invalid;
+		apk_blob_spn(*b, spn_digits, &t->value, b);
+		t->token = TOKEN_REVISION_NO;
+		break;
+	invalid:
+	default:
+		t->token = TOKEN_INVALID;
+		break;
+	}
 }
 
 const char *apk_version_op_string(int op)
@@ -199,19 +240,15 @@ int apk_version_result_mask(const char *op)
 
 int apk_version_validate(apk_blob_t ver)
 {
-	int t = TOKEN_INITIAL;
-
-	do {
-		get_token(&t, &ver);
-	} while (t != TOKEN_END && t != TOKEN_INVALID);
-
-	return t == TOKEN_END;
+	struct token_state t;
+	for (token_first(&t, &ver); t.token < TOKEN_END; token_next(&t, &ver))
+		;
+	return t.token == TOKEN_END;
 }
 
 static int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 {
-	int at = TOKEN_INITIAL, bt = TOKEN_INITIAL, tt;
-	int64_t av = 0, bv = 0;
+	struct token_state ta, tb;
 
 	if (APK_BLOB_IS_NULL(a) || APK_BLOB_IS_NULL(b)) {
 		if (APK_BLOB_IS_NULL(a) && APK_BLOB_IS_NULL(b))
@@ -219,41 +256,34 @@ static int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 		return APK_VERSION_EQUAL | APK_VERSION_GREATER | APK_VERSION_LESS;
 	}
 
-	do {
-		av = get_token(&at, &a);
-		bv = get_token(&bt, &b);
-#if 0
+	for (token_first(&ta, &a), token_first(&tb, &b);
+	     ta.token == tb.token && ta.token < TOKEN_END;
+	     token_next(&ta, &a), token_next(&tb, &b)) {
+		int r = token_cmp(&ta, &tb);
+#if DEBUG
 		fprintf(stderr,
-			"av=%ld, at=%d, a.len=%ld\n"
-			"bv=%ld, bt=%d, b.len=%ld\n",
-			av, at, a.len, bv, bt, b.len);
+			"at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT "> -> %d\n",
+			at, BLOB_PRINTF(av), bt, BLOB_PRINTF(bv), r);
 #endif
-	} while (at == bt && at != TOKEN_END && at != TOKEN_INVALID && av == bv);
+		if (r != APK_VERSION_EQUAL) return r;
+	}
 
-	/* value of this token differs? */
-	if (av < bv)
-		return APK_VERSION_LESS;
-	if (av > bv)
-		return APK_VERSION_GREATER;
+#if DEBUG
+	fprintf(stderr,
+		"at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT ">\n",
+		at, BLOB_PRINTF(av), bt, BLOB_PRINTF(bv));
+#endif
 
-	/* both have TOKEN_END or TOKEN_INVALID next? */
-	if (at == bt || fuzzy)
-		return APK_VERSION_EQUAL;
+	/* both have TOKEN_END or TOKEN_INVALID next? or fuzzy matching the prefix*/
+	if (ta.token == tb.token || fuzzy) return APK_VERSION_EQUAL;
 
 	/* leading version components and their values are equal,
 	 * now the non-terminating version is greater unless it's a suffix
 	 * indicating pre-release */
-	tt = at;
-	if (at == TOKEN_SUFFIX && get_token(&tt, &a) < 0)
-		return APK_VERSION_LESS;
-	tt = bt;
-	if (bt == TOKEN_SUFFIX && get_token(&tt, &b) < 0)
-		return APK_VERSION_GREATER;
-	if (at > bt)
-		return APK_VERSION_LESS;
-	if (bt > at)
-		return APK_VERSION_GREATER;
-
+	if (ta.token == TOKEN_SUFFIX && ta.suffix < SUFFIX_NONE) return APK_VERSION_LESS;
+	if (tb.token == TOKEN_SUFFIX && tb.suffix < SUFFIX_NONE) return APK_VERSION_GREATER;
+	if (ta.token > tb.token) return APK_VERSION_LESS;
+	if (tb.token > ta.token) return APK_VERSION_GREATER;
 	return APK_VERSION_EQUAL;
 }
 

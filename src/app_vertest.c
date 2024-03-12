@@ -55,21 +55,25 @@ static int vertest_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	struct apk_istream *is;
 	char **parg;
 	apk_blob_t l;
-	int errors = 0;
+	int errors = 0, count = 0;
 
 	if (args->num != 0) {
 		foreach_array_item(parg, args)
 			errors += vertest_one(ac, APK_BLOB_STR(*parg));
+		count = args->num;
 	} else {
 		is = apk_istream_from_fd(STDIN_FILENO);
 		if (IS_ERR(is)) return 1;
 
-		while (apk_istream_get_delim(is, APK_BLOB_STR("\n"), &l) == 0)
+		while (apk_istream_get_delim(is, APK_BLOB_STR("\n"), &l) == 0) {
 			errors += vertest_one(ac, l);
+			count++;
+		}
 
 		if (apk_istream_close(is) != 0)
 			errors++;
 	}
+	if (errors) apk_dbg(&ac->out, "Result: %d/%d", count-errors, count);
 
 	return errors ? 1 : 0;
 }
