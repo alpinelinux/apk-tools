@@ -138,10 +138,10 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 		    (virtdep.name->name[0] != '.' && non_repository_check(db)))
 			goto bad_spec;
 
-		switch (virtdep.result_mask) {
+		switch (virtdep.op) {
 		case APK_DEPMASK_ANY:
 			if (virtdep.version != &apk_atom_null) goto bad_spec;
-			virtdep.result_mask = APK_VERSION_EQUAL;
+			virtdep.op = APK_VERSION_EQUAL;
 			virtdep.version = generate_version(db);
 			break;
 		case APK_VERSION_EQUAL:

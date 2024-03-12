@@ -122,7 +122,7 @@ static void info_who_owns(struct info_ctx *ctx, struct apk_database *db,
 			dep = (struct apk_dependency) {
 				.name = pkg->name,
 				.version = &apk_atom_null,
-				.result_mask = APK_DEPMASK_ANY,
+				.op = APK_DEPMASK_ANY,
 			};
 			apk_deps_add(&deps, &dep);
 		} else {

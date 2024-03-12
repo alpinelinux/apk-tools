@@ -91,7 +91,7 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 		struct apk_package *pkg0 = p0->pkg;
 		if (pkg0->name != name || pkg0->repos == 0)
 			continue;
-		if (apk_version_compare_blob(*pkg0->version, *pkg->version) == APK_VERSION_GREATER) {
+		if (apk_version_match(*pkg0->version, APK_VERSION_GREATER, *pkg->version)) {
 			r = 1;
 			break;
 		}
@@ -186,8 +186,8 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 		apk_dependency_array_copy(&world, db->world);
 		if (solver_flags & APK_SOLVERF_AVAILABLE) {
 			foreach_array_item(dep, world) {
-				if (dep->result_mask == APK_DEPMASK_CHECKSUM) {
-					dep->result_mask = APK_DEPMASK_ANY;
+				if (dep->op == APK_DEPMASK_CHECKSUM) {
+					dep->op = APK_DEPMASK_ANY;
 					dep->version = &apk_atom_null;
 				}
 			}

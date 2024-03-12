@@ -257,7 +257,7 @@ static int mark_name_flags(struct apk_database *db, const char *match, struct ap
 	struct apk_dependency dep = (struct apk_dependency) {
 		.name = name,
 		.version = &apk_atom_null,
-		.result_mask = APK_DEPMASK_ANY,
+		.op = APK_DEPMASK_ANY,
 	};
 
 	if (!name) {

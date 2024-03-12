@@ -300,7 +300,7 @@ static void apply_constraint(struct apk_solver_state *ss, struct apk_package *pp
 	dbg_printf("    apply_constraint: %s%s%s" BLOB_FMT "\n",
 		dep->conflict ? "!" : "",
 		name->name,
-		apk_version_op_string(dep->result_mask),
+		apk_version_op_string(dep->op),
 		BLOB_PRINTF(*dep->version));
 
 	if (dep->conflict && ss->ignore_conflict)

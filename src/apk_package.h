@@ -46,8 +46,7 @@ struct apk_dependency {
 	unsigned broken : 1;
 	unsigned repository_tag : 6;
 	unsigned conflict : 1;
-	unsigned result_mask : 4;
-	unsigned fuzzy : 1;
+	unsigned op : 5;
 	unsigned layer : 4; // solver sets for 'world' dependencies only
 };
 APK_ARRAY(apk_dependency_array, struct apk_dependency);

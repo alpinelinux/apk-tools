@@ -143,9 +143,9 @@ static int64_t get_token(int *type, apk_blob_t *blob)
 	return v;
 }
 
-const char *apk_version_op_string(int mask)
+const char *apk_version_op_string(int op)
 {
-	switch (mask) {
+	switch (op) {
 	case APK_VERSION_LESS:
 		return "<";
 	case APK_VERSION_LESS|APK_VERSION_EQUAL:
@@ -208,7 +208,7 @@ int apk_version_validate(apk_blob_t ver)
 	return t == TOKEN_END;
 }
 
-int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
+static int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 {
 	int at = TOKEN_INITIAL, bt = TOKEN_INITIAL, tt;
 	int64_t av = 0, bv = 0;
@@ -265,4 +265,11 @@ int apk_version_compare_blob(apk_blob_t a, apk_blob_t b)
 int apk_version_compare(const char *str1, const char *str2)
 {
 	return apk_version_compare_blob(APK_BLOB_STR(str1), APK_BLOB_STR(str2));
+}
+
+int apk_version_match(apk_blob_t a, int op, apk_blob_t b)
+{
+	if (apk_version_compare_blob_fuzzy(a, b, op&APK_VERSION_FUZZY) & op)
+		return 1;
+	return 0;
 }

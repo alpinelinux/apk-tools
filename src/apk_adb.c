@@ -330,7 +330,6 @@ static apk_blob_t dependency_tostring(struct adb_obj *obj, char *buf, size_t buf
 
 	name = adb_ro_blob(obj, ADBI_DEP_NAME);
 	ver  = adb_ro_blob(obj, ADBI_DEP_VERSION);
-
 	mask = adb_ro_int(obj, ADBI_DEP_MATCH) ?: APK_VERSION_EQUAL;
 
 	if (APK_BLOB_IS_NULL(name)) return APK_BLOB_NULL;

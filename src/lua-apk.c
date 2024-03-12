@@ -90,7 +90,7 @@ static int Pversion_is_less(lua_State *L)
 	apk_blob_t a, b;
 	a = check_blob(L, 1);
 	b = check_blob(L, 2);
-	lua_pushboolean(L, apk_version_compare_blob(a, b) == APK_VERSION_LESS);
+	lua_pushboolean(L, apk_version_match(a, APK_VERSION_LESS, b));
 	return 1;
 }
 

@@ -34,9 +34,7 @@ static int vertest_one(struct apk_ctx *ac, apk_blob_t arg)
 	if (apk_blob_split(arg, space, &ver1, &op) &&
 	    apk_blob_split(op,  space, &op,   &ver2)) {
 		invert = apk_blob_pull_blob_match(&op, binvert);
-		int mask = apk_version_result_mask_blob(op);
-		if (apk_version_compare_blob_fuzzy(ver1, ver2, mask & APK_VERSION_FUZZY) & mask)
-			ok = 1;
+		ok = apk_version_match(ver1, apk_version_result_mask_blob(op), ver2);
 	} else {
 		ver1 = arg;
 		invert = apk_blob_pull_blob_match(&ver1, binvert);
