@@ -182,6 +182,9 @@ int apk_version_result_mask_blob(apk_blob_t op)
 		case '=':
 			r |= APK_VERSION_EQUAL;
 			break;
+		case '~':
+			r |= APK_VERSION_FUZZY|APK_VERSION_EQUAL;
+			break;
 		default:
 			return 0;
 		}

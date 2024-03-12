@@ -18,8 +18,8 @@
 static int vertest_one(struct apk_ctx *ac, apk_blob_t arg)
 {
 	struct apk_out *out = &ac->out;
-	apk_blob_t ver1, ver2, op, space = APK_BLOB_STRLIT(" ");
-	int ok = 0;
+	apk_blob_t ver1, ver2, op, space = APK_BLOB_STRLIT(" "), binvert = APK_BLOB_STRLIT("!");
+	int ok = 0, invert = 0;
 
 	// trim comments and trailing whitespace
 	apk_blob_split(arg, APK_BLOB_STRLIT("#"), &arg, &op);
@@ -30,16 +30,19 @@ static int vertest_one(struct apk_ctx *ac, apk_blob_t arg)
 	//   "version"		-> check validity
 	//   "!version"		-> check invalid
 	//   "ver1 op ver2"	-> check if that the comparison is true
+	//   "ver1 !op ver2"	-> check if that the comparison is false
 	if (apk_blob_split(arg, space, &ver1, &op) &&
 	    apk_blob_split(op,  space, &op,   &ver2)) {
-		if (apk_version_compare_blob(ver1, ver2) & apk_version_result_mask_blob(op))
+		invert = apk_blob_pull_blob_match(&op, binvert);
+		int mask = apk_version_result_mask_blob(op);
+		if (apk_version_compare_blob_fuzzy(ver1, ver2, mask & APK_VERSION_FUZZY) & mask)
 			ok = 1;
-	} else if (arg.len > 0 && arg.ptr[0] == '!') {
-		ok = !apk_version_validate(APK_BLOB_PTR_LEN(arg.ptr+1, arg.len-1));
 	} else {
-		ok = apk_version_validate(arg);
+		ver1 = arg;
+		invert = apk_blob_pull_blob_match(&ver1, binvert);
+		ok = apk_version_validate(ver1);
 	}
-
+	if (invert) ok = !ok;
 	if (!ok) {
 		apk_msg(out, "FAIL: " BLOB_FMT, BLOB_PRINTF(arg));
 		return 1;

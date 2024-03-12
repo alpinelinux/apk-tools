@@ -379,30 +379,11 @@ static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)
 	}
 
 	if (apk_blob_cspn(bdep, apk_spn_dependency_comparer, &bname, &bop)) {
-		int i;
-
-		if (mask == 0)
-			goto fail;
-		if (!apk_blob_spn(bop, apk_spn_dependency_comparer, &bop, &bver))
-			goto fail;
+		if (!apk_blob_spn(bop, apk_spn_dependency_comparer, &bop, &bver)) goto fail;
 
 		mask &= APK_VERSION_CONFLICT;
-		for (i = 0; i < bop.len; i++) {
-			switch (bop.ptr[i]) {
-			case '<':
-				mask |= APK_VERSION_LESS;
-				break;
-			case '>':
-				mask |= APK_VERSION_GREATER;
-				break;
-			case '~':
-				mask |= APK_VERSION_FUZZY|APK_VERSION_EQUAL;
-				break;
-			case '=':
-				mask |= APK_VERSION_EQUAL;
-				break;
-			}
-		}
+		mask |= apk_version_result_mask_blob(bop);
+		if ((mask & ~APK_VERSION_CONFLICT) == 0) goto fail;
 		if ((mask & APK_DEPMASK_CHECKSUM) != APK_DEPMASK_CHECKSUM &&
 		    !apk_version_validate(bver))
 			goto fail;
