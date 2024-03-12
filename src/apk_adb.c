@@ -4,6 +4,7 @@
 #include "apk_adb.h"
 #include "apk_print.h"
 #include "apk_version.h"
+#include "apk_package.h"
 
 /* Few helpers to map old database to new one */
 
@@ -364,42 +365,19 @@ static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)
 		[14] = 0xff, /* p-w */
 		[15] = 0x07, /* x-z */
 	};
-	extern const apk_spn_match_def apk_spn_dependency_comparer;
-	apk_blob_t bname, bop, bver = APK_BLOB_NULL, spn;
-	int mask = APK_DEPMASK_ANY;
+	apk_blob_t bname, bver, spn;
+	int op;
 
-	/* [!]name[<,<=,<~,=,~,>~,>=,>,><]ver */
-
-	/* parse the version */
-	if (bdep.ptr[0] == '!') {
-		bdep.ptr++;
-		bdep.len--;
-		mask |= APK_VERSION_CONFLICT;
-	}
-
-	if (apk_blob_cspn(bdep, apk_spn_dependency_comparer, &bname, &bop)) {
-		if (!apk_blob_spn(bop, apk_spn_dependency_comparer, &bop, &bver)) goto fail;
-
-		mask &= APK_VERSION_CONFLICT;
-		mask |= apk_version_result_mask_blob(bop);
-		if ((mask & ~APK_VERSION_CONFLICT) == 0) goto fail;
-		if ((mask & APK_DEPMASK_CHECKSUM) != APK_DEPMASK_CHECKSUM &&
-		    !apk_version_validate(bver))
-			goto fail;
-	} else {
-		bname = bdep;
-		bop = APK_BLOB_NULL;
-		bver = APK_BLOB_NULL;
-	}
+	if (apk_dep_parse(bdep, &bname, &op, &bver) != 0) goto fail;
 
 	apk_blob_spn(bname, spn_depname, &spn, NULL);
 	if (bname.len != spn.len) goto fail;
 
 	adb_wo_blob(obj, ADBI_DEP_NAME, bname);
-	if (mask != APK_DEPMASK_ANY) {
+	if (op != APK_DEPMASK_ANY) {
 		adb_wo_blob(obj, ADBI_DEP_VERSION, bver);
-		if (mask != APK_VERSION_EQUAL)
-			adb_wo_int(obj, ADBI_DEP_MATCH, mask);
+		if (op != APK_VERSION_EQUAL)
+			adb_wo_int(obj, ADBI_DEP_MATCH, op);
 	}
 	return 0;
 

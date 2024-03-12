@@ -129,6 +129,7 @@ int apk_deps_write(struct apk_database *db, struct apk_dependency_array *deps,
 void apk_dep_from_adb(struct apk_dependency *dep, struct apk_database *db, struct adb_obj *d);
 void apk_deps_from_adb(struct apk_dependency_array **deps, struct apk_database *db, struct adb_obj *da);
 
+int apk_dep_parse(apk_blob_t spec, apk_blob_t *name, int *op, apk_blob_t *version);
 void apk_deps_add(struct apk_dependency_array **depends, struct apk_dependency *dep);
 void apk_deps_del(struct apk_dependency_array **deps, struct apk_name *name);
 int apk_script_type(const char *name);

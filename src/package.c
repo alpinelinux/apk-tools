@@ -157,6 +157,35 @@ int apk_pkg_parse_name(apk_blob_t apkname,
 	return 0;
 }
 
+int apk_dep_parse(apk_blob_t spec, apk_blob_t *name, int *rop, apk_blob_t *version)
+{
+	apk_blob_t bop;
+	int op = 0;
+
+	/* [!]name[[op]ver] */
+	if (APK_BLOB_IS_NULL(spec)) goto fail;
+	if (apk_blob_pull_blob_match(&spec, APK_BLOB_STRLIT("!")))
+		op |= APK_VERSION_CONFLICT;
+	if (apk_blob_cspn(spec, apk_spn_dependency_comparer, name, &bop)) {
+		if (!apk_blob_spn(bop, apk_spn_dependency_comparer, &bop, version)) goto fail;
+		op |= apk_version_result_mask_blob(bop);
+		if ((op & ~APK_VERSION_CONFLICT) == 0) goto fail;
+		if ((op & APK_DEPMASK_CHECKSUM) != APK_DEPMASK_CHECKSUM &&
+		    !apk_version_validate(*version)) goto fail;
+	} else {
+		*name = spec;
+		op |= APK_DEPMASK_ANY;
+		*version = APK_BLOB_NULL;
+	}
+	*rop = op;
+	return 0;
+fail:
+	*name = APK_BLOB_NULL;
+	*version = APK_BLOB_NULL;
+	*rop = APK_DEPMASK_ANY;
+	return -APKE_DEPENDENCY_FORMAT;
+}
+
 void apk_deps_add(struct apk_dependency_array **depends, struct apk_dependency *dep)
 {
 	struct apk_dependency *d0;
@@ -192,56 +221,28 @@ void apk_deps_del(struct apk_dependency_array **pdeps, struct apk_name *name)
 void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_dependency *dep)
 {
 	struct apk_name *name;
-	apk_blob_t bdep, bname, bop, bver = APK_BLOB_NULL, btag;
-	int mask = APK_DEPMASK_ANY, conflict = 0, tag = 0;
+	apk_blob_t bdep, bname, bver, btag;
+	int op, tag = 0;
 
-	/* [!]name[<,<=,<~,=,~,>~,>=,>,><]ver */
-	if (APK_BLOB_IS_NULL(*b))
-		goto fail;
-
-	/* grap one token */
-	apk_blob_cspn(*b, apk_spn_dependency_separator, &bdep, NULL);
-	b->ptr += bdep.len;
-	b->len -= bdep.len;
-
-	/* skip also all separator chars */
+	/* grap one token, and skip all separators */
+	if (APK_BLOB_IS_NULL(*b)) goto fail;
+	apk_blob_cspn(*b, apk_spn_dependency_separator, &bdep, b);
 	apk_blob_spn(*b, apk_spn_dependency_separator, NULL, b);
 
-	/* parse the version */
-	if (bdep.ptr[0] == '!') {
-		bdep.ptr++;
-		bdep.len--;
-		conflict = 1;
-	}
-
-	if (apk_blob_cspn(bdep, apk_spn_dependency_comparer, &bname, &bop)) {
-		if (!apk_blob_spn(bop, apk_spn_dependency_comparer, &bop, &bver))
-			goto fail;
-		mask = apk_version_result_mask_blob(bop);
-		if (!mask) goto fail;
-		if ((mask & APK_DEPMASK_CHECKSUM) != APK_DEPMASK_CHECKSUM &&
-		    !apk_version_validate(bver))
-			goto fail;
-	} else {
-		bname = bdep;
-		bop = APK_BLOB_NULL;
-		bver = APK_BLOB_NULL;
-	}
-
+	if (apk_dep_parse(bdep, &bname, &op, &bver) != 0) goto fail;
 	if (apk_blob_cspn(bname, apk_spn_repotag_separator, &bname, &btag))
 		tag = apk_db_get_tag_id(db, btag);
 
 	/* convert to apk_dependency */
 	name = apk_db_get_name(db, bname);
-	if (name == NULL)
-		goto fail;
+	if (name == NULL) goto fail;
 
 	*dep = (struct apk_dependency){
 		.name = name,
 		.version = apk_atomize_dup(&db->atoms, bver),
 		.repository_tag = tag,
-		.op = mask & ~APK_VERSION_CONFLICT,
-		.conflict = conflict,
+		.op = op & ~APK_VERSION_CONFLICT,
+		.conflict = !!(op & APK_VERSION_CONFLICT),
 	};
 	return;
 fail:
