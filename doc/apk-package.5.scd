@@ -49,7 +49,7 @@ Unfortunately it is not possible to deduce if a given string is of format
 	followed the Gentoo package version specification.
 
 	Currently the APK version specification is as follows:
-	*{number}{.number}...{letter}{\_suffix{number}}...{-r#}*
+	*number{.number}...{letter}{\_suffix{number}}...{-r#}*
 
 	Each *number* component is a sequence of digits (0-9).
 
@@ -76,7 +76,7 @@ Unfortunately it is not possible to deduce if a given string is of format
 	  cache
 
 *description* (*pkgdesc*, *T*)
-	The description is a single line description of the package.
+	The description is a single line describing the package.
 	APK displays this string in various command querying information about
 	the package, repository or installed database.
 
