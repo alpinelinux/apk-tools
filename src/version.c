@@ -16,11 +16,6 @@
 
 /* Alpine version: digit{.digit}...{letter}{_suf{#}}...{-r#} */
 
-static const apk_spn_match_def spn_digits = {
-	[6]  = 0xff, /* 0-7 */
-	[7]  = 0x03, /* 8-9 */
-};
-
 static const apk_spn_match_def spn_suffix = {
 	[12] = 0xfe, /* a-g */
 	[13] = 0xff, /* h-o */
@@ -61,6 +56,7 @@ enum {
 struct token_state {
 	unsigned int token;
 	unsigned int suffix;
+	uint64_t number;
 	apk_blob_t value;
 };
 
@@ -114,8 +110,8 @@ static int token_cmp(struct token_state *ta, struct token_state *tb)
 	case TOKEN_INITIAL_DIGIT:
 	case TOKEN_SUFFIX_NO:
 	case TOKEN_REVISION_NO:
-		a = apk_blob_pull_uint(&ta->value, 10);
-		b = apk_blob_pull_uint(&tb->value, 10);
+		a = ta->number;
+		b = tb->number;
 		break;
 	case TOKEN_LETTER:
 		a = ta->value.ptr[0];
@@ -137,9 +133,16 @@ static int token_cmp(struct token_state *ta, struct token_state *tb)
 	return APK_VERSION_EQUAL;
 }
 
+static void token_parse_digits(struct token_state *t, apk_blob_t *b)
+{
+	char *start = b->ptr;
+	t->number = apk_blob_pull_uint(b, 10);
+	t->value = APK_BLOB_PTR_LEN(start, b->ptr - start);
+}
+
 static void token_first(struct token_state *t, apk_blob_t *b)
 {
-	apk_blob_spn(*b, spn_digits, &t->value, b);
+	token_parse_digits(t, b);
 	t->token = t->value.len ? TOKEN_INITIAL_DIGIT : TOKEN_INVALID;
 }
 
@@ -164,18 +167,18 @@ static void token_next(struct token_state *t, apk_blob_t *b)
 		b->ptr++, b->len--;
 		// fallthrough to parse number
 	case '0' ... '9':
-		apk_blob_spn(*b, spn_digits, &t->value, b);
 		switch (t->token) {
-		case TOKEN_SUFFIX:
-			t->token = TOKEN_SUFFIX_NO;
-			break;
 		case TOKEN_INITIAL_DIGIT:
 		case TOKEN_DIGIT:
 			t->token = TOKEN_DIGIT;
 			break;
+		case TOKEN_SUFFIX:
+			t->token = TOKEN_SUFFIX_NO;
+			break;
 		default:
 			goto invalid;
 		}
+		token_parse_digits(t, b);
 		break;
 	case '_':
 		if (t->token > TOKEN_SUFFIX_NO) goto invalid;
@@ -188,7 +191,7 @@ static void token_next(struct token_state *t, apk_blob_t *b)
 	case '-':
 		if (t->token >= TOKEN_REVISION_NO) goto invalid;
 		if (!apk_blob_pull_blob_match(b, APK_BLOB_STRLIT("-r"))) goto invalid;
-		apk_blob_spn(*b, spn_digits, &t->value, b);
+		token_parse_digits(t, b);
 		t->token = TOKEN_REVISION_NO;
 		break;
 	invalid:
@@ -279,8 +282,7 @@ static int apk_version_compare_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 	     token_next(&ta, &a), token_next(&tb, &b)) {
 		int r = token_cmp(&ta, &tb);
 #if DEBUG
-		fprintf(stderr,
-			"at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT "> -> %d\n",
+		fprintf(stderr, "at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT "> -> %d\n",
 			ta.token, BLOB_PRINTF(ta.value),
 			tb.token, BLOB_PRINTF(tb.value), r);
 #endif
@@ -288,8 +290,7 @@ static int apk_version_compare_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 	}
 
 #if DEBUG
-	fprintf(stderr,
-		"at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT ">\n",
+	fprintf(stderr, "at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT ">\n",
 		ta.token, BLOB_PRINTF(ta.value),
 		tb.token, BLOB_PRINTF(tb.value));
 #endif
