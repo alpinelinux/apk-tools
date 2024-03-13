@@ -138,12 +138,13 @@ static void token_parse_digits(struct token_state *t, apk_blob_t *b)
 	char *start = b->ptr;
 	t->number = apk_blob_pull_uint(b, 10);
 	t->value = APK_BLOB_PTR_LEN(start, b->ptr - start);
+	if (t->value.len == 0) t->token = TOKEN_INVALID;
 }
 
 static void token_first(struct token_state *t, apk_blob_t *b)
 {
+	t->token = TOKEN_INITIAL_DIGIT;
 	token_parse_digits(t, b);
-	t->token = t->value.len ? TOKEN_INITIAL_DIGIT : TOKEN_INVALID;
 }
 
 static void token_next(struct token_state *t, apk_blob_t *b)
@@ -191,8 +192,8 @@ static void token_next(struct token_state *t, apk_blob_t *b)
 	case '-':
 		if (t->token >= TOKEN_REVISION_NO) goto invalid;
 		if (!apk_blob_pull_blob_match(b, APK_BLOB_STRLIT("-r"))) goto invalid;
-		token_parse_digits(t, b);
 		t->token = TOKEN_REVISION_NO;
+		token_parse_digits(t, b);
 		break;
 	invalid:
 	default:
