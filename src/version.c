@@ -15,7 +15,7 @@
 
 #define DEBUG 0
 
-/* Alpine version: digit{.digit}...{letter}{_suf{#}}...{-r#} */
+/* Alpine version: digit{.digit}...{letter}{_suf{#}}...{~hash}{-r#} */
 
 enum PARTS {
 	TOKEN_INITIAL_DIGIT,
@@ -23,6 +23,7 @@ enum PARTS {
 	TOKEN_LETTER,
 	TOKEN_SUFFIX,
 	TOKEN_SUFFIX_NO,
+	TOKEN_COMMIT_HASH,
 	TOKEN_REVISION_NO,
 	TOKEN_END,
 	TOKEN_INVALID,
@@ -182,6 +183,13 @@ static void token_next(struct token_state *t, apk_blob_t *b)
 		t->suffix = suffix_value(t->value);
 		if (t->suffix == SUFFIX_INVALID) goto invalid;
 		t->token = TOKEN_SUFFIX;
+		break;
+	case '~':
+		if (t->token >= TOKEN_COMMIT_HASH) goto invalid;
+		b->ptr++, b->len--;
+		apk_blob_spn(*b, APK_CTYPE_HEXDIGIT, &t->value, b);
+		if (t->value.len == 0) goto invalid;
+		t->token = TOKEN_COMMIT_HASH;
 		break;
 	case '-':
 		if (t->token >= TOKEN_REVISION_NO) goto invalid;

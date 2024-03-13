@@ -49,7 +49,7 @@ Unfortunately it is not possible to deduce if a given string is of format
 	followed the Gentoo package version specification.
 
 	Currently the APK version specification is as follows:
-	*number{.number}...{letter}{\_suffix{number}}...{-r#}*
+	*number{.number}...{letter}{\_suffix{number}}...{~hash}{-r#}*
 
 	Each *number* component is a sequence of digits (0-9).
 
@@ -58,6 +58,10 @@ Unfortunately it is not possible to deduce if a given string is of format
 	This can follow one or more *\_suffix{number}* components. The list
 	of valid suffixes (and their sorting order) is:
 	*alpha*, *beta*, *pre*, *rc*, <no suffix>, *cvs*, *svn*, *git*, *hg*, *p*
+
+	This can be follows with an optional *{~hash}* to indicate a commit
+	hash from where it was built. This can be any length string of
+	lower case hexdecimal digits (0-9a-f).
 
 	Finally an optional package build component *-r{number}* can follow.
 

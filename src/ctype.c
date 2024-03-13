@@ -10,6 +10,7 @@
 #include "apk_blob.h"
 #include "apk_ctype.h"
 
+#define HEXDGT	BIT(APK_CTYPE_HEXDIGIT)
 #define PKGNAME	BIT(APK_CTYPE_PACKAGE_NAME)|BIT(APK_CTYPE_DEPENDENCY_NAME)
 #define VERSUF	BIT(APK_CTYPE_VERSION_SUFFIX)
 #define DEPNAME	BIT(APK_CTYPE_DEPENDENCY_NAME)
@@ -29,16 +30,16 @@ static uint8_t apk_ctype[128] = {
 	['='] = DEPCOMP,
 	['>'] = DEPCOMP,
 	['/'] = DEPNAME,
-	['0'] = PKGNAME,
-	['1'] = PKGNAME,
-	['2'] = PKGNAME,
-	['3'] = PKGNAME,
-	['4'] = PKGNAME,
-	['5'] = PKGNAME,
-	['6'] = PKGNAME,
-	['7'] = PKGNAME,
-	['8'] = PKGNAME,
-	['9'] = PKGNAME,
+	['0'] = HEXDGT|PKGNAME,
+	['1'] = HEXDGT|PKGNAME,
+	['2'] = HEXDGT|PKGNAME,
+	['3'] = HEXDGT|PKGNAME,
+	['4'] = HEXDGT|PKGNAME,
+	['5'] = HEXDGT|PKGNAME,
+	['6'] = HEXDGT|PKGNAME,
+	['7'] = HEXDGT|PKGNAME,
+	['8'] = HEXDGT|PKGNAME,
+	['9'] = HEXDGT|PKGNAME,
 	['A'] = PKGNAME,
 	['B'] = PKGNAME,
 	['C'] = PKGNAME,
@@ -66,12 +67,12 @@ static uint8_t apk_ctype[128] = {
 	['Y'] = PKGNAME,
 	['Z'] = PKGNAME,
 	['_'] = PKGNAME,
-	['a'] = VERSUF|PKGNAME,
-	['b'] = VERSUF|PKGNAME,
-	['c'] = VERSUF|PKGNAME,
-	['d'] = VERSUF|PKGNAME,
-	['e'] = VERSUF|PKGNAME,
-	['f'] = VERSUF|PKGNAME,
+	['a'] = HEXDGT|VERSUF|PKGNAME,
+	['b'] = HEXDGT|VERSUF|PKGNAME,
+	['c'] = HEXDGT|VERSUF|PKGNAME,
+	['d'] = HEXDGT|VERSUF|PKGNAME,
+	['e'] = HEXDGT|VERSUF|PKGNAME,
+	['f'] = HEXDGT|VERSUF|PKGNAME,
 	['g'] = VERSUF|PKGNAME,
 	['h'] = VERSUF|PKGNAME,
 	['i'] = VERSUF|PKGNAME,
