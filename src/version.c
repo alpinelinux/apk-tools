@@ -263,7 +263,8 @@ static int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 #if DEBUG
 		fprintf(stderr,
 			"at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT "> -> %d\n",
-			at, BLOB_PRINTF(av), bt, BLOB_PRINTF(bv), r);
+			ta.token, BLOB_PRINTF(ta.value),
+			tb.token, BLOB_PRINTF(tb.value), r);
 #endif
 		if (r != APK_VERSION_EQUAL) return r;
 	}
@@ -271,11 +272,13 @@ static int apk_version_compare_blob_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 #if DEBUG
 	fprintf(stderr,
 		"at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT ">\n",
-		at, BLOB_PRINTF(av), bt, BLOB_PRINTF(bv));
+		ta.token, BLOB_PRINTF(ta.value),
+		tb.token, BLOB_PRINTF(tb.value));
 #endif
 
 	/* both have TOKEN_END or TOKEN_INVALID next? or fuzzy matching the prefix*/
-	if (ta.token == tb.token || fuzzy) return APK_VERSION_EQUAL;
+	if (ta.token == tb.token) return APK_VERSION_EQUAL;
+	if (tb.token == TOKEN_END && fuzzy) return APK_VERSION_EQUAL;
 
 	/* leading version components and their values are equal,
 	 * now the non-terminating version is greater unless it's a suffix
