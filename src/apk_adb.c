@@ -5,18 +5,17 @@
 #include "apk_print.h"
 #include "apk_version.h"
 #include "apk_package.h"
+#include "apk_ctype.h"
 
 /* Few helpers to map old database to new one */
 
 int apk_dep_split(apk_blob_t *b, apk_blob_t *bdep)
 {
-	extern const apk_spn_match_def apk_spn_dependency_separator;
-
 	if (b->len == 0) return 0;
 	// skip all separator characters
-	apk_blob_spn(*b, apk_spn_dependency_separator, NULL, b);
+	apk_blob_spn(*b, APK_CTYPE_DEPENDENCY_SEPARATOR, NULL, b);
 	// split the dependency string
-	apk_blob_cspn(*b, apk_spn_dependency_separator, bdep, b);
+	apk_blob_cspn(*b, APK_CTYPE_DEPENDENCY_SEPARATOR, bdep, b);
 	return bdep->len != 0;
 }
 
@@ -160,26 +159,10 @@ const struct adb_object_schema schema_xattr_array = {
 
 static adb_val_t name_fromstring(struct adb *db, apk_blob_t val)
 {
-	static const apk_spn_match_def spn_pkgname = {
-		[5]  = 0x68, /* +-. */
-		[6]  = 0xff, /* 0-7 */
-		[7]  = 0x03, /* 8-9 */
-		[8]  = 0xfe, /* A-G */
-		[9]  = 0xff, /* H-O */
-		[10] = 0xff, /* P-W */
-		[11] = 0x87, /* X-Z _ */
-		[12] = 0xfe, /* a-g */
-		[13] = 0xff, /* h-o */
-		[14] = 0xff, /* p-w */
-		[15] = 0x07, /* x-z */
-	};
-	apk_blob_t spn;
-
 	// Check invalid first character
 	if (val.len == 0 || !isascii(val.ptr[0]) || !isalnum(val.ptr[0])) goto fail;
 	// Shall consist of characters
-	apk_blob_spn(val, spn_pkgname, &spn, NULL);
-	if (spn.len != val.len) goto fail;
+	if (apk_blob_spn(val, APK_CTYPE_PACKAGE_NAME, NULL, NULL)) goto fail;
 	return adb_w_blob(db, val);
 fail:
 	return ADB_ERROR(APKE_PKGNAME_FORMAT);
@@ -352,26 +335,11 @@ static apk_blob_t dependency_tostring(struct adb_obj *obj, char *buf, size_t buf
 
 static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)
 {
-	static const apk_spn_match_def spn_depname = {
-		[5]  = 0xe8, /* +-./ */
-		[6]  = 0xff, /* 0-7 */
-		[7]  = 0x07, /* 8-9 : */
-		[8]  = 0xfe, /* A-G */
-		[9]  = 0xff, /* H-O */
-		[10] = 0xff, /* P-W */
-		[11] = 0x87, /* X-Z _ */
-		[12] = 0xfe, /* a-g */
-		[13] = 0xff, /* h-o */
-		[14] = 0xff, /* p-w */
-		[15] = 0x07, /* x-z */
-	};
-	apk_blob_t bname, bver, spn;
+	apk_blob_t bname, bver;
 	int op;
 
 	if (apk_dep_parse(bdep, &bname, &op, &bver) != 0) goto fail;
-
-	apk_blob_spn(bname, spn_depname, &spn, NULL);
-	if (bname.len != spn.len) goto fail;
+	if (apk_blob_spn(bname, APK_CTYPE_DEPENDENCY_NAME, NULL, NULL)) goto fail;
 
 	adb_wo_blob(obj, ADBI_DEP_NAME, bname);
 	if (op != APK_DEPMASK_ANY) {

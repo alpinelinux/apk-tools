@@ -11,17 +11,11 @@
 #include <ctype.h>
 #include "apk_defines.h"
 #include "apk_version.h"
+#include "apk_ctype.h"
 
 #define DEBUG 0
 
 /* Alpine version: digit{.digit}...{letter}{_suf{#}}...{-r#} */
-
-static const apk_spn_match_def spn_suffix = {
-	[12] = 0xfe, /* a-g */
-	[13] = 0xff, /* h-o */
-	[14] = 0xff, /* p-w */
-	[15] = 0x07, /* x-z */
-};
 
 enum PARTS {
 	TOKEN_INITIAL_DIGIT,
@@ -184,7 +178,7 @@ static void token_next(struct token_state *t, apk_blob_t *b)
 	case '_':
 		if (t->token > TOKEN_SUFFIX_NO) goto invalid;
 		b->ptr++, b->len--;
-		apk_blob_spn(*b, spn_suffix, &t->value, b);
+		apk_blob_spn(*b, APK_CTYPE_VERSION_SUFFIX, &t->value, b);
 		t->suffix = suffix_value(t->value);
 		if (t->suffix == SUFFIX_INVALID) goto invalid;
 		t->token = TOKEN_SUFFIX;

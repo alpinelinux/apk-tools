@@ -40,41 +40,6 @@ apk_blob_t apk_blob_dup(apk_blob_t blob)
 	return APK_BLOB_PTR_LEN(ptr, blob.len);
 }
 
-static int inline test_bit(const unsigned char *array, unsigned char bit)
-{
-	return array[bit >> 3] & (1 << (bit & 7));
-}
-
-int apk_blob_spn(apk_blob_t blob, const apk_spn_match accept, apk_blob_t *l, apk_blob_t *r)
-{
-	int i, ret = 0;
-
-	for (i = 0; i < blob.len; i++) {
-		if (!test_bit(accept, blob.ptr[i])) {
-			ret = 1;
-			break;
-		}
-	}
-	if (l != NULL) *l = APK_BLOB_PTR_LEN(blob.ptr, i);
-	if (r != NULL) *r = APK_BLOB_PTR_LEN(blob.ptr+i, blob.len-i);
-	return ret;
-}
-
-int apk_blob_cspn(apk_blob_t blob, const apk_spn_match reject, apk_blob_t *l, apk_blob_t *r)
-{
-	int i, ret = 0;
-
-	for (i = 0; i < blob.len; i++) {
-		if (test_bit(reject, blob.ptr[i])) {
-			ret = 1;
-			break;
-		}
-	}
-	if (l != NULL) *l = APK_BLOB_PTR_LEN(blob.ptr, i);
-	if (r != NULL) *r = APK_BLOB_PTR_LEN(blob.ptr+i, blob.len-i);
-	return ret;
-}
-
 int apk_blob_rsplit(apk_blob_t blob, char split, apk_blob_t *l, apk_blob_t *r)
 {
 	char *sep;

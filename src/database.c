@@ -33,18 +33,13 @@
 #include "apk_package.h"
 #include "apk_database.h"
 #include "apk_applet.h"
+#include "apk_ctype.h"
 #include "apk_extract.h"
 #include "apk_print.h"
 #include "apk_openssl.h"
 #include "apk_tar.h"
 #include "apk_adb.h"
 #include "apk_fs.h"
-
-static const apk_spn_match_def apk_spn_repo_separators = {
-	[1] = (1<<1) /* tab */,
-	[4] = (1<<0) /* */,
-	[7] = (1<<2) /*:*/,
-};
 
 enum {
 	APK_DIR_FREE = 0,
@@ -2357,8 +2352,8 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 		return 0;
 
 	if (brepo.ptr[0] == '@') {
-		apk_blob_cspn(brepo, apk_spn_repo_separators, &btag, &brepo);
-		apk_blob_spn(brepo, apk_spn_repo_separators, NULL, &brepo);
+		apk_blob_cspn(brepo, APK_CTYPE_REPOSITORY_SEPARATOR, &btag, &brepo);
+		apk_blob_spn(brepo, APK_CTYPE_REPOSITORY_SEPARATOR, NULL, &brepo);
 		tag_id = apk_db_get_tag_id(db, btag);
 	}
 

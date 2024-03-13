@@ -25,19 +25,10 @@
 #include "apk_defines.h"
 #include "apk_package.h"
 #include "apk_database.h"
+#include "apk_ctype.h"
 #include "apk_print.h"
 #include "apk_extract.h"
 #include "apk_adb.h"
-
-const apk_spn_match_def apk_spn_dependency_comparer = {
-	[7] = (1<<4) /*<*/ | (1<<5) /*=*/ | (1<<6) /*<*/,
-	[15] = (1<<6) /*~*/
-};
-
-const apk_spn_match_def apk_spn_dependency_separator = {
-	[1] = (1<<2) /*\n*/,
-	[4] = (1<<0) /* */,
-};
 
 struct apk_package *apk_pkg_get_installed(struct apk_name *name)
 {
@@ -162,8 +153,8 @@ int apk_dep_parse(apk_blob_t spec, apk_blob_t *name, int *rop, apk_blob_t *versi
 	if (APK_BLOB_IS_NULL(spec)) goto fail;
 	if (apk_blob_pull_blob_match(&spec, APK_BLOB_STRLIT("!")))
 		op |= APK_VERSION_CONFLICT;
-	if (apk_blob_cspn(spec, apk_spn_dependency_comparer, name, &bop)) {
-		if (!apk_blob_spn(bop, apk_spn_dependency_comparer, &bop, version)) goto fail;
+	if (apk_blob_cspn(spec, APK_CTYPE_DEPENDENCY_COMPARER, name, &bop)) {
+		if (!apk_blob_spn(bop, APK_CTYPE_DEPENDENCY_COMPARER, &bop, version)) goto fail;
 		op |= apk_version_result_mask_blob(bop);
 		if ((op & ~APK_VERSION_CONFLICT) == 0) goto fail;
 		if ((op & APK_DEPMASK_CHECKSUM) != APK_DEPMASK_CHECKSUM &&
@@ -222,8 +213,8 @@ void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_depend
 
 	/* grap one token, and skip all separators */
 	if (APK_BLOB_IS_NULL(*b)) goto fail;
-	apk_blob_cspn(*b, apk_spn_dependency_separator, &bdep, b);
-	apk_blob_spn(*b, apk_spn_dependency_separator, NULL, b);
+	apk_blob_cspn(*b, APK_CTYPE_DEPENDENCY_SEPARATOR, &bdep, b);
+	apk_blob_spn(*b, APK_CTYPE_DEPENDENCY_SEPARATOR, NULL, b);
 
 	if (apk_dep_parse(bdep, &bname, &op, &bver) != 0) goto fail;
 	if (apk_blob_split(bname, APK_BLOB_STRLIT("@"), &bname, &btag))
