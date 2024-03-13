@@ -168,6 +168,7 @@ enum {
 	APK_PKG_REPLACES_NO,
 	APK_PKG_REPLACES_CONFLICT,
 };
+int apk_pkg_replaces_dir(const struct apk_package *a, const struct apk_package *b);
 int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package *b);
 
 unsigned int apk_foreach_genid(void);

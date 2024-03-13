@@ -61,11 +61,20 @@ static const struct apk_option_group optgroup_applet = {
 	.parse = option_parse_applet,
 };
 
-static int mark_recalculate(apk_hash_item item, void *ctx)
+static int mark_update_dirperms(apk_hash_item item, void *ctx)
 {
+	struct apk_database *db = ctx;
+	struct apk_out *out = &db->ctx->out;
 	struct apk_db_dir *dir = (struct apk_db_dir *) item;
-	if (dir->refs == 0) return 0;
-	dir->update_permissions = 1;
+
+	if (dir->namelen == 0 || !dir->refs) return 0;
+
+	apk_db_dir_prepare(db, dir);
+	if (!dir->permissions_ok) {
+		db->dirperms_stale = 1;
+		dir->permissions_ok = dir->permissions_stale = 1;
+		apk_dbg(out, "fixing directory %s", dir->name);
+	}
 	return 0;
 }
 
@@ -99,7 +108,7 @@ static int fix_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 		ctx->solver_flags = APK_SOLVERF_REINSTALL;
 
 	if (ctx->fix_directory_permissions)
-		apk_hash_foreach(&db->installed.dirs, mark_recalculate, db);
+		apk_hash_foreach(&db->installed.dirs, mark_update_dirperms, db);
 
 	if (args->num == 0) {
 		list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {

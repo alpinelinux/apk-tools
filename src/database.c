@@ -264,23 +264,24 @@ static struct apk_db_acl *apk_db_acl_atomize_digest(struct apk_database *db, mod
 	return __apk_db_acl_atomize(db, mode, uid, gid, dig->len, dig->data);
 }
 
-static void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir)
+void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir)
 {
 	struct apk_fsdir d;
+	struct apk_db_acl *acl;
 	mode_t dir_mode;
 
 	if (dir->namelen == 0) return;
 	if (dir->created) return;
 
-	dir_mode = apk_db_dir_get_mode(db, dir->mode);
-
+	acl = dir->owner->acl;
+	dir_mode = apk_db_dir_get_mode(db, acl->mode);
 	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->ctx, APK_BLOB_NULL);
-	switch (apk_fsdir_check(&d, dir_mode, dir->uid, dir->gid)) {
+	switch (apk_fsdir_check(&d, dir_mode, acl->uid, acl->gid)) {
 	default:
 		if (!(db->ctx->flags & APK_SIMULATE))
 			apk_fsdir_create(&d, dir_mode);
 	case 0:
-		dir->update_permissions = 1;
+		dir->permissions_ok = 1;
 	case APK_FS_DIR_MODIFIED:
 		dir->created = 1;
 		break;
@@ -304,7 +305,7 @@ void apk_db_dir_unref(struct apk_database *db, struct apk_db_dir *dir, int rmdir
 		apk_db_dir_unref(db, dir->parent, rmdir_mode);
 		dir->parent = NULL;
 	}
-	dir->seen = dir->created = dir->update_permissions = 0;
+	dir->created = dir->permissions_ok = dir->permissions_stale = 0;
 }
 
 struct apk_db_dir *apk_db_dir_ref(struct apk_db_dir *dir)
@@ -345,8 +346,6 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 
 	db->installed.stats.dirs++;
 	dir->refs = 1;
-	dir->uid = (uid_t) -1;
-	dir->gid = (gid_t) -1;
 
 	if (name.len == 0) {
 		dir->parent = NULL;
@@ -411,30 +410,31 @@ static struct apk_db_dir_instance *apk_db_diri_new(struct apk_database *db,
 	return diri;
 }
 
-static void apk_db_dir_apply_diri_permissions(struct apk_db_dir_instance *diri)
+static void apk_db_dir_apply_diri_permissions(struct apk_database *db, struct apk_db_dir_instance *diri)
 {
 	struct apk_db_dir *dir = diri->dir;
-	struct apk_db_acl *acl = diri->acl;
 
-	if (acl->uid < dir->uid || (acl->uid == dir->uid && acl->gid < dir->gid)) {
-		dir->uid = acl->uid;
-		dir->gid = acl->gid;
-		dir->mode = acl->mode;
-	} else if (acl->uid == dir->uid && acl->gid == dir->gid) {
-		dir->mode &= acl->mode;
+	if (dir->owner && apk_pkg_replaces_dir(dir->owner->pkg, diri->pkg) != APK_PKG_REPLACES_YES)
+		return;
+
+	if (dir->permissions_ok) {
+		// Check if the ACL changed and the directory needs update
+		if (dir->owner == NULL || dir->owner->acl != diri->acl) {
+			dir->permissions_stale = 1;
+			db->dirperms_stale = 1;
+		}
 	}
-}
-
-static void apk_db_diri_set(struct apk_db_dir_instance *diri, struct apk_db_acl *acl)
-{
-	diri->acl = acl;
-	apk_db_dir_apply_diri_permissions(diri);
+	dir->owner = diri;
 }
 
 static void apk_db_diri_free(struct apk_database *db,
 			     struct apk_db_dir_instance *diri,
 			     int rmdir_mode)
 {
+	if (diri->dir->owner == diri) {
+		diri->dir->owner = NULL;
+		db->dirowner_stale = 1;
+	}
 	apk_db_dir_unref(db, diri->dir, rmdir_mode);
 	free(diri);
 }
@@ -801,7 +801,7 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 			if (pkg == NULL)
 				continue;
 
-			if (diri) apk_db_dir_apply_diri_permissions(diri);
+			if (diri) apk_db_dir_apply_diri_permissions(db, diri);
 
 			if (repo >= 0) {
 				pkg->repos |= BIT(repo);
@@ -851,7 +851,7 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 		/* Check FDB special entries */
 		switch (field) {
 		case 'F':
-			if (diri) apk_db_dir_apply_diri_permissions(diri);
+			if (diri) apk_db_dir_apply_diri_permissions(db, diri);
 			if (pkg->name == NULL) goto bad_entry;
 			diri = find_diri(ipkg, l, NULL, &diri_node);
 			if (!diri) diri = apk_db_diri_new(db, pkg, l, &diri_node);
@@ -2066,16 +2066,20 @@ static int update_permissions(apk_hash_item item, void *pctx)
 	struct update_permissions_ctx *ctx = pctx;
 	struct apk_database *db = ctx->db;
 	struct apk_db_dir *dir = (struct apk_db_dir *) item;
+	struct apk_db_acl *acl;
 	struct apk_fsdir d;
 
 	if (dir->refs == 0) return 0;
-	if (!dir->update_permissions) return 0;
-	dir->seen = 0;
+	if (!dir->permissions_stale) return 0;
 
+	acl = dir->owner->acl;
 	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->ctx, APK_BLOB_NULL);
-	if (apk_fsdir_update_perms(&d, apk_db_dir_get_mode(db, dir->mode), dir->uid, dir->gid) != 0)
+	if (apk_fsdir_update_perms(&d, apk_db_dir_get_mode(db, acl->mode), acl->uid, acl->gid) == 0) {
+		dir->modified = 1;
+		dir->permissions_stale = 0;
+	} else {
 		ctx->errors++;
-
+	}
 	return 0;
 }
 
@@ -2084,26 +2088,23 @@ int apk_db_update_directory_permissions(struct apk_database *db)
 	struct apk_out *out = &db->ctx->out;
 	struct apk_installed_package *ipkg;
 	struct apk_db_dir_instance *diri;
-	struct apk_db_dir *dir;
-	struct hlist_node *dc, *dn;
+	struct hlist_node *dc;
 	struct update_permissions_ctx ctx = {
 		.db = db,
 	};
 
-	list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
-		hlist_for_each_entry_safe(diri, dc, dn, &ipkg->owned_dirs, pkg_dirs_list) {
-			dir = diri->dir;
-			if (!dir->update_permissions) continue;
-			if (!dir->seen) {
-				dir->seen = 1;
-				dir->mode = 0;
-				dir->uid = (uid_t) -1;
-				dir->gid = (gid_t) -1;
-			}
-			apk_db_dir_apply_diri_permissions(diri);
+	if (db->dirowner_stale) {
+		list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
+			hlist_for_each_entry(diri, dc, &ipkg->owned_dirs, pkg_dirs_list)
+				apk_db_dir_apply_diri_permissions(db, diri);
 		}
+		db->dirowner_stale = 0;
 	}
-	apk_hash_foreach(&db->installed.dirs, update_permissions, &ctx);
+	if (db->dirperms_stale) {
+		if (!(db->ctx->flags & APK_SIMULATE))
+			apk_hash_foreach(&db->installed.dirs, update_permissions, &ctx);
+		db->dirperms_stale = 0;
+	}
 	if (ctx.errors) apk_err(out, "%d errors updating directory permissions", ctx.errors);
 	return ctx.errors;
 }
@@ -2753,8 +2754,9 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 
 		diri = ctx->diri = find_diri(ipkg, name, NULL, &ctx->file_diri_node);
 		if (!diri) diri = apk_db_install_directory_entry(ctx, name);
-		apk_db_diri_set(diri, apk_db_acl_atomize_digest(db, ae->mode, ae->uid, ae->gid, &ae->xattr_digest));
 		apk_db_dir_prepare(db, diri->dir);
+		diri->acl = apk_db_acl_atomize_digest(db, ae->mode, ae->uid, ae->gid, &ae->xattr_digest);
+		apk_db_dir_apply_diri_permissions(db, diri);
 	}
 	ctx->installed_size += ctx->current_file_size;
 

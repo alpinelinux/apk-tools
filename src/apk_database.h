@@ -67,21 +67,19 @@ struct apk_db_dir {
 	unsigned long hash;
 
 	struct apk_db_dir *parent;
+	struct apk_db_dir_instance *owner;
 	struct apk_protected_path_array *protected_paths;
-	mode_t mode;
-	uid_t uid;
-	gid_t gid;
 
 	unsigned short refs;
 	unsigned short namelen;
 
-	unsigned protect_mode : 3;
-	unsigned has_protected_children : 1;
+	unsigned char protect_mode : 3;
+	unsigned char has_protected_children : 1;
 
-	unsigned seen : 1;
-	unsigned created : 1;
-	unsigned modified : 1;
-	unsigned update_permissions : 1;
+	unsigned char created : 1;
+	unsigned char modified : 1;
+	unsigned char permissions_ok : 1;
+	unsigned char permissions_stale : 1;
 
 	char rooted_name[1];
 	char name[];
@@ -162,6 +160,8 @@ struct apk_database {
 	unsigned int compat_notinstallable : 1;
 	unsigned int sorted_names : 1;
 	unsigned int sorted_installed_packages : 1;
+	unsigned int dirowner_stale : 1;
+	unsigned int dirperms_stale : 1;
 
 	struct apk_dependency_array *world;
 	struct apk_id_cache *id_cache;
@@ -209,8 +209,9 @@ struct apk_name *apk_db_get_name(struct apk_database *db, apk_blob_t name);
 struct apk_name *apk_db_query_name(struct apk_database *db, apk_blob_t name);
 int apk_db_get_tag_id(struct apk_database *db, apk_blob_t tag);
 
-struct apk_db_dir *apk_db_dir_ref(struct apk_db_dir *dir);
+void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir);
 void apk_db_dir_unref(struct apk_database *db, struct apk_db_dir *dir, int allow_rmdir);
+struct apk_db_dir *apk_db_dir_ref(struct apk_db_dir *dir);
 struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name);
 struct apk_db_dir *apk_db_dir_query(struct apk_database *db, apk_blob_t name);
 struct apk_db_file *apk_db_file_query(struct apk_database *db,

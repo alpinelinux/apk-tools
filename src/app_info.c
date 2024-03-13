@@ -81,6 +81,18 @@ static void info_exists(struct info_ctx *ctx, struct apk_database *db,
 	}
 }
 
+static struct apk_package *get_owner(struct apk_database *db, apk_blob_t fn)
+{
+	struct apk_db_dir *dir;
+
+	apk_blob_pull_blob_match(&fn, APK_BLOB_STRLIT("/"));
+	if (fn.len && fn.ptr[fn.len-1] == '/') fn.len--;
+
+	dir = apk_db_dir_query(db, fn);
+	if (dir) return dir->owner->pkg;
+	return apk_db_get_file_owner(db, fn);
+}
+
 static void info_who_owns(struct info_ctx *ctx, struct apk_database *db,
 			  struct apk_string_array *args)
 {
@@ -102,11 +114,12 @@ static void info_who_owns(struct info_ctx *ctx, struct apk_database *db,
 			fn = APK_BLOB_STR(*parg);
 
 		via = "";
-		pkg = apk_db_get_file_owner(db, fn);
+
+		pkg = get_owner(db, fn);
 		if (pkg == NULL) {
 			r = readlinkat(db->root_fd, *parg, buf, sizeof(buf));
 			if (r > 0 && r < PATH_MAX && buf[0] == '/') {
-				pkg = apk_db_get_file_owner(db, APK_BLOB_STR(buf));
+				pkg = get_owner(db, APK_BLOB_STR(buf));
 				via = "symlink target ";
 			}
 		}

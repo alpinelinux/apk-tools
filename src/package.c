@@ -929,6 +929,35 @@ int apk_pkg_cmp_display(const struct apk_package *a, const struct apk_package *b
 	}
 }
 
+int apk_pkg_replaces_dir(const struct apk_package *a, const struct apk_package *b)
+{
+	struct apk_installed_package *ai = a->ipkg, *bi = b->ipkg;
+
+	/* Prefer overlay */
+	if (a->name == NULL) return APK_PKG_REPLACES_NO;
+	if (b->name == NULL) return APK_PKG_REPLACES_YES;
+
+	/* Upgrading package? */
+	if (a->name == b->name) return APK_PKG_REPLACES_YES;
+
+	/* Highest replaces_priority wins */
+	if (ai->replaces_priority > bi->replaces_priority) return APK_PKG_REPLACES_NO;
+	if (ai->replaces_priority < bi->replaces_priority) return APK_PKG_REPLACES_YES;
+
+	/* If both have the same origin... */
+	if (a->origin && a->origin == b->origin) {
+		/* .. and either has origin equal to package name, prefer it. */
+		if (apk_blob_compare(*a->origin, APK_BLOB_STR(a->name->name)) == 0)
+			return APK_PKG_REPLACES_NO;
+		if (apk_blob_compare(*b->origin, APK_BLOB_STR(b->name->name)) == 0)
+			return APK_PKG_REPLACES_YES;
+	}
+
+	/* Fall back to package name to have stable sort */
+	if (strcmp(a->name->name, b->name->name) <= 0) return APK_PKG_REPLACES_NO;
+	return APK_PKG_REPLACES_YES;
+}
+
 int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package *b)
 {
 	struct apk_dependency *dep;

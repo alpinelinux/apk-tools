@@ -19,10 +19,6 @@
 #include "apk_database.h"
 #include "apk_print.h"
 
-/* Use (unused) highest bit of mode_t as seen flag of our internal
- * database file entries */
-#define S_SEENFLAG	0x80000000
-
 enum {
 	MODE_BACKUP = 0,
 	MODE_SYSTEM,
@@ -173,16 +169,16 @@ static int audit_directory(struct audit_ctx *actx,
 			   struct apk_db_dir *dbd,
 			   struct apk_file_info *fi)
 {
-	if (dbd != NULL) dbd->mode |= S_SEENFLAG;
+	if (dbd != NULL) dbd->modified = 1;
 
 	if (dbd == NULL || dbd->refs == 1)
 		return actx->recursive ? 'd' : 'D';
 
-	if (actx->check_permissions &&
-	    ((dbd->mode & ~S_SEENFLAG) || dbd->uid || dbd->gid)) {
-		if ((fi->mode & 07777) != (dbd->mode & 07777))
+	struct apk_db_acl *acl = dbd->owner->acl;
+	if (actx->check_permissions && dbd->modified) {
+		if ((fi->mode & 07777) != (acl->mode & 07777))
 			return 'm';
-		if (fi->uid != dbd->uid || fi->gid != dbd->gid)
+		if (fi->uid != acl->uid || fi->gid != acl->gid)
 			return 'm';
 	}
 
@@ -222,13 +218,12 @@ static void report_audit(struct audit_ctx *actx,
 		printf(BLOB_FMT "\n", BLOB_PRINTF(bfull));
 	} else {
 		if (actx->details) {
-			if (file)
-				printf("- mode=%o uid=%d gid=%d%s\n",
-					file->acl->mode & 07777, file->acl->uid, file->acl->gid,
-					format_checksum(APK_BLOB_CSUM(file->csum), APK_BLOB_BUF(csum_buf)));
-			else if (dir && reason != 'D' && reason != 'd')
-				printf("- mode=%o uid=%d gid=%d\n",
-					dir->mode & 07777, dir->uid, dir->gid);
+			struct apk_db_acl *acl = NULL;
+			if (file) acl = file->acl;
+			else if (dir && reason != 'D' && reason != 'd') acl = dir->owner->acl;
+			if (acl) printf("- mode=%o uid=%d gid=%d%s\n",
+				acl->mode & 07777, acl->uid, acl->gid,
+				file ? format_checksum(APK_BLOB_CSUM(file->csum), APK_BLOB_BUF(csum_buf)) : "");
 			if (fi) printf("+ mode=%o uid=%d gid=%d%s\n",
 				fi->mode & 07777, fi->uid, fi->gid,
 				format_checksum(APK_DIGEST_BLOB(fi->digest), APK_BLOB_BUF(csum_buf)));
@@ -394,7 +389,7 @@ static int audit_directory_tree(struct audit_tree_ctx *atctx, int dirfd)
 		path.len--;
 
 	atctx->dir = apk_db_dir_get(atctx->db, path);
-	atctx->dir->mode |= S_SEENFLAG;
+	atctx->dir->modified = 1;
 	r = apk_dir_foreach_file(dirfd, audit_directory_tree_item, atctx);
 	apk_db_dir_unref(atctx->db, atctx->dir, FALSE);
 
@@ -412,7 +407,7 @@ static int audit_missing_files(apk_hash_item item, void *pctx)
 	if (file->audited) return 0;
 
 	dir = file->diri->dir;
-	if (!(dir->mode & S_SEENFLAG)) return 0;
+	if (!dir->modified) return 0;
 	if (determine_file_protect_mode(dir, file->name) == APK_PROTECT_IGNORE) return 0;
 
 	len = snprintf(path, sizeof(path), DIR_FILE_FMT, DIR_FILE_PRINTF(dir, file));
