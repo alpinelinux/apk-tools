@@ -45,10 +45,8 @@ static int ver_test(struct apk_database *db, struct apk_string_array *args)
 	struct apk_out *out = &db->ctx->out;
 	int r;
 
-	if (args->num != 2)
-		return 1;
-
-	r = apk_version_compare(args->item[0], args->item[1]);
+	if (args->num != 2) return 1;
+	r = apk_version_compare_blob(APK_BLOB_STR(args->item[0]), APK_BLOB_STR(args->item[1]));
 	apk_out(out, "%s", apk_version_op_string(r));
 	return 0;
 }

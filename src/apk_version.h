@@ -28,7 +28,6 @@ int apk_version_result_mask(const char *op);
 int apk_version_result_mask_blob(apk_blob_t op);
 int apk_version_validate(apk_blob_t ver);
 int apk_version_compare_blob(apk_blob_t a, apk_blob_t b);
-int apk_version_compare(const char *str1, const char *str2);
 int apk_version_match(apk_blob_t a, int op, apk_blob_t b);
 
 #endif

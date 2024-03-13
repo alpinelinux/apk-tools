@@ -313,11 +313,6 @@ int apk_version_compare_blob(apk_blob_t a, apk_blob_t b)
 	return apk_version_compare_blob_fuzzy(a, b, FALSE);
 }
 
-int apk_version_compare(const char *str1, const char *str2)
-{
-	return apk_version_compare_blob(APK_BLOB_STR(str1), APK_BLOB_STR(str2));
-}
-
 int apk_version_match(apk_blob_t a, int op, apk_blob_t b)
 {
 	if (apk_version_compare_blob_fuzzy(a, b, op&APK_VERSION_FUZZY) & op)
