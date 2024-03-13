@@ -39,10 +39,6 @@ const apk_spn_match_def apk_spn_dependency_separator = {
 	[4] = (1<<0) /* */,
 };
 
-static const apk_spn_match_def apk_spn_repotag_separator = {
-	[8] = (1<<0) /*@*/
-};
-
 struct apk_package *apk_pkg_get_installed(struct apk_name *name)
 {
 	struct apk_provider *p;
@@ -230,7 +226,7 @@ void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_depend
 	apk_blob_spn(*b, apk_spn_dependency_separator, NULL, b);
 
 	if (apk_dep_parse(bdep, &bname, &op, &bver) != 0) goto fail;
-	if (apk_blob_cspn(bname, apk_spn_repotag_separator, &bname, &btag))
+	if (apk_blob_split(bname, APK_BLOB_STRLIT("@"), &bname, &btag))
 		tag = apk_db_get_tag_id(db, btag);
 
 	/* convert to apk_dependency */
