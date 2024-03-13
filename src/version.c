@@ -203,7 +203,7 @@ static void token_next(struct token_state *t, apk_blob_t *b)
 
 const char *apk_version_op_string(int op)
 {
-	switch (op) {
+	switch (op & ~APK_VERSION_CONFLICT) {
 	case APK_VERSION_LESS:
 		return "<";
 	case APK_VERSION_LESS|APK_VERSION_EQUAL:
@@ -316,7 +316,9 @@ int apk_version_compare(apk_blob_t a, apk_blob_t b)
 
 int apk_version_match(apk_blob_t a, int op, apk_blob_t b)
 {
-	if (apk_version_compare_fuzzy(a, b, op&APK_VERSION_FUZZY) & op)
-		return 1;
-	return 0;
+	int ok = 0;
+	if ((op & APK_DEPMASK_ANY) == APK_DEPMASK_ANY ||
+	    apk_version_compare_fuzzy(a, b, op & APK_VERSION_FUZZY) & op) ok = 1;
+	if (op & APK_VERSION_CONFLICT) ok = !ok;
+	return ok;
 }

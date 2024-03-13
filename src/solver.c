@@ -163,7 +163,7 @@ static int dependency_satisfiable(struct apk_solver_state *ss, struct apk_depend
 	struct apk_name *name = dep->name;
 	struct apk_provider *p;
 
-	if (dep->conflict && ss->ignore_conflict)
+	if (apk_dep_conflict(dep) && ss->ignore_conflict)
 		return TRUE;
 
 	if (name->ss.locked)
@@ -298,16 +298,16 @@ static void apply_constraint(struct apk_solver_state *ss, struct apk_package *pp
 	int is_provided;
 
 	dbg_printf("    apply_constraint: %s%s%s" BLOB_FMT "\n",
-		dep->conflict ? "!" : "",
+		apk_dep_conflict(dep) ? "!" : "",
 		name->name,
 		apk_version_op_string(dep->op),
 		BLOB_PRINTF(*dep->version));
 
-	if (dep->conflict && ss->ignore_conflict)
+	if (apk_dep_conflict(dep) && ss->ignore_conflict)
 		return;
 
-	name->ss.requirers += !dep->conflict;
-	if (name->ss.requirers == 1 && !dep->conflict)
+	name->ss.requirers += !apk_dep_conflict(dep);
+	if (name->ss.requirers == 1 && !apk_dep_conflict(dep))
 		name_requirers_changed(ss, name);
 
 	foreach_array_item(p0, name->providers) {
@@ -438,7 +438,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 
 		/* FIXME: can merge also conflicts */
 		foreach_array_item(dep, pkg->depends)
-			if (!dep->conflict)
+			if (!apk_dep_conflict(dep))
 				merge_index(&dep->name->ss.merge_depends, num_options);
 
 		if (merge_index(&pkg->name->ss.merge_provides, num_options))
@@ -797,7 +797,7 @@ static void cset_track_deps_added(struct apk_package *pkg)
 	struct apk_dependency *d;
 
 	foreach_array_item(d, pkg->depends) {
-		if (d->conflict || !d->name->ss.installed_name)
+		if (apk_dep_conflict(d) || !d->name->ss.installed_name)
 			continue;
 		d->name->ss.installed_name->ss.requirers++;
 	}
@@ -809,7 +809,7 @@ static void cset_track_deps_removed(struct apk_solver_state *ss, struct apk_pack
 	struct apk_package *pkg0;
 
 	foreach_array_item(d, pkg->depends) {
-		if (d->conflict || !d->name->ss.installed_name)
+		if (apk_dep_conflict(d) || !d->name->ss.installed_name)
 			continue;
 		if (--d->name->ss.installed_name->ss.requirers > 0)
 			continue;
@@ -948,7 +948,7 @@ static void cset_gen_dep(struct apk_solver_state *ss, struct apk_package *ppkg, 
 	struct apk_name *name = dep->name;
 	struct apk_package *pkg = name->ss.chosen.pkg;
 
-	if (dep->conflict && ss->ignore_conflict)
+	if (apk_dep_conflict(dep) && ss->ignore_conflict)
 		return;
 
 	if (!apk_dep_is_provided(dep, &name->ss.chosen))

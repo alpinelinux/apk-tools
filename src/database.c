@@ -529,7 +529,7 @@ static void apk_db_pkg_rdepends(struct apk_database *db, struct apk_package *pkg
 
 	foreach_array_item(d, pkg->depends) {
 		rname = d->name;
-		rname->is_dependency |= !d->conflict;
+		rname->is_dependency |= !apk_dep_conflict(d);
 		add_name_to_array(pkg->name, &rname->rdepends);
 	}
 	foreach_array_item(d, pkg->install_if) {
@@ -1396,7 +1396,7 @@ static int apk_db_name_rdepends(apk_hash_item item, void *pctx)
 		num_virtual += (p->pkg->name != name);
 		foreach_array_item(dep, p->pkg->depends) {
 			rname = dep->name;
-			rname->is_dependency |= !dep->conflict;
+			rname->is_dependency |= !apk_dep_conflict(dep);
 			if (!(rname->state_int & 1)) {
 				if (!rname->state_int) *apk_name_array_add(&touched) = rname;
 				rname->state_int |= 1;

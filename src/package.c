@@ -241,8 +241,7 @@ void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_depend
 		.name = name,
 		.version = apk_atomize_dup(&db->atoms, bver),
 		.repository_tag = tag,
-		.op = op & ~APK_VERSION_CONFLICT,
-		.conflict = !!(op & APK_VERSION_CONFLICT),
+		.op = op,
 	};
 	return;
 fail:
@@ -291,50 +290,21 @@ static int apk_dep_match_checksum(struct apk_dependency *dep, struct apk_package
 	apk_blob_t b = *dep->version;
 
 	apk_blob_pull_csum(&b, &csum);
-	if (apk_checksum_compare(&csum, &pkg->csum) == 0)
-		return 1;
-
-	return 0;
+	return apk_checksum_compare(&csum, &pkg->csum) == 0;
 }
 
 int apk_dep_is_provided(struct apk_dependency *dep, struct apk_provider *p)
 {
-	if (p == NULL || p->pkg == NULL)
-		return dep->conflict;
-
-	switch (dep->op) {
-	case APK_DEPMASK_CHECKSUM:
-		return apk_dep_match_checksum(dep, p->pkg);
-	case APK_DEPMASK_ANY:
-		return !dep->conflict;
-	default:
-		if (p->version == &apk_atom_null)
-			return dep->conflict;
-		if (apk_version_match(*p->version, dep->op, *dep->version))
-			return !dep->conflict;
-		return dep->conflict;
-	}
-	return dep->conflict;
+	if (p == NULL || p->pkg == NULL) return apk_dep_conflict(dep);
+	if (dep->op == APK_DEPMASK_CHECKSUM) return apk_dep_match_checksum(dep, p->pkg);
+	return apk_version_match(*p->version, dep->op, *dep->version);
 }
 
 int apk_dep_is_materialized(struct apk_dependency *dep, struct apk_package *pkg)
 {
-	if (pkg == NULL)
-		return dep->conflict;
-	if (dep->name != pkg->name)
-		return dep->conflict;
-
-	switch (dep->op) {
-	case APK_DEPMASK_CHECKSUM:
-		return apk_dep_match_checksum(dep, pkg);
-	case APK_DEPMASK_ANY:
-		return !dep->conflict;
-	default:
-		if (apk_version_match(*pkg->version, dep->op, *dep->version))
-			return !dep->conflict;
-		return dep->conflict;
-	}
-	return dep->conflict;
+	if (pkg == NULL || dep->name != pkg->name) return apk_dep_conflict(dep);
+	if (dep->op == APK_DEPMASK_CHECKSUM) return apk_dep_match_checksum(dep, pkg);
+	return apk_version_match(*pkg->version, dep->op, *dep->version);
 }
 
 int apk_dep_analyze(struct apk_dependency *dep, struct apk_package *pkg)
@@ -371,7 +341,7 @@ char *apk_dep_snprintf(char *buf, size_t n, struct apk_dependency *dep)
 
 void apk_blob_push_dep(apk_blob_t *to, struct apk_database *db, struct apk_dependency *dep)
 {
-	if (dep->conflict)
+	if (apk_dep_conflict(dep))
 		apk_blob_push_blob(to, APK_BLOB_PTR_LEN("!", 1));
 
 	apk_blob_push_blob(to, APK_BLOB_STR(dep->name->name));
@@ -431,12 +401,11 @@ int apk_deps_write(struct apk_database *db, struct apk_dependency_array *deps, s
 
 void apk_dep_from_adb(struct apk_dependency *dep, struct apk_database *db, struct adb_obj *d)
 {
-	int mask = adb_ro_int(d, ADBI_DEP_MATCH);
+	int op = adb_ro_int(d, ADBI_DEP_MATCH);
 	*dep = (struct apk_dependency) {
 		.name = apk_db_get_name(db, adb_ro_blob(d, ADBI_DEP_NAME)),
 		.version = apk_atomize_dup(&db->atoms, adb_ro_blob(d, ADBI_DEP_VERSION)),
-		.conflict = !!(mask & APK_VERSION_CONFLICT),
-		.op = (mask & ~APK_VERSION_CONFLICT) ?: APK_VERSION_EQUAL,
+		.op = (op & ~APK_VERSION_CONFLICT) ?: op|APK_VERSION_EQUAL,
 	};
 }
 

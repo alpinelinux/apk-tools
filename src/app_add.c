@@ -134,7 +134,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 		apk_blob_t b = APK_BLOB_STR(actx->virtpkg);
 		apk_blob_pull_dep(&b, db, &virtdep);
 
-		if (APK_BLOB_IS_NULL(b) || virtdep.conflict ||
+		if (APK_BLOB_IS_NULL(b) || apk_dep_conflict(&virtdep) ||
 		    (virtdep.name->name[0] != '.' && non_repository_check(db)))
 			goto bad_spec;
 

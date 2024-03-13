@@ -594,7 +594,7 @@ static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 
 	label_start(ps, "required by:");
 	foreach_array_item(d0, ps->world) {
-		if (d0->name != name || d0->conflict)
+		if (d0->name != name || apk_dep_conflict(d0))
 			continue;
 		apk_print_indented_fmt(&ps->i, "world[%s]",
 			apk_dep_snprintf(tmp, sizeof(tmp), d0));
@@ -609,7 +609,7 @@ static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 				continue;
 			p0->pkg->foreach_genid = genid;
 			foreach_array_item(d0, p0->pkg->depends) {
-				if (d0->name != name || d0->conflict)
+				if (d0->name != name || apk_dep_conflict(d0))
 					continue;
 				apk_print_indented_fmt(&ps->i,
 					PKG_VER_FMT "[%s]",
@@ -631,7 +631,7 @@ static void analyze_deps(struct print_state *ps, struct apk_dependency_array *de
 
 	foreach_array_item(d0, deps) {
 		name0 = d0->name;
-		if (d0->conflict) continue;
+		if (apk_dep_conflict(d0)) continue;
 		if ((name0->state_int & (STATE_INSTALLIF | STATE_PRESENT | STATE_MISSING)) != 0)
 			continue;
 		name0->state_int |= STATE_MISSING;
@@ -656,7 +656,7 @@ static void discover_reverse_iif(struct apk_name *name)
 			if (!p->pkg->marked) continue;
 			if (p->pkg->install_if->num == 0) continue;
 			foreach_array_item(d, p->pkg->install_if) {
-				if (!!d->conflict == !!(d->name->state_int & STATE_PRESENT)) {
+				if (apk_dep_conflict(d) == !!(d->name->state_int & STATE_PRESENT)) {
 					ok = 0;
 					break;
 				}
@@ -718,7 +718,7 @@ static void discover_deps(struct apk_dependency_array *deps)
 	struct apk_dependency *d;
 
 	foreach_array_item(d, deps) {
-		if (d->conflict) continue;
+		if (apk_dep_conflict(d)) continue;
 		discover_name(d->name, STATE_PRESENT);
 	}
 }

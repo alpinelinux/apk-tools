@@ -327,15 +327,15 @@ static struct adb_scalar_schema scalar_hsize = {
 static apk_blob_t dependency_tostring(struct adb_obj *obj, char *buf, size_t bufsz)
 {
 	apk_blob_t name, ver;
-	unsigned int mask;
+	unsigned int op;
 
 	name = adb_ro_blob(obj, ADBI_DEP_NAME);
 	ver  = adb_ro_blob(obj, ADBI_DEP_VERSION);
-	mask = adb_ro_int(obj, ADBI_DEP_MATCH) ?: APK_VERSION_EQUAL;
+	op   = adb_ro_int(obj, ADBI_DEP_MATCH) ?: APK_VERSION_EQUAL;
 
 	if (APK_BLOB_IS_NULL(name)) return APK_BLOB_NULL;
 	if (APK_BLOB_IS_NULL(ver)) {
-		if (mask & APK_VERSION_CONFLICT)
+		if (op & APK_VERSION_CONFLICT)
 			return APK_BLOB_PTR_LEN(buf,
 				snprintf(buf, bufsz, "!"BLOB_FMT,
 					BLOB_PRINTF(name)));
@@ -344,9 +344,9 @@ static apk_blob_t dependency_tostring(struct adb_obj *obj, char *buf, size_t buf
 
 	return APK_BLOB_PTR_LEN(buf,
 		snprintf(buf, bufsz, "%s"BLOB_FMT"%s"BLOB_FMT,
-			(mask & APK_VERSION_CONFLICT) ? "!" : "",
+			(op & APK_VERSION_CONFLICT) ? "!" : "",
 			BLOB_PRINTF(name),
-			apk_version_op_string(mask & ~APK_VERSION_CONFLICT),
+			apk_version_op_string(op),
 			BLOB_PRINTF(ver)));
 }
 

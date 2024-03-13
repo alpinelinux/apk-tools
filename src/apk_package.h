@@ -43,11 +43,10 @@ struct apk_trust;
 struct apk_dependency {
 	struct apk_name *name;
 	apk_blob_t *version;
-	unsigned broken : 1;
-	unsigned repository_tag : 6;
-	unsigned conflict : 1;
-	unsigned op : 5;
-	unsigned layer : 4; // solver sets for 'world' dependencies only
+	uint8_t op;
+	uint16_t broken : 1;
+	uint16_t repository_tag : 6;
+	uint16_t layer : 4; // solver sets for 'world' dependencies only
 };
 APK_ARRAY(apk_dependency_array, struct apk_dependency);
 
@@ -109,6 +108,7 @@ APK_ARRAY(apk_package_array, struct apk_package *);
 
 extern const char *apk_script_types[];
 
+static inline int apk_dep_conflict(struct apk_dependency *dep) { return !!(dep->op & APK_VERSION_CONFLICT); }
 void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
 		      struct apk_package *pkg);
 int apk_dep_is_materialized(struct apk_dependency *dep, struct apk_package *pkg);
