@@ -39,19 +39,23 @@ enum PARTS {
 	TOKEN_INVALID,
 };
 
-enum SUFFIX {
-	SUFFIX_INVALID = 0,
-	SUFFIX_ALPHA,
-	SUFFIX_BETA,
-	SUFFIX_PRE,
-	SUFFIX_RC,
+#define DECLARE_SUFFIXES(func) \
+	func(INVALID, "") \
+	func(ALPHA, "alpha") \
+	func(BETA, "beta") \
+	func(PRE, "pre") \
+	func(RC, "rc") \
+	func(NONE, "") \
+	func(CVS, "cvs") \
+	func(SVN, "svn") \
+	func(GIT, "git") \
+	func(HG, "hg") \
+	func(P, "p")
 
-	SUFFIX_NONE,
-	SUFFIX_CVS,
-	SUFFIX_SVN,
-	SUFFIX_GIT,
-	SUFFIX_HG,
-	SUFFIX_P
+#define SUFFIX_ENUM(n, str) SUFFIX_##n,
+enum {
+	SUFFIX_ENUM_START=-1,
+	DECLARE_SUFFIXES(SUFFIX_ENUM)
 };
 
 struct token_state {
@@ -62,9 +66,17 @@ struct token_state {
 
 static int suffix_value(apk_blob_t suf)
 {
-	static const char *suffixes[] = {
-		"", "alpha", "beta", "pre", "rc",
-		"", "cvs", "svn", "git", "hg", "p",
+#define SUFFIX_DEFINE(n, str) char suffix_##n[sizeof(str)];
+#define SUFFIX_ASSIGN(n, str) str,
+#define SUFFIX_INDEX(n, str) [SUFFIX_##n] = offsetof(struct suffix_literals, suffix_##n),
+	static const struct suffix_literals {
+		DECLARE_SUFFIXES(SUFFIX_DEFINE)
+	} suffixes = {
+		DECLARE_SUFFIXES(SUFFIX_ASSIGN)
+	};
+	static const unsigned short suffix_indexes[] = {
+		DECLARE_SUFFIXES(SUFFIX_INDEX)
+		sizeof(suffixes)
 	};
 	int val;
 
@@ -80,7 +92,9 @@ static int suffix_value(apk_blob_t suf)
 	case 's': val = SUFFIX_SVN; break;
 	default: return SUFFIX_INVALID;
 	}
-	if (apk_blob_compare(suf, APK_BLOB_STR(suffixes[val])) != 0)
+	char *ptr = (char *)&suffixes + suffix_indexes[val];
+	unsigned short len = suffix_indexes[val+1] - suffix_indexes[val] - 1;
+	if (apk_blob_compare(suf, APK_BLOB_PTR_LEN(ptr, len)) != 0)
 		return SUFFIX_INVALID;
 	return val;
 }
