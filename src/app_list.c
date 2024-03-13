@@ -91,7 +91,7 @@ static const struct apk_package *is_upgradable(struct apk_name *name, const stru
 
 static void print_package(const struct apk_package *pkg, const struct list_ctx *ctx)
 {
-	if (ctx-> verbosity <= 0) {
+	if (ctx->verbosity <= 0) {
 		printf("%s\n", pkg->name->name);
 		return;
 	}
