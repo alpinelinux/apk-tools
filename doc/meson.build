@@ -13,6 +13,7 @@ man_files = files(
     'apk-keys.5.scd',
     'apk-list.8.scd',
     'apk-manifest.8.scd',
+    'apk-package.5.scd',
     'apk-policy.8.scd',
     'apk-repositories.5.scd',
     'apk-search.8.scd',
