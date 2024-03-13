@@ -78,7 +78,7 @@ static int Pversion_compare(lua_State *L)
 	apk_blob_t a, b;
 	a = check_blob(L, 1);
 	b = check_blob(L, 2);
-	lua_pushstring(L, apk_version_op_string(apk_version_compare_blob(a, b)));
+	lua_pushstring(L, apk_version_op_string(apk_version_compare(a, b)));
 	return 1;
 }
 

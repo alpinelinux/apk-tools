@@ -46,7 +46,7 @@ static int ver_test(struct apk_database *db, struct apk_string_array *args)
 	int r;
 
 	if (args->num != 2) return 1;
-	r = apk_version_compare_blob(APK_BLOB_STR(args->item[0]), APK_BLOB_STR(args->item[1]));
+	r = apk_version_compare(APK_BLOB_STR(args->item[0]), APK_BLOB_STR(args->item[1]));
 	apk_out(out, "%s", apk_version_op_string(r));
 	return 0;
 }
@@ -134,7 +134,7 @@ static int ver_print_package_status(struct apk_database *db, const char *match, 
 			continue;
 		if (!(ctx->all_tags || (pkg0->repos & allowed_repos)))
 			continue;
-		r = apk_version_compare_blob(*pkg0->version, *latest);
+		r = apk_version_compare(*pkg0->version, *latest);
 		switch (r) {
 		case APK_VERSION_GREATER:
 			latest = pkg0->version;
@@ -145,7 +145,7 @@ static int ver_print_package_status(struct apk_database *db, const char *match, 
 			break;
 		}
 	}
-	r = latest->len ? apk_version_compare_blob(*pkg->version, *latest)
+	r = latest->len ? apk_version_compare(*pkg->version, *latest)
 			: APK_VERSION_UNKNOWN;
 	opstr = apk_version_op_string(r);
 	if ((ctx->limchars != NULL) && (strchr(ctx->limchars, *opstr) == NULL))

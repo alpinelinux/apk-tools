@@ -612,7 +612,7 @@ static int compare_providers(struct apk_solver_state *ss,
 	}
 
 	/* Select latest by requested name */
-	switch (apk_version_compare_blob(*pA->version, *pB->version)) {
+	switch (apk_version_compare(*pA->version, *pB->version)) {
 	case APK_VERSION_LESS:
 		dbg_printf("    select latest by requested name (less)\n");
 		return -1;
@@ -623,7 +623,7 @@ static int compare_providers(struct apk_solver_state *ss,
 
 	/* Select latest by principal name */
 	if (pkgA->name == pkgB->name) {
-		switch (apk_version_compare_blob(*pkgA->version, *pkgB->version)) {
+		switch (apk_version_compare(*pkgA->version, *pkgB->version)) {
 		case APK_VERSION_LESS:
 			dbg_printf("    select latest by principal name (less)\n");
 			return -1;

@@ -200,7 +200,7 @@ static adb_val_t version_fromstring(struct adb *db, apk_blob_t val)
 
 static int version_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2)
 {
-	switch (apk_version_compare_blob(adb_r_blob(db1, v1), adb_r_blob(db2, v2))) {
+	switch (apk_version_compare(adb_r_blob(db1, v1), adb_r_blob(db2, v2))) {
 	case APK_VERSION_LESS: return -1;
 	case APK_VERSION_GREATER: return 1;
 	default: return 0;

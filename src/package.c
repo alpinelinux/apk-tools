@@ -956,7 +956,7 @@ int apk_pkg_version_compare(const struct apk_package *a, const struct apk_packag
 	if (a->version == b->version)
 		return APK_VERSION_EQUAL;
 
-	return apk_version_compare_blob(*a->version, *b->version);
+	return apk_version_compare(*a->version, *b->version);
 }
 
 int apk_pkg_cmp_display(const struct apk_package *a, const struct apk_package *b)
