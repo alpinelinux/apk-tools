@@ -191,6 +191,8 @@ const char *apk_version_op_string(int op)
 		return "<";
 	case APK_VERSION_LESS|APK_VERSION_EQUAL:
 		return "<=";
+	case APK_VERSION_LESS|APK_VERSION_EQUAL|APK_VERSION_FUZZY:
+		return "<~";
 	case APK_VERSION_EQUAL|APK_VERSION_FUZZY:
 	case APK_VERSION_FUZZY:
 		return "~";
@@ -198,6 +200,8 @@ const char *apk_version_op_string(int op)
 		return "=";
 	case APK_VERSION_GREATER|APK_VERSION_EQUAL:
 		return ">=";
+	case APK_VERSION_GREATER|APK_VERSION_EQUAL|APK_VERSION_FUZZY:
+		return ">~";
 	case APK_VERSION_GREATER:
 		return ">";
 	case APK_DEPMASK_CHECKSUM:
