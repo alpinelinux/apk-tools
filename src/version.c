@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 #include <stdio.h>
+#include <stddef.h>
 
 #include <ctype.h>
 #include "apk_defines.h"
