@@ -929,6 +929,47 @@ int apk_pkg_cmp_display(const struct apk_package *a, const struct apk_package *b
 	}
 }
 
+int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package *b)
+{
+	struct apk_dependency *dep;
+	int a_prio = -1, b_prio = -1;
+
+	/* Overlay file? Replace the ownership, but extraction will keep the overlay file. */
+	if (a->name == NULL) return APK_PKG_REPLACES_YES;
+
+	/* Upgrading package? */
+	if (a->name == b->name) return APK_PKG_REPLACES_YES;
+
+	/* Or same source package? */
+	if (a->origin && a->origin == b->origin) return APK_PKG_REPLACES_YES;
+
+	/* Does the original package replace the new one? */
+	foreach_array_item(dep, a->ipkg->replaces) {
+		if (apk_dep_is_materialized(dep, b)) {
+			a_prio = a->ipkg->replaces_priority;
+			break;
+		}
+	}
+
+	/* Does the new package replace the original one? */
+	foreach_array_item(dep, b->ipkg->replaces) {
+		if (apk_dep_is_materialized(dep, a)) {
+			b_prio = b->ipkg->replaces_priority;
+			break;
+		}
+	}
+
+	/* If the original package is more important, skip this file */
+	if (a_prio > b_prio) return APK_PKG_REPLACES_NO;
+
+	/* If the new package has valid 'replaces', we will overwrite
+	 * the file without warnings. */
+	if (b_prio >= 0) return APK_PKG_REPLACES_YES;
+
+	/* Both ship same file, but metadata is inconclusive. */
+	return APK_PKG_REPLACES_CONFLICT;
+}
+
 unsigned int apk_foreach_genid(void)
 {
 	static unsigned int foreach_genid;

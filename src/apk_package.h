@@ -163,6 +163,13 @@ int apk_pkg_write_index_entry(struct apk_package *pkg, struct apk_ostream *os);
 int apk_pkg_version_compare(const struct apk_package *a, const struct apk_package *b);
 int apk_pkg_cmp_display(const struct apk_package *a, const struct apk_package *b);
 
+enum {
+	APK_PKG_REPLACES_YES,
+	APK_PKG_REPLACES_NO,
+	APK_PKG_REPLACES_CONFLICT,
+};
+int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package *b);
+
 unsigned int apk_foreach_genid(void);
 int apk_pkg_match_genid(struct apk_package *pkg, unsigned int match);
 void apk_pkg_foreach_matching_dependency(

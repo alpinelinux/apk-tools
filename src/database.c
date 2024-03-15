@@ -2593,7 +2593,6 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 	struct apk_ctx *ac = db->ctx;
 	struct apk_out *out = &ac->out;
 	struct apk_package *pkg = ctx->pkg, *opkg;
-	struct apk_dependency *dep;
 	struct apk_installed_package *ipkg = pkg->ipkg;
 	apk_blob_t name = APK_BLOB_STR(ae->name), bdir, bfile;
 	struct apk_db_dir_instance *diri = ctx->diri;
@@ -2672,50 +2671,21 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 		file = apk_db_file_query(db, bdir, bfile);
 		if (file != NULL) {
 			opkg = file->diri->pkg;
-			do {
-				int opkg_prio = -1, pkg_prio = -1;
-
-				/* Overlay file? */
-				if (opkg->name == NULL)
-					break;
-				/* Upgrading package? */
-				if (opkg->name == pkg->name)
-					break;
-				/* Or same source package? */
-				if (opkg->origin == pkg->origin && pkg->origin)
-					break;
-				/* Does the original package replace the new one? */
-				foreach_array_item(dep, opkg->ipkg->replaces) {
-					if (apk_dep_is_materialized(dep, pkg)) {
-						opkg_prio = opkg->ipkg->replaces_priority;
-						break;
-					}
-				}
-				/* Does the new package replace the original one? */
-				foreach_array_item(dep, ctx->ipkg->replaces) {
-					if (apk_dep_is_materialized(dep, opkg)) {
-						pkg_prio = ctx->ipkg->replaces_priority;
-						break;
-					}
-				}
-				/* If the original package is more important,
-				 * skip this file */
-				if (opkg_prio > pkg_prio)
-					return 0;
-				/* If the new package has valid 'replaces', we
-				 * will overwrite the file without warnings. */
-				if (pkg_prio >= 0)
-					break;
-
-				if (!(db->ctx->force & APK_FORCE_OVERWRITE)) {
-					apk_err(out, PKG_VER_FMT": trying to overwrite %s owned by "PKG_VER_FMT".",
+			switch (apk_pkg_replaces_file(opkg, pkg)) {
+			case APK_PKG_REPLACES_CONFLICT:
+				if (db->ctx->force & APK_FORCE_OVERWRITE) {
+					apk_warn(out, PKG_VER_FMT": overwriting %s owned by "PKG_VER_FMT".",
 						PKG_VER_PRINTF(pkg), ae->name, PKG_VER_PRINTF(opkg));
-					ipkg->broken_files = 1;
-					return 0;
+					break;
 				}
-				apk_warn(out, PKG_VER_FMT": overwriting %s owned by "PKG_VER_FMT".",
+				apk_err(out, PKG_VER_FMT": trying to overwrite %s owned by "PKG_VER_FMT".",
 					PKG_VER_PRINTF(pkg), ae->name, PKG_VER_PRINTF(opkg));
-			} while (0);
+				ipkg->broken_files = 1;
+			case APK_PKG_REPLACES_NO:
+				return 0;
+			case APK_PKG_REPLACES_YES:
+				break;
+			}
 		}
 
 		if (opkg != pkg) {
