@@ -271,7 +271,7 @@ static const int apk_checksum_compare(const struct apk_checksum *a, const struct
 				APK_BLOB_PTR_LEN((char *) b->data, b->type));
 }
 
-static int apk_dep_match_checksum(struct apk_dependency *dep, struct apk_package *pkg)
+static int apk_dep_match_checksum(const struct apk_dependency *dep, const struct apk_package *pkg)
 {
 	struct apk_checksum csum;
 	apk_blob_t b = *dep->version;
@@ -280,14 +280,14 @@ static int apk_dep_match_checksum(struct apk_dependency *dep, struct apk_package
 	return apk_checksum_compare(&csum, &pkg->csum) == 0;
 }
 
-int apk_dep_is_provided(struct apk_dependency *dep, struct apk_provider *p)
+int apk_dep_is_provided(const struct apk_dependency *dep, const struct apk_provider *p)
 {
 	if (p == NULL || p->pkg == NULL) return apk_dep_conflict(dep);
 	if (dep->op == APK_DEPMASK_CHECKSUM) return apk_dep_match_checksum(dep, p->pkg);
 	return apk_version_match(*p->version, dep->op, *dep->version);
 }
 
-int apk_dep_is_materialized(struct apk_dependency *dep, struct apk_package *pkg)
+int apk_dep_is_materialized(const struct apk_dependency *dep, const struct apk_package *pkg)
 {
 	if (pkg == NULL || dep->name != pkg->name) return apk_dep_conflict(dep);
 	if (dep->op == APK_DEPMASK_CHECKSUM) return apk_dep_match_checksum(dep, pkg);

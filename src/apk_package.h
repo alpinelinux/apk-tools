@@ -108,11 +108,11 @@ APK_ARRAY(apk_package_array, struct apk_package *);
 
 extern const char *apk_script_types[];
 
-static inline int apk_dep_conflict(struct apk_dependency *dep) { return !!(dep->op & APK_VERSION_CONFLICT); }
+static inline int apk_dep_conflict(const struct apk_dependency *dep) { return !!(dep->op & APK_VERSION_CONFLICT); }
 void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
 		      struct apk_package *pkg);
-int apk_dep_is_materialized(struct apk_dependency *dep, struct apk_package *pkg);
-int apk_dep_is_provided(struct apk_dependency *dep, struct apk_provider *p);
+int apk_dep_is_materialized(const struct apk_dependency *dep, const struct apk_package *pkg);
+int apk_dep_is_provided(const struct apk_dependency *dep, const struct apk_provider *p);
 int apk_dep_analyze(struct apk_dependency *dep, struct apk_package *pkg);
 char *apk_dep_snprintf(char *buf, size_t n, struct apk_dependency *dep);
 
