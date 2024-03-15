@@ -304,7 +304,7 @@ static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
 recurse_check:
 		atctx->path[atctx->pathlen++] = '/';
 		bfull.len++;
-		report_audit(actx, reason, bfull, dir, NULL, &fi);
+		report_audit(actx, reason, bfull, child, NULL, &fi);
 		if (reason != 'D' && recurse) {
 			atctx->dir = child;
 			reason = apk_dir_foreach_file(
