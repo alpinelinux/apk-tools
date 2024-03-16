@@ -15,19 +15,24 @@ OPENSSL_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
 ZLIB_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags zlib)
 ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 
-ZSTD_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags libzstd)
-ZSTD_LIBS		:= $(shell $(PKG_CONFIG) --libs libzstd)
-
 # Dynamic library
 libapk_soname		:= 2.99.0
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
 	adb.o adb_comp.o adb_walk_adb.o adb_walk_genadb.o adb_walk_gentext.o adb_walk_text.o apk_adb.o \
 	atom.o blob.o commit.o common.o context.o crypto_openssl.o ctype.o database.o hash.o \
-	extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o io.o io_gunzip.o io_zstd.o io_url.o \
+	extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o io.o io_gunzip.o io_url.o \
 	tar.o package.o pathbuilder.o print.o solver.o trust.o version.o
 
 libapk.so.$(libapk_soname)-libs := libfetch/libfetch.a
+
+# ZSTD support can be disabled
+ifneq ($(ZSTD),no)
+ZSTD_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags libzstd)
+ZSTD_LIBS		:= $(shell $(PKG_CONFIG) --libs libzstd)
+CFLAGS_adb_comp.o	+= -DHAVE_ZSTD
+libapk.so.$(libapk_soname)-objs += io_zstd.o
+endif
 
 shlibs-y		+= libapk.so.$(libapk_soname)
 LDFLAGS_libapk.so.$(libapk_soname) += -Wl,-soname,libapk.so.$(libapk_soname)
@@ -69,12 +74,6 @@ apk-objs		:= \
 	app_fix.o app_index.o app_info.o app_list.o app_manifest.o app_mkndx.o \
 	app_mkpkg.o app_policy.o app_update.o app_upgrade.o app_search.o \
 	app_stats.o app_verify.o app_version.o app_vertest.o applet.o
-
-ifeq ($(ADB),y)
-libapk.so.$(libapk_soname)-objs += apk_adb.o
-apk-objs		+= app_adbdump.o app_adbsign.o app_mkndx.o \
-			   app_convdb.o app_convndx.o
-endif
 
 LIBS_apk		:= -lapk
 LIBS_apk-test		:= -lapk

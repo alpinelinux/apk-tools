@@ -5,3 +5,4 @@ option('lua', description: 'Build luaapk (lua bindings)', type: 'feature', value
 option('lua_version', description: 'Lua version to build against', type: 'string', value: '5.3')
 option('static_apk', description: 'Also build apk.static', type: 'boolean', value: false)
 option('arch_prefix', description: 'Define a custom arch prefix for default arch', type: 'string')
+option('zstd', description: 'Build with zstd support', type: 'boolean', value: true)

@@ -23,7 +23,6 @@ libapk_src = [
 	'io.c',
 	'io_url.c',
 	'io_gunzip.c',
-	'io_zstd.c',
 	'package.c',
 	'pathbuilder.c',
 	'print.c',
@@ -121,6 +120,11 @@ apk_cargs = [
 apk_arch_prefix = get_option('arch_prefix')
 if apk_arch_prefix != ''
 	apk_cargs += ['-DAPK_ARCH_PREFIX="@0@"'.format(apk_arch_prefix)]
+endif
+
+if get_option('zstd')
+	libapk_src += [ 'io_zstd.c' ]
+	apk_cargs += [ '-DHAVE_ZSTD' ]
 endif
 
 libapk_shared = shared_library(

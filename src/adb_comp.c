@@ -26,12 +26,14 @@ static const struct compression_info compression_infos[] = {
 		.decompress = apk_istream_deflate,
 		.min_level = 0, .max_level = 9,
 	},
+#ifdef HAVE_ZSTD
 	[ADB_COMP_ZSTD] = {
 		.name = "zstd",
 		.compress = apk_ostream_zstd,
 		.decompress = apk_istream_zstd,
 		.min_level = 0, .max_level = 22,
 	},
+#endif
 };
 
 static const struct compression_info *compression_info_by_name(const char *name, size_t n, uint8_t *compalg)
