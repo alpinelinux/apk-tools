@@ -6,10 +6,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-only
  */
-#include <stdio.h>
-#include <stddef.h>
 
+#include <stdio.h>
 #include <ctype.h>
+
 #include "apk_defines.h"
 #include "apk_version.h"
 #include "apk_ctype.h"
@@ -94,6 +94,7 @@ static int suffix_value(apk_blob_t suf)
 static int token_cmp(struct token_state *ta, struct token_state *tb)
 {
 	uint64_t a, b;
+	int r;
 
 	switch (ta->token) {
 	case TOKEN_DIGIT:
@@ -119,7 +120,7 @@ static int token_cmp(struct token_state *ta, struct token_state *tb)
 		break;
 	use_string_sort:
 	default:
-		int r = apk_blob_sort(ta->value, tb->value);
+		r = apk_blob_sort(ta->value, tb->value);
 		if (r < 0) return APK_VERSION_LESS;
 		if (r > 0) return APK_VERSION_GREATER;
 		return APK_VERSION_EQUAL;
