@@ -61,8 +61,8 @@ struct install_ctx {
 
 	int script;
 	char **script_args;
-	int script_pending : 1;
-	int missing_checksum : 1;
+	unsigned int script_pending : 1;
+	unsigned int missing_checksum : 1;
 
 	struct apk_db_dir_instance *diri;
 	struct apk_checksum data_csum;

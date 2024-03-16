@@ -23,12 +23,12 @@ struct apk_sign_ctx {
 	int action;
 	const EVP_MD *md;
 	int num_signatures;
-	int control_started : 1;
-	int data_started : 1;
-	int has_data_checksum : 1;
-	int control_verified : 1;
-	int data_verified : 1;
-	int allow_untrusted : 1;
+	unsigned int control_started : 1;
+	unsigned int data_started : 1;
+	unsigned int has_data_checksum : 1;
+	unsigned int control_verified : 1;
+	unsigned int data_verified : 1;
+	unsigned int allow_untrusted : 1;
 	char data_checksum[EVP_MAX_MD_SIZE];
 	struct apk_checksum identity;
 	EVP_MD_CTX *mdctx;

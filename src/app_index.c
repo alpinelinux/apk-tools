@@ -26,7 +26,7 @@
 struct counts {
 	struct apk_indent indent;
 	int unsatisfied;
-	int header : 1;
+	unsigned short header : 1;
 };
 
 struct index_ctx {

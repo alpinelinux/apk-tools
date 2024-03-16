@@ -26,7 +26,7 @@
 
 struct cache_ctx {
 	unsigned short solver_flags;
-	int add_dependencies : 1;
+	unsigned short add_dependencies : 1;
 };
 
 #define CACHE_OPTIONS(OPT) \

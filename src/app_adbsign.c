@@ -14,8 +14,8 @@ struct sign_ctx {
 	struct apk_ostream *os;
 	struct adb_verify_ctx vfy;
 
-	int reset_signatures : 1;
-	int signatures_written : 1;
+	unsigned int reset_signatures : 1;
+	unsigned int signatures_written : 1;
 };
 
 #define ADBSIGN_OPTIONS(OPT) \

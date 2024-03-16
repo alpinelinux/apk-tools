@@ -19,10 +19,10 @@ struct search_ctx {
 	void (*print_package)(struct search_ctx *ctx, struct apk_package *pkg);
 
 	int verbosity;
-	int show_all : 1;
-	int search_exact : 1;
-	int search_description : 1;
-	int search_origin : 1;
+	unsigned int show_all : 1;
+	unsigned int search_exact : 1;
+	unsigned int search_description : 1;
+	unsigned int search_origin : 1;
 
 	unsigned int matches;
 	struct apk_string_array *filter;

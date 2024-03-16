@@ -17,7 +17,7 @@
 struct ver_ctx {
 	int (*action)(struct apk_database *db, struct apk_string_array *args);
 	const char *limchars;
-	int all_tags : 1;
+	unsigned short all_tags : 1;
 };
 
 static int ver_indexes(struct apk_database *db, struct apk_string_array *args)

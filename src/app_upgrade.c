@@ -20,10 +20,10 @@ extern char **apk_argv;
 
 struct upgrade_ctx {
 	unsigned short solver_flags;
-	int no_self_upgrade : 1;
-	int self_upgrade_only : 1;
-	int ignore : 1;
-	int prune : 1;
+	unsigned short no_self_upgrade : 1;
+	unsigned short self_upgrade_only : 1;
+	unsigned short ignore : 1;
+	unsigned short prune : 1;
 	int errors;
 };
 

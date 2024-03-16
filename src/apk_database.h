@@ -151,17 +151,17 @@ struct apk_database {
 	unsigned int pending_triggers;
 	unsigned int extract_flags;
 	unsigned int active_layers;
-	int performing_self_upgrade : 1;
-	int usermode : 1;
-	int permanent : 1;
-	int autoupdate : 1;
-	int write_arch : 1;
-	int script_dirs_checked : 1;
-	int open_complete : 1;
-	int compat_newfeatures : 1;
-	int compat_notinstallable : 1;
-	int sorted_names : 1;
-	int sorted_installed_packages : 1;
+	unsigned int performing_self_upgrade : 1;
+	unsigned int usermode : 1;
+	unsigned int permanent : 1;
+	unsigned int autoupdate : 1;
+	unsigned int write_arch : 1;
+	unsigned int script_dirs_checked : 1;
+	unsigned int open_complete : 1;
+	unsigned int compat_newfeatures : 1;
+	unsigned int compat_notinstallable : 1;
+	unsigned int sorted_names : 1;
+	unsigned int sorted_installed_packages : 1;
 
 	struct apk_dependency_array *world;
 	struct apk_id_cache *id_cache;

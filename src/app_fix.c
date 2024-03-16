@@ -16,9 +16,9 @@
 
 struct fix_ctx {
 	unsigned short solver_flags;
-	int fix_depends : 1;
-	int fix_xattrs : 1;
-	int fix_directory_permissions : 1;
+	unsigned short fix_depends : 1;
+	unsigned short fix_xattrs : 1;
+	unsigned short fix_directory_permissions : 1;
 	int errors;
 };
 

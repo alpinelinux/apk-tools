@@ -310,7 +310,7 @@ recurse_check:
 		report_audit(actx, reason, bfull, child, NULL, &fi);
 		if (reason != 'D' && recurse) {
 			atctx->dir = child;
-			reason = apk_dir_foreach_file(
+			apk_dir_foreach_file(
 				openat(dirfd, name, O_RDONLY|O_CLOEXEC),
 				audit_directory_tree_item, atctx);
 			atctx->dir = dir;

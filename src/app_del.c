@@ -14,8 +14,8 @@
 #include "apk_solver.h"
 
 struct del_ctx {
-	int recursive_delete : 1;
 	struct apk_dependency_array *world;
+	unsigned short recursive_delete : 1;
 	unsigned int genid;
 	int errors;
 };

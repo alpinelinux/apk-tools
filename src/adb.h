@@ -306,8 +306,8 @@ struct adb_walk_gentext {
 	struct adb_walk d;
 	FILE *out;
 	int nest;
-	int line_started : 1;
-	int key_printed : 1;
+	unsigned int line_started : 1;
+	unsigned int key_printed : 1;
 };
 
 #define ADB_WALK_GENADB_MAX_IDB		2

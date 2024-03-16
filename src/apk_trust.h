@@ -23,8 +23,8 @@ struct apk_trust {
 	struct apk_digest_ctx dctx;
 	struct list_head trusted_key_list;
 	struct list_head private_key_list;
-	int allow_untrusted : 1;
-	int keys_loaded : 1;
+	unsigned int allow_untrusted : 1;
+	unsigned int keys_loaded : 1;
 };
 
 void apk_trust_init(struct apk_trust *trust);

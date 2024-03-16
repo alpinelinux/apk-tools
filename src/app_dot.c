@@ -17,9 +17,9 @@
 #define S_EVALUATING	-2
 
 struct dot_ctx {
-	int not_empty : 1;
-	int errors_only : 1;
-	int installed_only : 1;
+	unsigned short not_empty : 1;
+	unsigned short errors_only : 1;
+	unsigned short installed_only : 1;
 };
 
 #define DOT_OPTIONS(OPT) \
