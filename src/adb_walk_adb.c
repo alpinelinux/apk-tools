@@ -127,7 +127,7 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 			if (ds->magic == schema_magic) break;
 		hdr = apk_istream_peek(is, sizeof *hdr);
 		if (IS_ERR(hdr)) return PTR_ERR(hdr);
-		apk_blob_push_fmt(&c, "ADB block, size: %zu, compat: %d, ver: %d",
+		apk_blob_push_fmt(&c, "ADB block, size: %" PRIu64 ", compat: %d, ver: %d",
 			sz, hdr->adb_compat_ver, hdr->adb_ver);
 		d->ops->comment(d, apk_blob_pushed(APK_BLOB_BUF(tmp), c));
 		if (ds->root && hdr->adb_compat_ver == 0) dump_object(ctx, ds->root, adb_r_root(db));
