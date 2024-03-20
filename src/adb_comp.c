@@ -57,14 +57,14 @@ static const struct compression_info *compression_info_by_alg(uint8_t alg)
 int adb_parse_compression(const char *spec_string, struct adb_compression_spec *spec)
 {
 	const struct compression_info *ci;
-	const char *delim = strchr(spec_string, ':');
+	const char *delim = strchrnul(spec_string, ':');
 	char *end;
 	long level = 0;
 
 	ci = compression_info_by_name(spec_string, delim - spec_string, &spec->alg);
 	if (!ci) goto err;
 	if (*delim != 0) {
-		if (delim[0] != ':' || delim[1] == 0) goto err;
+		if (delim[1] == 0) goto err;
 		if (ci->max_level == 0) goto err;
 
 		level = strtol(delim+1, &end, 0);
@@ -142,7 +142,7 @@ struct apk_ostream *adb_compress(struct apk_ostream *os, struct adb_compression_
 	}
 
 	if (apk_ostream_write(os, "ADBc", 4) < 0) goto err;
-	if (apk_ostream_write(os, &spec, sizeof spec) < 0) goto err;
+	if (apk_ostream_write(os, spec, sizeof *spec) < 0) goto err;
 	return ci->compress(os, spec->level);
 
 err:

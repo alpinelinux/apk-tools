@@ -221,7 +221,8 @@ struct apk_ostream *apk_ostream_zstd(struct apk_ostream *output, uint8_t level)
 	if (threads < bounds.lowerBound) threads = bounds.lowerBound;
 	if (threads > bounds.upperBound) threads = bounds.upperBound;
 
-	errc = ZSTD_CCtx_setParameter(os->ctx, ZSTD_c_compressionLevel, level);
+	/* default level is 3 and that's not that useful here */
+	errc = ZSTD_CCtx_setParameter(os->ctx, ZSTD_c_compressionLevel, level ?: 9);
 	if (ZSTD_isError(errc)) {
 		free(os);
 		goto err;
