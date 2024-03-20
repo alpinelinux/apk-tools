@@ -69,7 +69,7 @@ static int mark_update_dirperms(apk_hash_item item, void *ctx)
 
 	if (dir->namelen == 0 || !dir->refs) return 0;
 
-	apk_db_dir_prepare(db, dir);
+	apk_db_dir_prepare(db, dir, dir->owner->acl);
 	if (!dir->permissions_ok) {
 		db->dirperms_stale = 1;
 		dir->permissions_ok = dir->permissions_stale = 1;

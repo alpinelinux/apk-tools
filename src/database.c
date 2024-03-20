@@ -264,25 +264,36 @@ static struct apk_db_acl *apk_db_acl_atomize_digest(struct apk_database *db, mod
 	return __apk_db_acl_atomize(db, mode, uid, gid, dig->len, dig->data);
 }
 
-void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir)
+static int apk_db_dir_mkdir(struct apk_database *db, struct apk_fsdir *d, struct apk_db_acl *acl)
+{
+	if (db->ctx->flags & APK_SIMULATE) return 0;
+	return apk_fsdir_create(d, apk_db_dir_get_mode(db, acl->mode));
+}
+
+void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir, struct apk_db_acl *acl)
 {
 	struct apk_fsdir d;
-	struct apk_db_acl *acl;
-	mode_t dir_mode;
 
 	if (dir->namelen == 0) return;
 	if (dir->created) return;
 
-	acl = dir->owner->acl;
-	dir_mode = apk_db_dir_get_mode(db, acl->mode);
 	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->ctx, APK_BLOB_NULL);
-	switch (apk_fsdir_check(&d, dir_mode, acl->uid, acl->gid)) {
-	default:
-		if (!(db->ctx->flags & APK_SIMULATE))
-			apk_fsdir_create(&d, dir_mode);
+	if (!acl) {
+		/* Directory should not exist. Create it. */
+		if (apk_db_dir_mkdir(db, &d, dir->owner->acl) == 0)
+			dir->permissions_ok = dir->permissions_stale = 1;
+		dir->created = 1;
+		return;
+	}
+
+	switch (apk_fsdir_check(&d, apk_db_dir_get_mode(db, acl->mode), acl->uid, acl->gid)) {
+	case -ENOENT:
+		apk_db_dir_mkdir(db, &d, dir->owner->acl);
+		dir->permissions_stale = 1;
 	case 0:
 		dir->permissions_ok = 1;
 	case APK_FS_DIR_MODIFIED:
+	default:
 		dir->created = 1;
 		break;
 	}
@@ -2747,16 +2758,18 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 			break;
 		}
 	} else {
-		apk_dbg2(out, "%s (dir)", ae->name);
+		struct apk_db_acl *expected_acl;
 
-		if (name.ptr[name.len-1] == '/')
-			name.len--;
+		apk_dbg2(out, "%s (dir)", ae->name);
+		if (name.ptr[name.len-1] == '/') name.len--;
 
 		diri = ctx->diri = find_diri(ipkg, name, NULL, &ctx->file_diri_node);
 		if (!diri) diri = apk_db_install_directory_entry(ctx, name);
-		apk_db_dir_prepare(db, diri->dir);
 		diri->acl = apk_db_acl_atomize_digest(db, ae->mode, ae->uid, ae->gid, &ae->xattr_digest);
+		expected_acl = diri->dir->owner ? diri->dir->owner->acl : NULL;
 		apk_db_dir_apply_diri_permissions(db, diri);
+		apk_db_dir_prepare(db, diri->dir, expected_acl);
+
 	}
 	ctx->installed_size += ctx->current_file_size;
 
