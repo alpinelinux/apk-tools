@@ -14,6 +14,7 @@ lua_bin = find_program('lua' + get_option('lua_version'), required: get_option('
 lua_dep = dependency('lua' + get_option('lua_version'), required: get_option('lua'))
 scdoc_dep = dependency('scdoc', version: '>=1.10', required: get_option('docs'))
 libzstd_dep = dependency('libzstd', required: get_option('zstd'))
+libzstd_static_dep = dependency('libzstd', required: get_option('zstd'), static: true)
 
 shared_deps = [
 	dependency('openssl'),
@@ -24,7 +25,7 @@ shared_deps = [
 static_deps = [
 	dependency('openssl', static: true),
 	dependency('zlib', static: true),
-	libzstd_dep,
+	libzstd_static_dep,
 ]
 
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
