@@ -389,10 +389,15 @@ int apk_deps_write(struct apk_database *db, struct apk_dependency_array *deps, s
 void apk_dep_from_adb(struct apk_dependency *dep, struct apk_database *db, struct adb_obj *d)
 {
 	int op = adb_ro_int(d, ADBI_DEP_MATCH);
+	apk_blob_t ver = adb_ro_blob(d, ADBI_DEP_VERSION);
+
+	if (APK_BLOB_IS_NULL(ver)) op |= APK_DEPMASK_ANY;
+	else if (op == 0) op = APK_VERSION_EQUAL;
+
 	*dep = (struct apk_dependency) {
 		.name = apk_db_get_name(db, adb_ro_blob(d, ADBI_DEP_NAME)),
-		.version = apk_atomize_dup(&db->atoms, adb_ro_blob(d, ADBI_DEP_VERSION)),
-		.op = (op & ~APK_VERSION_CONFLICT) ?: op|APK_VERSION_EQUAL,
+		.version = apk_atomize_dup(&db->atoms, ver),
+		.op = op,
 	};
 }
 
