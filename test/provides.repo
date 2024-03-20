@@ -148,3 +148,23 @@ I:1
 i:sane-backends
 p:hplip-sane
 
+C:Q1FFN5AdpAOBJWKMR89pp/C66o+OE=
+P:testp
+V:0.1-r0
+S:1
+I:1
+p:foopkg
+
+C:Q1FFN5AdpAOBJWKMR89pp/C66o+FE=
+P:testq
+V:0.1-r0
+S:1
+I:1
+p:foopkg
+
+C:Q1FFpkasfqZAukAXFYbgwt4xAMZWU=
+P:testr
+V:0.1-r0
+S:1
+I:1
+D:foopkg
