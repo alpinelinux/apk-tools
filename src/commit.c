@@ -210,7 +210,7 @@ static int run_triggers(struct apk_database *db, struct apk_changeset *changeset
 {
 	struct apk_change *change;
 	struct apk_installed_package *ipkg;
-	int errors = 1;
+	int errors = 0;
 
 	if (apk_db_fire_triggers(db) == 0)
 		return 0;
