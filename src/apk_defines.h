@@ -140,6 +140,10 @@ static inline int IS_ERR(const void *ptr) { return (unsigned long)ptr >= (unsign
 #define APK_DEFAULT_BASE_ARCH	"loongarchx32"
 #elif defined(__loongarch__) && defined(__loongarch64) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define APK_DEFAULT_BASE_ARCH	"loongarch64"
+#elif defined(__ARCHS__)
+#define APK_DEFAULT_BASE_ARCH	"archs"
+#elif defined(__ARC700__)
+#define APK_DEFAULT_BASE_ARCH	"arc700"
 #else
 #error APK_DEFAULT_BASE_ARCH not detected for this architecture
 #endif
