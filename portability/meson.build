@@ -1,10 +1,8 @@
 cc = meson.get_compiler('c')
 
-
 libportability_src = []
 
-
-check_functions = [
+check_symbols = [
 	['memrchr', 'memrchr.c', 'NEED_MEMRCHR', 'string.h'],
 	['mknodat', 'mknodat.c', 'NEED_MKNODAT', 'sys/stat.h'],
 	['pipe2', 'pipe2.c', 'NEED_PIPE2', 'unistd.h'],
@@ -12,16 +10,15 @@ check_functions = [
 	['reallocarray', 'reallocarray.c', 'NEED_REALLOCARRAY', 'stdlib.h'],
 	['strchrnul', 'strchrnul.c', 'NEED_STRCHRNUL', 'string.h'],
 	['strlcpy', 'strlcpy.c', 'NEED_STRLCPY', 'string.h'],
+	['SOCK_CLOEXEC', 'socket.c', 'NEED_SOCK_CLOEXEC', 'sys/socket.h'],
 ]
 
-
-foreach f : check_functions
-	if not cc.has_function(f.get(0), prefix: '#include <' + f.get(3) + '>', args: ['-D_GNU_SOURCE']) or not cc.has_header_symbol(f.get(3), f.get(0), args: ['-D_GNU_SOURCE'])
+foreach f : check_symbols
+	if not cc.has_header_symbol(f.get(3), f.get(0), args: ['-D_GNU_SOURCE'])
 		add_project_arguments('-D' + f.get(2), language: 'c')
 		libportability_src += [f.get(1)]
 	endif
 endforeach
-
 
 # Check for wrong (non-POSIX) qsort_r prototype
 qsort_r_test = '''
@@ -35,7 +32,6 @@ qsort_r_test = '''
 if cc.compiles(qsort_r_test, name: 'Test qsort_r non-POSIX prototype')
 	add_project_arguments('-DHAVE_BROKEN_QSORT_R', language: 'c')
 endif
-
 
 if libportability_src.length() > 0
 	libportability = static_library(
