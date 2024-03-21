@@ -110,7 +110,8 @@ The following options are available for all commands.
 	Install packages with untrusted signature or no signature.
 
 *--arch* _ARCH_
-	Temporarily override architecture, to be combined with --root.
+	Temporarily override architecture. When used with --root the
+	architecture will be saved.
 
 *--cache-dir* _CACHEDIR_
 	Temporarily override the cache directory. _CACHEDIR_ is treated relative

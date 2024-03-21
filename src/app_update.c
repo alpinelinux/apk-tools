@@ -51,7 +51,7 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 
 static struct apk_applet apk_update = {
 	.name = "update",
-	.open_flags = APK_OPENF_WRITE,
+	.open_flags = APK_OPENF_WRITE | APK_OPENF_ALLOW_ARCH,
 	.forced_force = APK_FORCE_REFRESH,
 	.main = update_main,
 };

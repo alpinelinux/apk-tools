@@ -55,6 +55,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		if (access(ac->uvol, X_OK) != 0)
 			ac->uvol = ERR_PTR(-APKE_UVOL_NOT_AVAILABLE);
 	} else {
+		ac->root_set = 1;
 		ac->uvol = ERR_PTR(-APKE_UVOL_ROOT);
 	}
 

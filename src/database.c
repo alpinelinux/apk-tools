@@ -1664,9 +1664,9 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	}
 	if (db->usermode) db->extract_flags |= APK_FSEXTRACTF_NO_CHOWN | APK_FSEXTRACTF_NO_SYS_XATTRS;
 
-	if (ac->root && ac->arch) {
+	if (ac->arch && (ac->root_set || (ac->open_flags & APK_OPENF_ALLOW_ARCH))) {
 		db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(ac->arch));
-		db->write_arch = 1;
+		db->write_arch = ac->root_set;
 	} else {
 		apk_blob_t arch;
 		if (!apk_blob_from_file(db->root_fd, apk_arch_file, &arch)) {

@@ -391,7 +391,7 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 static struct apk_applet apk_fetch = {
 	.name = "fetch",
-	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
+	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_ALLOW_ARCH,
 	.context_size = sizeof(struct fetch_ctx),
 	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
 	.main = fetch_main,

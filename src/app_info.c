@@ -483,7 +483,7 @@ static const struct apk_option_group optgroup_applet = {
 
 static struct apk_applet apk_info = {
 	.name = "info",
-	.open_flags = APK_OPENF_READ,
+	.open_flags = APK_OPENF_READ | APK_OPENF_ALLOW_ARCH,
 	.context_size = sizeof(struct info_ctx),
 	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
 	.main = info_main,

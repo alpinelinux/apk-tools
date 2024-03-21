@@ -51,6 +51,7 @@
 #define APK_OPENF_NO_AUTOUPDATE		0x0800
 #define APK_OPENF_NO_CMDLINE_REPOS	0x1000
 #define APK_OPENF_USERMODE		0x2000
+#define APK_OPENF_ALLOW_ARCH		0x4000
 
 #define APK_OPENF_NO_REPOS	(APK_OPENF_NO_SYS_REPOS |	\
 				 APK_OPENF_NO_CMDLINE_REPOS |	\
@@ -62,11 +63,10 @@
 struct apk_database;
 
 struct apk_ctx {
-	unsigned int flags, force, lock_wait;
+	unsigned int flags, force, open_flags;
+	unsigned int lock_wait, cache_max_age;
 	struct apk_out out;
 	struct apk_progress progress;
-	unsigned int cache_max_age;
-	unsigned long open_flags;
 	const char *root;
 	const char *arch;
 	const char *keys_dir;
@@ -76,12 +76,12 @@ struct apk_ctx {
 	struct apk_string_array *repository_list;
 	apk_blob_t protected_paths;
 
+	struct apk_digest_ctx dctx;
 	struct apk_trust trust;
 	struct apk_id_cache id_cache;
 	struct apk_database *db;
 	int root_fd, dest_fd;
-
-	struct apk_digest_ctx dctx;
+	unsigned int root_set : 1;
 };
 
 void apk_ctx_init(struct apk_ctx *ac);
