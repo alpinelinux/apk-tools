@@ -19,4 +19,5 @@ try_version "${CI_COMMIT_TAG}"
 # gets completed and merged upstream.
 [ "$CI_COMMIT_REF_NAME" ] && try_version "$(cat VERSION)"
 [ -d .git ] && try_version "$(git describe)"
-use_version "$(cat VERSION)"
+try_version "$(cat VERSION)"
+exit 1
