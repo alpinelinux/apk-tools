@@ -1,13 +1,11 @@
 #include_next <string.h>
 
 #ifdef NEED_MEMRCHR
-extern void *memrchr(const void *m, int c, size_t n);
+void *memrchr(const void *m, int c, size_t n);
 #endif
 
 #ifdef NEED_STRCHRNUL
-static inline char *strchrnul(const char *s, int c) {
-	return strchr(s, c) ?: s + strlen(s);
-}
+char *strchrnul(const char *s, int c);
 #endif
 
 #ifdef NEED_STRLCPY
