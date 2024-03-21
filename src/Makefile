@@ -59,7 +59,7 @@ LUA_PC			?= lua$(LUA_VERSION)
 LUA_LIBDIR		?= /usr/lib/lua/$(LUA_VERSION)
 shlibs-y		+= apk.so
 apk.so-objs		:= lua-apk.o
-CFLAGS_lua-apk.o	:= -DAPK_VERSION=\"$(FULL_VERSION)\" \
+CFLAGS_lua-apk.o	:= -DAPK_VERSION=\"$(VERSION)\" \
 			   $(shell $(PKG_CONFIG) $(LUA_PC) --cflags)
 apklua_so		:= $(obj)/apk.so
 install-apklua_so	:= $(INSTALLDIR) $(DESTDIR)$(LUA_LIBDIR) && \
@@ -80,9 +80,9 @@ LIBS_apk-test		:= -lapk
 LIBS_apk.so		:= -L$(obj) -lapk
 
 CFLAGS_ALL		+= -D_ATFILE_SOURCE -Ilibfetch -Iportability
-CFLAGS_apk.o		:= -DAPK_VERSION=\"$(FULL_VERSION)\"
-CFLAGS_apk-static.o	:= -DAPK_VERSION=\"$(FULL_VERSION)\" -DOPENSSL_NO_ENGINE
-CFLAGS_apk-test.o	:= -DAPK_VERSION=\"$(FULL_VERSION)\" -DOPENSSL_NO_ENGINE -DTEST_MODE
+CFLAGS_apk.o		:= -DAPK_VERSION=\"$(VERSION)\"
+CFLAGS_apk-static.o	:= -DAPK_VERSION=\"$(VERSION)\" -DOPENSSL_NO_ENGINE
+CFLAGS_apk-test.o	:= -DAPK_VERSION=\"$(VERSION)\" -DOPENSSL_NO_ENGINE -DTEST_MODE
 
 progs-$(STATIC)		+= apk.static
 apk.static-objs		:= $(filter-out apk.o,$(apk-objs)) apk-static.o

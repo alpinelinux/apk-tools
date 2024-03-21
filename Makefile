@@ -4,9 +4,7 @@
 -include config.mk
 
 PACKAGE := apk-tools
-VERSION := 2.12.0
-
-export VERSION
+VERSION := $(shell ./get-version.sh "$(FULL_VERSION)" "$(VERSION)")
 
 ##
 # Default directories
@@ -47,7 +45,7 @@ static:
 	$(Q)$(MAKE) STATIC=y
 
 tag: check
-	git commit . -m "apk-tools-$(VERSION)"
-	git tag -s v$(VERSION) -m "apk-tools-$(VERSION)"
+	git commit . -m "apk-tools-$(shell cat VERSION)"
+	git tag -s v$(VERSION) -m "apk-tools-$(shell cat VERSION)"
 
 src/: libfetch/
