@@ -3,7 +3,7 @@ project(
 	['c'],
 	default_options : ['c_std=gnu99', 'optimization=2'],
 	version: run_command('./get-version.sh', check: true).stdout().strip(),
-	meson_version: '>=0.52'
+	meson_version: '>=0.55'
 )
 pkgc = import('pkgconfig')
 

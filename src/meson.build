@@ -184,7 +184,7 @@ if(lua_dep.found())
 			libportability_dep.partial_dependency(includes: true),
 		],
 		install: true,
-		install_dir: lua_dep.get_pkgconfig_variable('libdir'),
+		install_dir: lua_dep.get_variable(pkgconfig: 'libdir'),
 		c_args: apk_cargs,
 	)
 endif
