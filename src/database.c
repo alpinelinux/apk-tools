@@ -1541,9 +1541,9 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 	    stfs.f_type == TMPFS_MAGIC)
 		db->permanent = 0;
 
-	if (dbopts->root && dbopts->arch) {
+	if (dbopts->arch && (dbopts->root || (dbopts->open_flags & APK_OPENF_ALLOW_ARCH))) {
 		db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(dbopts->arch));
-		write_arch = TRUE;
+		write_arch = dbopts->root ? TRUE : FALSE;
 	} else {
 		apk_blob_t arch;
 		if (!apk_blob_from_file(db->root_fd, apk_arch_file, &arch)) {
