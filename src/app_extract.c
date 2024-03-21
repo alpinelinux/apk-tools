@@ -83,6 +83,7 @@ static int extract_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	int r = 0;
 
 	ctx->ac = ac;
+	if (getuid() != 0) ctx->extract_flags |= APK_FSEXTRACTF_NO_CHOWN|APK_FSEXTRACTF_NO_SYS_XATTRS;
 	if (!(ac->force & APK_FORCE_OVERWRITE)) ctx->extract_flags |= APK_FSEXTRACTF_NO_OVERWRITE;
 	if (!ctx->destination) ctx->destination = ".";
 
