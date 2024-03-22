@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source ${SRC:-.}/test-lib.sh
+. ${SRC:-.}/test-lib.sh
 
 t_case "help" && {
 	help_normal=$($APK version --help 2>/dev/null) || true
