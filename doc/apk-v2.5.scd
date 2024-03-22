@@ -2,7 +2,7 @@ apk-v2(5)
 
 # NAME
 
-*apk v2* - overview of apk v2 format
+apk v2 - overview of apk v2 format
 
 # DESCRIPTION
 

@@ -2,7 +2,7 @@ apk-package(5)
 
 # NAME
 
-*apk package* - apk package metadata fields
+apk package - apk package metadata fields
 
 # DESCRIPTION
 
