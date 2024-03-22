@@ -1,0 +1,9 @@
+@ARGS
+--test-repo conflict2.repo
+--test-instdb conflict.installed
+--test-world foo
+add baz
+@EXPECT
+(1/2) Purging bar (1)
+(2/2) Installing baz (1)
+OK: 0 MiB in 2 packages
