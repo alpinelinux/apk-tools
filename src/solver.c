@@ -878,13 +878,25 @@ static void cset_check_by_reverse_iif(struct apk_solver_state *ss, struct apk_pa
 
 static void cset_gen_name_remove_orphan(struct apk_solver_state *ss, struct apk_name *name)
 {
-	struct apk_package *pkg = name->ss.chosen.pkg;
+	struct apk_provider *p;
 
 	if (name->ss.in_changeset) return;
 	name->ss.in_changeset = 1;
 
-	if ((!pkg || pkg->name != name) && name->ss.installed_pkg)
+	dbg_printf("cset_gen_name_remove_orphans: %s\n", name->name);
+
+	/* Remove the package providing this name previously if it was provided
+	 * by a package with different name. */
+	if (name->ss.installed_pkg && (!name->ss.chosen.pkg || name->ss.chosen.pkg->name != name))
 		cset_gen_name_remove(ss, name->ss.installed_pkg);
+
+	/* Remove any package that provides this name and is due to be deleted */
+	foreach_array_item(p, name->providers) {
+		struct apk_package *pkg0 = p->pkg;
+		struct apk_name *name0 = pkg0->name;
+		if (name0->ss.installed_pkg == pkg0 && name0->ss.chosen.pkg == NULL)
+			cset_gen_name_remove(ss, pkg0);
+	}
 }
 
 static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *name)
@@ -894,6 +906,7 @@ static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *n
 
 	if (name->ss.in_changeset) return;
 
+	dbg_printf("cset_gen: processing: %s\n", name->name);
 	cset_gen_name_remove_orphan(ss, name);
 
 	pkg = name->ss.chosen.pkg;
@@ -910,7 +923,7 @@ static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *n
 	foreach_array_item(d, pkg->depends)
 		cset_gen_dep(ss, pkg, d);
 
-	dbg_printf("Selecting: "PKG_VER_FMT"%s\n", PKG_VER_PRINTF(pkg), pkg->ss.pkg_selectable ? "" : " [NOT SELECTABLE]");
+	dbg_printf("cset_gen: selecting: "PKG_VER_FMT"%s\n", PKG_VER_PRINTF(pkg), pkg->ss.pkg_selectable ? "" : " [NOT SELECTABLE]");
 	record_change(ss, opkg, pkg);
 
 	cset_check_by_reverse_iif(ss, pkg, cset_check_install_by_iif);
