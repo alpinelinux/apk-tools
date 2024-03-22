@@ -656,7 +656,7 @@ static void discover_reverse_iif(struct apk_name *name)
 			if (!p->pkg->marked) continue;
 			if (p->pkg->install_if->num == 0) continue;
 			foreach_array_item(d, p->pkg->install_if) {
-				if (apk_dep_conflict(d) == !!(d->name->state_int & STATE_PRESENT)) {
+				if (apk_dep_conflict(d) == !!(d->name->state_int & (STATE_PRESENT|STATE_INSTALLIF))) {
 					ok = 0;
 					break;
 				}
