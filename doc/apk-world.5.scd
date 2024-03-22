@@ -7,7 +7,7 @@ apk-world(5)
 # DESCRIPTION
 
 At /etc/apk/world, apk maintains the _world_, or list of explicitly installed
-packages. This is a plaintext file with one package spec per line.
+packages. This is a plaintext file with one dependency per line.
 
 If you edit this file manually, you should run *apk-fix*(8) to apply the
 changes.
@@ -27,15 +27,16 @@ less than, greater than, or greater than or equal to the specified version. The
 *~=* operator constrains the package to the version numbers specified, but will
 not constrain any unspecified version numbers.
 
+A dependency has the format *name{@tag}{[<>~=]version}*.
+
 *busybox*
-	Installs busybox from the first repository from which it is available.
+	Installs busybox from the untagged repository from which it is
+	available.
 
 *busybox@edge*
-	Installs busybox from the first repository tagged "edge" from which
-	it's available. If busybox is _not_ available in repositories with this
-	tag, it will cause an error. When resolving dependencies of tagged
-	requirements, untagged repositories are preferred, but repositories
-	sharing the same tag will be considered if necessary.
+	Allows installation of busybox and it's dependencies from a repository
+	tagged with "edge". Tagged repositories will not be prioritized. If a
+	version from an untagged repository is a better fit it will be used.
 
 *busybox=1.6.1*
 	Install busybox version 1.6.1.
