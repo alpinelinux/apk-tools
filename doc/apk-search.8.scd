@@ -13,7 +13,7 @@ apk search - search for packages by name or description
 *apk search* searches all repositories for packages matching at least one
 pattern. If no pattern is given, it lists all packages in the configured
 repositories (see *apk-repositories*(5)). A pattern matches if it is a
-case-sensitive substring of the package name.
+case-insensitive substring of the package name.
 
 # OPTIONS
 
