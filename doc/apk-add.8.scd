@@ -10,8 +10,9 @@ apk add - add packages to _world_ and commit changes
 
 # DESCRIPTION
 
-*apk add* adds the requested packages to _world_ and installs (or upgrades)
-them if not already present, ensuring all dependencies are met.
+*apk add* adds the requested packages to _world_ (see *apk-world*(5)) and
+installs (or upgrades) them if not already present, ensuring all
+dependencies are met.
 
 To upgrade individual packages without modifying _world_ use *apk-fix*(8).
 

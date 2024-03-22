@@ -10,8 +10,8 @@ apk del - remove packages from _world_ and commit changes
 
 # DESCRIPTION
 
-*apk del* removes packages from _world_ and uninstalls them if no longer
-required by any other packages.
+*apk del* removes packages from _world_ (see *apk-world*(5)) and uninstalls
+them if no longer required by any other packages.
 
 # OPTIONS
 
