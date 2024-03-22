@@ -2,7 +2,8 @@ apk-repositories(5)
 
 # NAME
 
-*/etc/apk/repositories* - list of package repositories
+*/etc/apk/repositories*, */etc/apk/repositories.d/\*.list* - list of package
+repositories
 
 # DESCRIPTION
 
