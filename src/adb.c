@@ -482,7 +482,7 @@ int adb_ro_cmpobj(const struct adb_obj *tmpl, const struct adb_obj *obj, unsigne
 	assert(schema->kind == ADB_KIND_OBJECT);
 	assert(schema == tmpl->schema);
 
-	for (unsigned int i = ADBI_FIRST; i <= adb_ro_num(tmpl); i++) {
+	for (int i = ADBI_FIRST; i < adb_ro_num(tmpl); i++) {
 		is_set = adb_ro_val(tmpl, i) != ADB_VAL_NULL;
 		if (mode == ADB_OBJCMP_EXACT || is_set) {
 			r = adb_ro_cmp(tmpl, obj, i, mode);
