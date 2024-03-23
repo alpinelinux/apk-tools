@@ -17,6 +17,7 @@
 struct ver_ctx {
 	int (*action)(struct apk_database *db, struct apk_string_array *args);
 	const char *limchars;
+	unsigned int max_pkg_len;
 	unsigned short all_tags : 1;
 };
 
@@ -107,37 +108,44 @@ static const struct apk_option_group optgroup_applet = {
 	.parse = option_parse_applet,
 };
 
-static int ver_print_package_status(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+struct ver_name_state {
+	struct apk_package *installed, *latest;
+	unsigned short tag, ver_result;
+};
+
+static struct ver_name_state *state_from_name(struct apk_name *name)
 {
-	struct apk_out *out = &db->ctx->out;
+	static_assert(sizeof name->state_buf >= sizeof(struct ver_name_state));
+	return (struct ver_name_state *) &name->state_buf[0];
+}
+
+static int ver_calculate_length(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+{
 	struct ver_ctx *ctx = (struct ver_ctx *) pctx;
-	struct apk_package *pkg;
+	struct apk_package *installed, *latest;
 	struct apk_provider *p0;
-	char pkgname[41];
-	const char *opstr;
-	apk_blob_t *latest = apk_atomize(&db->atoms, APK_BLOB_STR(""));
+	struct ver_name_state *ns;
 	unsigned int latest_repos = 0;
-	int i, r = -1;
 	unsigned short tag, allowed_repos;
+	const char *opstr;
+	int i, r, len;
 
 	if (!name) return 0;
 
-	pkg = apk_pkg_get_installed(name);
-	if (!pkg) return 0;
+	installed = latest = apk_pkg_get_installed(name);
+	if (!installed) return 0;
 
-	tag = pkg->ipkg->repository_tag;
-	allowed_repos = db->repo_tags[tag].allowed_repos;
-
+	allowed_repos = db->repo_tags[installed->ipkg->repository_tag].allowed_repos;
 	foreach_array_item(p0, name->providers) {
 		struct apk_package *pkg0 = p0->pkg;
 		if (pkg0->name != name || pkg0->repos == 0)
 			continue;
 		if (!(ctx->all_tags || (pkg0->repos & allowed_repos)))
 			continue;
-		r = apk_version_compare(*pkg0->version, *latest);
+		r = apk_version_compare(*pkg0->version, *latest->version);
 		switch (r) {
 		case APK_VERSION_GREATER:
-			latest = pkg0->version;
+			latest = pkg0;
 			latest_repos = pkg0->repos;
 			break;
 		case APK_VERSION_EQUAL:
@@ -145,15 +153,12 @@ static int ver_print_package_status(struct apk_database *db, const char *match, 
 			break;
 		}
 	}
-	r = latest->len ? apk_version_compare(*pkg->version, *latest)
-			: APK_VERSION_UNKNOWN;
+
+	ns = state_from_name(name);
+	r = apk_version_compare(*installed->version, *latest->version);
 	opstr = apk_version_op_string(r);
 	if ((ctx->limchars != NULL) && (strchr(ctx->limchars, *opstr) == NULL))
 		return 0;
-	if (apk_out_verbosity(out) <= 0) {
-		apk_out(out, "%s", pkg->name->name);
-		return 0;
-	}
 
 	tag = APK_DEFAULT_REPOSITORY_TAG;
 	for (i = 1; i < db->num_repo_tags; i++) {
@@ -163,11 +168,40 @@ static int ver_print_package_status(struct apk_database *db, const char *match, 
 		}
 	}
 
-	snprintf(pkgname, sizeof(pkgname), PKG_VER_FMT, PKG_VER_PRINTF(pkg));
-	apk_out(out, "%-40s%s " BLOB_FMT " " BLOB_FMT,
-		pkgname, opstr,
-		BLOB_PRINTF(*latest),
-		BLOB_PRINTF(db->repo_tags[tag].tag));
+	*ns = (struct ver_name_state) {
+		.installed = installed,
+		.latest = latest,
+		.tag = tag,
+		.ver_result = r,
+	};
+
+	len = PKG_VER_STRLEN(installed);
+	if (len > ctx->max_pkg_len) ctx->max_pkg_len = len;
+	return 0;
+}
+
+static int ver_print_package_status(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+{
+	struct apk_out *out = &db->ctx->out;
+	struct ver_ctx *ctx = (struct ver_ctx *) pctx;
+	struct ver_name_state *ns;
+
+	if (!name) return 0;
+
+	ns = state_from_name(name);
+	if (!ns->installed) return 0;
+
+	if (apk_out_verbosity(out) <= 0) {
+		apk_out(out, "%s", name->name);
+		return 0;
+	}
+
+	apk_out(out, PKG_VER_FMT "%*s %s " BLOB_FMT " " BLOB_FMT,
+		PKG_VER_PRINTF(ns->installed),
+		(int)(ctx->max_pkg_len - PKG_VER_STRLEN(ns->installed)), "",
+		apk_version_op_string(ns->ver_result),
+		BLOB_PRINTF(*ns->latest->version),
+		BLOB_PRINTF(db->repo_tags[ns->tag].tag));
 	return 0;
 }
 
@@ -177,6 +211,7 @@ static int ver_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 	struct apk_database *db = ac->db;
 	struct ver_ctx *ctx = (struct ver_ctx *) pctx;
 
+	ctx->max_pkg_len = 39;
 	if (ctx->limchars) {
 		if (strlen(ctx->limchars) == 0)
 			ctx->limchars = NULL;
@@ -187,8 +222,9 @@ static int ver_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 	if (ctx->action != NULL)
 		return ctx->action(db, args);
 
-	apk_msg(out, "%-42s%s", "Installed:", "Available:");
+	apk_db_foreach_matching_name(db, args, ver_calculate_length, ctx);
 
+	apk_msg(out, "%*s   %s", -ctx->max_pkg_len, "Installed:", "Available:");
 	apk_db_foreach_sorted_name(db, args, ver_print_package_status, ctx);
 	return 0;
 }
