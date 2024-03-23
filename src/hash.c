@@ -84,29 +84,17 @@ void apk_hash_delete_hashed(struct apk_hash *h, apk_blob_t key, unsigned long ha
 	ptrdiff_t offset = h->ops->node_offset;
 	apk_hash_node *pos;
 	apk_hash_item item;
-	apk_blob_t itemkey;
+
+	assert(h->ops->compare_item != NULL);
 
 	hash %= h->buckets->num;
-	if (h->ops->compare_item != NULL) {
-		hlist_for_each(pos, &h->buckets->item[hash]) {
-			item = ((void *) pos) - offset;
-			if (h->ops->compare_item(item, key) == 0) {
-				hlist_del(pos, &h->buckets->item[hash]);
-				h->ops->delete_item(item);
-				h->num_items--;
-				break;
-			}
-		}
-	} else {
-		hlist_for_each(pos, &h->buckets->item[hash]) {
-			item = ((void *) pos) - offset;
-			itemkey = h->ops->get_key(item);
-			if (h->ops->compare(key, itemkey) == 0) {
-				hlist_del(pos, &h->buckets->item[hash]);
-				h->ops->delete_item(item);
-				h->num_items--;
-				break;
-			}
+	hlist_for_each(pos, &h->buckets->item[hash]) {
+		item = ((void *) pos) - offset;
+		if (h->ops->compare_item(item, key) == 0) {
+			hlist_del(pos, &h->buckets->item[hash]);
+			h->ops->delete_item(item);
+			h->num_items--;
+			break;
 		}
 	}
 }

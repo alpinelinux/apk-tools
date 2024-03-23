@@ -68,15 +68,9 @@ static inline apk_hash_item apk_hash_get(struct apk_hash *h, apk_blob_t key)
 	return apk_hash_get_hashed(h, key, apk_hash_from_key(h, key));
 }
 
-
 static inline void apk_hash_insert(struct apk_hash *h, apk_hash_item item)
 {
 	return apk_hash_insert_hashed(h, item, apk_hash_from_item(h, item));
-}
-
-static inline void apk_hash_delete(struct apk_hash *h, apk_blob_t key)
-{
-	return apk_hash_delete_hashed(h, key, apk_hash_from_key(h, key));
 }
 
 #endif
