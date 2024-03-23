@@ -9,7 +9,6 @@
 #ifndef APK_CRYPTO_H
 #define APK_CRYPTO_H
 
-#include <assert.h>
 #include <string.h>
 #include <openssl/evp.h>
 #include "apk_defines.h"
