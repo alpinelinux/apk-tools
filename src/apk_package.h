@@ -96,28 +96,29 @@ struct apk_installed_package {
 
 struct apk_package {
 	apk_hash_node hash_node;
-	unsigned int foreach_genid;
+	struct apk_name *name;
+	struct apk_installed_package *ipkg;
+	struct apk_dependency_array *depends, *install_if, *provides;
+	apk_blob_t *version;
+	size_t installed_size, size;
+
+	char *filename;
 	union {
 		struct apk_solver_package_state ss;
 		int state_int;
-		void *state_ptr;
 	};
-	struct apk_name *name;
-	struct apk_installed_package *ipkg;
-	apk_blob_t *version, *arch, *license;
-	apk_blob_t *origin, *maintainer;
-	char *url, *description, *commit;
-	char *filename;
-	struct apk_dependency_array *depends, *install_if, *provides;
-	size_t installed_size, size;
-	time_t build_time;
+	unsigned int foreach_genid;
 	unsigned short provider_priority;
-	unsigned repos : APK_MAX_REPOS;
-	unsigned seen : 1;
-	unsigned marked : 1;
-	unsigned uninstallable : 1;
-	unsigned cached_non_repository : 1;
+	unsigned short repos;
+	unsigned char seen : 1;
+	unsigned char marked : 1;
+	unsigned char uninstallable : 1;
+	unsigned char cached_non_repository : 1;
 	struct apk_checksum csum;
+
+	time_t build_time;
+	apk_blob_t *arch, *license, *origin, *maintainer;
+	char *url, *description, *commit;
 };
 APK_ARRAY(apk_package_array, struct apk_package *);
 
