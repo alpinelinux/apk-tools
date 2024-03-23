@@ -112,6 +112,7 @@ struct apk_name {
 	unsigned int foreach_genid;
 	union {
 		struct apk_solver_name_state ss;
+		unsigned char state_buf[sizeof(struct apk_solver_name_state)];
 		void *state_ptr;
 		int state_int;
 	};
