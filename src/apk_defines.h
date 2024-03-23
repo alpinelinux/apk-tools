@@ -10,6 +10,7 @@
 #ifndef APK_DEFINES_H
 #define APK_DEFINES_H
 
+#include <assert.h>
 #include <endian.h>
 #include <stdint.h>
 #include <string.h>
