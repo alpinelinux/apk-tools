@@ -27,6 +27,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 
 void apk_ctx_free(struct apk_ctx *ac)
 {
+	apk_digest_ctx_free(&ac->dctx);
 	apk_id_cache_free(&ac->id_cache);
 	apk_trust_free(&ac->trust);
 	apk_string_array_free(&ac->repository_list);
