@@ -1391,20 +1391,23 @@ static void apk_db_setup_repositories(struct apk_database *db, const char *cache
 
 static int apk_db_name_rdepends(apk_hash_item item, void *pctx)
 {
-	struct apk_name *name = item, *rname, **n0;
+	struct apk_name *name = item, *rname;
 	struct apk_provider *p;
 	struct apk_dependency *dep;
-	struct apk_name_array *touched;
-	unsigned num_virtual = 0;
+	struct apk_name *touched[128];
+	unsigned num_virtual = 0, num_touched = 0;
 
-	apk_name_array_init(&touched);
 	foreach_array_item(p, name->providers) {
 		num_virtual += (p->pkg->name != name);
 		foreach_array_item(dep, p->pkg->depends) {
 			rname = dep->name;
 			rname->is_dependency |= !apk_dep_conflict(dep);
 			if (!(rname->state_int & 1)) {
-				if (!rname->state_int) *apk_name_array_add(&touched) = rname;
+				if (!rname->state_int) {
+					if (num_touched < ARRAY_SIZE(touched))
+						touched[num_touched] = rname;
+					num_touched++;
+				}
 				rname->state_int |= 1;
 				*apk_name_array_add(&rname->rdepends) = name;
 			}
@@ -1412,7 +1415,11 @@ static int apk_db_name_rdepends(apk_hash_item item, void *pctx)
 		foreach_array_item(dep, p->pkg->install_if) {
 			rname = dep->name;
 			if (!(rname->state_int & 2)) {
-				if (!rname->state_int) *apk_name_array_add(&touched) = rname;
+				if (!rname->state_int) {
+					if (num_touched < ARRAY_SIZE(touched))
+						touched[num_touched] = rname;
+					num_touched++;
+				}
 				rname->state_int |= 2;
 				*apk_name_array_add(&rname->rinstall_if) = name;
 			}
@@ -1424,9 +1431,16 @@ static int apk_db_name_rdepends(apk_hash_item item, void *pctx)
 		name->priority = 1;
 	else
 		name->priority = 2;
-	foreach_array_item(n0, touched)
-		(*n0)->state_int = 0;
-	apk_name_array_free(&touched);
+
+	if (num_touched > ARRAY_SIZE(touched)) {
+		foreach_array_item(p, name->providers) {
+			foreach_array_item(dep, p->pkg->depends)
+				dep->name->state_int = 0;
+			foreach_array_item(dep, p->pkg->install_if)
+				dep->name->state_int = 0;
+		}
+	} else for (unsigned i = 0; i < num_touched; i++)
+		touched[i]->state_int = 0;
 
 	return 0;
 }
