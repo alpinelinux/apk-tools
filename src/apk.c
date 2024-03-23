@@ -11,7 +11,6 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <errno.h>
-#include <assert.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
