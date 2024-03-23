@@ -2743,7 +2743,7 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 				ipkg->sha256_160 = 1;
 				file->csum.type = APK_CHECKSUM_SHA1;
 				memcpy(file->csum.data, ae->digest.data, file->csum.type);
-			} else if (need_checksum(ae->mode) && !ctx->missing_checksum) {
+			} else if (link_target_file == NULL && need_checksum(ae->mode) && !ctx->missing_checksum) {
 				if (ae->digest.alg == APK_DIGEST_NONE) {
 					apk_warn(out,
 						PKG_VER_FMT": support for packages without embedded "
