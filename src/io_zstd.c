@@ -24,6 +24,7 @@ struct apk_zstd_istream {
 	void *buf_in;
 	size_t buf_insize;
 	ZSTD_inBuffer inp;
+	int flush;
 };
 
 static void zi_get_meta(struct apk_istream *input, struct apk_file_meta *meta)
@@ -35,39 +36,49 @@ static void zi_get_meta(struct apk_istream *input, struct apk_file_meta *meta)
 static ssize_t zi_read(struct apk_istream *input, void *ptr, size_t size)
 {
 	struct apk_zstd_istream *is = container_of(input, struct apk_zstd_istream, is);
-	uint8_t *cptr = ptr;
+	ZSTD_outBuffer outp;
 
-	while (size) {
-		/* read next chunk */
-		if (is->inp.pos == 0 || is->inp.pos >= is->inp.size) {
+	outp.dst = ptr;
+	outp.pos = 0;
+	outp.size = size;
+
+	while (outp.pos < outp.size) {
+		size_t zr;
+		if (is->inp.pos >= is->inp.size) {
 			ssize_t rs = apk_istream_read_max(is->input, is->buf_in, is->buf_insize);
 			if (rs < 0) {
 				is->is.err = rs;
-				goto ret;
-			} else if (rs == 0) {
-				/* eof */
-				is->is.err = 1;
-				goto ret;
+				return outp.pos;
+			} else if (rs == 0 && is->flush == 0) {
+				/* eof but only if we haven't read anything */
+				if (outp.pos == 0) is->is.err = 1;
+				return outp.pos;
+			} else if (rs) {
+				/* got proper input, disregard flush case */
+				is->flush = 0;
 			}
 			is->inp.size = rs;
 			is->inp.pos = 0;
 		}
-		while (is->inp.pos < is->inp.size) {
-			ZSTD_outBuffer outp = {cptr, size, 0};
-			size_t ret = ZSTD_decompressStream(is->ctx, &outp, &is->inp);
-			if (ZSTD_isError(ret)) {
-				is->is.err = -EIO;
-				goto ret;
-			}
-			cptr += outp.pos;
-			size -= outp.pos;
-			/* no more space in the buffer; leave the rest for next time */
-			if (!size) goto ret;
+		zr = ZSTD_decompressStream(is->ctx, &outp, &is->inp);
+		if (ZSTD_isError(zr)) {
+			is->is.err = -EIO;
+			return outp.pos;
+		}
+		if (is->flush != 0) {
+			is->flush = 0;
+			/* set EOF if there wasn't antyhing left */
+			if (outp.pos == 0) is->is.err = 1;
+			break;
 		}
 	}
 
-ret:
-	return cptr - (uint8_t *)ptr;
+	/* if set, next run should try decompress again, even on eof; this
+	 * is because there might still be data in the internal buffers as
+	 * mentioned in the zstd documentation
+	 */
+	if (outp.pos == outp.size) is->flush = 1;
+	return outp.pos;
 }
 
 static int zi_close(struct apk_istream *input)
@@ -103,6 +114,7 @@ struct apk_istream *apk_istream_zstd(struct apk_istream *input)
 	is->buf_insize = buf_insize;
 	is->inp.size = is->inp.pos = 0;
 	is->inp.src = is->buf_in;
+	is->flush = 0;
 
 	if ((is->ctx = ZSTD_createDCtx()) == NULL) {
 		free(is);
