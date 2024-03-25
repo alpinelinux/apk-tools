@@ -2,16 +2,17 @@ apk-del(8)
 
 # NAME
 
-apk del - remove packages from _world_ and commit changes
+apk del - remove constraints from _world_ and commit changes
 
 # SYNOPSIS
 
-*apk del* [<_options_>...] _packages_...
+*apk del* [<_options_>...] _constraints_...
 
 # DESCRIPTION
 
-*apk del* removes packages from _world_ (see *apk-world*(5)) and uninstalls
-them if no longer required by any other packages.
+*apk del* removes constraints from _world_ (see *apk-world*(5)) and
+commits changes to disk. This usually involves removing unneeded packages,
+but may also cause other changes to the installed packages.
 
 # OPTIONS
 
