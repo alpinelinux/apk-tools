@@ -119,7 +119,19 @@ The following options are available for all commands.
 	Continue even if binary data will be printed to the terminal.
 
 *--force-broken-world*
-	Continue even if _world_ cannot be satisfied.
+	DANGEROUS: Delete world constraints until a solution without conflicts
+	is found. This does not allow installation of packages with unsatisfiable
+	dependencies and is mainly intended to be used initramfs boot and is
+	implied by *--initramfs-diskless-boot*.  The primary purpose is to allow
+	run-from-tmpfs systems to boot if media was upgraded and some packages
+	are no longer available in the new release.
+
+	APK will try to determine the world constraints that causes packages
+	with conflicting dependencies and start disabling the world constraints
+	in this order until a satisfiable set of constraints is left. Using this
+	switch on hard disk installation will likely result in unexpected removal
+	of some packages. If uncertain, use with *--interactive* or *--simulate*
+	first.
 
 *--force-missing-repositories*
 	Continue even if some of the repository indexes are not available.
