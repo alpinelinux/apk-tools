@@ -63,33 +63,23 @@ static int is_orphaned(const struct apk_name *name)
 	return (repos & ~BIT(APK_REPOSITORY_CACHED)) == 0;
 }
 
-/* returns the currently installed package if there is a newer package that satisfies `name` */
-static const struct apk_package *is_upgradable(struct apk_name *name, const struct apk_package *pkg0)
+/* returns the currently installed package if 'pkg' is a newer and installable version */
+static const struct apk_package *is_upgradable(const struct apk_database *db, const struct apk_package *pkg)
 {
-	struct apk_provider *p;
+	struct apk_name *name = pkg->name;
 	struct apk_package *ipkg;
-	apk_blob_t no_version = APK_BLOB_STR("");
-	apk_blob_t *latest = &no_version;
-
-	if (!name) return NULL;
+	unsigned short allowed_repos;
 
 	ipkg = apk_pkg_get_installed(name);
 	if (!ipkg) return NULL;
 
-	if (!pkg0) {
-		foreach_array_item(p, name->providers) {
-			pkg0 = p->pkg;
-			if (pkg0 == ipkg) continue;
-			if (apk_version_match(*pkg0->version, APK_VERSION_GREATER, *latest))
-				latest = pkg0->version;
-		}
-	} else {
-		latest = pkg0->version;
-	}
-	return apk_version_match(*ipkg->version, APK_VERSION_LESS, *latest) ? ipkg : NULL;
+	allowed_repos = db->repo_tags[ipkg->ipkg->repository_tag].allowed_repos;
+	if (!(pkg->repos & allowed_repos)) return NULL;
+
+	return apk_version_match(*ipkg->version, APK_VERSION_LESS, *pkg->version) ? ipkg : NULL;
 }
 
-static void print_package(const struct apk_package *pkg, const struct list_ctx *ctx)
+static void print_package(const struct apk_database *db, const struct apk_package *pkg, const struct list_ctx *ctx)
 {
 	if (ctx->verbosity <= 0) {
 		printf("%s\n", pkg->name->name);
@@ -109,11 +99,8 @@ static void print_package(const struct apk_package *pkg, const struct list_ctx *
 	if (pkg->ipkg)
 		printf(" [installed]");
 	else {
-		const struct apk_package *u;
-
-		u = is_upgradable(pkg->name, pkg);
-		if (u != NULL)
-			printf(" [upgradable from: " PKG_VER_FMT "]", PKG_VER_PRINTF(u));
+		const struct apk_package *u = is_upgradable(db, pkg);
+		if (u != NULL) printf(" [upgradable from: " PKG_VER_FMT "]", PKG_VER_PRINTF(u));
 	}
 
 
@@ -131,7 +118,7 @@ static void print_manifest(const struct apk_package *pkg, const struct list_ctx 
 	printf("%s " BLOB_FMT "\n", pkg->name->name, BLOB_PRINTF(*pkg->version));
 }
 
-static void filter_package(const struct apk_package *pkg, const struct list_ctx *ctx)
+static void filter_package(const struct apk_database *db, const struct apk_package *pkg, const struct list_ctx *ctx)
 {
 	if (ctx->match_origin && !origin_matches(ctx, pkg))
 		return;
@@ -145,16 +132,16 @@ static void filter_package(const struct apk_package *pkg, const struct list_ctx 
 	if (ctx->available && pkg->repos == BIT(APK_REPOSITORY_CACHED))
 		return;
 
-	if (ctx->upgradable && !is_upgradable(pkg->name, pkg))
+	if (ctx->upgradable && !is_upgradable(db, pkg))
 		return;
 
 	if (ctx->manifest)
 		print_manifest(pkg, ctx);
 	else
-		print_package(pkg, ctx);
+		print_package(db, pkg, ctx);
 }
 
-static void iterate_providers(const struct apk_name *name, const struct list_ctx *ctx)
+static void iterate_providers(const struct apk_database *db, const struct apk_name *name, const struct list_ctx *ctx)
 {
 	struct apk_provider *p;
 
@@ -165,7 +152,7 @@ static void iterate_providers(const struct apk_name *name, const struct list_ctx
 		if (ctx->match_providers)
 			printf("<%s> ", name->name);
 
-		filter_package(p->pkg, ctx);
+		filter_package(db, p->pkg, ctx);
 	}
 }
 
@@ -179,9 +166,9 @@ static int print_result(struct apk_database *db, const char *match, struct apk_n
 	apk_name_sorted_providers(name);
 	if (ctx->match_depends) {
 		foreach_array_item(pname, name->rdepends)
-			iterate_providers(*pname, ctx);
+			iterate_providers(db, *pname, ctx);
 	} else {
-		iterate_providers(name, ctx);
+		iterate_providers(db, name, ctx);
 	}
 	return 0;
 }
