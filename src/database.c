@@ -267,7 +267,7 @@ static struct apk_db_acl *apk_db_acl_atomize_digest(struct apk_database *db, mod
 static int apk_db_dir_mkdir(struct apk_database *db, struct apk_fsdir *d, struct apk_db_acl *acl)
 {
 	if (db->ctx->flags & APK_SIMULATE) return 0;
-	return apk_fsdir_create(d, apk_db_dir_get_mode(db, acl->mode));
+	return apk_fsdir_create(d, apk_db_dir_get_mode(db, acl->mode), acl->uid, acl->gid);
 }
 
 void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir, struct apk_db_acl *acl)
@@ -276,25 +276,26 @@ void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir, struct 
 
 	if (dir->namelen == 0) return;
 	if (dir->created) return;
+	dir->created = 1;
 
-	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->ctx, APK_BLOB_NULL);
+	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->extract_flags, db->ctx, APK_BLOB_NULL);
 	if (!acl) {
 		/* Directory should not exist. Create it. */
 		if (apk_db_dir_mkdir(db, &d, dir->owner->acl) == 0)
-			dir->permissions_ok = dir->permissions_stale = 1;
-		dir->created = 1;
+			dir->permissions_ok = 1;
 		return;
 	}
 
 	switch (apk_fsdir_check(&d, apk_db_dir_get_mode(db, acl->mode), acl->uid, acl->gid)) {
 	case -ENOENT:
-		apk_db_dir_mkdir(db, &d, dir->owner->acl);
-		dir->permissions_stale = 1;
+		if (apk_db_dir_mkdir(db, &d, dir->owner->acl) == 0)
+			dir->permissions_ok = 1;
+		break;
 	case 0:
 		dir->permissions_ok = 1;
+		break;
 	case APK_FS_DIR_MODIFIED:
 	default:
-		dir->created = 1;
 		break;
 	}
 }
@@ -309,7 +310,8 @@ void apk_db_dir_unref(struct apk_database *db, struct apk_db_dir *dir, int rmdir
 			dir->modified = 1;
 			if (!(db->ctx->flags & APK_SIMULATE)) {
 				struct apk_fsdir d;
-				apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->ctx, APK_BLOB_NULL);
+				apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen),
+					      db->extract_flags, db->ctx, APK_BLOB_NULL);
 				apk_fsdir_delete(&d);
 			}
 		}
@@ -2098,7 +2100,8 @@ static int update_permissions(apk_hash_item item, void *pctx)
 	if (!dir->permissions_stale) return 0;
 
 	acl = dir->owner->acl;
-	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->ctx, APK_BLOB_NULL);
+	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen),
+		      db->extract_flags, db->ctx, APK_BLOB_NULL);
 	if (apk_fsdir_update_perms(&d, apk_db_dir_get_mode(db, acl->mode), acl->uid, acl->gid) == 0) {
 		dir->modified = 1;
 		dir->permissions_stale = 0;
@@ -2825,7 +2828,7 @@ static void apk_db_purge_pkg(struct apk_database *db,
 	hlist_for_each_entry_safe(diri, dc, dn, &ipkg->owned_dirs, pkg_dirs_list) {
 		apk_blob_t dirname = APK_BLOB_PTR_LEN(diri->dir->name, diri->dir->namelen);
 		if (is_installed) diri->dir->modified = 1;
-		apk_fsdir_get(&d, dirname, db->ctx, apk_pkg_ctx(ipkg->pkg));
+		apk_fsdir_get(&d, dirname, db->extract_flags, db->ctx, apk_pkg_ctx(ipkg->pkg));
 
 		hlist_for_each_entry_safe(file, fc, fn, &diri->owned_files, diri_files_list) {
 			key = (struct apk_db_file_hash_key) {
@@ -2870,7 +2873,7 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 	hlist_for_each_entry_safe(diri, dc, dn, &ipkg->owned_dirs, pkg_dirs_list) {
 		dir = diri->dir;
 		dirname = APK_BLOB_PTR_LEN(dir->name, dir->namelen);
-		apk_fsdir_get(&d, dirname, db->ctx, apk_pkg_ctx(ipkg->pkg));
+		apk_fsdir_get(&d, dirname, db->extract_flags, db->ctx, apk_pkg_ctx(ipkg->pkg));
 		dir_priority = apk_fsdir_priority(&d);
 		if (dir_priority != priority) {
 			if (dir_priority > priority && dir_priority < next_priority)

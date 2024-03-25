@@ -16,12 +16,15 @@
 
 #define TMPNAME_MAX (PATH_MAX + 64)
 
-static int fsys_dir_create(struct apk_fsdir *d, mode_t mode)
+static int fsys_dir_create(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid)
 {
-	if (mkdirat(apk_ctx_fd_dest(d->ac), apk_pathbuilder_cstr(&d->pb), mode) < 0 &&
-	    errno != EEXIST)
-		return -errno;
-	return 0;
+	const char *dirname = apk_pathbuilder_cstr(&d->pb);
+	int rc = 0;
+	if (mkdirat(apk_ctx_fd_dest(d->ac), dirname, mode) < 0) rc = -errno;
+	if (rc == -EEXIST) return rc;
+	if (d->extract_flags & APK_FSEXTRACTF_NO_CHOWN) return rc;
+	if (fchownat(apk_ctx_fd_dest(d->ac), dirname, uid, gid, 0) < 0) rc = -errno;
+	return rc;
 }
 
 static int fsys_dir_delete(struct apk_fsdir *d)
@@ -50,17 +53,12 @@ static int fsys_dir_update_perms(struct apk_fsdir *d, mode_t mode, uid_t uid, gi
 	int fd = apk_ctx_fd_dest(d->ac), rc = 0;
 	const char *dirname = apk_pathbuilder_cstr(&d->pb);
 
-	if (fstatat(fd, dirname, &st, AT_SYMLINK_NOFOLLOW) != 0)
-		return -errno;
-
+	if (fstatat(fd, dirname, &st, AT_SYMLINK_NOFOLLOW) != 0) return -errno;
 	if ((st.st_mode & 07777) != (mode & 07777)) {
 		if (fchmodat(fd, dirname, mode, 0) < 0)
 			rc = -errno;
 	}
-
-	if (d->ac->db->extract_flags & APK_FSEXTRACTF_NO_CHOWN)
-		return rc;
-
+	if (d->extract_flags & APK_FSEXTRACTF_NO_CHOWN) return rc;
 	if (st.st_uid != uid || st.st_gid != gid) {
 		if (fchownat(fd, dirname, uid, gid, 0) < 0)
 			rc = -errno;
@@ -315,18 +313,19 @@ int apk_fs_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct ap
 {
 	if (S_ISDIR(fi->mode)) {
 		struct apk_fsdir fsd;
-		apk_fsdir_get(&fsd, APK_BLOB_STR((char*)fi->name), ac, pkgctx);
-		return apk_fsdir_create(&fsd, fi->mode);
+		apk_fsdir_get(&fsd, APK_BLOB_STR((char*)fi->name), extract_flags, ac, pkgctx);
+		return apk_fsdir_create(&fsd, fi->mode, fi->uid, fi->gid);
 	} else {
 		const struct apk_fsdir_ops *ops = apk_fsops_get(APK_BLOB_PTR_LEN((char*)fi->name, strnlen(fi->name, 5)));
 		return ops->file_extract(ac, fi, is, cb, cb_ctx, extract_flags, pkgctx);
 	}
 }
 
-void apk_fsdir_get(struct apk_fsdir *d, apk_blob_t dir, struct apk_ctx *ac, apk_blob_t pkgctx)
+void apk_fsdir_get(struct apk_fsdir *d, apk_blob_t dir, unsigned int extract_flags, struct apk_ctx *ac, apk_blob_t pkgctx)
 {
 	d->ac = ac;
 	d->pkgctx = pkgctx;
+	d->extract_flags = extract_flags;
 	d->ops = apk_fsops_get(dir);
 	apk_pathbuilder_setb(&d->pb, dir);
 }

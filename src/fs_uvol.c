@@ -81,7 +81,7 @@ static int uvol_extract(struct apk_ctx *ac, const char *volname, char *arg1, off
 	return 0;
 }
 
-static int uvol_dir_create(struct apk_fsdir *d, mode_t mode)
+static int uvol_dir_create(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid)
 {
 	return 0;
 }
