@@ -2,21 +2,21 @@ apk-add(8)
 
 # NAME
 
-apk add - add packages to _world_ and commit changes
+apk add - add or update constraints to _world_ and commit changes
 
 # SYNOPSIS
 
-*apk add* [<_options_>...] _packages_...
+*apk add* [<_options_>...] _constraints_...
 
 # DESCRIPTION
 
-*apk add* adds the requested packages to _world_ (see *apk-world*(5)) and
-installs (or upgrades) them if not already present, ensuring all
-dependencies are met.
+*apk add* adds or updates given constraints to _world_ (see *apk-world*(5))
+and commit changes to disk. This usually involves installing new packages,
+but may also cause other changes to the installed packages.
 
 To upgrade individual packages without modifying _world_ use *apk-fix*(8).
 
-By default *apk* tries to select a set of packages so that all dependencies
+By default *apk* tries to select a set of packages so that all constraints
 are satisfied. This means that some packages can be held back in an older
 version if there is direct or implicit dependencies to the older version.
 

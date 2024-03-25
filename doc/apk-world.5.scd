@@ -2,32 +2,39 @@ apk-world(5)
 
 # NAME
 
-*/etc/apk/world* - list of explicitly installed packages
+*/etc/apk/world* - list of constraints for package selection
 
 # DESCRIPTION
 
-At /etc/apk/world, apk maintains the _world_, or list of explicitly installed
-packages. This is a plaintext file with one dependency per line.
+At /etc/apk/world, apk maintains the _world_, that is, a list of constraints
+the package selection needs to fulfill.
 
 If you edit this file manually, you should run *apk-fix*(8) to apply the
 changes.
 
 # PACKAGE SPECIFICATION
 
-Specifying a package name with no other modifiers will install the latest
-version of that package from the first repository in which it is available.
+This is a plaintext file with one constraint using dependency notation per line.
+Each line has the format: *name{@tag}{[<>~=]version}*.
 
-To pin a package to a tagged repository, use the format *pkgname@tagname*, e.g.
-*busybox@edge*. See *apk-repositories*(5) for details on tagged package
-repositories.
+When modifying existing installation, the installed version is preferred unless
+an upgrade is requested or a world constraint or package dependency requires
+an alternate version.
+
+To enable selection from a tagged repository, use the format *name@tag*,
+e.g. *busybox@edge*. See *apk-repositories*(5) for details on tagged package
+repositories. Untagged repositories are also considered for constraints with
+a tag. The tag is inherited to all dependencies as an allowed repository.
+That is, the dependencies are selected from the tagged repository if the
+*name@tag* has a dependency with version constraint requiring a version
+available only from the tagged repository. If the dependency can be satisfied
+from non-tagged repository it will be preferred.
 
 To constrain the acceptable versions of the package, use the *=*, *<*, *>*,
-*>=*, or *~=* operators. Respectively, these require the package is equal to,
-less than, greater than, or greater than or equal to the specified version. The
-*~=* operator constrains the package to the version numbers specified, but will
-not constrain any unspecified version numbers.
-
-A dependency has the format *name{@tag}{[<>~=]version}*.
+*>=*, *~*, *>~* or *<~* operators. Respectively, these require the package is
+equal to, less than, greater than, greater than or equal, prefix match, greater
+than or prefix match, or less than or prefix match to the specified version.
+The *~* operator constrains the package to the prefix match of the version number.
 
 *busybox*
 	Installs busybox from the untagged repository from which it is
@@ -50,6 +57,12 @@ A dependency has the format *name{@tag}{[<>~=]version}*.
 *busybox<1.6.1*
 	Install a busybox version less than 1.6.1.
 
-*busybox~=1.6*
-	Install any busybox version between 1.6.0 (inclusive) and 1.7.0
-	(exclusive).
+*busybox~1.6*
+	Install any busybox version starting with 1.6. Examples of match:
+	1.6, 1.6.0_pre1, 1.6.0, 1.6.5, 1.6.9_p1.
+
+*busybox>~1.6*
+	Install a busybox version greater than or prefix match of 1.6.
+
+*busybox<~1.6*
+	Install a busybox version less than or prefix match of 1.6.
