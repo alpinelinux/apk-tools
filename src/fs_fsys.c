@@ -64,20 +64,14 @@ static int fsys_dir_check(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid
 
 static int fsys_dir_update_perms(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid)
 {
-	struct stat st;
-	int fd = apk_ctx_fd_dest(d->ac), rc = 0;
+	int fd = apk_ctx_fd_dest(d->ac), rc = 0, r;
 	const char *dirname = apk_pathbuilder_cstr(&d->pb);
 
-	if (fstatat(fd, dirname, &st, AT_SYMLINK_NOFOLLOW) != 0) return -errno;
-	if ((st.st_mode & 07777) != (mode & 07777)) {
-		int r = do_fchmodat(fd, dirname, mode, 0, &d->ac->out);
-		if (r) rc = r;
-	}
+	r = do_fchmodat(fd, dirname, mode, 0, &d->ac->out);
+	if (r) rc = r;
 	if (d->extract_flags & APK_FSEXTRACTF_NO_CHOWN) return rc;
-	if (st.st_uid != uid || st.st_gid != gid) {
-		int r = do_fchownat(fd, dirname, uid, gid, 0, &d->ac->out);
-		if (r) rc = r;
-	}
+	r = do_fchownat(fd, dirname, uid, gid, 0, &d->ac->out);
+	if (r) rc = r;
 	return rc;
 }
 
