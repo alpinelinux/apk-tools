@@ -433,18 +433,14 @@ void apk_db_dir_update_permissions(struct apk_database *db, struct apk_db_dir_in
 	struct apk_db_dir *dir = diri->dir;
 	struct apk_db_acl *acl = diri->acl;
 	struct apk_fsdir d;
-	int r;
 
 	if (!dir->permissions_ok) return;
 	if (db->ctx->flags & APK_SIMULATE) return;
 
 	dir->modified = 1;
 	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->extract_flags, db->ctx, APK_BLOB_NULL);
-	r = apk_fsdir_update_perms(&d, apk_db_dir_get_mode(db, acl->mode), acl->uid, acl->gid);
-	if (r != 0) {
-		apk_err(&db->ctx->out, "Failed to set ownership on %s: %s", dir->name, apk_error_str(r));
+	if (apk_fsdir_update_perms(&d, apk_db_dir_get_mode(db, acl->mode), acl->uid, acl->gid) != 0)
 		db->num_dir_update_errors++;
-	}
 }
 
 static void apk_db_dir_apply_diri_permissions(struct apk_database *db, struct apk_db_dir_instance *diri)

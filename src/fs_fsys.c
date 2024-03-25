@@ -16,15 +16,30 @@
 
 #define TMPNAME_MAX (PATH_MAX + 64)
 
+static int do_fchmodat(int dirfd, const char *pathname, mode_t mode, int flags, struct apk_out *out)
+{
+	if (fchmodat(dirfd, pathname, mode & 07777, flags) == 0) return 0;
+	apk_err(out, "Failed to set permissions on %s: %s", pathname, strerror(errno));
+	return -errno;
+}
+
+static int do_fchownat(int dirfd, const char *pathname, uid_t uid, gid_t gid, int flags, struct apk_out *out)
+{
+	if (fchownat(dirfd, pathname, uid, gid, flags) == 0) return 0;
+	apk_err(out, "Failed to set ownership on %s: %s", pathname, strerror(errno));
+	return -errno;
+}
+
 static int fsys_dir_create(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid)
 {
 	const char *dirname = apk_pathbuilder_cstr(&d->pb);
-	int rc = 0;
-	if (mkdirat(apk_ctx_fd_dest(d->ac), dirname, mode) < 0) rc = -errno;
-	if (rc == -EEXIST) return rc;
-	if (d->extract_flags & APK_FSEXTRACTF_NO_CHOWN) return rc;
-	if (fchownat(apk_ctx_fd_dest(d->ac), dirname, uid, gid, 0) < 0) rc = -errno;
-	return rc;
+	if (mkdirat(apk_ctx_fd_dest(d->ac), dirname, mode) < 0) {
+		if (errno != EEXIST) apk_err(&d->ac->out, "Failed to create %s: %s", dirname, strerror(errno));
+		return -errno;
+	}
+	if (d->extract_flags & APK_FSEXTRACTF_NO_CHOWN) return 0;
+	if (do_fchownat(apk_ctx_fd_dest(d->ac), dirname, uid, gid, 0, &d->ac->out) < 0) return -errno;
+	return 0;
 }
 
 static int fsys_dir_delete(struct apk_fsdir *d)
@@ -55,13 +70,13 @@ static int fsys_dir_update_perms(struct apk_fsdir *d, mode_t mode, uid_t uid, gi
 
 	if (fstatat(fd, dirname, &st, AT_SYMLINK_NOFOLLOW) != 0) return -errno;
 	if ((st.st_mode & 07777) != (mode & 07777)) {
-		if (fchmodat(fd, dirname, mode, 0) < 0)
-			rc = -errno;
+		int r = do_fchmodat(fd, dirname, mode, 0, &d->ac->out);
+		if (r) rc = r;
 	}
 	if (d->extract_flags & APK_FSEXTRACTF_NO_CHOWN) return rc;
 	if (st.st_uid != uid || st.st_gid != gid) {
-		if (fchownat(fd, dirname, uid, gid, 0) < 0)
-			rc = -errno;
+		int r = do_fchownat(fd, dirname, uid, gid, 0, &d->ac->out);
+		if (r) rc = r;
 	}
 	return rc;
 }
@@ -171,21 +186,13 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 	}
 
 	if (!(extract_flags & APK_FSEXTRACTF_NO_CHOWN)) {
-		r = fchownat(atfd, fn, fi->uid, fi->gid, atflags);
-		if (r < 0) {
-			apk_err(out, "Failed to set ownership on %s: %s",
-				fn, strerror(errno));
-			if (!ret) ret = -errno;
-		}
+		r = do_fchownat(atfd, fn, fi->uid, fi->gid, atflags, out);
+		if (!ret && r) ret = r;
 
 		/* chown resets suid bit so we need set it again */
 		if (fi->mode & 07000) {
-			r = fchmodat(atfd, fn, fi->mode & 07777, atflags);
-			if (r < 0) {
-				apk_err(out, "Failed to set file permissions on %s: %s",
-					fn, strerror(errno));
-				if (!ret) ret = -errno;
-			}
+			r = do_fchmodat(atfd, fn, fi->mode, atflags, out);
+			if (!ret && r) ret = r;
 		}
 	}
 
