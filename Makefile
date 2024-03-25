@@ -45,7 +45,8 @@ static:
 	$(Q)$(MAKE) STATIC=y
 
 tag: check
-	git commit . -m "apk-tools-$(shell cat VERSION)"
-	git tag -s v$(VERSION) -m "apk-tools-$(shell cat VERSION)"
+	TAG_VERSION=$$(cat VERSION); \
+	git commit . -m "apk-tools-$${TAG_VERSION}"; \
+	git tag -s v$${TAG_VERSION} -m "apk-tools-$${TAG_VERSION}"
 
 src/: libfetch/
