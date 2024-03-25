@@ -13,8 +13,10 @@
 #include "apk_database.h"
 #include "apk_print.h"
 #include "apk_solver.h"
+#include "apk_fs.h"
 
 struct fix_ctx {
+	struct apk_database *db;
 	unsigned short solver_flags;
 	unsigned short fix_depends : 1;
 	unsigned short fix_xattrs : 1;
@@ -61,20 +63,21 @@ static const struct apk_option_group optgroup_applet = {
 	.parse = option_parse_applet,
 };
 
-static int mark_update_dirperms(apk_hash_item item, void *ctx)
+static int fix_directory_permissions(apk_hash_item item, void *pctx)
 {
-	struct apk_database *db = ctx;
+	struct fix_ctx *ctx = (struct fix_ctx *) pctx;
+	struct apk_database *db = ctx->db;
 	struct apk_out *out = &db->ctx->out;
 	struct apk_db_dir *dir = (struct apk_db_dir *) item;
 
 	if (dir->namelen == 0 || !dir->refs) return 0;
 
-	apk_db_dir_prepare(db, dir, dir->owner->acl);
-	if (!dir->permissions_ok) {
-		db->dirperms_stale = 1;
-		dir->permissions_ok = dir->permissions_stale = 1;
-		apk_dbg(out, "fixing directory %s", dir->name);
-	}
+	apk_db_dir_prepare(db, dir, dir->owner->acl, dir->owner->acl);
+	if (dir->permissions_ok) return 0;
+
+	apk_dbg(out, "fixing directory %s", dir->name);
+	dir->permissions_ok = 1;
+	apk_db_dir_update_permissions(db, dir->owner);
 	return 0;
 }
 
@@ -104,11 +107,9 @@ static int fix_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 	struct fix_ctx *ctx = (struct fix_ctx *) pctx;
 	struct apk_installed_package *ipkg;
 
+	ctx->db = db;
 	if (!ctx->solver_flags)
 		ctx->solver_flags = APK_SOLVERF_REINSTALL;
-
-	if (ctx->fix_directory_permissions)
-		apk_hash_foreach(&db->installed.dirs, mark_update_dirperms, db);
 
 	if (args->num == 0) {
 		list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
@@ -120,6 +121,14 @@ static int fix_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 		apk_db_foreach_matching_name(db, args, set_solver_flags, ctx);
 
 	if (ctx->errors) return ctx->errors;
+
+	if (ctx->fix_directory_permissions) {
+		apk_hash_foreach(&db->installed.dirs, fix_directory_permissions, ctx);
+		if (db->num_dir_update_errors) {
+			apk_err(&ac->out, "Failed to fix directory permissions");
+			return -1;
+		}
+	}
 
 	return apk_solver_commit(db, 0, db->world);
 }

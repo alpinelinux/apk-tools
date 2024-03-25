@@ -385,7 +385,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	apk_print_progress(&prog.prog, prog.total.bytes + prog.total.packages,
 			   prog.total.bytes + prog.total.packages);
 
-	errors += apk_db_update_directory_permissions(db) != 0;
+	errors += db->num_dir_update_errors;
 	errors += run_triggers(db, changeset);
 
 all_done:

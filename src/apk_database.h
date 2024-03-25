@@ -68,6 +68,7 @@ struct apk_db_dir {
 
 	struct apk_db_dir *parent;
 	struct apk_db_dir_instance *owner;
+	struct list_head diris;
 	struct apk_protected_path_array *protected_paths;
 
 	unsigned short refs;
@@ -79,7 +80,6 @@ struct apk_db_dir {
 	unsigned char created : 1;
 	unsigned char modified : 1;
 	unsigned char permissions_ok : 1;
-	unsigned char permissions_stale : 1;
 
 	char rooted_name[1];
 	char name[];
@@ -89,6 +89,7 @@ struct apk_db_dir {
 #define DIR_FILE_PRINTF(dir,file)	(dir)->name, (dir)->namelen ? "/" : "", (file)->name
 
 struct apk_db_dir_instance {
+	struct list_head dir_diri_list;
 	struct hlist_node pkg_dirs_list;
 	struct hlist_head owned_files;
 	struct apk_package *pkg;
@@ -148,6 +149,8 @@ struct apk_database {
 	unsigned int pending_triggers;
 	unsigned int extract_flags;
 	unsigned int active_layers;
+	unsigned int num_dir_update_errors;
+
 	unsigned int performing_self_upgrade : 1;
 	unsigned int usermode : 1;
 	unsigned int permanent : 1;
@@ -159,8 +162,6 @@ struct apk_database {
 	unsigned int compat_notinstallable : 1;
 	unsigned int sorted_names : 1;
 	unsigned int sorted_installed_packages : 1;
-	unsigned int dirowner_stale : 1;
-	unsigned int dirperms_stale : 1;
 
 	struct apk_dependency_array *world;
 	struct apk_id_cache *id_cache;
@@ -208,7 +209,8 @@ struct apk_name *apk_db_get_name(struct apk_database *db, apk_blob_t name);
 struct apk_name *apk_db_query_name(struct apk_database *db, apk_blob_t name);
 int apk_db_get_tag_id(struct apk_database *db, apk_blob_t tag);
 
-void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir, struct apk_db_acl *acl);
+void apk_db_dir_update_permissions(struct apk_database *db, struct apk_db_dir_instance *diri);
+void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir, struct apk_db_acl *expected_acl, struct apk_db_acl *new_acl);
 void apk_db_dir_unref(struct apk_database *db, struct apk_db_dir *dir, int allow_rmdir);
 struct apk_db_dir *apk_db_dir_ref(struct apk_db_dir *dir);
 struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name);
@@ -225,7 +227,6 @@ int apk_db_permanent(struct apk_database *db);
 int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *world);
 int apk_db_fire_triggers(struct apk_database *db);
 int apk_db_run_script(struct apk_database *db, char *fn, char **argv);
-int apk_db_update_directory_permissions(struct apk_database *db);
 static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
 	return apk_ctx_since(db->ctx, since);
 }
