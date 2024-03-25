@@ -15,6 +15,7 @@
 
 #define APK_FS_PRIO_DISK	0
 #define APK_FS_PRIO_UVOL	1
+#define APK_FS_PRIO_MAX		2
 
 #define APK_FS_CTRL_COMMIT	1
 #define APK_FS_CTRL_APKNEW	2

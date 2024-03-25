@@ -2865,7 +2865,7 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 	unsigned long hash;
 	apk_blob_t dirname;
 	int r, ctrl, inetc;
-	uint8_t dir_priority, next_priority = 0xff;
+	uint8_t dir_priority, next_priority = APK_FS_PRIO_MAX;
 
 	hlist_for_each_entry_safe(diri, dc, dn, &ipkg->owned_dirs, pkg_dirs_list) {
 		dir = diri->dir;
@@ -2952,7 +2952,7 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 static void apk_db_migrate_files(struct apk_database *db,
 				 struct apk_installed_package *ipkg)
 {
-	for (uint8_t prio = APK_FS_PRIO_DISK; prio != 0xff; )
+	for (uint8_t prio = APK_FS_PRIO_DISK; prio != APK_FS_PRIO_MAX; )
 		prio = apk_db_migrate_files_for_priority(db, ipkg, prio);
 }
 
