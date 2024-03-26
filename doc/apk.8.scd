@@ -10,10 +10,14 @@ apk - Alpine Package Keeper
 
 # DESCRIPTION
 
-*apk* manages packages installed on the system. The set of top level packages
-to install is called the _world_ (see *apk-world*(5)). *apk* supports various
-sub-commands to query and manipulate _world_ and local & remote package
+*apk* manages packages installed on the system. The set of top level constraints
+on system packages is called the _world_ (see *apk-world*(5)).
+
+*apk* supports various sub-commands to query and manipulate _world_ and package
 repositories.
+
+By default apk is non-interactive. See *FILES* or *--interactive* on changing
+this default to be interactive.
 
 # COMMANDS
 
@@ -216,6 +220,61 @@ The following options are available for all commands which commit the database.
 	Used by initramfs when it's recreating root tmpfs. This enables selected
 	force options to minimize failure, and disables commit hooks, among
 	other features.
+
+# FILES
+
+*/etc/apk/arch*
+	The CPU architecture for this database. See *apk-package*(5) section
+	on package metadata field *arch* for the list.
+
+*/etc/apk/cache*
+	This is expected to be a symlink to directory what apk will use
+	as package cache. See also *apk-cache*(5) and *apk-cache*(8).
+
+*/etc/apk/commit_hooks.d/\*.pre-commit*++
+*/etc/apk/commit_hooks.d/\*.post-commit*
+	Hook scripts which are executed before or after changes to database are
+	committed. If a pre-commit script returns failure, the commit is aborted.
+
+	If *--no-scripts* or *--no-commit-hooks* option is specified, these
+	hook scripts are not executed.
+
+*/etc/apk/interactive*
+	If this file exists and apk is running on a tty, *--interactive*
+	mode is enabled by default.
+
+*/etc/apk/keys*
+	A directory containing trusted signing keys for apk.
+
+*/etc/apk/protected_paths.d/\*.list*
+	Configuration files to specify how to treat changes to specified
+	directory or file masks.
+
+*/etc/apk/repositories*++
+*/etc/apk/repositories.d/\*.list*
+	Configuration files to specify repositories. See *apk-repositories*(5)
+	for details.
+
+*/etc/apk/world*
+	Top level requirements and constraints on what should be installed.
+	See *apk-world*(5) for details.
+
+*/lib/apk/db/lock*
+	A lock file used to allow only one concurrent write transaction on
+	the system.
+
+*/lib/apk/db/installed*
+	Database of installed packages and their contents.
+
+*/lib/apk/db/scripts.tar*
+	Collection of all package scripts from currently installed packages.
+
+*/lib/apk/db/triggers*
+	List of triggers rules for currently installed packages.
+
+*/lib/apk/exec*
+	Temporary directory for extraction and execution of package scripts
+	and triggers.
 
 # NOTES
 
