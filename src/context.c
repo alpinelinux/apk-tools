@@ -52,7 +52,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		ac->flags |= APK_NO_CHROOT;
 
 		// Check uvol availability
-		ac->uvol = getenv("APK_UVOL") ?: "/usr/sbin/uvol";
+		ac->uvol = "/usr/sbin/uvol";
 		if (access(ac->uvol, X_OK) != 0)
 			ac->uvol = ERR_PTR(-APKE_UVOL_NOT_AVAILABLE);
 	} else {
