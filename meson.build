@@ -1,7 +1,7 @@
 project(
 	'apk-tools',
 	['c'],
-	default_options : ['c_std=gnu11', 'optimization=2'],
+	default_options : ['c_std=gnu11', 'optimization=2', 'warning_level=1'],
 	version: run_command('./get-version.sh', check: true).stdout().strip(),
 	meson_version: '>=0.55'
 )
