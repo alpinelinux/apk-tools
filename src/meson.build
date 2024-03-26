@@ -122,6 +122,11 @@ if apk_arch_prefix != ''
 	apk_cargs += ['-DAPK_ARCH_PREFIX="@0@"'.format(apk_arch_prefix)]
 endif
 
+apk_uvol_db_target = get_option('uvol_db_target').strip('/')
+if apk_uvol_db_target != ''
+	apk_cargs += ['-DAPK_UVOL_DB_TARGET="@0@"'.format(apk_uvol_db_target)]
+endif
+
 if get_option('zstd')
 	libapk_src += [ 'io_zstd.c' ]
 	apk_cargs += [ '-DHAVE_ZSTD' ]

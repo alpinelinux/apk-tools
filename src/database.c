@@ -1652,6 +1652,26 @@ const char *apk_db_layer_name(int layer)
 	}
 }
 
+#ifdef APK_UVOL_DB_TARGET
+static void setup_uvol_target(struct apk_database *db)
+{
+	const struct apk_ctx *ac = db->ctx;
+	const char *uvol_db = apk_db_layer_name(APK_DB_LAYER_UVOL);
+	const char *uvol_target = APK_UVOL_DB_TARGET;
+	const char *uvol_symlink_target = "../../" APK_UVOL_DB_TARGET;
+
+	if (!(ac->open_flags & (APK_OPENF_WRITE|APK_OPENF_CREATE))) return;
+	if (IS_ERR(ac->uvol)) return;
+	if (faccessat(db->root_fd, uvol_db, F_OK, 0) == 0) return;
+	if (faccessat(db->root_fd, uvol_target, F_OK, 0) != 0) return;
+
+	// Create symlink from uvol_db to uvol_target in relative form
+	symlinkat(uvol_symlink_target, db->root_fd, uvol_db);
+}
+#else
+static void setup_uvol_target(struct apk_database *db) { }
+#endif
+
 void apk_db_init(struct apk_database *db)
 {
 	memset(db, 0, sizeof(*db));
@@ -1704,6 +1724,8 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			db->usermode = 1;
 	}
 	if (db->usermode) db->extract_flags |= APK_FSEXTRACTF_NO_CHOWN | APK_FSEXTRACTF_NO_SYS_XATTRS;
+
+	setup_uvol_target(db);
 
 	if (ac->arch && (ac->root_set || (ac->open_flags & APK_OPENF_ALLOW_ARCH))) {
 		db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(ac->arch));
