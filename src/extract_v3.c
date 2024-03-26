@@ -44,6 +44,7 @@ static void apk_extract_v3_acl(struct apk_file_info *fi, struct adb_obj *o, stru
 			.value = value,
 		};
 	}
+	apk_fileinfo_hash_xattr(fi, APK_DIGEST_SHA1);
 }
 
 static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct apk_istream *is)
