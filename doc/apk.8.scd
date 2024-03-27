@@ -240,7 +240,64 @@ package indexes only.
 	(exclude installed database), *installed* (exclude normal repositories)
 	or *none* (commandline repositories only).
 
+# ENVIRONMENT
+
+*LANG*
+	Used to determine if UTF-8 is supported, and set the default progress
+	character accordingly.
+
+*SOURCE_DATE_EPOCH*
+	See *apk-index*(8).
+
+*TERM*
+	Used to determine if the terminal is dumb or not. Progress bar is not
+	enabled on dumb terminals by default.
+
+## Variables to configure built-in libfetch
+
+*FETCH_BIND_ADDRESS*
+	A local IP address to which libfetch will bind all sockets it creates.
+	Can be useful for source routing.
+
+*FTP_PROXY*, *ftp_proxy*
+	If set, these variables should contain the proxy URL for *ftp*
+	connections.
+
+*NETRC*
+	Specify the *.netrc* file to read for authentication secrets. If not
+	set, defaults to *$HOME/.netrc*.
+
+*HTTP_AUTH*++
+*HTTP_REFERER*++
+*HTTP_USER_AGENT*
+	Specify a custom HTTP level *Authorization*, *Referer* or *User-Agent* header.
+
+*HTTP_PROXY*, *http_proxy*++
+*HTTPS_PROXY*, *https_proxy*++
+	If set, these variables should contain the proxy URL for *http*
+	and *https* connections respectively.
+
+*HTTP_PROXY_AUTH*
+	Specify a HTTP *Proxy-Authorization* header. Used only if the connection
+	is established through a configured HTTP proxy.
+
+*NO_PROXY*, *no_proxy*
+	Comma-separated list of domain extensions or CIDR notation IP addresses
+	to which a proxy should _not_ be used for.  This is used explicitly to
+	test the URL hostname portion only. That is, specifying an IP address
+	or CIDR block will not match a DNS name that resolves to the IP address.
+
+*SSL_CLIENT_CERT_FILE*++
+*SSL_CLIENT_KEY_FILE*
+	Override default SSL client certificate and corresponding private key
+	filename.
+
+*SSL_NO_VERIFY_HOSTNAME*
+	If set to anything, disables the server certificate name verification.
+
 # FILES
+
+## Configuration files
 
 */etc/apk/arch*
 	The CPU architecture for this database. See *apk-package*(5) section
@@ -277,6 +334,23 @@ package indexes only.
 */etc/apk/world*
 	Top level requirements and constraints on what should be installed.
 	See *apk-world*(5) for details.
+
+## Configuration files for built-in libfetch
+
+*/etc/apk/ca.pem*
+	CA certificate store bundle for verifying server certificates.
+	If not present, the default system CA store is used.
+
+*/etc/apk/crl.pem*
+	CRL store to check the server certificates against.
+
+*/etc/apk/cert.key*
+	Client certificate private key.
+
+*/etc/apk/cert.pem*
+	Client certificate to use for authentication.
+
+## System files
 
 */lib/apk/db/lock*
 	A lock file used to allow only one concurrent write transaction on

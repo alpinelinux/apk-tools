@@ -44,3 +44,8 @@ will accept it. See *abuild-sign*(1) for details.
 
 *--rewrite-arch* _ARCH_
 	Set all package's architecture to _ARCH_.
+
+# ENVIRONMENT
+
+*SOURCE_DATE_EPOCH*
+	Used as the build time for tar file headers in APKINDEX.tar.gz.
