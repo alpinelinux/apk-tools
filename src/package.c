@@ -19,9 +19,6 @@
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 
-#include "apk_openssl.h"
-#include <openssl/pem.h>
-
 #include "apk_defines.h"
 #include "apk_package.h"
 #include "apk_database.h"

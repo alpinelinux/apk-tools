@@ -42,22 +42,6 @@ struct apk_checksum {
 	unsigned char type;
 };
 
-static inline const EVP_MD *apk_checksum_evp(int type)
-{
-	switch (type) {
-	case APK_CHECKSUM_MD5:
-		return EVP_md5();
-	case APK_CHECKSUM_SHA1:
-		return EVP_sha1();
-	}
-	return EVP_md_null();
-}
-
-static inline const EVP_MD *apk_checksum_default(void)
-{
-	return apk_checksum_evp(APK_CHECKSUM_DEFAULT);
-}
-
 #define APK_BLOB_IS_NULL(blob)		((blob).ptr == NULL)
 
 #define APK_BLOB_NULL			((apk_blob_t){0, NULL})
@@ -97,11 +81,6 @@ int apk_blob_ends_with(apk_blob_t str, apk_blob_t suffix);
 int apk_blob_for_each_segment(apk_blob_t blob, const char *split,
 			      apk_blob_cb cb, void *ctx);
 
-static inline void apk_blob_checksum(apk_blob_t b, const EVP_MD *md, struct apk_checksum *csum)
-{
-	csum->type = EVP_MD_size(md);
-	EVP_Digest(b.ptr, b.len, csum->data, NULL, md, NULL);
-}
 static inline char *apk_blob_chr(apk_blob_t b, unsigned char ch)
 {
 	return memchr(b.ptr, ch, b.len);

@@ -118,7 +118,7 @@ struct apk_name {
 
 struct apk_repository {
 	const char *url;
-	struct apk_checksum csum;
+	struct apk_digest hash;
 	apk_blob_t description;
 };
 

@@ -36,7 +36,6 @@
 #include "apk_ctype.h"
 #include "apk_extract.h"
 #include "apk_print.h"
-#include "apk_openssl.h"
 #include "apk_tar.h"
 #include "apk_adb.h"
 #include "apk_fs.h"
@@ -633,7 +632,7 @@ int apk_repo_format_cache_index(apk_blob_t to, struct apk_repository *repo)
 {
 	/* APKINDEX.12345678.tar.gz */
 	apk_blob_push_blob(&to, APK_BLOB_STR("APKINDEX."));
-	apk_blob_push_hexdump(&to, APK_BLOB_PTR_LEN((char *) repo->csum.data, APK_CACHE_CSUM_BYTES));
+	apk_blob_push_hexdump(&to, APK_BLOB_PTR_LEN((char *) repo->hash.data, APK_CACHE_CSUM_BYTES));
 	apk_blob_push_blob(&to, APK_BLOB_STR(".tar.gz"));
 	apk_blob_push_blob(&to, APK_BLOB_PTR_LEN("", 1));
 	if (APK_BLOB_IS_NULL(to))
@@ -1403,10 +1402,11 @@ static void apk_db_setup_repositories(struct apk_database *db, const char *cache
 	 * are truncated to APK_CACHE_CSUM_BYTES and always use SHA-1. */
 	db->repos[APK_REPOSITORY_CACHED] = (struct apk_repository) {
 		.url = cache_dir,
-		.csum.data = {
+		.hash.data = {
 			0xb0,0x35,0x92,0x80,0x6e,0xfa,0xbf,0xee,0xb7,0x09,
 			0xf5,0xa7,0x0a,0x7c,0x17,0x26,0x69,0xb0,0x05,0x38 },
-		.csum.type = APK_CHECKSUM_SHA1,
+		.hash.len = 20,
+		.hash.alg = APK_DIGEST_SHA1,
 	};
 
 	db->num_repos = APK_REPOSITORY_FIRST_CONFIGURED;
@@ -2406,7 +2406,7 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 	if (r != 0) goto err;
 
 	error_action = "opening";
-	apk_blob_checksum(APK_BLOB_STR(buf), apk_checksum_default(), &repo->csum);
+	apk_digest_calc(&repo->hash, APK_DIGEST_SHA256, buf, strlen(buf));
 
 	if (is_remote) {
 		if (!(db->ctx->flags & APK_NO_NETWORK))
