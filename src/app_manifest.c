@@ -96,6 +96,7 @@ static void process_file(struct apk_database *db, const char *match)
 	r = apk_tar_parse(
 		apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, match), apk_sign_ctx_mpart_cb, &sctx),
 		read_file_entry, &ctx, &db->id_cache);
+	r = apk_sign_ctx_status(&sctx, r);
 	apk_sign_ctx_free(&sctx);
 	if (r < 0) apk_error("%s: %s", match, apk_error_str(r));
 }

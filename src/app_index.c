@@ -29,7 +29,6 @@ struct index_ctx {
 	const char *description;
 	const char *rewrite_arch;
 	time_t index_mtime;
-	int method;
 	unsigned short index_flags;
 };
 
@@ -108,7 +107,7 @@ static int warn_if_no_providers(apk_hash_item item, void *ctx)
 static int index_main(void *ctx, struct apk_database *db, struct apk_string_array *args)
 {
 	struct counts counts = {0};
-	struct apk_ostream *os;
+	struct apk_ostream *os, *counter;
 	struct apk_file_info fi;
 	int total, r, found, newpkgs = 0, errors = 0;
 	struct index_ctx *ictx = (struct index_ctx *) ctx;
@@ -122,9 +121,6 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 			  "Use --force-binary-stdout to override.");
 		return -1;
 	}
-
-	if (ictx->method == 0)
-		ictx->method = APK_SIGN_GENERATE;
 
 	if ((r = index_read_file(db, ictx)) < 0) {
 		apk_error("%s: %s", ictx->index, apk_error_str(r));
@@ -183,7 +179,7 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 
 		if (!found) {
 			struct apk_sign_ctx sctx;
-			apk_sign_ctx_init(&sctx, ictx->method, NULL, db->keys_fd);
+			apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY_AND_GENERATE, NULL, db->keys_fd);
 			r = apk_pkg_read(db, *parg, &sctx, &pkg);
 			if (r < 0) {
 				apk_error("%s: %s", *parg, apk_error_str(r));
@@ -204,35 +200,29 @@ static int index_main(void *ctx, struct apk_database *db, struct apk_string_arra
 		os = apk_ostream_to_fd(STDOUT_FILENO);
 	if (IS_ERR_OR_NULL(os)) return -1;
 
-	if (ictx->method == APK_SIGN_GENERATE) {
-		struct apk_ostream *counter;
+	memset(&fi, 0, sizeof(fi));
+	fi.mode = 0644 | S_IFREG;
+	fi.name = "APKINDEX";
+	counter = apk_ostream_counter(&fi.size);
+	r = apk_db_index_write(db, counter);
+	apk_ostream_close(counter);
 
-		memset(&fi, 0, sizeof(fi));
-		fi.mode = 0644 | S_IFREG;
-		fi.name = "APKINDEX";
-		counter = apk_ostream_counter(&fi.size);
-		r = apk_db_index_write(db, counter);
-		apk_ostream_close(counter);
-
-		if (r >= 0) {
-			os = apk_ostream_gzip(os);
-			if (ictx->description != NULL) {
-				struct apk_file_info fi_desc;
-				memset(&fi_desc, 0, sizeof(fi));
-				fi_desc.mode = 0644 | S_IFREG;
-				fi_desc.name = "DESCRIPTION";
-				fi_desc.size = strlen(ictx->description);
-				apk_tar_write_entry(os, &fi_desc, ictx->description);
-			}
-
-			apk_tar_write_entry(os, &fi, NULL);
-			r = apk_db_index_write(db, os);
-			apk_tar_write_padding(os, &fi);
-
-			apk_tar_write_entry(os, NULL, NULL);
+	if (r >= 0) {
+		os = apk_ostream_gzip(os);
+		if (ictx->description != NULL) {
+			struct apk_file_info fi_desc;
+			memset(&fi_desc, 0, sizeof(fi));
+			fi_desc.mode = 0644 | S_IFREG;
+			fi_desc.name = "DESCRIPTION";
+			fi_desc.size = strlen(ictx->description);
+			apk_tar_write_entry(os, &fi_desc, ictx->description);
 		}
-	} else {
+
+		apk_tar_write_entry(os, &fi, NULL);
 		r = apk_db_index_write(db, os);
+		apk_tar_write_padding(os, &fi);
+
+		apk_tar_write_entry(os, NULL, NULL);
 	}
 	apk_ostream_close(os);
 

@@ -27,6 +27,7 @@ static int verify_main(void *ctx, struct apk_database *db, struct apk_string_arr
 			apk_istream_gunzip_mpart(apk_istream_from_file(AT_FDCWD, *parg),
 						 apk_sign_ctx_mpart_cb, &sctx),
 			apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
+		r = apk_sign_ctx_status(&sctx, r);
 		ok = sctx.control_verified && sctx.data_verified;
 		if (apk_verbosity >= 1)
 			apk_message("%s: %d - %s", *parg, r,

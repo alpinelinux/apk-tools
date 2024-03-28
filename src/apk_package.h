@@ -29,11 +29,9 @@ struct apk_provider;
 #define APK_SCRIPT_TRIGGER		6
 #define APK_SCRIPT_MAX			7
 
-#define APK_SIGN_NONE			0
 #define APK_SIGN_VERIFY			1
 #define APK_SIGN_VERIFY_IDENTITY	2
-#define APK_SIGN_GENERATE		4
-#define APK_SIGN_VERIFY_AND_GENERATE	5
+#define APK_SIGN_VERIFY_AND_GENERATE	3
 
 #define APK_DEP_IRRELEVANT		0x01
 #define APK_DEP_SATISFIES		0x02
@@ -49,14 +47,17 @@ struct apk_sign_ctx {
 	int action;
 	const EVP_MD *md;
 	int num_signatures;
-	int control_started : 1;
-	int data_started : 1;
-	int has_data_checksum : 1;
-	int control_verified : 1;
-	int data_verified : 1;
+	int verify_error;
+	unsigned char control_started : 1;
+	unsigned char data_started : 1;
+	unsigned char has_data_checksum : 1;
+	unsigned char control_verified : 1;
+	unsigned char data_verified : 1;
+	unsigned char end_seen : 1;
 	char data_checksum[EVP_MAX_MD_SIZE];
 	struct apk_checksum identity;
 	EVP_MD_CTX *mdctx;
+	EVP_MD_CTX *idctx;
 
 	struct {
 		apk_blob_t data;
@@ -134,6 +135,7 @@ extern const char *apk_script_types[];
 void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action,
 		       struct apk_checksum *identity, int keys_fd);
 void apk_sign_ctx_free(struct apk_sign_ctx *ctx);
+int apk_sign_ctx_status(struct apk_sign_ctx *ctx, int tar_rc);
 int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
 			      const struct apk_file_info *fi,
 			      struct apk_istream *is);
