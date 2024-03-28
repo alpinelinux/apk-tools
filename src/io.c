@@ -92,6 +92,8 @@ ssize_t apk_istream_read_max(struct apk_istream *is, void *ptr, size_t size)
 {
 	ssize_t left = size, r = 0;
 
+	if (is->err < 0) return is->err;
+
 	while (left) {
 		if (is->ptr != is->end) {
 			r = min(left, is->end - is->ptr);
@@ -154,6 +156,8 @@ static int __apk_istream_fill(struct apk_istream *is)
 void *apk_istream_peek(struct apk_istream *is, size_t len)
 {
 	int r;
+
+	if (is->err < 0) return ERR_PTR(is->err);
 
 	do {
 		if (is->end - is->ptr >= len) {
