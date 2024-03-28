@@ -112,6 +112,8 @@ const char *apk_error_str(int error)
 		return "database file format error";
 	case EAPKCACHE:
 		return "cache not available";
+	case EAPKCRYPTO:
+		return "cryptocraphic library error";
 	default:
 		return strerror(error);
 	}
