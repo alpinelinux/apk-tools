@@ -4,72 +4,100 @@
 #include <openssl/bio.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#include <openssl/opensslv.h>
+#include <openssl/crypto.h>
+#include <openssl/evp.h>
+#ifndef OPENSSL_NO_ENGINE
+#include <openssl/engine.h>
+#endif
 
 #include "apk_crypto.h"
 
-static const char *apk_digest_str[] = {
-	[APK_DIGEST_NONE]	= "none",
-	[APK_DIGEST_MD5]	= "md5",
-	[APK_DIGEST_SHA1]	= "sha1",
-	[APK_DIGEST_SHA256_160] = "sha256-160",
-	[APK_DIGEST_SHA256]	= "sha256",
-	[APK_DIGEST_SHA512]	= "sha512",
-};
+// Copmatibility with older openssl
 
-const char *apk_digest_alg_str(uint8_t alg)
+#if OPENSSL_VERSION_NUMBER < 0x1010000fL || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2070000fL)
+
+static inline EVP_MD_CTX *EVP_MD_CTX_new(void)
 {
-	const char *alg_str = "unknown";
-	if (alg < ARRAY_SIZE(apk_digest_str))
-		alg_str = apk_digest_str[alg];
-	return alg_str;
+	return EVP_MD_CTX_create();
 }
 
-int apk_digest_alg_len(uint8_t alg)
+static inline void EVP_MD_CTX_free(EVP_MD_CTX *mdctx)
 {
+	return EVP_MD_CTX_destroy(mdctx);
+}
+
+#endif
+
+static inline const EVP_MD *apk_digest_alg_to_evp(uint8_t alg) {
 	switch (alg) {
-	case APK_DIGEST_MD5:		return 16;
-	case APK_DIGEST_SHA1:		return 20;
-	case APK_DIGEST_SHA256_160:	return 20;
-	case APK_DIGEST_SHA256:		return 32;
-	case APK_DIGEST_SHA512:		return 64;
-	default:			return 0;
+	case APK_DIGEST_NONE:	return EVP_md_null();
+	case APK_DIGEST_MD5:	return EVP_md5();
+	case APK_DIGEST_SHA1:	return EVP_sha1();
+	case APK_DIGEST_SHA256_160:
+	case APK_DIGEST_SHA256:	return EVP_sha256();
+	case APK_DIGEST_SHA512:	return EVP_sha512();
+	default:
+		assert(alg);
+		return EVP_md_null();
 	}
 }
 
-uint8_t apk_digest_alg_by_len(int len)
+int apk_digest_calc(struct apk_digest *d, uint8_t alg, const void *ptr, size_t sz)
 {
-	switch (len) {
-	case 0:	 return APK_DIGEST_NONE;
-	case 16: return APK_DIGEST_MD5;
-	case 20: return APK_DIGEST_SHA1;
-	case 32: return APK_DIGEST_SHA256;
-	case 64: return APK_DIGEST_SHA512;
-	default: return APK_DIGEST_NONE;
-	}
+	unsigned int md_sz = sizeof d->data;
+	if (EVP_Digest(ptr, sz, d->data, &md_sz, apk_digest_alg_to_evp(alg), 0) != 1)
+		return -APKE_CRYPTO_ERROR;
+	apk_digest_set(d, alg);
+	return 0;
 }
 
-uint8_t apk_digest_alg_from_csum(int csum)
+int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg)
 {
-	switch (csum) {
-	case APK_CHECKSUM_NONE:		return APK_DIGEST_NONE;
-	case APK_CHECKSUM_MD5:		return APK_DIGEST_MD5;
-	case APK_CHECKSUM_SHA1:		return APK_DIGEST_SHA1;
-	default:			return APK_DIGEST_NONE;
-	}
+	dctx->alg = alg;
+	dctx->mdctx = EVP_MD_CTX_new();
+	if (!dctx->mdctx) return -ENOMEM;
+#ifdef EVP_MD_CTX_FLAG_FINALISE
+	EVP_MD_CTX_set_flags(dctx->mdctx, EVP_MD_CTX_FLAG_FINALISE);
+#endif
+	if (EVP_DigestInit_ex(dctx->mdctx, apk_digest_alg_to_evp(alg), 0) != 1)
+		return -APKE_CRYPTO_ERROR;
+	return 0;
 }
 
-uint8_t apk_digest_from_blob(struct apk_digest *d, apk_blob_t b)
+int apk_digest_ctx_reset(struct apk_digest_ctx *dctx, uint8_t alg)
 {
-	d->alg = apk_digest_alg_by_len(b.len);
-	d->len = 0;
-	if (d->alg != APK_DIGEST_NONE) {
-		d->len = b.len;
-		memcpy(d->data, b.ptr, d->len);
-	}
-	return d->alg;
+	if (EVP_MD_CTX_reset(dctx->mdctx) != 1 ||
+	    EVP_DigestInit_ex(dctx->mdctx, apk_digest_alg_to_evp(alg), 0) != 1)
+		return -APKE_CRYPTO_ERROR;
+	dctx->alg = alg;
+	return 0;
 }
 
-int apk_pkey_init(struct apk_pkey *pkey, EVP_PKEY *key)
+void apk_digest_ctx_free(struct apk_digest_ctx *dctx)
+{
+	EVP_MD_CTX_free(dctx->mdctx);
+	dctx->mdctx = 0;
+}
+
+int apk_digest_ctx_update(struct apk_digest_ctx *dctx, const void *ptr, size_t sz)
+{
+	return EVP_DigestUpdate(dctx->mdctx, ptr, sz) == 1 ? 0 : -APKE_CRYPTO_ERROR;
+}
+
+int apk_digest_ctx_final(struct apk_digest_ctx *dctx, struct apk_digest *d)
+{
+	unsigned int mdlen = sizeof d->data;
+	if (EVP_DigestFinal_ex(dctx->mdctx, d->data, &mdlen) != 1) {
+		apk_digest_reset(d);
+		return -APKE_CRYPTO_ERROR;
+	}
+	d->alg = dctx->alg;
+	d->len = apk_digest_alg_len(d->alg);
+	return 0;
+}
+
+static int apk_pkey_init(struct apk_pkey *pkey, EVP_PKEY *key)
 {
 	unsigned char dig[EVP_MAX_MD_SIZE], *pub = NULL;
 	unsigned int dlen = sizeof dig;
@@ -111,40 +139,66 @@ int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn)
 	BIO_free(bio);
 	if (!key) return -APKE_CRYPTO_KEY_FORMAT;
 
-	apk_pkey_init(pkey, key);
-	return 0;
+	return apk_pkey_init(pkey, key);
 }
 
-int apk_sign_start(struct apk_digest_ctx *dctx, struct apk_pkey *pkey)
+int apk_sign_start(struct apk_digest_ctx *dctx, uint8_t alg, struct apk_pkey *pkey)
 {
 	if (EVP_MD_CTX_reset(dctx->mdctx) != 1 ||
-	    EVP_DigestSignInit(dctx->mdctx, NULL, EVP_sha512(), NULL, pkey->key) != 1)
+	    EVP_DigestSignInit(dctx->mdctx, NULL, apk_digest_alg_to_evp(alg), NULL, pkey->key) != 1)
 		return -APKE_CRYPTO_ERROR;
+	dctx->alg = alg;
 	return 0;
 }
 
 int apk_sign(struct apk_digest_ctx *dctx, void *sig, size_t *len)
 {
-	if (EVP_DigestSignFinal(dctx->mdctx, sig, len) != 1) {
-		ERR_print_errors_fp(stderr);
+	if (EVP_DigestSignFinal(dctx->mdctx, sig, len) != 1)
 		return -APKE_SIGNATURE_FAIL;
-	}
 	return 0;
 }
 
-int apk_verify_start(struct apk_digest_ctx *dctx, struct apk_pkey *pkey)
+int apk_verify_start(struct apk_digest_ctx *dctx, uint8_t alg, struct apk_pkey *pkey)
 {
 	if (EVP_MD_CTX_reset(dctx->mdctx) != 1 ||
-	    EVP_DigestVerifyInit(dctx->mdctx, NULL, EVP_sha512(), NULL, pkey->key) != 1)
+	    EVP_DigestVerifyInit(dctx->mdctx, NULL, apk_digest_alg_to_evp(alg), NULL, pkey->key) != 1)
 		return -APKE_CRYPTO_ERROR;
+	dctx->alg = alg;
 	return 0;
 }
 
 int apk_verify(struct apk_digest_ctx *dctx, void *sig, size_t len)
 {
-	if (EVP_DigestVerifyFinal(dctx->mdctx, sig, len) != 1) {
-		ERR_print_errors_fp(stderr);
+	if (EVP_DigestVerifyFinal(dctx->mdctx, sig, len) != 1)
 		return -APKE_SIGNATURE_INVALID;
-	}
 	return 0;
 }
+
+#if OPENSSL_VERSION_NUMBER < 0x1010000fL || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2070000fL)
+
+static void apk_crypto_cleanup(void)
+{
+	EVP_cleanup();
+#ifndef OPENSSL_NO_ENGINE
+	ENGINE_cleanup();
+#endif
+	CRYPTO_cleanup_all_ex_data();
+}
+
+void apk_crypto_init(void)
+{
+	atexit(apk_crypto_cleanup);
+	OpenSSL_add_all_algorithms();
+#ifndef OPENSSL_NO_ENGINE
+	ENGINE_load_builtin_engines();
+	ENGINE_register_all_complete();
+#endif
+}
+
+#else
+
+void apk_crypto_init(void)
+{
+}
+
+#endif

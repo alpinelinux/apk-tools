@@ -10,32 +10,34 @@
 #include "apk_context.h"
 #include "apk_extract.h"
 #include "apk_package.h"
+#include "apk_crypto.h"
 #include "apk_tar.h"
 
-#define APK_SIGN_NONE			0
 #define APK_SIGN_VERIFY			1
 #define APK_SIGN_VERIFY_IDENTITY	2
-#define APK_SIGN_GENERATE		4
-#define APK_SIGN_VERIFY_AND_GENERATE	5
+#define APK_SIGN_VERIFY_AND_GENERATE	3
 
 struct apk_sign_ctx {
 	struct apk_trust *trust;
 	int action;
-	const EVP_MD *md;
 	int num_signatures;
-	unsigned int control_started : 1;
-	unsigned int data_started : 1;
-	unsigned int has_data_checksum : 1;
-	unsigned int control_verified : 1;
-	unsigned int data_verified : 1;
-	unsigned int allow_untrusted : 1;
-	char data_checksum[EVP_MAX_MD_SIZE];
-	struct apk_checksum identity;
-	EVP_MD_CTX *mdctx;
+	int verify_error;
+	unsigned char control_started : 1;
+	unsigned char data_started : 1;
+	unsigned char has_data_checksum : 1;
+	unsigned char control_verified : 1;
+	unsigned char data_verified : 1;
+	unsigned char allow_untrusted : 1;
+	unsigned char end_seen : 1;
+	uint8_t alg;
+	struct apk_digest data_hash;
+	struct apk_digest identity;
+	struct apk_digest_ctx digest_ctx;
+	struct apk_digest_ctx identity_ctx;
 
 	struct {
 		apk_blob_t data;
-		EVP_PKEY *pkey;
+		struct apk_pkey *pkey;
 		char *identity;
 	} signature;
 };
@@ -47,39 +49,34 @@ static void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action, struct apk_c
 	ctx->action = action;
 	ctx->allow_untrusted = trust->allow_untrusted;
 	switch (action) {
+	case APK_SIGN_VERIFY_AND_GENERATE:
+		apk_digest_ctx_init(&ctx->identity_ctx, APK_DIGEST_SHA1);
+		/* Fall through to setup verification */
 	case APK_SIGN_VERIFY:
 		/* If we're only verifing, we're going to start with a
 		 * signature section, which we don't need a hash of */
-		ctx->md = EVP_md_null();
+		ctx->alg = APK_DIGEST_NONE;
+		ctx->verify_error = -APKE_SIGNATURE_UNTRUSTED;
 		break;
 	case APK_SIGN_VERIFY_IDENTITY:
 		/* If we're checking the package against a particular hash,
 		 * we need to start with that hash, because there may not
 		 * be a signature section to deduce it from */
-		ctx->md = EVP_sha1();
-		memcpy(&ctx->identity, identity, sizeof(ctx->identity));
-		break;
-	case APK_SIGN_GENERATE:
-	case APK_SIGN_VERIFY_AND_GENERATE:
-		ctx->md = EVP_sha1();
+		ctx->alg = APK_DIGEST_SHA1;
+		apk_digest_from_checksum(&ctx->identity, identity);
 		break;
 	default:
-		ctx->action = APK_SIGN_NONE;
-		ctx->md = EVP_md_null();
-		ctx->control_started = 1;
-		ctx->data_started = 1;
+		assert(!"unreachable");
 		break;
 	}
-	ctx->mdctx = EVP_MD_CTX_new();
-	EVP_DigestInit_ex(ctx->mdctx, ctx->md, NULL);
-	EVP_MD_CTX_set_flags(ctx->mdctx, EVP_MD_CTX_FLAG_ONESHOT);
+	apk_digest_ctx_init(&ctx->digest_ctx, ctx->alg);
 }
 
 static void apk_sign_ctx_free(struct apk_sign_ctx *ctx)
 {
-	if (ctx->signature.data.ptr != NULL)
-		free(ctx->signature.data.ptr);
-	EVP_MD_CTX_free(ctx->mdctx);
+	free(ctx->signature.data.ptr);
+	apk_digest_ctx_free(&ctx->identity_ctx);
+	apk_digest_ctx_free(&ctx->digest_ctx);
 }
 
 static int check_signing_key_trust(struct apk_sign_ctx *sctx)
@@ -100,15 +97,15 @@ static int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx, const struct apk_
 		struct apk_istream *is)
 {
 	static struct {
-		char type[8];
-		unsigned int nid;
+		char type[7];
+		uint8_t alg;
 	} signature_type[] = {
-		{ "RSA512", NID_sha512 },
-		{ "RSA256", NID_sha256 },
-		{ "RSA", NID_sha1 },
-		{ "DSA", NID_dsa },
+		{ "RSA512", APK_DIGEST_SHA512 },
+		{ "RSA256", APK_DIGEST_SHA256 },
+		{ "RSA", APK_DIGEST_SHA1 },
+		{ "DSA", APK_DIGEST_SHA1 },
 	};
-	const EVP_MD *md = NULL;
+	uint8_t alg = APK_DIGEST_NONE;
 	const char *name = NULL;
 	struct apk_pkey *pkey;
 	int r, i;
@@ -129,8 +126,7 @@ static int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx, const struct apk_
 		ctx->data_started = 1;
 		ctx->control_started = 1;
 		r = check_signing_key_trust(ctx);
-		if (r < 0)
-			return r;
+		if (r != 0) return r;
 		return 1;
 	}
 
@@ -146,26 +142,24 @@ static int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx, const struct apk_
 	ctx->num_signatures++;
 
 	/* Already found a signature by a trusted key; no need to keep searching */
-	if ((ctx->action != APK_SIGN_VERIFY &&
-	     ctx->action != APK_SIGN_VERIFY_AND_GENERATE) ||
-	    ctx->signature.pkey != NULL)
-		return 0;
+	if (ctx->signature.pkey != NULL) return 0;
+	if (ctx->action == APK_SIGN_VERIFY_IDENTITY) return 0;
 
 	for (i = 0; i < ARRAY_SIZE(signature_type); i++) {
 		size_t slen = strlen(signature_type[i].type);
 		if (strncmp(&fi->name[6], signature_type[i].type, slen) == 0 &&
 		    fi->name[6+slen] == '.') {
-			md = EVP_get_digestbynid(signature_type[i].nid);
+			alg = signature_type[i].alg;
 			name = &fi->name[6+slen+1];
 			break;
 		}
 	}
-	if (!md) return 0;
+	if (alg == APK_DIGEST_NONE) return 0;
 
 	pkey = apk_trust_key_by_name(ctx->trust, name);
 	if (pkey) {
-		ctx->md = md;
-		ctx->signature.pkey = pkey->key;
+		ctx->alg = alg;
+		ctx->signature.pkey = pkey;
 		apk_blob_from_istream(is, fi->size, &ctx->signature.data);
 	}
 	return 0;
@@ -181,18 +175,36 @@ static int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx, const struct apk_
 static int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 {
 	struct apk_sign_ctx *sctx = (struct apk_sign_ctx *) ctx;
-	unsigned char calculated[EVP_MAX_MD_SIZE];
+	struct apk_digest calculated;
 	int r, end_of_control;
 
-	if ((part == APK_MPART_DATA) ||
-	    (part == APK_MPART_BOUNDARY && sctx->data_started))
-		goto update_digest;
+	if (sctx->end_seen || sctx->data_verified) return -APKE_FORMAT_INVALID;
+	if (part == APK_MPART_BOUNDARY && sctx->data_started) return -APKE_FORMAT_INVALID;
+	if (part == APK_MPART_END) sctx->end_seen = 1;
+	if (part == APK_MPART_DATA) {
+		/* Update digest with the data now. Only _DATA callbacks can have data. */
+		r = apk_digest_ctx_update(&sctx->digest_ctx, data.ptr, data.len);
+		if (r != 0) return r;
+
+		/* Update identity generated also if needed. */
+		if (sctx->control_started && !sctx->data_started &&
+		    sctx->identity_ctx.alg != APK_DIGEST_NONE) {
+			r = apk_digest_ctx_update(&sctx->identity_ctx, data.ptr, data.len);
+			if (r != 0) return r;
+		}
+		return 0;
+	}
+	if (data.len) return -APKE_FORMAT_INVALID;
 
 	/* Still in signature blocks? */
 	if (!sctx->control_started) {
-		if (part == APK_MPART_END)
-			return -APKE_V2PKG_FORMAT;
-		goto reset_digest;
+		if (part == APK_MPART_END) return -APKE_FORMAT_INVALID;
+
+		/* Control block starting, prepare for signature verification */
+		if (sctx->signature.pkey == NULL || sctx->action == APK_SIGN_VERIFY_IDENTITY)
+			return apk_digest_ctx_reset(&sctx->digest_ctx, sctx->alg);
+
+		return apk_verify_start(&sctx->digest_ctx, sctx->alg, sctx->signature.pkey);
 	}
 
 	/* Grab state and mark all remaining block as data */
@@ -200,19 +212,14 @@ static int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 	sctx->data_started = 1;
 
 	/* End of control-block and control does not have data checksum? */
-	if (sctx->has_data_checksum == 0 && end_of_control &&
-	    part != APK_MPART_END)
-		goto update_digest;
-
-	/* Drool in the remainder of the digest block now, we will finish
-	 * hashing it in all cases */
-	EVP_DigestUpdate(sctx->mdctx, data.ptr, data.len);
+	if (sctx->has_data_checksum == 0 && end_of_control && part != APK_MPART_END)
+		return 0;
 
 	if (sctx->has_data_checksum && !end_of_control) {
 		/* End of data-block with a checksum read from the control block */
-		EVP_DigestFinal_ex(sctx->mdctx, calculated, NULL);
-		if (EVP_MD_CTX_size(sctx->mdctx) == 0 ||
-		    memcmp(calculated, sctx->data_checksum, EVP_MD_CTX_size(sctx->mdctx)) != 0)
+		r = apk_digest_ctx_final(&sctx->digest_ctx, &calculated);
+		if (r != 0) return r;
+		if (apk_digest_cmp(&calculated, &sctx->data_hash) != 0)
 			return -APKE_V2PKG_INTEGRITY;
 		sctx->data_verified = 1;
 		if (!sctx->allow_untrusted && !sctx->control_verified)
@@ -224,58 +231,42 @@ static int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 	 * of the data block following a control block without a data
 	 * checksum. In either case, we're checking a signature. */
 	r = check_signing_key_trust(sctx);
-	if (r < 0)
-		return r;
+	if (r != 0) return r;
 
 	switch (sctx->action) {
-	case APK_SIGN_VERIFY:
 	case APK_SIGN_VERIFY_AND_GENERATE:
+		/* Package identity is the checksum */
+		apk_digest_ctx_final(&sctx->identity_ctx, &sctx->identity);
+		if (!sctx->has_data_checksum) return -APKE_V2PKG_FORMAT;
+		/* Fallthrough to check signature */
+	case APK_SIGN_VERIFY:
 		if (sctx->signature.pkey != NULL) {
-			r = EVP_VerifyFinal(sctx->mdctx,
+			sctx->verify_error = apk_verify(&sctx->digest_ctx,
 				(unsigned char *) sctx->signature.data.ptr,
-				sctx->signature.data.len,
-				sctx->signature.pkey);
-			if (r != 1 && !sctx->allow_untrusted)
-				return -APKE_SIGNATURE_INVALID;
-		} else {
-			r = 0;
-			if (!sctx->allow_untrusted)
-				return -APKE_SIGNATURE_UNTRUSTED;
+				sctx->signature.data.len);
 		}
-		if (r == 1) {
+		if (sctx->verify_error) {
+			if (sctx->verify_error != -APKE_SIGNATURE_UNTRUSTED ||
+			    !sctx->allow_untrusted)
+				return sctx->verify_error;
+		}
+		if (!sctx->verify_error) {
 			sctx->control_verified = 1;
 			if (!sctx->has_data_checksum && part == APK_MPART_END)
 				sctx->data_verified = 1;
 		}
-		if (sctx->action == APK_SIGN_VERIFY_AND_GENERATE) goto generate_identity;
 		break;
 	case APK_SIGN_VERIFY_IDENTITY:
 		/* Reset digest for hashing data */
-		EVP_DigestFinal_ex(sctx->mdctx, calculated, NULL);
-		if (memcmp(calculated, sctx->identity.data,
-			   sctx->identity.type) != 0)
+		apk_digest_ctx_final(&sctx->digest_ctx, &calculated);
+		if (apk_digest_cmp(&calculated, &sctx->identity) != 0)
 			return -APKE_V2PKG_INTEGRITY;
 		sctx->control_verified = 1;
 		if (!sctx->has_data_checksum && part == APK_MPART_END)
 			sctx->data_verified = 1;
 		break;
-	case APK_SIGN_GENERATE:
-	generate_identity:
-		/* Package identity is the checksum */
-		sctx->identity.type = EVP_MD_CTX_size(sctx->mdctx);
-		EVP_DigestFinal_ex(sctx->mdctx, sctx->identity.data, NULL);
-		if (!sctx->has_data_checksum) return -APKE_V2PKG_FORMAT;
-		break;
 	}
-reset_digest:
-	EVP_DigestInit_ex(sctx->mdctx, sctx->md, NULL);
-	EVP_MD_CTX_set_flags(sctx->mdctx, EVP_MD_CTX_FLAG_ONESHOT);
-	return 0;
-
-update_digest:
-	EVP_MD_CTX_clear_flags(sctx->mdctx, EVP_MD_CTX_FLAG_ONESHOT);
-	EVP_DigestUpdate(sctx->mdctx, data.ptr, data.len);
-	return 0;
+	return apk_digest_ctx_reset(&sctx->digest_ctx, sctx->alg);
 }
 
 static int apk_extract_verify_v2index(struct apk_extract_ctx *ectx, apk_blob_t *desc, struct apk_istream *is)
@@ -343,7 +334,7 @@ int apk_extract_v2(struct apk_extract_ctx *ectx, struct apk_istream *is)
 	int r, action;
 
 	if (ectx->generate_identity)
-		action = trust->allow_untrusted ? APK_SIGN_GENERATE : APK_SIGN_VERIFY_AND_GENERATE;
+		action = APK_SIGN_VERIFY_AND_GENERATE;
 	else if (ectx->identity)
 		action = APK_SIGN_VERIFY_IDENTITY;
 	else
@@ -357,8 +348,10 @@ int apk_extract_v2(struct apk_extract_ctx *ectx, struct apk_istream *is)
 		apk_extract_v2_entry, ectx, apk_ctx_get_id_cache(ac));
 	if (r == -ECANCELED) r = 0;
 	if ((r == 0 || r == -APKE_EOF) && !ectx->is_package && !ectx->is_index)
-		r = ectx->ops->v2index ? -APKE_V2NDX_FORMAT : -APKE_V2PKG_FORMAT;
-	if (ectx->generate_identity) *ectx->identity = sctx.identity;
+		r = -APKE_FORMAT_INVALID;
+	if (r == 0) r = sctx.verify_error;
+	if (r == -APKE_SIGNATURE_UNTRUSTED && sctx.allow_untrusted) r = 0;
+	if (ectx->generate_identity) apk_checksum_from_digest(ectx->identity, &sctx.identity);
 	apk_sign_ctx_free(&sctx);
 	free(ectx->desc.ptr);
 	apk_extract_reset(ectx);
@@ -374,10 +367,9 @@ void apk_extract_v2_control(struct apk_extract_ctx *ectx, apk_blob_t l, apk_blob
 
 	if (apk_blob_compare(APK_BLOB_STR("datahash"), l) == 0) {
 		sctx->has_data_checksum = 1;
-		sctx->md = EVP_sha256();
-		apk_blob_pull_hexdump(
-			&r, APK_BLOB_PTR_LEN(sctx->data_checksum,
-					EVP_MD_size(sctx->md)));
+		sctx->alg = APK_DIGEST_SHA256;
+		apk_digest_set(&sctx->data_hash, sctx->alg);
+		apk_blob_pull_hexdump(&r, APK_DIGEST_BLOB(sctx->data_hash));
 	}
 }
 

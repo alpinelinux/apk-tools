@@ -10,6 +10,7 @@
 #ifndef APK_PRINT_H
 #define APK_PRINT_H
 
+#include <stdio.h>
 #include "apk_blob.h"
 
 #define APK_EXIT_STATUS_MAX_SIZE	128

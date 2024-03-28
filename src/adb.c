@@ -1252,7 +1252,7 @@ int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct a
 
 		siglen = sizeof sig.buf - sizeof sig.v0;
 
-		if ((r = apk_sign_start(&trust->dctx, &tkey->key)) != 0 ||
+		if ((r = apk_sign_start(&trust->dctx, APK_DIGEST_SHA512, &tkey->key)) != 0 ||
 		    (r = adb_digest_v0_signature(&trust->dctx, db->schema, &sig.v0, md)) != 0 ||
 		    (r = apk_sign(&trust->dctx, sig.v0.sig, &siglen)) != 0)
 			goto err;
@@ -1284,7 +1284,7 @@ int adb_trust_verify_signature(struct apk_trust *trust, struct adb *db, struct a
 		if (memcmp(sig0->id, tkey->key.id, sizeof sig0->id) != 0) continue;
 		if (adb_digest_adb(vfy, sig->hash_alg, db->adb, &md) != 0) continue;
 
-		if (apk_verify_start(&trust->dctx, &tkey->key) != 0 ||
+		if (apk_verify_start(&trust->dctx, APK_DIGEST_SHA512, &tkey->key) != 0 ||
 		    adb_digest_v0_signature(&trust->dctx, db->schema, sig0, md) != 0 ||
 		    apk_verify(&trust->dctx, sig0->sig, sigb.len - sizeof *sig0) != 0)
 			continue;

@@ -14,7 +14,6 @@
 #include <string.h>
 
 #include "apk_defines.h"
-#include "apk_openssl.h"
 
 struct apk_blob {
 	long len;
