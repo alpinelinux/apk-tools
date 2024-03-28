@@ -124,6 +124,8 @@ apk_blob_t apk_istream_get(struct apk_istream *is, size_t len)
 {
 	apk_blob_t ret = APK_BLOB_NULL;
 
+	if (is->err < 0) return (struct apk_blob) { .len = is->err };
+
 	do {
 		if (is->end - is->ptr >= len) {
 			ret = APK_BLOB_PTR_LEN((char*)is->ptr, len);
@@ -145,8 +147,9 @@ apk_blob_t apk_istream_get(struct apk_istream *is, size_t len)
 
 apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t max)
 {
-	if (is->ptr == is->end)
-		__apk_istream_fill(is);
+	if (is->err < 0) return (struct apk_blob) { .len = is->err };
+
+	if (is->ptr == is->end) __apk_istream_fill(is);
 
 	if (is->ptr != is->end) {
 		apk_blob_t ret = APK_BLOB_PTR_LEN((char*)is->ptr, min((size_t)(is->end - is->ptr), max));
