@@ -169,6 +169,7 @@ struct apk_database {
 	struct apk_repository repos[APK_MAX_REPOS];
 	struct apk_repository_tag repo_tags[APK_MAX_TAGS];
 	struct apk_atom_pool atoms;
+	struct apk_string_array *filename_array;
 
 	struct {
 		unsigned stale, updated, unavailable;

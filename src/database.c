@@ -585,7 +585,7 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *
 	if (!pkg->license) pkg->license = &apk_atom_null;
 
 	// Set as "cached" if installing from specified file
-	if (pkg->filename) pkg->repos |= BIT(APK_REPOSITORY_CACHED);
+	if (pkg->filename_ndx) pkg->repos |= BIT(APK_REPOSITORY_CACHED);
 
 	idb = apk_hash_get(&db->available.packages, APK_BLOB_CSUM(pkg->csum));
 	if (idb == NULL) {
@@ -598,10 +598,7 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *
 			apk_db_pkg_rdepends(db, pkg);
 	} else {
 		idb->repos |= pkg->repos;
-		if (idb->filename == NULL && pkg->filename != NULL) {
-			idb->filename = pkg->filename;
-			pkg->filename = NULL;
-		}
+		if (!idb->filename_ndx) idb->filename_ndx = pkg->filename_ndx;
 		if (idb->ipkg == NULL && pkg->ipkg != NULL) {
 			idb->ipkg = pkg->ipkg;
 			idb->ipkg->pkg = idb;
@@ -948,7 +945,7 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 			if (r != 0 && !(db->ctx->force & APK_FORCE_OLD_APK))
 				goto old_apk_tools;
 			/* Installed. So mark the package as installable. */
-			pkg->filename = NULL;
+			pkg->filename_ndx = 0;
 			continue;
 		}
 		if (APK_BLOB_IS_NULL(l)) goto bad_entry;
@@ -1684,6 +1681,7 @@ void apk_db_init(struct apk_database *db)
 	list_init(&db->installed.triggers);
 	apk_dependency_array_init(&db->world);
 	apk_protected_path_array_init(&db->protected_paths);
+	apk_string_array_init(&db->filename_array);
 	apk_name_array_init(&db->available.sorted_names);
 	apk_package_array_init(&db->installed.sorted_packages);
 	db->permanent = 1;
@@ -1977,6 +1975,7 @@ void apk_db_close(struct apk_database *db)
 	struct apk_db_dir_instance *diri;
 	struct apk_protected_path *ppath;
 	struct hlist_node *dc, *dn;
+	char **pstr;
 	int i;
 
 	/* Cleaning up the directory tree will cause mode, uid and gid
@@ -1995,6 +1994,10 @@ void apk_db_close(struct apk_database *db)
 	foreach_array_item(ppath, db->protected_paths)
 		free(ppath->relative_pattern);
 	apk_protected_path_array_free(&db->protected_paths);
+
+	foreach_array_item(pstr, db->filename_array)
+		free(*pstr);
+	apk_string_array_free(&db->filename_array);
 
 	apk_dependency_array_free(&db->world);
 
@@ -2966,7 +2969,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	char cacheitem[128];
 	int r, filefd = AT_FDCWD, need_copy = FALSE;
 
-	if (pkg->filename == NULL) {
+	if (!pkg->filename_ndx) {
 		repo = apk_db_select_repo(db, pkg);
 		if (repo == NULL) {
 			r = -APKE_PACKAGE_NOT_FOUND;
@@ -2978,7 +2981,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 		if (!(pkg->repos & db->local_repos))
 			need_copy = TRUE;
 	} else {
-		if (strlcpy(file, pkg->filename, sizeof file) >= sizeof file) {
+		if (strlcpy(file, db->filename_array->item[pkg->filename_ndx-1], sizeof file) >= sizeof file) {
 			r = -ENAMETOOLONG;
 			goto err_msg;
 		}
@@ -2990,7 +2993,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	is = apk_istream_from_fd_url(filefd, file, apk_db_url_since(db, 0));
 	if (IS_ERR(is)) {
 		r = PTR_ERR(is);
-		if (r == -ENOENT && pkg->filename == NULL)
+		if (r == -ENOENT && !pkg->filename_ndx)
 			r = -APKE_INDEX_STALE;
 		goto err_msg;
 	}

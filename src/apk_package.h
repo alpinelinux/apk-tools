@@ -78,7 +78,6 @@ struct apk_package {
 	apk_blob_t *version;
 	size_t installed_size, size;
 
-	char *filename;
 	union {
 		struct apk_solver_package_state ss;
 		int state_int;
@@ -86,6 +85,7 @@ struct apk_package {
 	unsigned int foreach_genid;
 	unsigned short provider_priority;
 	unsigned short repos;
+	unsigned short filename_ndx;
 	unsigned char seen : 1;
 	unsigned char marked : 1;
 	unsigned char uninstallable : 1;

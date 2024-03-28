@@ -462,7 +462,7 @@ static void print_pinning_errors(struct print_state *ps, struct apk_package *pkg
 	} else if (!(BIT(pkg->layer) & db->active_layers)) {
 		label_start(ps, "masked in:");
 		apk_print_indented_fmt(&ps->i, "layer");
-	} else if (pkg->repos == BIT(APK_REPOSITORY_CACHED) && !pkg->filename) {
+	} else if (pkg->repos == BIT(APK_REPOSITORY_CACHED) && !pkg->filename_ndx) {
 		label_start(ps, "masked in:");
 		apk_print_indented_fmt(&ps->i, "cache");
 	} else {
