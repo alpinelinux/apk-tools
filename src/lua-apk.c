@@ -206,7 +206,6 @@ static int push_package(lua_State *L, struct apk_package *pkg)
 	set_string_field(L, -3, "url", pkg->url);
 	set_string_field(L, -3, "license", apk_blob_cstr(*pkg->license));
 	set_string_field(L, -3, "description", pkg->description);
-	set_string_field(L, -3, "filename", pkg->filename);
 	set_int_field(L, -3, "size", pkg->size);
 	return 1;
 }

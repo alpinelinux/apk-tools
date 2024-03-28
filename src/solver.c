@@ -198,8 +198,7 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 			pkg->ss.seen = 1;
 			pkg->ss.pinning_allowed = APK_DEFAULT_PINNING_MASK;
 			pkg->ss.pinning_preferred = APK_DEFAULT_PINNING_MASK;
-			pkg->ss.pkg_available =
-				(pkg->filename != NULL) ||
+			pkg->ss.pkg_available = pkg->filename_ndx ||
 				(pkg->repos & db->available_repos & ~BIT(APK_REPOSITORY_CACHED));
 			/* Package is in 'cached' repository if filename is provided,
 			 * or it's a 'virtual' package with install_size zero */
@@ -217,8 +216,7 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 				 !pkg->ss.pkg_available);
 
 			repos = get_pkg_repos(db, pkg);
-			pkg->ss.tag_preferred =
-				(pkg->filename != NULL) ||
+			pkg->ss.tag_preferred = pkg->filename_ndx ||
 				(pkg->installed_size == 0) ||
 				(repos & ss->default_repos);
 			pkg->ss.tag_ok =

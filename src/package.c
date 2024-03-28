@@ -951,7 +951,8 @@ int apk_pkg_read(struct apk_database *db, const char *file,
 	}
 	if (sctx->action != APK_SIGN_VERIFY)
 		ctx.pkg->csum = sctx->identity;
-	ctx.pkg->filename = strdup(file);
+	*apk_string_array_add(&db->filename_array) = strdup(file);
+	ctx.pkg->filename_ndx = db->filename_array->num;
 
 	ctx.pkg = apk_db_pkg_add(db, ctx.pkg);
 	if (pkg != NULL)
@@ -973,7 +974,6 @@ void apk_pkg_free(struct apk_package *pkg)
 	if (pkg->url) free(pkg->url);
 	if (pkg->description) free(pkg->description);
 	if (pkg->commit) free(pkg->commit);
-	if (pkg->filename) free(pkg->filename);
 	free(pkg);
 }
 
