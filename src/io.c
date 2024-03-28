@@ -150,7 +150,7 @@ apk_blob_t apk_istream_get_max(struct apk_istream *is, size_t max)
 
 	if (is->ptr != is->end) {
 		apk_blob_t ret = APK_BLOB_PTR_LEN((char*)is->ptr, min((size_t)(is->end - is->ptr), max));
-		is->ptr = is->end = 0;
+		is->ptr += ret.len;
 		return ret;
 	}
 
