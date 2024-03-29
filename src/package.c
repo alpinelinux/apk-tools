@@ -154,8 +154,6 @@ int apk_dep_parse(apk_blob_t spec, apk_blob_t *name, int *rop, apk_blob_t *versi
 		if (!apk_blob_spn(bop, APK_CTYPE_DEPENDENCY_COMPARER, &bop, version)) goto fail;
 		op |= apk_version_result_mask_blob(bop);
 		if ((op & ~APK_VERSION_CONFLICT) == 0) goto fail;
-		if ((op & APK_DEPMASK_CHECKSUM) != APK_DEPMASK_CHECKSUM &&
-		    !apk_version_validate(*version)) goto fail;
 	} else {
 		*name = spec;
 		op |= APK_DEPMASK_ANY;
@@ -206,7 +204,7 @@ void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_depend
 {
 	struct apk_name *name;
 	apk_blob_t bdep, bname, bver, btag;
-	int op, tag = 0;
+	int op, tag = 0, broken = 0;
 
 	/* grap one token, and skip all separators */
 	if (APK_BLOB_IS_NULL(*b)) goto fail;
@@ -214,6 +212,8 @@ void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_depend
 	apk_blob_spn(*b, APK_CTYPE_DEPENDENCY_SEPARATOR, NULL, b);
 
 	if (apk_dep_parse(bdep, &bname, &op, &bver) != 0) goto fail;
+	if ((op & APK_DEPMASK_CHECKSUM) != APK_DEPMASK_CHECKSUM &&
+	    !apk_version_validate(bver)) broken = 1;
 	if (apk_blob_split(bname, APK_BLOB_STRLIT("@"), &bname, &btag))
 		tag = apk_db_get_tag_id(db, btag);
 
@@ -226,6 +226,7 @@ void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_depend
 		.version = apk_atomize_dup(&db->atoms, bver),
 		.repository_tag = tag,
 		.op = op,
+		.broken = broken,
 	};
 	return;
 fail:
@@ -233,17 +234,21 @@ fail:
 	*b = APK_BLOB_NULL;
 }
 
-void apk_blob_pull_deps(apk_blob_t *b, struct apk_database *db, struct apk_dependency_array **deps)
+int apk_blob_pull_deps(apk_blob_t *b, struct apk_database *db, struct apk_dependency_array **deps)
 {
 	struct apk_dependency dep;
+	int rc = 0;
 
 	while (b->len > 0) {
 		apk_blob_pull_dep(b, db, &dep);
-		if (APK_BLOB_IS_NULL(*b) || dep.name == NULL)
-			break;
-
+		if (APK_BLOB_IS_NULL(*b) || dep.name == NULL) {
+			rc = -APKE_DEPENDENCY_FORMAT;
+			continue;
+		}
+		if (dep.broken) rc = -APKE_PKGVERSION_FORMAT;
 		*apk_dependency_array_add(deps) = dep;
 	}
+	return rc;
 }
 
 void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
@@ -462,7 +467,11 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		pkg->arch = apk_atomize_dup(&db->atoms, value);
 		break;
 	case 'D':
-		apk_blob_pull_deps(&value, db, &pkg->depends);
+		if (apk_blob_pull_deps(&value, db, &pkg->depends)) {
+			db->compat_depversions = 1;
+			db->compat_notinstallable = pkg->uninstallable = 1;
+			return 2;
+		}
 		break;
 	case 'C':
 		apk_blob_pull_csum(&value, &pkg->csum);
@@ -474,10 +483,18 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		pkg->installed_size = apk_blob_pull_uint(&value, 10);
 		break;
 	case 'p':
-		apk_blob_pull_deps(&value, db, &pkg->provides);
+		if (apk_blob_pull_deps(&value, db, &pkg->provides)) {
+			db->compat_depversions = 1;
+			return 2;
+		}
 		break;
 	case 'i':
-		apk_blob_pull_deps(&value, db, &pkg->install_if);
+		if (apk_blob_pull_deps(&value, db, &pkg->install_if)) {
+			// Disable partial install_if rules
+			apk_dependency_array_free(&pkg->install_if);
+			db->compat_depversions = 1;
+			return 2;
+		}
 		break;
 	case 'o':
 		pkg->origin = apk_atomize_dup(&db->atoms, value);
@@ -500,10 +517,7 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		return 1;
 	default:
 		/* lower case index entries are safe to be ignored */
-		if (!islower(field)) {
-			pkg->uninstallable = 1;
-			db->compat_notinstallable = 1;
-		}
+		if (!islower(field)) db->compat_notinstallable = pkg->uninstallable = 1;
 		db->compat_newfeatures = 1;
 		return 2;
 	}

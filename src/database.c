@@ -1845,6 +1845,11 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			"This apk-tools is OLD! Some packages %s.",
 			db->compat_notinstallable ? "are not installable" : "might not function properly");
 	}
+	if (db->compat_depversions) {
+		apk_warn(out,
+			"The indexes contain broken packages which %s.",
+			db->compat_notinstallable ? "are not installable" : "might not function properly");
+	}
 
 	ac->db = db;
 	return 0;

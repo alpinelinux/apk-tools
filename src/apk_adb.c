@@ -339,6 +339,9 @@ static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)
 	int op;
 
 	if (apk_dep_parse(bdep, &bname, &op, &bver) != 0) goto fail;
+	if ((op & APK_DEPMASK_CHECKSUM) != APK_DEPMASK_CHECKSUM &&
+	    !apk_version_validate(bver)) goto fail;
+
 	if (apk_blob_spn(bname, APK_CTYPE_DEPENDENCY_NAME, NULL, NULL)) goto fail;
 
 	adb_wo_blob(obj, ADBI_DEP_NAME, bname);

@@ -199,10 +199,10 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 			pkg->ss.pinning_allowed = APK_DEFAULT_PINNING_MASK;
 			pkg->ss.pinning_preferred = APK_DEFAULT_PINNING_MASK;
 			pkg->ss.pkg_available = pkg->filename_ndx ||
-				(pkg->repos & db->available_repos & ~BIT(APK_REPOSITORY_CACHED));
+				 (pkg->repos & db->available_repos & ~BIT(APK_REPOSITORY_CACHED));
 			/* Package is in 'cached' repository if filename is provided,
 			 * or it's a 'virtual' package with install_size zero */
-			pkg->ss.pkg_selectable =
+			pkg->ss.pkg_selectable = !pkg->uninstallable &&
 				(BIT(pkg->layer) & db->active_layers) &&
 				((pkg->repos & db->available_repos) ||
 				  pkg->cached_non_repository ||

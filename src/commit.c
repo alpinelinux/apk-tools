@@ -538,12 +538,34 @@ static void print_deps(struct print_state *ps, struct apk_package *pkg, int matc
 	label_end(ps);
 }
 
+static void print_broken_deps(struct print_state *ps, struct apk_dependency_array *deps, const char *label)
+{
+	struct apk_dependency *dep;
+	char tmp[256];
+
+	foreach_array_item(dep, deps) {
+		if (!dep->broken) continue;
+		label_start(ps, label);
+		apk_print_indented_fmt(&ps->i, "%s", apk_dep_snprintf(tmp, sizeof(tmp), dep));
+	}
+	label_end(ps);
+}
+
 static void analyze_package(struct print_state *ps, struct apk_package *pkg, unsigned int tag)
 {
 	char pkgtext[256];
 
 	snprintf(pkgtext, sizeof(pkgtext), PKG_VER_FMT, PKG_VER_PRINTF(pkg));
 	ps->label = pkgtext;
+
+	if (pkg->uninstallable) {
+		label_start(ps, "error:");
+		apk_print_indented_fmt(&ps->i, "uninstallable");
+		label_end(ps);
+		print_broken_deps(ps, pkg->depends, "depends:");
+		print_broken_deps(ps, pkg->provides, "provides:");
+		print_broken_deps(ps, pkg->install_if, "install_if:");
+	}
 
 	print_pinning_errors(ps, pkg, tag);
 	print_conflicts(ps, pkg);

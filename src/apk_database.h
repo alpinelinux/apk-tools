@@ -160,6 +160,7 @@ struct apk_database {
 	unsigned int open_complete : 1;
 	unsigned int compat_newfeatures : 1;
 	unsigned int compat_notinstallable : 1;
+	unsigned int compat_depversions : 1;
 	unsigned int sorted_names : 1;
 	unsigned int sorted_installed_packages : 1;
 

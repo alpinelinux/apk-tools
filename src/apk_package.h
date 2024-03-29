@@ -121,7 +121,7 @@ char *apk_dep_snprintf(char *buf, size_t n, struct apk_dependency *dep);
 void apk_blob_push_dep(apk_blob_t *to, struct apk_database *, struct apk_dependency *dep);
 void apk_blob_push_deps(apk_blob_t *to, struct apk_database *, struct apk_dependency_array *deps);
 void apk_blob_pull_dep(apk_blob_t *from, struct apk_database *, struct apk_dependency *);
-void apk_blob_pull_deps(apk_blob_t *from, struct apk_database *, struct apk_dependency_array **);
+int apk_blob_pull_deps(apk_blob_t *from, struct apk_database *, struct apk_dependency_array **);
 
 int apk_deps_write_layer(struct apk_database *db, struct apk_dependency_array *deps,
 			 struct apk_ostream *os, apk_blob_t separator, unsigned layer);
