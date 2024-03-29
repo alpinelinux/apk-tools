@@ -184,8 +184,9 @@ Unfortunately it is not possible to deduce if a given string is of format
 *provides* (*provides*, *p*)
 	List of package names (and optionally its version) this package
 	provides in addition to its primary name and version. The provided
-	name can contain additionally colons (:) and slashes (/) in the name.
-	This allows using namespaces for automatically generated names.
+	name can contain additionally characters: comma (,), brackets ([]),
+	colons (:) and slashes (/) in the name.	This allows using namespaces
+	for automatically generated names.
 
 	If the provided name contains a version number:
 	- the solver will treat it as-if a real package with the provided
