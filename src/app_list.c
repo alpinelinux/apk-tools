@@ -113,7 +113,7 @@ static void print_package(const struct apk_database *db, const struct apk_packag
 	printf("\n");
 }
 
-static void filter_package(const struct apk_database *db, const struct apk_package *pkg, const struct list_ctx *ctx)
+static void filter_package(const struct apk_database *db, const struct apk_package *pkg, const struct list_ctx *ctx, const struct apk_name *name)
 {
 	if (ctx->match_origin && !origin_matches(ctx, pkg))
 		return;
@@ -130,6 +130,9 @@ static void filter_package(const struct apk_database *db, const struct apk_packa
 	if (ctx->upgradable && !is_upgradable(db, pkg))
 		return;
 
+	if (ctx->match_providers)
+		printf("<%s> ", name->name);
+
 	print_package(db, pkg, ctx);
 }
 
@@ -142,10 +145,7 @@ static void iterate_providers(const struct apk_database *db, const struct apk_na
 		if (!ctx->match_providers && p->pkg->name != name)
 			continue;
 
-		if (ctx->match_providers)
-			printf("<%s> ", name->name);
-
-		filter_package(db, p->pkg, ctx);
+		filter_package(db, p->pkg, ctx, name);
 	}
 }
 
