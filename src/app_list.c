@@ -118,7 +118,7 @@ static void print_manifest(const struct apk_package *pkg, const struct list_ctx 
 	printf("%s " BLOB_FMT "\n", pkg->name->name, BLOB_PRINTF(*pkg->version));
 }
 
-static void filter_package(const struct apk_database *db, const struct apk_package *pkg, const struct list_ctx *ctx)
+static void filter_package(const struct apk_database *db, const struct apk_package *pkg, const struct list_ctx *ctx, const struct apk_name *name)
 {
 	if (ctx->match_origin && !origin_matches(ctx, pkg))
 		return;
@@ -135,6 +135,9 @@ static void filter_package(const struct apk_database *db, const struct apk_packa
 	if (ctx->upgradable && !is_upgradable(db, pkg))
 		return;
 
+	if (ctx->match_providers)
+		printf("<%s> ", name->name);
+
 	if (ctx->manifest)
 		print_manifest(pkg, ctx);
 	else
@@ -149,10 +152,7 @@ static void iterate_providers(const struct apk_database *db, const struct apk_na
 		if (!ctx->match_providers && p->pkg->name != name)
 			continue;
 
-		if (ctx->match_providers)
-			printf("<%s> ", name->name);
-
-		filter_package(db, p->pkg, ctx);
+		filter_package(db, p->pkg, ctx, name);
 	}
 }
 
