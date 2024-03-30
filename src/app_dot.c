@@ -62,17 +62,26 @@ static void start_graph(struct dot_ctx *ctx)
 		"  node [shape=box];\n");
 }
 
-static void dump_name(struct dot_ctx *ctx, struct apk_name *name)
+static void dump_error_name(struct dot_ctx *ctx, struct apk_name *name)
 {
 	if (name->state_int)
 		return;
 	name->state_int = 1;
+	start_graph(ctx);
+	printf("  \"%s\" [style=dashed, color=red, fontcolor=red, shape=octagon];\n",
+		name->name);
+}
 
-	if (name->providers->num == 0) {
-		start_graph(ctx);
-		printf("  \"%s\" [style=dashed, color=red, fontcolor=red, shape=octagon];\n",
-			name->name);
-	}
+static void dump_broken_deps(struct dot_ctx *ctx, struct apk_package *pkg, const char *kind, struct apk_dependency *dep)
+{
+	char buf[256];
+	if (!dep->broken) return;
+
+	dump_error_name(ctx, dep->name);
+	printf("  \"" PKG_VER_FMT "\" -> \"%s\" [arrowhead=%s,style=dashed,color=red,fontcolor=red,label=\"%s\"];\n",
+		PKG_VER_PRINTF(pkg), dep->name->name,
+		kind,
+		apk_dep_snprintf(buf, sizeof buf, dep));
 }
 
 static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
@@ -96,9 +105,10 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 	foreach_array_item(dep, pkg->depends) {
 		struct apk_name *name = dep->name;
 
-		dump_name(ctx, name);
+		dump_broken_deps(ctx, pkg, "normal", dep);
 
 		if (name->providers->num == 0) {
+			dump_error_name(ctx, name);
 			printf("  \"" PKG_VER_FMT "\" -> \"%s\" [color=red];\n",
 				PKG_VER_PRINTF(pkg), name->name);
 			continue;
@@ -126,6 +136,8 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 			}
 		}
 	}
+	foreach_array_item(dep, pkg->provides) dump_broken_deps(ctx, pkg, "inv", dep);
+	foreach_array_item(dep, pkg->install_if) dump_broken_deps(ctx, pkg, "diamond", dep);
 	ret -= S_EVALUATING - pkg->state_int;
 	pkg->state_int = S_EVALUATED;
 
