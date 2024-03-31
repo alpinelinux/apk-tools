@@ -26,6 +26,7 @@ enum {
 };
 
 struct audit_ctx {
+	struct apk_istream blob_istream;
 	int verbosity;
 	unsigned mode : 2;
 	unsigned recursive : 1;
@@ -48,6 +49,17 @@ struct audit_ctx {
 
 APK_OPT_APPLET(option_desc, AUDIT_OPTIONS);
 
+static int protected_paths_istream(struct apk_ctx *ac, struct apk_istream *is)
+{
+	if (ac->protected_paths) apk_istream_close(ac->protected_paths);
+	if (IS_ERR(is)) {
+		ac->protected_paths = NULL;
+		return PTR_ERR(is);
+	}
+	ac->protected_paths = is;
+	return 0;
+}
+
 static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct audit_ctx *actx = (struct audit_ctx *) applet_ctx;
@@ -60,21 +72,22 @@ static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, co
 		break;
 	case OPT_AUDIT_full:
 		actx->mode = MODE_FULL;
-		if (APK_BLOB_IS_NULL(ac->protected_paths))
-			ac->protected_paths = APK_BLOB_STR(
-				"+etc\n"
-				"@etc/init.d\n"
-				"-dev\n"
-				"-home\n"
-				"-lib/apk\n"
-				"-lib/rc/cache\n"
-				"-proc\n"
-				"-root\n"
-				"-run\n"
-				"-sys\n"
-				"-tmp\n"
-				"-var\n"
-				);
+		protected_paths_istream(ac,
+			apk_istream_from_blob(&actx->blob_istream,
+				APK_BLOB_STRLIT(
+					"+etc\n"
+					"@etc/init.d\n"
+					"-dev\n"
+					"-home\n"
+					"-lib/apk\n"
+					"-lib/rc/cache\n"
+					"-proc\n"
+					"-root\n"
+					"-run\n"
+					"-sys\n"
+					"-tmp\n"
+					"-var\n"
+				)));
 		break;
 	case OPT_AUDIT_system:
 		actx->mode = MODE_SYSTEM;
@@ -92,7 +105,7 @@ static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, co
 		actx->packages_only = 1;
 		break;
 	case OPT_AUDIT_protected_paths:
-		r = apk_blob_from_file(AT_FDCWD, optarg, &ac->protected_paths);
+		r = protected_paths_istream(ac, apk_istream_from_file(AT_FDCWD, optarg));
 		if (r) {
 			apk_err(out, "unable to read protected path file: %s: %s", optarg, apk_error_str(r));
 			return r;

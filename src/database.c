@@ -1339,20 +1339,21 @@ static int file_ends_with_dot_list(const char *file)
 	return TRUE;
 }
 
+static int add_protected_paths_from_istream(struct apk_database *db, struct apk_istream *is)
+{
+	apk_blob_t token = APK_BLOB_STRLIT("\n"), line;
+	if (IS_ERR(is)) return PTR_ERR(is);
+	while (apk_istream_get_delim(is, token, &line) == 0)
+		add_protected_path(db, line);
+	return apk_istream_close(is);
+}
+
 static int add_protected_paths_from_file(void *ctx, int dirfd, const char *file)
 {
 	struct apk_database *db = (struct apk_database *) ctx;
-	apk_blob_t blob;
 
-	if (!file_ends_with_dot_list(file))
-		return 0;
-
-	if (apk_blob_from_file(dirfd, file, &blob))
-		return 0;
-
-	apk_blob_for_each_segment(blob, "\n", add_protected_path, db);
-	free(blob.ptr);
-
+	if (!file_ends_with_dot_list(file)) return 0;
+	add_protected_paths_from_istream(db, apk_istream_from_file(dirfd, file));
 	return 0;
 }
 
@@ -1771,8 +1772,9 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			goto ret_errno;
 	}
 
-	if (!APK_BLOB_IS_NULL(ac->protected_paths)) {
-		apk_blob_for_each_segment(ac->protected_paths, "\n", add_protected_path, db);
+	if (ac->protected_paths) {
+		add_protected_paths_from_istream(db, ac->protected_paths);
+		ac->protected_paths = NULL;
 	} else {
 		blob = APK_BLOB_STR("+etc\n" "@etc/init.d\n" "!etc/apk\n");
 		apk_blob_for_each_segment(blob, "\n", add_protected_path, db);
