@@ -470,7 +470,6 @@ int main(int argc, char **argv)
 		if (applet->context_size != 0)
 			ctx = calloc(1, applet->context_size);
 		dbopts.open_flags = applet->open_flags;
-		apk_flags |= applet->forced_flags;
 		apk_force |= applet->forced_force;
 	}
 

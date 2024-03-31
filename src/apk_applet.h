@@ -55,7 +55,7 @@ struct apk_applet {
 	const char *name;
 	const struct apk_option_group *optgroups[4];
 
-	unsigned int open_flags, forced_flags, forced_force;
+	unsigned int open_flags, forced_force;
 	unsigned int remove_empty_arguments : 1;
 	int context_size;
 
