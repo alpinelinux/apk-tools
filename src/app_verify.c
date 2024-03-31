@@ -19,7 +19,7 @@ static int verify_main(void *ctx, struct apk_database *db, struct apk_string_arr
 {
 	struct apk_sign_ctx sctx;
 	char **parg;
-	int r, ok, rc = 0;
+	int r, rc = 0;
 
 	foreach_array_item(parg, args) {
 		apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd);
@@ -28,18 +28,17 @@ static int verify_main(void *ctx, struct apk_database *db, struct apk_string_arr
 						 apk_sign_ctx_mpart_cb, &sctx),
 			apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
 		r = apk_sign_ctx_status(&sctx, r);
-		ok = sctx.control_verified && sctx.data_verified;
-		if (apk_verbosity >= 1)
-			apk_message("%s: %d - %s", *parg, r,
-				r < 0 ? apk_error_str(r) :
-				ok ? "OK" :
-				!sctx.control_verified ? "UNTRUSTED" : "FAILED");
-		else if (!ok)
-			printf("%s\n", *parg);
-		if (!ok)
-			rc++;
-
 		apk_sign_ctx_free(&sctx);
+		if (r != 0) rc++;
+		if (apk_verbosity >= 1) {
+			const char *msg = "OK";
+			if (r == -ENOKEY) {
+				msg = "UNTRUSTED";
+				r = 0;
+			} else if (r < 0) msg = apk_error_str(r);
+			apk_message("%s: %d - %s", *parg, r, msg);
+		} else if (r != 0)
+			printf("%s\n", *parg);
 	}
 
 	return rc;
@@ -48,7 +47,6 @@ static int verify_main(void *ctx, struct apk_database *db, struct apk_string_arr
 static struct apk_applet apk_verify = {
 	.name = "verify",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE,
-	.forced_flags = APK_ALLOW_UNTRUSTED,
 	.main = verify_main,
 };
 
