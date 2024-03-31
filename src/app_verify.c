@@ -22,9 +22,8 @@ static int verify_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 	char **parg;
 	int r, rc = 0;
 
-	apk_extract_init(&ectx, ac, 0);
-
 	foreach_array_item(parg, args) {
+		apk_extract_init(&ectx, ac, 0);
 		r = apk_extract(&ectx, apk_istream_from_file(AT_FDCWD, *parg));
 		if (apk_out_verbosity(out) >= 1)
 			apk_msg(out, "%s: %s", *parg,
