@@ -477,20 +477,19 @@ void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action,
 	case APK_SIGN_VERIFY:
 		/* If we're only verifing, we're going to start with a
 		 * signature section, which we don't need a hash of */
-		ctx->md = EVP_md_null();
 		ctx->verify_error = -ENOKEY;
 		break;
 	case APK_SIGN_VERIFY_IDENTITY:
 		/* If we're checking the package against a particular hash,
 		 * we need to start with that hash, because there may not
 		 * be a signature section to deduce it from */
-		ctx->md = EVP_sha1();
 		memcpy(&ctx->identity, identity, sizeof(ctx->identity));
 		break;
 	default:
 		assert(!"valid sign mode");
 		break;
 	}
+	ctx->md = EVP_sha1();
 	ctx->mdctx = EVP_MD_CTX_new();
 	EVP_DigestInit_ex(ctx->mdctx, ctx->md, NULL);
 }
