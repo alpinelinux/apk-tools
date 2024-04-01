@@ -116,7 +116,7 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 			 * and we just tried reading a new header. */
 			goto ret;
 		default:
-			return apk_istream_error(&gis->is, -EIO);
+			return apk_istream_error(&gis->is, -APKE_FORMAT_INVALID);
 		}
 	}
 
