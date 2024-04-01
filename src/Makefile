@@ -20,7 +20,7 @@ libapk_soname		:= 2.99.0
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
 	adb.o adb_comp.o adb_walk_adb.o adb_walk_genadb.o adb_walk_gentext.o adb_walk_text.o apk_adb.o \
-	atom.o blob.o commit.o common.o context.o crypto.c crypto_openssl.o ctype.o database.o hash.o \
+	atom.o blob.o commit.o common.o context.o crypto.o crypto_openssl.o ctype.o database.o hash.o \
 	extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o io.o io_gunzip.o io_url.o \
 	tar.o package.o pathbuilder.o print.o solver.o trust.o version.o
 
