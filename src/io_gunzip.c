@@ -23,7 +23,7 @@ struct apk_gzip_istream {
 	apk_multipart_cb cb;
 	void *cbctx;
 	void *cbprev;
-	uint8_t boundary;
+	apk_blob_t cbarg;
 };
 
 static void gzi_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
@@ -36,7 +36,11 @@ static int gzi_boundary_change(struct apk_gzip_istream *gis)
 {
 	int r;
 
-	gis->boundary = 0;
+	if (gis->cb && !APK_BLOB_IS_NULL(gis->cbarg)) {
+		r = gis->cb(gis->cbctx, APK_MPART_DATA, gis->cbarg);
+		if (r) return apk_istream_error(&gis->is, r);
+	}
+	gis->cbarg = APK_BLOB_NULL;
 	if (!gis->is.err && gis->zis->err && gis->zs.avail_in == 0) gis->is.err = gis->zis->err;
 	if (!gis->cb) return 0;
 	r = gis->cb(gis->cbctx, gis->is.err ? APK_MPART_END : APK_MPART_BOUNDARY, APK_BLOB_NULL);
@@ -48,14 +52,6 @@ static int gzi_read_more(struct apk_gzip_istream *gis)
 {
 	apk_blob_t blob;
 	int r;
-
-	if (gis->cb != NULL && gis->cbprev != NULL && gis->cbprev != gis->zs.next_in) {
-		r = gis->cb(gis->cbctx, APK_MPART_DATA,
-			APK_BLOB_PTR_LEN(gis->cbprev, (void *)gis->zs.next_in - gis->cbprev));
-		if (r < 0) return apk_istream_error(&gis->is, r);
-		gis->cbprev = gis->zs.next_in;
-	}
-	if (gis->zs.avail_in) return 0;
 
 	r = apk_istream_get_all(gis->zis, &blob);
 	if (r < 0) {
@@ -77,11 +73,17 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 	gis->zs.next_out  = ptr;
 
 	while (gis->zs.avail_out != 0 && gis->is.err >= 0) {
-		if (gis->boundary) {
+		if (!APK_BLOB_IS_NULL(gis->cbarg)) {
 			r = gzi_boundary_change(gis);
 			if (r) return r;
 		}
 		if (gis->zs.avail_in == 0 && gis->is.err == 0) {
+			if (gis->cb != NULL && gis->cbprev != NULL && gis->cbprev != gis->zs.next_in) {
+				r = gis->cb(gis->cbctx, APK_MPART_DATA,
+					APK_BLOB_PTR_LEN(gis->cbprev, (void *)gis->zs.next_in - gis->cbprev));
+				if (r < 0) return apk_istream_error(&gis->is, r);
+				gis->cbprev = gis->zs.next_in;
+			}
 			r = gzi_read_more(gis);
 			if (r) return r;
 		}
@@ -89,12 +91,15 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 		r = inflate(&gis->zs, Z_NO_FLUSH);
 		switch (r) {
 		case Z_STREAM_END:
-			gis->boundary = 1;
-
+			if (gis->cb != NULL) {
+				gis->cbarg = APK_BLOB_PTR_LEN(gis->cbprev, (void *) gis->zs.next_in - gis->cbprev);
+				gis->cbprev = gis->zs.next_in;
+			}
 			/* Digest the inflated bytes */
-			r = gzi_read_more(gis);
-			if (r) return r;
-
+			if (gis->zs.avail_in == 0) {
+				r = gzi_read_more(gis);
+				if (r) return r;
+			}
 			/* If we hit end of the bitstream (not end
 			 * of just this gzip), we need to do the
 			 * callback here, as we won't be called again.
