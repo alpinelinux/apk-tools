@@ -26,7 +26,6 @@
 #include "apk_xattr.h"
 
 #define SPECIAL_HARDLINK 0x8000000
-#define BLOCK_SIZE 4096
 
 struct mkpkg_hardlink_key {
 	dev_t device;
@@ -300,7 +299,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const c
 			};
 			apk_hash_insert(&ctx->link_by_inode, link);
 		}
-		ctx->installed_size += (fi.size + BLOCK_SIZE - 1) & ~(BLOCK_SIZE-1);
+		ctx->installed_size += fi.size;
 		break;
 	case S_IFBLK:
 	case S_IFCHR:
@@ -442,7 +441,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		}
 		r = mkpkg_process_directory(ctx, AT_FDCWD, ctx->files_dir, &fi);
 		if (r) goto err;
-		if (!ctx->installed_size) ctx->installed_size = BLOCK_SIZE;
+		if (!ctx->installed_size) ctx->installed_size = 1;
 	}
 	if (ctx->has_scripts && ctx->installed_size == 0) ctx->installed_size = 1;
 	adb_wo_int(&pkgi, ADBI_PI_INSTALLED_SIZE, ctx->installed_size);
