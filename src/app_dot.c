@@ -107,6 +107,9 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 
 		dump_broken_deps(ctx, pkg, "normal", dep);
 
+		if (dep->op & APK_VERSION_CONFLICT)
+			continue;
+
 		if (name->providers->num == 0) {
 			dump_error_name(ctx, name);
 			printf("  \"" PKG_VER_FMT "\" -> \"%s\" [color=red];\n",
