@@ -98,6 +98,9 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 
 		dump_name(ctx, name);
 
+		if (dep->conflict)
+			continue;
+
 		if (name->providers->num == 0) {
 			printf("  \"" PKG_VER_FMT "\" -> \"%s\" [color=red];\n",
 				PKG_VER_PRINTF(pkg), name->name);
