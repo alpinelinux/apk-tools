@@ -33,6 +33,10 @@ subproject = meson.is_subproject()
 
 subdir('doc')
 subdir('portability')
-subdir('libfetch')
+if get_option('url_backend') == 'libfetch'
+	subdir('libfetch')
+else
+	libfetch_dep = dependency('', required: false)
+endif
 subdir('src')
 subdir('tests')

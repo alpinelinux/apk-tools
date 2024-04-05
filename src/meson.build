@@ -1,3 +1,5 @@
+url_backend = get_option('url_backend')
+
 libapk_so_version = '2.99.0'
 libapk_src = [
 	'adb.c',
@@ -22,8 +24,8 @@ libapk_src = [
 	'fs_uvol.c',
 	'hash.c',
 	'io.c',
-	'io_url_libfetch.c',
 	'io_gunzip.c',
+	'io_url_@0@.c'.format(url_backend),
 	'package.c',
 	'pathbuilder.c',
 	'print.c',

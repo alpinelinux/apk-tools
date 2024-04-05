@@ -24,7 +24,19 @@ test:alpine:
     script:
         - apk update
         - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib meson zlib-static zstd-static openssl-libs-static
-        - meson build
+        - meson setup build -Dstatic_apk=true
+        - ninja -C build
+    tags:
+        - docker-alpine
+        - x86_64
+
+test:alpine-alt-config:
+    image: alpine
+    stage: test
+    script:
+        - apk update
+        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib meson
+        - meson setup build -Durl_backend=wget -Dzstd=false
         - ninja -C build
     tags:
         - docker-alpine
@@ -38,7 +50,7 @@ test:debian:
         - apt-get install -y make gcc git libssl-dev zlib1g-dev libzstd-dev lua5.3-dev lua5.2 lua-zlib-dev sudo meson
         - unlink /bin/sh
         - ln -s /bin/bash /bin/sh
-        - meson build
+        - meson setup build
         - ninja -C build
     tags:
         - docker-alpine
