@@ -613,6 +613,13 @@ struct apk_istream *apk_istream_from_fd(int fd)
 	return &fis->is;
 }
 
+struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *url, time_t since)
+{
+	const char *fn = apk_url_local_file(url);
+	if (fn != NULL) return apk_istream_from_file(atfd, fn);
+	return apk_io_url_istream(url, since);
+}
+
 struct apk_istream *__apk_istream_from_file(int atfd, const char *file, int try_mmap)
 {
 	int fd;

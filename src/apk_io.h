@@ -127,6 +127,12 @@ static inline int apk_istream_close_error(struct apk_istream *is, int r)
 	return apk_istream_close(is);
 }
 
+void apk_io_url_init(void);
+void apk_io_url_set_timeout(int timeout);
+void apk_io_url_set_redirect_callback(void (*cb)(int, const char *));
+void apk_io_url_no_check_certificate(void);
+struct apk_istream *apk_io_url_istream(const char *url, time_t since);
+
 struct apk_segment_istream {
 	struct apk_istream is;
 	struct apk_istream *pis;

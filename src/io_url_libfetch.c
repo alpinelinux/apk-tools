@@ -88,7 +88,7 @@ static const struct apk_istream_ops fetch_istream_ops = {
 	.close = fetch_close,
 };
 
-static struct apk_istream *apk_istream_fetch(const char *url, time_t since)
+struct apk_istream *apk_io_url_istream(const char *url, time_t since)
 {
 	struct apk_fetch_istream *fis = NULL;
 	struct url *u;
@@ -135,9 +135,45 @@ err:
 	return ERR_PTR(rc);
 }
 
-struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *url, time_t since)
+static void (*io_url_redirect_callback)(int, const char *);
+
+static void fetch_redirect(int code, const struct url *cur, const struct url *next)
 {
-	if (apk_url_local_file(url) != NULL)
-		return apk_istream_from_file(atfd, apk_url_local_file(url));
-	return apk_istream_fetch(url, since);
+	char *url;
+
+	switch (code) {
+	case 301: // Moved Permanently
+	case 308: // Permanent Redirect
+		url = fetchStringifyURL(next);
+		io_url_redirect_callback(code, url);
+		free(url);
+		break;
+	}
+}
+
+void apk_io_url_no_check_certificate(void)
+{
+	fetch_no_check_certificate();
+}
+
+void apk_io_url_set_timeout(int timeout)
+{
+	fetchTimeout = timeout;
+}
+
+void apk_io_url_set_redirect_callback(void (*cb)(int, const char *))
+{
+	fetchRedirectMethod = cb ? fetch_redirect : NULL;
+	io_url_redirect_callback = cb;
+}
+
+static void apk_io_url_fini(void)
+{
+	fetchConnectionCacheClose();
+}
+
+void apk_io_url_init(void)
+{
+	fetchConnectionCacheInit(32, 4);
+	atexit(apk_io_url_fini);
 }

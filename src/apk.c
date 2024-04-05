@@ -19,8 +19,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include <fetch.h>
-
 #include "apk_defines.h"
 #include "apk_database.h"
 #include "apk_applet.h"
@@ -197,7 +195,7 @@ static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const cha
 		ac->flags |= APK_NO_CACHE;
 		break;
 	case OPT_GLOBAL_no_check_certificate:
-		fetch_no_check_certificate();
+		apk_io_url_no_check_certificate();
 		break;
 	case OPT_GLOBAL_cache_dir:
 		ac->cache_dir = optarg;
@@ -211,7 +209,7 @@ static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const cha
 		ac->cache_max_age = atoi(optarg) * 60;
 		break;
 	case OPT_GLOBAL_timeout:
-		fetchTimeout = atoi(optarg);
+		apk_io_url_set_timeout(atoi(optarg));
 		break;
 	case OPT_GLOBAL_arch:
 		ac->arch = optarg;
@@ -474,18 +472,9 @@ static int remove_empty_strings(int count, char **args)
 	return j;
 }
 
-static void fetch_redirect(int code, const struct url *cur, const struct url *next)
+static void redirect_callback(int code, const char *url)
 {
-	char *url;
-
-	switch (code) {
-	case 301: // Moved Permanently
-	case 308: // Permanent Redirect
-		url = fetchStringifyURL(next);
-		apk_warn(&ctx.out, "Permanently redirected to %s", url);
-		free(url);
-		break;
-	}
+	apk_warn(&ctx.out, "Permanently redirected to %s", url);
 }
 
 int main(int argc, char **argv)
@@ -520,9 +509,9 @@ int main(int argc, char **argv)
 
 	apk_crypto_init();
 	setup_automatic_flags(&ctx);
-	fetchTimeout = 60;
-	fetchRedirectMethod = fetch_redirect;
-	fetchConnectionCacheInit(32, 4);
+	apk_io_url_init();
+	apk_io_url_set_timeout(60);
+	apk_io_url_set_redirect_callback(redirect_callback);
 
 	r = parse_options(argc, argv, applet, applet_ctx, &ctx);
 	if (r != 0) goto err;
@@ -610,7 +599,7 @@ int main(int argc, char **argv)
 
 	apk_string_array_resize(&args, argc);
 	memcpy(args->item, argv, argc * sizeof(*argv));
-	fetchRedirectMethod = NULL;
+	apk_io_url_set_redirect_callback(NULL);
 
 	r = applet->main(applet_ctx, &ctx, args);
 	signal(SIGINT, SIG_IGN);
@@ -625,7 +614,6 @@ err:
 	if (r == -ESHUTDOWN) r = 0;
 	if (applet_ctx) free(applet_ctx);
 
-	fetchConnectionCacheClose();
 	apk_ctx_free(&ctx);
 	apk_string_array_free(&args);
 	free(apk_argv);
