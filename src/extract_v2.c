@@ -346,10 +346,10 @@ int apk_extract_v2(struct apk_extract_ctx *ectx, struct apk_istream *is)
 	r = apk_tar_parse(
 		apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx),
 		apk_extract_v2_entry, ectx, apk_ctx_get_id_cache(ac));
-	if (r == -ECANCELED) r = 0;
-	if ((r == 0 || r == -APKE_EOF) && !ectx->is_package && !ectx->is_index)
+	if ((r == 0 || r == -ECANCELED || r == -APKE_EOF) && !ectx->is_package && !ectx->is_index)
 		r = -APKE_FORMAT_INVALID;
-	if (r == 0) r = sctx.verify_error;
+	if (r == 0 && (!sctx.data_verified || !sctx.end_seen)) r = -APKE_V2PKG_INTEGRITY;
+	if ((r == 0 || r == -ECANCELED) && sctx.verify_error) r = sctx.verify_error;
 	if (r == -APKE_SIGNATURE_UNTRUSTED && sctx.allow_untrusted) r = 0;
 	if (ectx->generate_identity) apk_checksum_from_digest(ectx->identity, &sctx.identity);
 	apk_sign_ctx_free(&sctx);

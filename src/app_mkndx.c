@@ -272,7 +272,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			apk_extract_generate_identity(&ctx->ectx, &csum);
 			csum.type = APK_CHECKSUM_NONE;
 			r = apk_extract(&ctx->ectx, apk_istream_from_file(AT_FDCWD, *parg));
-			if (r < 0) goto err_pkg;
+			if (r < 0 && r != -ECANCELED) goto err_pkg;
 
 			adb_wo_int(&ctx->pkginfo, ADBI_PI_FILE_SIZE, ctx->file_size);
 			if (csum.type != APK_CHECKSUM_NONE)

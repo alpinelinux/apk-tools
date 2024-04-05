@@ -148,7 +148,7 @@ static void process_file(struct apk_database *db, const char *match)
 	}
 
 	r = apk_extract(&ctx.ectx, apk_istream_from_file(AT_FDCWD, match));
-	if (r < 0) apk_err(out, "%s: %s", match, apk_error_str(r));
+	if (r < 0 && r != -ECANCELED) apk_err(out, "%s: %s", match, apk_error_str(r));
 }
 
 static int process_match(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)

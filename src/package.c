@@ -663,11 +663,11 @@ int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package *
 	apk_extract_generate_identity(&ctx.ectx, &ctx.pkg->csum);
 
 	r = apk_extract(&ctx.ectx, apk_istream_from_file(AT_FDCWD, file));
-	if (r < 0) goto err;
+	if (r < 0 && r != -ECANCELED) goto err;
 	if (ctx.pkg->csum.type == APK_CHECKSUM_NONE ||
 	    ctx.pkg->name == NULL ||
 	    ctx.pkg->uninstallable) {
-		r = -APKE_FORMAT_NOT_SUPPORTED;
+		r = -APKE_V2PKG_FORMAT;
 		goto err;
 	}
 	*apk_string_array_add(&db->filename_array) = strdup(file);
