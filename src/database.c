@@ -1645,7 +1645,7 @@ const char *apk_db_layer_name(int layer)
 	case APK_DB_LAYER_ROOT: return "lib/apk/db";
 	case APK_DB_LAYER_UVOL: return "lib/apk/db-uvol";
 	default:
-		assert("invalid layer");
+		assert(!"invalid layer");
 		return 0;
 	}
 }
