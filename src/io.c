@@ -33,6 +33,7 @@
 
 size_t apk_io_bufsize = 128*1024;
 
+
 static inline int atfd_error(int atfd)
 {
 	return atfd < -1 && atfd != AT_FDCWD;
@@ -1160,6 +1161,19 @@ static struct cache_item *idcache_by_id(struct apk_id_hash *hash, unsigned long 
 	hlist_for_each_entry(ci, pos, &hash->by_id[id % ARRAY_SIZE(hash->by_name)], by_id)
 		if (ci->id == id) return ci;
 	return 0;
+}
+
+const char *apk_url_local_file(const char *url)
+{
+	if (strncmp(url, "file:", 5) == 0)
+		return &url[5];
+
+	if (strncmp(url, "http:", 5) != 0 &&
+	    strncmp(url, "https:", 6) != 0 &&
+	    strncmp(url, "ftp:", 4) != 0)
+		return url;
+
+	return NULL;
 }
 
 void apk_id_cache_init(struct apk_id_cache *idc, int root_fd)

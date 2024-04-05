@@ -22,7 +22,7 @@ libapk_src = [
 	'fs_uvol.c',
 	'hash.c',
 	'io.c',
-	'io_url.c',
+	'io_url_libfetch.c',
 	'io_gunzip.c',
 	'package.c',
 	'pathbuilder.c',

@@ -1,4 +1,4 @@
-/* io_url.c - Alpine Package Keeper (APK)
+/* io_url_libfetch.c - Alpine Package Keeper (APK)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -17,19 +17,6 @@
 #include <fetch.h>
 
 #include "apk_io.h"
-
-const char *apk_url_local_file(const char *url)
-{
-	if (strncmp(url, "file:", 5) == 0)
-		return &url[5];
-
-	if (strncmp(url, "http:", 5) != 0 &&
-	    strncmp(url, "https:", 6) != 0 &&
-	    strncmp(url, "ftp:", 4) != 0)
-		return url;
-
-	return NULL;
-}
 
 struct apk_fetch_istream {
 	struct apk_istream is;
