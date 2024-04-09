@@ -101,15 +101,17 @@ static int apk_pkey_init(struct apk_pkey *pkey, EVP_PKEY *key)
 {
 	unsigned char dig[EVP_MAX_MD_SIZE], *pub = NULL;
 	unsigned int dlen = sizeof dig;
-	int len;
+	int len, r = -APKE_CRYPTO_ERROR;
 
 	if ((len = i2d_PublicKey(key, &pub)) < 0) return -APKE_CRYPTO_ERROR;
-	EVP_Digest(pub, len, dig, &dlen, EVP_sha512(), NULL);
-	memcpy(pkey->id, dig, sizeof pkey->id);
+	if (EVP_Digest(pub, len, dig, &dlen, EVP_sha512(), NULL) == 1) {
+		memcpy(pkey->id, dig, sizeof pkey->id);
+		r = 0;
+	}
 	OPENSSL_free(pub);
-
 	pkey->key = key;
-	return 0;
+
+	return r;
 }
 
 void apk_pkey_free(struct apk_pkey *pkey)
@@ -154,7 +156,7 @@ int apk_sign_start(struct apk_digest_ctx *dctx, uint8_t alg, struct apk_pkey *pk
 int apk_sign(struct apk_digest_ctx *dctx, void *sig, size_t *len)
 {
 	if (EVP_DigestSignFinal(dctx->mdctx, sig, len) != 1)
-		return -APKE_SIGNATURE_FAIL;
+		return -APKE_SIGNATURE_GEN_FAILURE;
 	return 0;
 }
 

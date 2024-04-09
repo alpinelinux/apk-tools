@@ -35,7 +35,7 @@ const char *apk_error_str(int error)
 	case APKE_CRYPTO_ERROR:			return "crypto error";
 	case APKE_CRYPTO_NOT_SUPPORTED:		return "cryptographic algorithm not supported";
 	case APKE_CRYPTO_KEY_FORMAT:		return "cryptographic key format not recognized";
-	case APKE_SIGNATURE_FAIL:		return "signing failure";
+	case APKE_SIGNATURE_GEN_FAILURE:	return "signing failure";
 	case APKE_SIGNATURE_UNTRUSTED:		return "UNTRUSTED signature";
 	case APKE_SIGNATURE_INVALID:		return "BAD signature";
 	case APKE_FORMAT_INVALID:		return "file format is invalid or inconsistent";
