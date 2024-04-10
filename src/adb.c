@@ -517,7 +517,7 @@ int adb_ro_cmp(const struct adb_obj *tmpl, const struct adb_obj *obj, unsigned i
 		return adb_ro_cmpobj(&stmpl, &sobj, mode);
 		}
 	}
-	assert(0);
+	assert(!"invalid object field kind");
 }
 
 int adb_ra_find(struct adb_obj *arr, int cur, struct adb_obj *tmpl)
@@ -588,7 +588,7 @@ static unsigned iovec_memcmp(struct iovec *vec, size_t nvec, void *base)
 
 static adb_val_t adb_w_error(struct adb *db, int rc)
 {
-	assert(0);
+	assert(!"adb error");
 	db->schema = 0;
 	return ADB_ERROR(rc);
 }
