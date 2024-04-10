@@ -122,12 +122,18 @@ struct adb_sign_v0 {
 #define ADB_KIND_BLOB	4
 #define ADB_KIND_INT	5
 
-#define ADB_ARRAY_ITEM(_t) { { .kind = &(_t).kind } }
+#define ADB_ARRAY_ITEM(_t) (const struct adb_object_schema_field[1]) { {.kind = &(_t).kind} }
+#define ADB_OBJECT_FIELDS(n) (const struct adb_object_schema_field[n])
 #define ADB_FIELD(_i, _n, _t) [(_i)-1] = { .name = _n, .kind = &(_t).kind }
 
 #define ADB_OBJCMP_EXACT	0	// match all fields
 #define ADB_OBJCMP_TEMPLATE	1	// match fields set on template
 #define ADB_OBJCMP_INDEX	2	// match fields until first non-set one
+
+struct adb_object_schema_field {
+	const char *name;
+	const uint8_t *kind;
+};
 
 struct adb_object_schema {
 	uint8_t kind;
@@ -137,11 +143,7 @@ struct adb_object_schema {
 	apk_blob_t (*tostring)(struct adb_obj *, char *, size_t);
 	int (*fromstring)(struct adb_obj *, apk_blob_t);
 	void (*pre_commit)(struct adb_obj *);
-
-	struct {
-		const char *name;
-		const uint8_t *kind;
-	} fields[];
+	const struct adb_object_schema_field *fields;
 };
 
 struct adb_scalar_schema {

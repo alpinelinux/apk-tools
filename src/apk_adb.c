@@ -362,7 +362,7 @@ const struct adb_object_schema schema_dependency = {
 	.num_compare = ADBI_DEP_NAME,
 	.tostring = dependency_tostring,
 	.fromstring = dependency_fromstring,
-	.fields = {
+	.fields = ADB_OBJECT_FIELDS(ADBI_DEP_MAX) {
 		ADB_FIELD(ADBI_DEP_NAME,	"name",		scalar_string),
 		ADB_FIELD(ADBI_DEP_VERSION,	"version",	scalar_version),
 		ADB_FIELD(ADBI_DEP_MATCH,	"match",	scalar_int),
@@ -397,7 +397,7 @@ const struct adb_object_schema schema_pkginfo = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_PI_MAX,
 	.num_compare = ADBI_PI_UNIQUE_ID,
-	.fields = {
+	.fields = ADB_OBJECT_FIELDS(ADBI_PI_MAX) {
 		ADB_FIELD(ADBI_PI_NAME,		"name",		scalar_name),
 		ADB_FIELD(ADBI_PI_VERSION,	"version",	scalar_version),
 		ADB_FIELD(ADBI_PI_UNIQUE_ID,	"unique-id",	scalar_hexblob),
@@ -431,7 +431,7 @@ const struct adb_object_schema schema_pkginfo_array = {
 const struct adb_object_schema schema_index = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_NDX_MAX,
-	.fields = {
+	.fields = ADB_OBJECT_FIELDS(ADBI_NDX_MAX) {
 		ADB_FIELD(ADBI_NDX_DESCRIPTION,	"description",	scalar_string),
 		ADB_FIELD(ADBI_NDX_PACKAGES,	"packages",	schema_pkginfo_array),
 	},
@@ -440,7 +440,7 @@ const struct adb_object_schema schema_index = {
 const struct adb_object_schema schema_acl = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_ACL_MAX,
-	.fields = {
+	.fields = ADB_OBJECT_FIELDS(ADBI_ACL_MAX) {
 		ADB_FIELD(ADBI_ACL_MODE,	"mode",		scalar_oct),
 		ADB_FIELD(ADBI_ACL_USER,	"user",		scalar_string),
 		ADB_FIELD(ADBI_ACL_GROUP,	"group",	scalar_string),
@@ -452,7 +452,7 @@ const struct adb_object_schema schema_file = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_FI_MAX,
 	.num_compare = ADBI_FI_NAME,
-	.fields = {
+	.fields = ADB_OBJECT_FIELDS(ADBI_FI_MAX) {
 		ADB_FIELD(ADBI_FI_NAME,		"name",		scalar_string),
 		ADB_FIELD(ADBI_FI_ACL,		"acl",		schema_acl),
 		ADB_FIELD(ADBI_FI_SIZE,		"size",		scalar_int),
@@ -473,7 +473,7 @@ const struct adb_object_schema schema_dir = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_DI_MAX,
 	.num_compare = ADBI_DI_NAME,
-	.fields = {
+	.fields = ADB_OBJECT_FIELDS(ADBI_DI_MAX) {
 		ADB_FIELD(ADBI_DI_NAME,		"name",		scalar_string),
 		ADB_FIELD(ADBI_DI_ACL,		"acl",		schema_acl),
 		ADB_FIELD(ADBI_DI_FILES,	"files",	schema_file_array),
@@ -490,7 +490,7 @@ const struct adb_object_schema schema_dir_array = {
 const struct adb_object_schema schema_scripts = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_SCRPT_MAX,
-	.fields = {
+	.fields = ADB_OBJECT_FIELDS(ADBI_SCRPT_MAX) {
 		ADB_FIELD(ADBI_SCRPT_TRIGGER,	"trigger",	scalar_mstring),
 		ADB_FIELD(ADBI_SCRPT_PREINST,	"pre-install",	scalar_mstring),
 		ADB_FIELD(ADBI_SCRPT_POSTINST,	"post-install",	scalar_mstring),
@@ -505,7 +505,7 @@ const struct adb_object_schema schema_package = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_PKG_MAX,
 	.num_compare = ADBI_PKG_PKGINFO,
-	.fields = {
+	.fields = ADB_OBJECT_FIELDS(ADBI_PKG_MAX) {
 		ADB_FIELD(ADBI_PKG_PKGINFO,	"info",		schema_pkginfo),
 		ADB_FIELD(ADBI_PKG_PATHS,	"paths",	schema_dir_array),
 		ADB_FIELD(ADBI_PKG_SCRIPTS,	"scripts",	schema_scripts),
@@ -530,7 +530,7 @@ const struct adb_object_schema schema_package_adb_array = {
 const struct adb_object_schema schema_idb = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_IDB_MAX,
-	.fields = {
+	.fields = ADB_OBJECT_FIELDS(ADBI_IDB_MAX) {
 		ADB_FIELD(ADBI_IDB_PACKAGES,	"packages",	schema_package_adb_array),
 	},
 };
