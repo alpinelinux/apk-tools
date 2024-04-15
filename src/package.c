@@ -471,20 +471,15 @@ void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action,
 	memset(ctx, 0, sizeof(struct apk_sign_ctx));
 	ctx->keys_fd = keys_fd;
 	ctx->action = action;
+	ctx->verify_error = -ENOKEY;
 	switch (action) {
 	case APK_SIGN_VERIFY_AND_GENERATE:
 		ctx->idctx = EVP_MD_CTX_new();
 		EVP_DigestInit_ex(ctx->idctx, EVP_sha1(), NULL);
-		/* Fall through to setup verification */
+		break;
 	case APK_SIGN_VERIFY:
-		/* If we're only verifing, we're going to start with a
-		 * signature section, which we don't need a hash of */
-		ctx->verify_error = -ENOKEY;
 		break;
 	case APK_SIGN_VERIFY_IDENTITY:
-		/* If we're checking the package against a particular hash,
-		 * we need to start with that hash, because there may not
-		 * be a signature section to deduce it from */
 		memcpy(&ctx->identity, identity, sizeof(ctx->identity));
 		break;
 	default:
@@ -507,6 +502,7 @@ void apk_sign_ctx_free(struct apk_sign_ctx *ctx)
 int apk_sign_ctx_status(struct apk_sign_ctx *ctx, int tar_rc)
 {
 	if (tar_rc < 0 && tar_rc != -ECANCELED) return tar_rc;
+	if (tar_rc == 0 && (!ctx->data_verified || !ctx->end_seen)) tar_rc = -EBADMSG;
 	if (!ctx->verify_error) return tar_rc;
 	if (ctx->verify_error == -ENOKEY && (apk_flags & APK_ALLOW_UNTRUSTED)) return tar_rc;
 	return ctx->verify_error;
@@ -577,13 +573,9 @@ int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
 	ctx->num_signatures++;
 
 	/* Already found a signature by a trusted key; no need to keep searching */
-	if ((ctx->action != APK_SIGN_VERIFY &&
-	     ctx->action != APK_SIGN_VERIFY_AND_GENERATE) ||
-	    ctx->signature.pkey != NULL)
-		return 0;
-
-	if (ctx->keys_fd < 0)
-		return 0;
+	if (ctx->action == APK_SIGN_VERIFY_IDENTITY) return 0;
+	if (ctx->signature.pkey != NULL) return 0;
+	if (ctx->keys_fd < 0) return 0;
 
 	for (i = 0; i < ARRAY_SIZE(signature_type); i++) {
 		size_t slen = strlen(signature_type[i].type);
@@ -751,6 +743,8 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 			if (!sctx->has_data_checksum && part == APK_MPART_END)
 				sctx->data_verified = 1;
 		}
+		if (sctx->action == APK_SIGN_VERIFY_AND_GENERATE && sctx->has_data_checksum)
+			return -ECANCELED;
 		break;
 	case APK_SIGN_VERIFY_IDENTITY:
 		/* Reset digest for hashing data */
@@ -759,6 +753,7 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 		if (memcmp(calculated, sctx->identity.data,
 			   sctx->identity.type) != 0)
 			return -EKEYREJECTED;
+		sctx->verify_error = 0;
 		sctx->control_verified = 1;
 		if (!sctx->has_data_checksum && part == APK_MPART_END)
 			sctx->data_verified = 1;
