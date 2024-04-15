@@ -64,7 +64,8 @@ static inline int apk_digest_cmp_csum(const struct apk_digest *d, const struct a
 }
 
 int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg);
-int apk_digest_ctx_reset(struct apk_digest_ctx *dctx, uint8_t alg);
+int apk_digest_ctx_reset(struct apk_digest_ctx *dctx);
+int apk_digest_ctx_reset_alg(struct apk_digest_ctx *dctx, uint8_t alg);
 void apk_digest_ctx_free(struct apk_digest_ctx *dctx);
 int apk_digest_ctx_update(struct apk_digest_ctx *dctx, const void *ptr, size_t sz);
 int apk_digest_ctx_final(struct apk_digest_ctx *dctx, struct apk_digest *d);

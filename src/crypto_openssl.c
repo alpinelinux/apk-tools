@@ -31,7 +31,7 @@ static inline void EVP_MD_CTX_free(EVP_MD_CTX *mdctx)
 
 static inline const EVP_MD *apk_digest_alg_to_evp(uint8_t alg) {
 	switch (alg) {
-	case APK_DIGEST_NONE:	return EVP_md_null();
+	case APK_DIGEST_NONE:	return NULL;
 	case APK_DIGEST_MD5:	return EVP_md5();
 	case APK_DIGEST_SHA1:	return EVP_sha1();
 	case APK_DIGEST_SHA256_160:
@@ -39,7 +39,7 @@ static inline const EVP_MD *apk_digest_alg_to_evp(uint8_t alg) {
 	case APK_DIGEST_SHA512:	return EVP_sha512();
 	default:
 		assert(alg);
-		return EVP_md_null();
+		return NULL;
 	}
 }
 
@@ -65,7 +65,14 @@ int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg)
 	return 0;
 }
 
-int apk_digest_ctx_reset(struct apk_digest_ctx *dctx, uint8_t alg)
+int apk_digest_ctx_reset(struct apk_digest_ctx *dctx)
+{
+	if (dctx->alg == APK_DIGEST_NONE) return 0;
+	if (EVP_DigestInit_ex(dctx->mdctx, NULL, 0) != 1) return -APKE_CRYPTO_ERROR;
+	return 0;
+}
+
+int apk_digest_ctx_reset_alg(struct apk_digest_ctx *dctx, uint8_t alg)
 {
 	if (EVP_MD_CTX_reset(dctx->mdctx) != 1 ||
 	    EVP_DigestInit_ex(dctx->mdctx, apk_digest_alg_to_evp(alg), 0) != 1)
@@ -82,13 +89,15 @@ void apk_digest_ctx_free(struct apk_digest_ctx *dctx)
 
 int apk_digest_ctx_update(struct apk_digest_ctx *dctx, const void *ptr, size_t sz)
 {
+	if (dctx->alg == APK_DIGEST_NONE) return 0;
 	return EVP_DigestUpdate(dctx->mdctx, ptr, sz) == 1 ? 0 : -APKE_CRYPTO_ERROR;
 }
 
 int apk_digest_ctx_final(struct apk_digest_ctx *dctx, struct apk_digest *d)
 {
 	unsigned int mdlen = sizeof d->data;
-	if (EVP_DigestFinal_ex(dctx->mdctx, d->data, &mdlen) != 1) {
+	if (dctx->alg != APK_DIGEST_NONE &&
+	    EVP_DigestFinal_ex(dctx->mdctx, d->data, &mdlen) != 1) {
 		apk_digest_reset(d);
 		return -APKE_CRYPTO_ERROR;
 	}

@@ -200,9 +200,12 @@ static int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 	if (!sctx->control_started) {
 		if (part == APK_MPART_END) return -APKE_FORMAT_INVALID;
 
+		r = apk_digest_ctx_reset(&sctx->identity_ctx);
+		if (r != 0) return r;
+
 		/* Control block starting, prepare for signature verification */
 		if (sctx->signature.pkey == NULL || sctx->action == APK_SIGN_VERIFY_IDENTITY)
-			return apk_digest_ctx_reset(&sctx->digest_ctx, sctx->alg);
+			return apk_digest_ctx_reset_alg(&sctx->digest_ctx, sctx->alg);
 
 		return apk_verify_start(&sctx->digest_ctx, sctx->alg, sctx->signature.pkey);
 	}
@@ -266,7 +269,11 @@ static int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 			sctx->data_verified = 1;
 		break;
 	}
-	return apk_digest_ctx_reset(&sctx->digest_ctx, sctx->alg);
+
+	r = apk_digest_ctx_reset(&sctx->identity_ctx);
+	if (r != 0) return r;
+
+	return apk_digest_ctx_reset_alg(&sctx->digest_ctx, sctx->alg);
 }
 
 static int apk_extract_verify_v2index(struct apk_extract_ctx *ectx, apk_blob_t *desc, struct apk_istream *is)

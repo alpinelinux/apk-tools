@@ -81,7 +81,7 @@ static const char *format_tmpname(struct apk_digest_ctx *dctx, apk_blob_t pkgctx
 	struct apk_digest d;
 	apk_blob_t b = APK_BLOB_PTR_LEN(tmpname, TMPNAME_MAX);
 
-	apk_digest_ctx_reset(dctx, APK_DIGEST_SHA256);
+	apk_digest_ctx_reset_alg(dctx, APK_DIGEST_SHA256);
 	apk_digest_ctx_update(dctx, pkgctx.ptr, pkgctx.len);
 	apk_digest_ctx_update(dctx, fullname.ptr, fullname.len);
 	apk_digest_ctx_final(dctx, &d);
