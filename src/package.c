@@ -504,6 +504,9 @@ int apk_sign_ctx_status(struct apk_sign_ctx *ctx, int tar_rc)
 	if (ctx->has_multiple_data_parts)
 		apk_warning("Support for packages with multiple data parts "
 			"will be dropped in apk-tools 3.");
+	if (ctx->has_pkginfo && !ctx->has_data_checksum)
+		apk_warning("Support for packages without datahash "
+			"will be dropped in apk-tools 3.");
 	if (tar_rc < 0 && tar_rc != -ECANCELED) return tar_rc;
 	if (tar_rc == 0 && (!ctx->data_verified || !ctx->end_seen)) tar_rc = -EBADMSG;
 	if (!ctx->verify_error) return tar_rc;
@@ -610,6 +613,7 @@ int apk_sign_ctx_parse_pkginfo_line(void *ctx, apk_blob_t line)
 	struct apk_sign_ctx *sctx = (struct apk_sign_ctx *) ctx;
 	apk_blob_t l, r;
 
+	sctx->has_pkginfo = 1;
 	if (!sctx->control_started || sctx->data_started)
 		return 0;
 
@@ -676,7 +680,7 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 			return -EAPKCRYPTO;
 
 		/* Update identity generated also if needed. */
-		if (sctx->control_started && !sctx->data_started && sctx->idctx) {
+		if (sctx->idctx && (!sctx->has_data_checksum || !sctx->data_started)) {
 			if (EVP_DigestUpdate(sctx->idctx, data.ptr, data.len) != 1)
 				return -EAPKCRYPTO;
 		}
@@ -688,6 +692,8 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 	if (!sctx->control_started) {
 		if (part == APK_MPART_END) return -EKEYREJECTED;
 		if (EVP_DigestInit_ex(sctx->mdctx, sctx->md, NULL) != 1)
+			return -EAPKCRYPTO;
+		if (sctx->idctx && EVP_DigestInit_ex(sctx->idctx, EVP_sha1(), NULL) != 1)
 			return -EAPKCRYPTO;
 		return 0;
 	}
@@ -744,11 +750,9 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 			    !(apk_flags & APK_ALLOW_UNTRUSTED))
 				return sctx->verify_error;
 		}
-		if (!sctx->verify_error) {
-			sctx->control_verified = 1;
-			if (!sctx->has_data_checksum && part == APK_MPART_END)
-				sctx->data_verified = 1;
-		}
+		sctx->control_verified = 1;
+		if (!sctx->has_data_checksum && part == APK_MPART_END)
+			sctx->data_verified = 1;
 		if (sctx->action == APK_SIGN_VERIFY_AND_GENERATE && sctx->has_data_checksum)
 			return -ECANCELED;
 		break;
@@ -766,6 +770,8 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 		break;
 	}
 	if (EVP_DigestInit_ex(sctx->mdctx, sctx->md, NULL) != 1)
+		return -EAPKCRYPTO;
+	if (sctx->idctx && EVP_DigestInit_ex(sctx->idctx, EVP_sha1(), NULL) != 1)
 		return -EAPKCRYPTO;
 	return 0;
 }
