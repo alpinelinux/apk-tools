@@ -48,21 +48,15 @@ static void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action, struct apk_c
 	ctx->trust = trust;
 	ctx->action = action;
 	ctx->allow_untrusted = trust->allow_untrusted;
+	ctx->verify_error = -APKE_SIGNATURE_UNTRUSTED;
+	ctx->alg = APK_DIGEST_SHA1;
 	switch (action) {
 	case APK_SIGN_VERIFY_AND_GENERATE:
 		apk_digest_ctx_init(&ctx->identity_ctx, APK_DIGEST_SHA1);
-		/* Fall through to setup verification */
+		break;
 	case APK_SIGN_VERIFY:
-		/* If we're only verifing, we're going to start with a
-		 * signature section, which we don't need a hash of */
-		ctx->alg = APK_DIGEST_NONE;
-		ctx->verify_error = -APKE_SIGNATURE_UNTRUSTED;
 		break;
 	case APK_SIGN_VERIFY_IDENTITY:
-		/* If we're checking the package against a particular hash,
-		 * we need to start with that hash, because there may not
-		 * be a signature section to deduce it from */
-		ctx->alg = APK_DIGEST_SHA1;
 		apk_digest_from_checksum(&ctx->identity, identity);
 		break;
 	default:
@@ -253,17 +247,16 @@ static int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 			    !sctx->allow_untrusted)
 				return sctx->verify_error;
 		}
-		if (!sctx->verify_error) {
-			sctx->control_verified = 1;
-			if (!sctx->has_data_checksum && part == APK_MPART_END)
-				sctx->data_verified = 1;
-		}
+		sctx->control_verified = 1;
+		if (!sctx->has_data_checksum && part == APK_MPART_END)
+			sctx->data_verified = 1;
 		break;
 	case APK_SIGN_VERIFY_IDENTITY:
 		/* Reset digest for hashing data */
 		apk_digest_ctx_final(&sctx->digest_ctx, &calculated);
 		if (apk_digest_cmp(&calculated, &sctx->identity) != 0)
 			return -APKE_V2PKG_INTEGRITY;
+		sctx->verify_error = 0;
 		sctx->control_verified = 1;
 		if (!sctx->has_data_checksum && part == APK_MPART_END)
 			sctx->data_verified = 1;
