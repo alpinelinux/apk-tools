@@ -298,9 +298,9 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		apk_warn(out,
 			"Total of %d unsatisfiable package names. Your repository may be broken.",
 			counts.unsatisfied);
-	apk_msg(out, "Index has %d packages (of which %d are new)",
-		total, newpkgs);
-
+	if (ictx->output != NULL)
+		apk_msg(out, "Index has %d packages (of which %d are new)",
+			total, newpkgs);
 	return 0;
 }
 
