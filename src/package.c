@@ -499,6 +499,9 @@ void apk_sign_ctx_free(struct apk_sign_ctx *ctx)
 
 int apk_sign_ctx_status(struct apk_sign_ctx *ctx, int tar_rc)
 {
+	if (ctx->has_multiple_data_parts)
+		apk_warning("Support for packages with multiple data parts "
+			"will be dropped in apk-tools 3.");
 	if (tar_rc < 0 && tar_rc != -ECANCELED) return tar_rc;
 	if (tar_rc == 0 && (!ctx->data_verified || !ctx->end_seen)) tar_rc = -EBADMSG;
 	if (!ctx->verify_error) return tar_rc;
@@ -660,7 +663,10 @@ int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 	int r, end_of_control;
 
 	if (sctx->end_seen || sctx->data_verified) return -EBADMSG;
-	if (part == APK_MPART_BOUNDARY && sctx->data_started) return -EBADMSG;
+	if (part == APK_MPART_BOUNDARY && sctx->data_started) {
+		sctx->has_multiple_data_parts = 1;
+		return 0;
+	}
 	if (part == APK_MPART_END) sctx->end_seen = 1;
 	if (part == APK_MPART_DATA) {
 		/* Update digest with the data now. Only _DATA callbacks can have data. */

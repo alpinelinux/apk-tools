@@ -50,6 +50,7 @@ struct apk_sign_ctx {
 	int verify_error;
 	unsigned char control_started : 1;
 	unsigned char data_started : 1;
+	unsigned char has_multiple_data_parts : 1;
 	unsigned char has_data_checksum : 1;
 	unsigned char control_verified : 1;
 	unsigned char data_verified : 1;
