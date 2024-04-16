@@ -2681,10 +2681,8 @@ static int apk_db_install_archive_entry(void *_ctx,
 			name.len--;
 
 		diri = ctx->diri = find_diri(ipkg, name, NULL, &ctx->file_diri_node);
-		if (!diri) {
-			diri = apk_db_install_directory_entry(ctx, name);
-			apk_db_dir_prepare(db, diri->dir, ae->mode);
-		}
+		if (!diri) diri = apk_db_install_directory_entry(ctx, name);
+		apk_db_dir_prepare(db, diri->dir, ae->mode);
 		apk_db_diri_set(diri, apk_db_acl_atomize(db, ae->mode, ae->uid, ae->gid, &ae->xattr_csum));
 	}
 	ctx->installed_size += ctx->current_file_size;
