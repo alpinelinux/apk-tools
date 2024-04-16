@@ -9,6 +9,14 @@ else
 $(error Lua interpreter not found. Please specify LUA interpreter, or use LUA=no to build without help.)
 endif
 
+ifeq ($(URL_BACKEND),wget)
+IO_URL_OBJ		:= io_url_wget.o
+else
+IO_URL_INCLUDE		:= -Ilibfetch
+IO_URL_OBJ		:= io_url_libfetch.o
+IO_URL_OBJ_LIBS		:= libfetch/libfetch.a
+endif
+
 OPENSSL_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags openssl)
 OPENSSL_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
 
@@ -21,10 +29,18 @@ libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
 	adb.o adb_comp.o adb_walk_adb.o adb_walk_genadb.o adb_walk_gentext.o adb_walk_text.o apk_adb.o \
 	atom.o blob.o commit.o common.o context.o crypto.o crypto_openssl.o ctype.o database.o hash.o \
-	extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o io.o io_gunzip.o io_url_libfetch.o \
-	tar.o package.o pathbuilder.o print.o solver.o trust.o version.o
+	extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o io.o io_gunzip.o tar.o package.o pathbuilder.o \
+	print.o solver.o trust.o version.o
 
-libapk.so.$(libapk_soname)-libs := libfetch/libfetch.a
+libapk.so.$(libapk_soname)-libs :=
+
+ifeq ($(URL_BACKEND),wget)
+libapk.so.$(libapk_soname)-objs += io_url_wget.o
+else
+CFLAGS_ALL += -Ilibfetch
+libapk.so.$(libapk_soname)-objs += io_url_libfetch.o
+libapk.so.$(libapk_soname)-libs += libfetch/libfetch.a
+endif
 
 # ZSTD support can be disabled
 ifneq ($(ZSTD),no)
@@ -79,7 +95,7 @@ LIBS_apk		:= -lapk
 LIBS_apk-test		:= -lapk
 LIBS_apk.so		:= -L$(obj) -lapk
 
-CFLAGS_ALL		+= -D_ATFILE_SOURCE -Ilibfetch -Iportability
+CFLAGS_ALL		+= -D_ATFILE_SOURCE -Iportability
 CFLAGS_apk.o		:= -DAPK_VERSION=\"$(VERSION)\"
 CFLAGS_apk-static.o	:= -DAPK_VERSION=\"$(VERSION)\" -DOPENSSL_NO_ENGINE
 CFLAGS_apk-test.o	:= -DAPK_VERSION=\"$(VERSION)\" -DOPENSSL_NO_ENGINE -DTEST_MODE
