@@ -69,6 +69,7 @@ static int policy_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 static struct apk_applet apk_policy = {
 	.name = "policy",
 	.open_flags = APK_OPENF_READ,
+	.optgroups = { &optgroup_global, &optgroup_source },
 	.main = policy_main,
 };
 
