@@ -353,13 +353,13 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 		dir->name[name.len] = 0;
 		dir->namelen = name.len;
 		dir->hash = hash;
-		list_init(&dir->diris);
 		apk_protected_path_array_init(&dir->protected_paths);
 		apk_hash_insert_hashed(&db->installed.dirs, dir, hash);
 	}
 
 	db->installed.stats.dirs++;
 	dir->refs = 1;
+	list_init(&dir->diris);
 
 	if (name.len == 0) {
 		dir->parent = NULL;
