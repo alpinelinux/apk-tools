@@ -3,6 +3,7 @@ cc = meson.get_compiler('c')
 libportability_src = []
 
 check_symbols = [
+	['getrandom', 'getrandom.c', 'NEED_GETRANDOM', 'sys/random.h'],
 	['memrchr', 'memrchr.c', 'NEED_MEMRCHR', 'string.h'],
 	['mknodat', 'mknodat.c', 'NEED_MKNODAT', 'sys/stat.h'],
 	['pipe2', 'pipe2.c', 'NEED_PIPE2', 'unistd.h'],
