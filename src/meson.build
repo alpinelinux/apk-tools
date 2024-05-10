@@ -1,3 +1,4 @@
+crypto_backend = get_option('crypto_backend')
 url_backend = get_option('url_backend')
 
 libapk_so_version = '2.99.0'
@@ -15,7 +16,7 @@ libapk_src = [
 	'common.c',
 	'context.c',
 	'crypto.c',
-	'crypto_openssl.c',
+        'crypto_@0@.c'.format(crypto_backend),
 	'ctype.c',
 	'database.c',
 	'extract_v2.c',
@@ -40,7 +41,7 @@ libapk_headers = [
 	'apk_atom.h',
 	'apk_blob.h',
 	'apk_crypto.h',
-	'apk_crypto_openssl.h',
+        'apk_crypto_@0@.h'.format(crypto_backend),
 	'apk_ctype.h',
 	'apk_database.h',
 	'apk_defines.h',
@@ -89,6 +90,17 @@ apk_src = [
 	'applet.c',
 ]
 
+apk_cargs = [
+	'-DAPK_VERSION="' + meson.project_version() + '"',
+	'-D_ATFILE_SOURCE',
+]
+
+if crypto_backend == 'openssl'
+	apk_cargs += [ '-DCRYPTO_USE_OPENSSL' ]
+elif crypto_backend == 'mbedtls'
+	apk_cargs += [ '-DCRYPTO_USE_MBEDTLS' ]
+endif
+
 if lua_bin.found()
 	genhelp_script = files('genhelp.lua')
 	genhelp_args = [lua_bin, genhelp_script, '@INPUT@']
@@ -114,11 +126,6 @@ else
 endif
 
 apk_src += [ generated_help ]
-
-apk_cargs = [
-	'-DAPK_VERSION="' + meson.project_version() + '"',
-	'-D_ATFILE_SOURCE',
-]
 
 apk_arch_prefix = get_option('arch_prefix')
 if apk_arch_prefix != ''

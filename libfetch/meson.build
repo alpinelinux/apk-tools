@@ -40,7 +40,7 @@ libfetch = static_library(
 	c_args: libfetch_cargs,
 	dependencies: [
 		libportability_dep.partial_dependency(compile_args: true, includes: true),
-		openssl_dep.partial_dependency(compile_args: true, includes: true)
+		crypto_dep.partial_dependency(compile_args: true, includes: true)
 	],
 )
 

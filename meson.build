@@ -13,15 +13,21 @@ apk_libdir = get_option('libdir')
 lua_bin = find_program('lua' + get_option('lua_version'), required: get_option('help'))
 lua_dep = dependency('lua' + get_option('lua_version'), required: get_option('lua'))
 scdoc_dep = dependency('scdoc', version: '>=1.10', required: get_option('docs'))
-openssl_dep = dependency('openssl')
-openssl_static_dep = dependency('openssl', static: true)
 zlib_dep = dependency('zlib')
 zlib_static_dep = dependency('zlib', static: true)
 libzstd_dep = dependency('libzstd', required: get_option('zstd'))
 libzstd_static_dep = dependency('libzstd', required: get_option('zstd'), static: true)
 
-shared_deps = [ openssl_dep, zlib_dep, libzstd_dep ]
-static_deps = [ openssl_static_dep, zlib_static_dep, libzstd_static_dep ]
+if get_option('crypto_backend') == 'openssl'
+	crypto_dep = dependency('openssl')
+	crypto_static_dep = dependency('openssl', static: true)
+elif get_option('crypto_backend') == 'mbedtls'
+	crypto_dep = [ dependency('mbedtls'), dependency('mbedcrypto') ]
+	crypto_static_dep = [ dependency('mbedtls', static: true), dependency('mbedcrypto', static: true) ]
+endif
+
+shared_deps = [ crypto_dep, zlib_dep, libzstd_dep ]
+static_deps = [ crypto_static_dep, zlib_static_dep, libzstd_static_dep ]
 
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
 

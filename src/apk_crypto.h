@@ -12,7 +12,12 @@
 #include <string.h>
 #include "apk_defines.h"
 #include "apk_blob.h"
+
+#if defined(CRYPTO_USE_OPENSSL)
 #include "apk_crypto_openssl.h"
+#elif defined(CRYPTO_USE_MBEDTLS)
+#include "apk_crypto_mbedtls.h"
+#endif
 
 // Digest
 

@@ -17,8 +17,15 @@ IO_URL_OBJ		:= io_url_libfetch.o
 IO_URL_OBJ_LIBS		:= libfetch/libfetch.a
 endif
 
-OPENSSL_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags openssl)
-OPENSSL_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
+ifeq ($(CRYPTO),mbedtls)
+CRYPTO_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags mbedtls mbedcrypto) -DCRYPTO_USE_MBEDTLS
+CRYPTO_LIBS		:= $(shell $(PKG_CONFIG) --libs mbedtls mbedcrypto)
+CRYPTO_OBJ		:= crypto_mbedtls.o
+else
+CRYPTO_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags openssl) -DCRYPTO_USE_OPENSSL
+CRYPTO_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
+CRYPTO_OBJ		:= crypto_openssl.o
+endif
 
 ZLIB_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags zlib)
 ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
@@ -28,9 +35,9 @@ libapk_soname		:= 2.99.0
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
 	adb.o adb_comp.o adb_walk_adb.o adb_walk_genadb.o adb_walk_gentext.o adb_walk_text.o apk_adb.o \
-	atom.o blob.o commit.o common.o context.o crypto.o crypto_openssl.o ctype.o database.o hash.o \
-	extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o io.o io_gunzip.o tar.o package.o pathbuilder.o \
-	print.o solver.o trust.o version.o
+	atom.o blob.o commit.o common.o context.o crypto.o ctype.o database.o hash.o extract_v2.o \
+	extract_v3.o fs_fsys.o fs_uvol.o io.o io_gunzip.o tar.o package.o pathbuilder.o print.o \
+	solver.o trust.o version.o
 
 libapk.so.$(libapk_soname)-libs :=
 
@@ -40,6 +47,16 @@ else
 CFLAGS_ALL += -Ilibfetch
 libapk.so.$(libapk_soname)-objs += io_url_libfetch.o
 libapk.so.$(libapk_soname)-libs += libfetch/libfetch.a
+endif
+
+ifeq ($(CRYPTO),mbedtls)
+CRYPTO_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags mbedtls mbedcrypto) -DCRYPTO_USE_MBEDTLS
+CRYPTO_LIBS		:= $(shell $(PKG_CONFIG) --libs mbedtls mbedcrypto)
+libapk.so.$(libapk_soname)-objs += crypto_mbedtls.o
+else
+CRYPTO_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags openssl) -DCRYPTO_USE_OPENSSL
+CRYPTO_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
+libapk.so.$(libapk_soname)-objs += crypto_openssl.o
 endif
 
 # ZSTD support can be disabled
@@ -108,9 +125,9 @@ LIBS_apk.static		:= -Wl,--as-needed -ldl -Wl,--no-as-needed
 LDFLAGS_apk		+= -L$(obj)
 LDFLAGS_apk-test	+= -L$(obj)
 
-CFLAGS_ALL		+= $(OPENSSL_CFLAGS) $(ZLIB_CFLAGS) $(ZSTD_CFLAGS)
+CFLAGS_ALL		+= $(CRYPTO_CFLAGS) $(ZLIB_CFLAGS) $(ZSTD_CFLAGS)
 LIBS			:= -Wl,--as-needed \
-				$(OPENSSL_LIBS) $(ZLIB_LIBS) $(ZSTD_LIBS) \
+				$(CRYPTO_LIBS) $(ZLIB_LIBS) $(ZSTD_LIBS) \
 			   -Wl,--no-as-needed
 
 # Help generation
