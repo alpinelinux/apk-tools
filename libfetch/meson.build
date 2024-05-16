@@ -2,20 +2,11 @@ libfetch_src = [
 	'common.c',
 	'fetch.c',
 	'file.c',
-	'ftp.c',
 	'http.c',
 	'openssl-compat.c'
 ]
 
 errlist_generator = find_program('errlist.sh')
-
-ftperr_h = custom_target(
-	'ftperr.h',
-	capture: true,
-	command: [errlist_generator, 'ftp_errlist', 'FTP', '@INPUT@'],
-	output: 'ftperr.h',
-	input: 'ftp.errors',
-)
 
 httperr_h = custom_target(
 	'httpderr.h',
@@ -25,7 +16,7 @@ httperr_h = custom_target(
 	input: 'http.errors',
 )
 
-libfetch_src += [ftperr_h, httperr_h]
+libfetch_src += [httperr_h]
 
 libfetch_cargs = [
 	'-DCA_CERT_FILE="/' + apk_confdir / 'ca.pem"',

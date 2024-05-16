@@ -70,7 +70,6 @@ struct url_list {
 };
 
 /* Recognized schemes */
-#define SCHEME_FTP	"ftp"
 #define SCHEME_HTTP	"http"
 #define SCHEME_HTTPS	"https"
 #define SCHEME_FILE	"file"
@@ -121,14 +120,6 @@ fetchIO		*fetchGetHTTP(struct url *, const char *);
 fetchIO		*fetchPutHTTP(struct url *, const char *);
 int		 fetchStatHTTP(struct url *, struct url_stat *, const char *);
 int		 fetchListHTTP(struct url_list *, struct url *, const char *,
-		    const char *);
-
-/* FTP-specific functions */
-fetchIO		*fetchXGetFTP(struct url *, struct url_stat *, const char *);
-fetchIO		*fetchGetFTP(struct url *, const char *);
-fetchIO		*fetchPutFTP(struct url *, const char *);
-int		 fetchStatFTP(struct url *, struct url_stat *, const char *);
-int		 fetchListFTP(struct url_list *, struct url *, const char *,
 		    const char *);
 
 /* Generic functions */

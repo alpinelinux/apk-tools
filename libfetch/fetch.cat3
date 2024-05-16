@@ -371,28 +371,6 @@ EENNVVIIRROONNMMEENNTT
      FETCH_BIND_ADDRESS  Specifies a host name or IP address to which sockets
                          used for outgoing connections will be bound.
 
-     FTP_LOGIN           Default FTP login if none was provided in the URL.
-
-     FTP_PASSIVE_MODE    If set to anything but `no', forces the FTP code to
-                         use passive mode.
-
-     FTP_PASSWORD        Default FTP password if the remote server requests
-                         one and none was provided in the URL.
-
-     FTP_PROXY           URL of the proxy to use for FTP requests.  The docu-
-                         ment part is ignored.  FTP and HTTP proxies are sup-
-                         ported; if no scheme is specified, FTP is assumed.
-                         If the proxy is an FTP proxy, lliibbffeettcchh will send
-                         `user@host' as user name to the proxy, where `user'
-                         is the real user name, and `host' is the name of the
-                         FTP server.
-
-                         If this variable is set to an empty string, no proxy
-                         will be used for FTP requests, even if the HTTP_PROXY
-                         variable is set.
-
-     ftp_proxy           Same as FTP_PROXY, for compatibility.
-
      HTTP_AUTH           Specifies HTTP authorization parameters as a colon-
                          separated list of items.  The first and second item
                          are the authorization scheme and realm respectively;
@@ -410,9 +388,6 @@ EENNVVIIRROONNMMEENNTT
                          ment part is ignored.  Only HTTP proxies are sup-
                          ported for HTTP requests.  If no port number is spec-
                          ified, the default is 3128.
-
-                         Note that this proxy will also be used for FTP docu-
-                         ments, unless the FTP_PROXY variable is set.
 
      http_proxy          Same as HTTP_PROXY, for compatibility.
 
@@ -503,18 +478,12 @@ BBUUGGSS
      examples of this are ffeettcchhPPuuttHHTTTTPP() and FTP proxy support.
 
      There is no way to select a proxy at run-time other than setting the
-     HTTP_PROXY or FTP_PROXY environment variables as appropriate.
+     HTTP_PROXY environment variable as appropriate.
 
      lliibbffeettcchh does not understand or obey 305 (Use Proxy) replies.
 
      Error numbers are unique only within a certain context; the error codes
-     used for FTP and HTTP overlap, as do those used for resolver and system
-     errors.  For instance, error code 202 means "Command not implemented,
-     superfluous at this site" in an FTP context and "Accepted" in an HTTP
-     context.
-
-     ffeettcchhSSttaattFFTTPP() does not check that the result of an MDTM command is a
-     valid date.
+     used for HTTP requests, resolver and system errors overlap.
 
      The man page is incomplete, poorly written and produces badly formatted
      text.

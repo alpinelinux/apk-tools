@@ -85,8 +85,6 @@ fetchXGet(struct url *URL, struct url_stat *us, const char *flags)
 	}
 	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 		return (fetchXGetFile(URL, us, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0)
-		return (fetchXGetFTP(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 		return (fetchXGetHTTP(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
@@ -115,8 +113,6 @@ fetchPut(struct url *URL, const char *flags)
 
 	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 		return (fetchPutFile(URL, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0)
-		return (fetchPutFTP(URL, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 		return (fetchPutHTTP(URL, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
@@ -139,8 +135,6 @@ fetchStat(struct url *URL, struct url_stat *us, const char *flags)
 	}
 	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 		return (fetchStatFile(URL, us, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0)
-		return (fetchStatFTP(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 		return (fetchStatHTTP(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
@@ -160,8 +154,6 @@ fetchList(struct url_list *ue, struct url *URL, const char *pattern,
 
 	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 		return (fetchListFile(ue, URL, pattern, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_FTP) == 0)
-		return (fetchListFTP(ue, URL, pattern, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 		return (fetchListHTTP(ue, URL, pattern, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
@@ -449,18 +441,6 @@ fetchParseURL(const char *URL)
 			URL += 6;
 		}
 
-		if (URL[0] != '/' || URL[1] != '/') {
-			url_seterr(URL_MALFORMED);
-			goto ouch;
-		}
-		URL += 2;
-		p = URL;
-		goto find_user;
-	}
-	if (strncmp(URL, "ftp:", 4) == 0) {
-		pre_quoted = 1;
-		strcpy(u->scheme, SCHEME_FTP);
-		URL += 4;
 		if (URL[0] != '/' || URL[1] != '/') {
 			url_seterr(URL_MALFORMED);
 			goto ouch;
