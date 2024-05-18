@@ -34,7 +34,7 @@ static inline const mbedtls_md_type_t apk_digest_alg_to_mbedtls_type(uint8_t alg
 	case APK_DIGEST_SHA256:	return MBEDTLS_MD_SHA256;
 	case APK_DIGEST_SHA512:	return MBEDTLS_MD_SHA512;
 	default:
-		assert(alg);
+		assert(!"valid alg");
 		return MBEDTLS_MD_NONE;
 	}
 }
@@ -70,20 +70,20 @@ int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg)
 
 int apk_digest_ctx_reset(struct apk_digest_ctx *dctx)
 {
-	if (dctx->alg == APK_DIGEST_NONE) return 0;
+	assert(dctx->alg != APK_DIGEST_NONE);
 	if (mbedtls_md_starts(&dctx->mdctx)) return -APKE_CRYPTO_ERROR;
 	return 0;
 }
 
 int apk_digest_ctx_reset_alg(struct apk_digest_ctx *dctx, uint8_t alg)
 {
-	mbedtls_md_free(&dctx->mdctx);
+	assert(dctx->alg != APK_DIGEST_NONE);
 
+	mbedtls_md_free(&dctx->mdctx);
 	dctx->alg = alg;
 	dctx->sigver_key = NULL;
-	if (alg == APK_DIGEST_NONE) return 0;
 	if (mbedtls_md_setup(&dctx->mdctx, apk_digest_alg_to_mdinfo(alg), 0) ||
-		mbedtls_md_starts(&dctx->mdctx))
+	    mbedtls_md_starts(&dctx->mdctx))
 		return -APKE_CRYPTO_ERROR;
 
 	return 0;
@@ -96,17 +96,17 @@ void apk_digest_ctx_free(struct apk_digest_ctx *dctx)
 
 int apk_digest_ctx_update(struct apk_digest_ctx *dctx, const void *ptr, size_t sz)
 {
-	if (dctx->alg == APK_DIGEST_NONE) return 0;
+	assert(dctx->alg != APK_DIGEST_NONE);
 	return mbedtls_md_update(&dctx->mdctx, ptr, sz) == 0 ? 0 : -APKE_CRYPTO_ERROR;
 }
 
 int apk_digest_ctx_final(struct apk_digest_ctx *dctx, struct apk_digest *d)
 {
+	assert(dctx->alg != APK_DIGEST_NONE);
 	if (mbedtls_md_finish(&dctx->mdctx, d->data)) {
 		apk_digest_reset(d);
 		return -APKE_CRYPTO_ERROR;
 	}
-
 	d->alg = dctx->alg;
 	d->len = apk_digest_alg_len(d->alg);
 	return 0;
