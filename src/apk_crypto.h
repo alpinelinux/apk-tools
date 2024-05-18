@@ -17,6 +17,8 @@
 #include "apk_crypto_openssl.h"
 #elif defined(CRYPTO_USE_MBEDTLS)
 #include "apk_crypto_mbedtls.h"
+#else
+#error Crypto backend not selected
 #endif
 
 // Digest

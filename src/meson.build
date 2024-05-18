@@ -91,15 +91,10 @@ apk_src = [
 ]
 
 apk_cargs = [
-	'-DAPK_VERSION="' + meson.project_version() + '"',
 	'-D_ATFILE_SOURCE',
+	'-DAPK_VERSION="' + meson.project_version() + '"',
+	'-DCRYPTO_USE_@0@'.format(crypto_backend.to_upper()),
 ]
-
-if crypto_backend == 'openssl'
-	apk_cargs += [ '-DCRYPTO_USE_OPENSSL' ]
-elif crypto_backend == 'mbedtls'
-	apk_cargs += [ '-DCRYPTO_USE_MBEDTLS' ]
-endif
 
 if lua_bin.found()
 	genhelp_script = files('genhelp.lua')
