@@ -662,7 +662,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 	if (apk_flags & APK_SIMULATE) return 0;
 	if (cb) cb(cb_ctx, 0);
 
-	apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY, NULL, db->keys_fd);
+	apk_sign_ctx_init(&sctx, verify, NULL, db->keys_fd);
 	is = apk_istream_from_url_if_modified(url, st.st_mtime);
 	is = apk_istream_tee(is, db->cache_fd, tmpcacheitem, !autoupdate, cb, cb_ctx);
 	is = apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx);
