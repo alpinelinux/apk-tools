@@ -70,7 +70,7 @@ int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg)
 
 int apk_digest_ctx_reset(struct apk_digest_ctx *dctx)
 {
-	assert(dctx->alg != APK_DIGEST_NONE);
+	if (dctx->alg == APK_DIGEST_NONE) return 0;
 	if (mbedtls_md_starts(&dctx->mdctx)) return -APKE_CRYPTO_ERROR;
 	return 0;
 }
