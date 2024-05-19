@@ -77,7 +77,7 @@ int apk_digest_ctx_reset(struct apk_digest_ctx *dctx)
 
 int apk_digest_ctx_reset_alg(struct apk_digest_ctx *dctx, uint8_t alg)
 {
-	assert(dctx->alg != APK_DIGEST_NONE);
+	assert(alg != APK_DIGEST_NONE);
 
 	mbedtls_md_free(&dctx->mdctx);
 	dctx->alg = alg;
