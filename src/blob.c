@@ -261,6 +261,22 @@ void apk_blob_push_uint(apk_blob_t *to, unsigned int value, int radix)
 	apk_blob_push_blob(to, APK_BLOB_PTR_PTR(ptr+1, &buf[sizeof(buf)-1]));
 }
 
+void apk_blob_push_csum_hex(apk_blob_t *to, struct apk_checksum *csum)
+{
+	switch (csum->type) {
+	case APK_CHECKSUM_MD5:
+		apk_blob_push_hexdump(to, APK_BLOB_CSUM(*csum));
+		break;
+	case APK_CHECKSUM_SHA1:
+		apk_blob_push_blob(to, APK_BLOB_STR("X1"));
+		apk_blob_push_hexdump(to, APK_BLOB_CSUM(*csum));
+		break;
+	default:
+		*to = APK_BLOB_NULL;
+		break;
+	}
+}
+
 void apk_blob_push_csum(apk_blob_t *to, struct apk_checksum *csum)
 {
 	switch (csum->type) {
