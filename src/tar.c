@@ -290,6 +290,30 @@ static void apk_tar_fill_header(struct tar_header *hdr, char typeflag,
 	put_octal(hdr->chksum, sizeof(hdr->chksum)-1, chksum, 1);
 }
 
+static int apk_tar_write_longname_entry(struct apk_ostream *os,
+					const struct apk_file_info *ae)
+{
+	struct tar_header buf;
+
+	memset(&buf, 0, sizeof(buf));
+
+	/* GNU long name extension header */
+	apk_tar_fill_header(&buf, 'L', "././@LongLink", strlen(ae->name), ae);
+
+	/* Write Header */
+	if (apk_ostream_write(os, &buf, sizeof(buf)) < 0)
+		return -1;
+
+	/* Write filename */
+	if (apk_ostream_write(os, ae->name, strlen(ae->name) + 1) < 0)
+		return -1;
+
+	if (apk_tar_write_padding(os, strlen(ae->name) + 1) < 0)
+		return -1;
+
+	return 0;
+}
+
 int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
 			const char *data)
 {
@@ -299,6 +323,10 @@ int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
 	if (ae != NULL) {
 		if (!S_ISREG(ae->mode))
 			return -1;
+
+		if (ae->name && strlen(ae->name) > sizeof buf.name - 1 &&
+		    apk_tar_write_longname_entry(os, ae) < 0)
+		    	return -1;
 
 		apk_tar_fill_header(&buf, '0', ae->name, ae->size, ae);
 	}
