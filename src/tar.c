@@ -261,6 +261,35 @@ ok:
 	return apk_istream_close_error(is, r);
 }
 
+static void apk_tar_fill_header(struct tar_header *hdr, char typeflag,
+				const char *name, int size,
+				const struct apk_file_info *ae)
+{
+	const unsigned char *src;
+	int chksum, i;
+
+	hdr->typeflag = typeflag;
+	if (name != NULL)
+		strlcpy(hdr->name, name, sizeof hdr->name);
+
+	strlcpy(hdr->uname, ae->uname ?: "root", sizeof hdr->uname);
+	strlcpy(hdr->gname, ae->gname ?: "root", sizeof hdr->gname);
+
+	PUT_OCTAL(hdr->size, size, 0);
+	PUT_OCTAL(hdr->uid, ae->uid, 1);
+	PUT_OCTAL(hdr->gid, ae->gid, 1);
+	PUT_OCTAL(hdr->mode, ae->mode & 07777, 1);
+	PUT_OCTAL(hdr->mtime, ae->mtime, 0);
+
+	/* Checksum */
+	strcpy(hdr->magic, "ustar  ");
+	memset(hdr->chksum, ' ', sizeof(hdr->chksum));
+	src = (const unsigned char *) hdr;
+	for (i = chksum = 0; i < sizeof(*hdr); i++)
+		chksum += src[i];
+	put_octal(hdr->chksum, sizeof(hdr->chksum)-1, chksum, 1);
+}
+
 int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
 			const char *data)
 {
@@ -268,33 +297,10 @@ int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
 
 	memset(&buf, 0, sizeof(buf));
 	if (ae != NULL) {
-		const unsigned char *src;
-	        int chksum, i;
-
-		if (S_ISREG(ae->mode))
-			buf.typeflag = '0';
-		else
+		if (!S_ISREG(ae->mode))
 			return -1;
 
-		if (ae->name != NULL)
-			strlcpy(buf.name, ae->name, sizeof buf.name);
-
-		strlcpy(buf.uname, ae->uname ?: "root", sizeof buf.uname);
-		strlcpy(buf.gname, ae->gname ?: "root", sizeof buf.gname);
-
-		PUT_OCTAL(buf.size, ae->size, 0);
-		PUT_OCTAL(buf.uid, ae->uid, 1);
-		PUT_OCTAL(buf.gid, ae->gid, 1);
-		PUT_OCTAL(buf.mode, ae->mode & 07777, 1);
-		PUT_OCTAL(buf.mtime, ae->mtime, 0);
-
-		/* Checksum */
-		strcpy(buf.magic, "ustar  ");
-		memset(buf.chksum, ' ', sizeof(buf.chksum));
-		src = (const unsigned char *) &buf;
-		for (i = chksum = 0; i < sizeof(buf); i++)
-			chksum += src[i];
-		put_octal(buf.chksum, sizeof(buf.chksum)-1, chksum, 1);
+		apk_tar_fill_header(&buf, '0', ae->name, ae->size, ae);
 	}
 
 	if (apk_ostream_write(os, &buf, sizeof(buf)) < 0)
