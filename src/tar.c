@@ -307,19 +307,19 @@ int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
 	} else if (data != NULL) {
 		if (apk_ostream_write(os, data, ae->size) < 0)
 			return -1;
-		if (apk_tar_write_padding(os, ae) != 0)
+		if (apk_tar_write_padding(os, ae->size) != 0)
 			return -1;
 	}
 
 	return 0;
 }
 
-int apk_tar_write_padding(struct apk_ostream *os, const struct apk_file_info *ae)
+int apk_tar_write_padding(struct apk_ostream *os, int size)
 {
 	static char padding[512];
 	int pad;
 
-	pad = 512 - (ae->size & 511);
+	pad = 512 - (size & 511);
 	if (pad != 512 &&
 	    apk_ostream_write(os, padding, pad) < 0)
 		return -1;

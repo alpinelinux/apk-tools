@@ -17,6 +17,6 @@ int apk_tar_parse(struct apk_istream *,
 		  struct apk_id_cache *);
 int apk_tar_write_entry(struct apk_ostream *, const struct apk_file_info *ae,
 			const char *data);
-int apk_tar_write_padding(struct apk_ostream *, const struct apk_file_info *ae);
+int apk_tar_write_padding(struct apk_ostream *, int size);
 
 #endif

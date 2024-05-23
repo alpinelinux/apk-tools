@@ -278,7 +278,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 
 	apk_tar_write_entry(os, &fi, NULL);
 	index_write(ictx, db, os);
-	apk_tar_write_padding(os, &fi);
+	apk_tar_write_padding(os, fi.size);
 	apk_tar_write_entry(os, NULL, NULL);
 
 	r = apk_ostream_close(os);
