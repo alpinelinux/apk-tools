@@ -11,10 +11,10 @@ repositories
 retrieve package files for installation. Each line of this file specifies the
 location of a package repository, and optionally a tag.
 
-The location may be an _http://_, _https://_, or _ftp://_ URL, or the path to a
-directory on the local filesystem. A tagged repository is prefixed with the
-*@tag* specifier, followed by a space and the repository location. For more
-information about repository tags, see *apk-world*(5).
+The location may be an _http://_, _https://_, or the path to a directory on
+the local filesystem. A tagged repository is prefixed with the *@tag* specifier,
+followed by a space and the repository location. For more information about
+repository tags, see *apk-world*(5).
 
 # REPOSITORY LAYOUT
 

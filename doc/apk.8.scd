@@ -283,10 +283,6 @@ The following options are available for all commands which sign files.
 	A local IP address to which libfetch will bind all sockets it creates.
 	Can be useful for source routing.
 
-*FTP_PROXY*, *ftp_proxy*
-	If set, these variables should contain the proxy URL for *ftp*
-	connections.
-
 *NETRC*
 	Specify the *.netrc* file to read for authentication secrets. If not
 	set, defaults to *$HOME/.netrc*.
