@@ -78,7 +78,7 @@ static int suffix_value(apk_blob_t suf)
 	};
 	int val;
 
-	if (suf.len == 0) return SUFFIX_NONE;
+	if (suf.len == 0) return SUFFIX_INVALID;
 	switch (suf.ptr[0]) {
 	case 'a': val = SUFFIX_ALPHA; break;
 	case 'b': val = SUFFIX_BETA; break;
