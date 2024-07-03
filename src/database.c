@@ -1237,7 +1237,7 @@ static int apk_db_read_layer(struct apk_database *db, unsigned layer)
 
 		if (!ret) {
 			blob = apk_blob_trim(world);
-			apk_blob_pull_deps(&blob, db, &db->world);
+			ret = apk_blob_pull_deps(&blob, db, &db->world);
 			free(world.ptr);
 		} else if (layer == APK_DB_LAYER_ROOT) {
 			ret = -ENOENT;
