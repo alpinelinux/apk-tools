@@ -729,7 +729,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 
 	is = apk_istream_from_url(url, apk_db_url_since(db, st.st_mtime));
 	is = apk_istream_tee(is, os, autoupdate ? 0 : APK_ISTREAM_TEE_COPY_META, cb, cb_ctx);
-	apk_extract_init(&ectx, db->ctx, 0);
+	apk_extract_init(&ectx, db->ctx, NULL);
 	if (pkg) apk_extract_verify_identity(&ectx, &pkg->csum);
 	r = apk_extract(&ectx, is);
 	if (r == -EALREADY) {
