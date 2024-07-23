@@ -54,10 +54,9 @@ disk installations.
 	dependencies cannot be satisfied.
 
 *-u, --upgrade*
-	Upgrade _packages_ and it's dependencies. Normally *apk add* will
-	avoid changing installed package unless it is required by the newly
-	added _packages_ or their dependencies. This changes the default
-	preference to upgrading the package to the latest installable version.
+	When caching packages which are already installed, prefer their upgrades
+	rather than considering the requirement fulfilled by the current
+	installation.
 
 *-s, --simulate*
 	Simulate the requested operation without making any changes.
