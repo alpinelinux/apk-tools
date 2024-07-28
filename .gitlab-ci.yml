@@ -44,6 +44,21 @@ test:alpine-alt-config:
         - docker-alpine
         - x86_64
 
+test:alpine-muon:
+    image: alpine:edge
+    stage: test
+    script:
+        - echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories
+        - apk update
+        - apk add gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib muon zlib-static zstd-static openssl-libs-static
+        - muon setup build
+        - ninja -C build
+        - muon setup -Dc_link_args="-static" -Dprefer_static=true -Ddefault_library=static build-static
+        - ninja -C build-static
+    tags:
+        - docker-alpine
+        - x86_64
+
 test:debian:
     image: debian
     stage: test
