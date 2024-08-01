@@ -158,7 +158,6 @@ static adb_val_t create_xattrs(struct adb *db, int fd)
 		};
 		adb_wa_append(&xa, adb_w_blob_vec(db, ARRAY_SIZE(vec), vec));
 	}
-	close(fd);
 	val = adb_w_arr(&xa);
 	adb_wo_free(&xa);
 
