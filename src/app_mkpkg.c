@@ -361,7 +361,8 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	// scan and add all files
 	if (ctx->files_dir) {
 		struct apk_file_info fi;
-		r = apk_fileinfo_get(AT_FDCWD, ctx->files_dir, APK_FI_NOFOLLOW, &fi, 0);
+		r = apk_fileinfo_get(AT_FDCWD, ctx->files_dir, 0, &fi, 0);
+		if (r == 0 && !S_ISDIR(fi.mode)) r = -ENOTDIR;
 		if (r) {
 			apk_err(out, "file directory '%s': %s",
 				ctx->files_dir, apk_error_str(r));
