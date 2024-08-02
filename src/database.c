@@ -64,7 +64,6 @@ struct install_ctx {
 	unsigned int missing_checksum : 1;
 
 	struct apk_db_dir_instance *diri;
-	struct apk_checksum data_csum;
 	struct apk_extract_ctx ectx;
 
 	apk_progress_cb cb;
