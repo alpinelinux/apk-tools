@@ -128,9 +128,6 @@ struct apk_ostream *adb_compress(struct apk_ostream *os, struct adb_compression_
 			.alg = ADB_COMP_DEFLATE,
 		};
 	}
-	ci = compression_info_by_alg(spec->alg);
-	if (!ci) goto err;
-	if (spec->level < ci->min_level || spec->level > ci->max_level) goto err;
 
 	switch (spec->alg) {
 	case ADB_COMP_NONE:
@@ -140,6 +137,10 @@ struct apk_ostream *adb_compress(struct apk_ostream *os, struct adb_compression_
 		if (apk_ostream_write(os, "ADBd", 4) < 0) goto err;
 		return apk_ostream_deflate(os, 0);
 	}
+
+	ci = compression_info_by_alg(spec->alg);
+	if (!ci) goto err;
+	if (spec->level < ci->min_level || spec->level > ci->max_level) goto err;
 
 	if (apk_ostream_write(os, "ADBc", 4) < 0) goto err;
 	if (apk_ostream_write(os, spec, sizeof *spec) < 0) goto err;
