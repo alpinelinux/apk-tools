@@ -275,9 +275,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			if (r < 0 && r != -ECANCELED) goto err_pkg;
 
 			adb_wo_int(&ctx->pkginfo, ADBI_PI_FILE_SIZE, ctx->file_size);
-			if (digest.alg != APK_DIGEST_NONE)
-				adb_wo_blob(&ctx->pkginfo, ADBI_PI_UNIQUE_ID,
-					APK_DIGEST_BLOB(digest));
+			adb_wo_blob(&ctx->pkginfo, ADBI_PI_HASHES, APK_DIGEST_BLOB(digest));
 
 			val = adb_wa_append_obj(&ctx->pkgs, &ctx->pkginfo);
 			newpkgs++;

@@ -14,7 +14,7 @@
 /* Package Info */
 #define ADBI_PI_NAME		0x01
 #define ADBI_PI_VERSION		0x02
-#define ADBI_PI_UNIQUE_ID	0x03
+#define ADBI_PI_HASHES		0x03
 #define ADBI_PI_DESCRIPTION	0x04
 #define ADBI_PI_ARCH		0x05
 #define ADBI_PI_LICENSE		0x06

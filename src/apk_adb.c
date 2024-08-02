@@ -27,7 +27,7 @@ adb_val_t adb_wo_pkginfo(struct adb_obj *obj, unsigned int f, apk_blob_t val)
 
 	/* FIXME: get rid of this function, and handle the conversion via schema? */
 	switch (f) {
-	case ADBI_PI_UNIQUE_ID:
+	case ADBI_PI_HASHES:
 		if (!val.ptr || val.len < 4) break;
 		apk_blob_pull_digest(&val, &digest);
 		v = adb_w_blob(obj->db, APK_DIGEST_BLOB(digest));
@@ -49,7 +49,7 @@ unsigned int adb_pkg_field_index(char f)
 {
 #define MAP(ch, ndx) [ch - 'A'] = ndx
 	static unsigned char map[] = {
-		MAP('C', ADBI_PI_UNIQUE_ID),
+		MAP('C', ADBI_PI_HASHES),
 		MAP('P', ADBI_PI_NAME),
 		MAP('V', ADBI_PI_VERSION),
 		MAP('T', ADBI_PI_DESCRIPTION),
@@ -396,11 +396,11 @@ const struct adb_object_schema schema_dependency_array = {
 const struct adb_object_schema schema_pkginfo = {
 	.kind = ADB_KIND_OBJECT,
 	.num_fields = ADBI_PI_MAX,
-	.num_compare = ADBI_PI_UNIQUE_ID,
+	.num_compare = ADBI_PI_HASHES,
 	.fields = ADB_OBJECT_FIELDS(ADBI_PI_MAX) {
 		ADB_FIELD(ADBI_PI_NAME,		"name",		scalar_name),
 		ADB_FIELD(ADBI_PI_VERSION,	"version",	scalar_version),
-		ADB_FIELD(ADBI_PI_UNIQUE_ID,	"unique-id",	scalar_hexblob),
+		ADB_FIELD(ADBI_PI_HASHES,	"hashes",	scalar_hexblob),
 		ADB_FIELD(ADBI_PI_DESCRIPTION,	"description",	scalar_string),
 		ADB_FIELD(ADBI_PI_ARCH,		"arch",		scalar_string),
 		ADB_FIELD(ADBI_PI_LICENSE,	"license",	scalar_string),

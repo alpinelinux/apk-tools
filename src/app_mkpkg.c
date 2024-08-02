@@ -332,10 +332,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	int i, j, r;
 	struct mkpkg_ctx *ctx = pctx;
 	struct apk_ostream *os;
-	struct apk_digest d = {};
 	char outbuf[PATH_MAX];
-	const int uid_len = apk_digest_alg_len(APK_DIGEST_SHA1);
-	apk_blob_t uid = APK_BLOB_PTR_LEN((char*)d.data, uid_len);
 
 	ctx->ac = ac;
 	adb_w_init_alloca(&ctx->db, ADB_SCHEMA_PACKAGE, 40);
@@ -374,8 +371,6 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	}
 
 	adb_wo_int(&pkgi, ADBI_PI_INSTALLED_SIZE, ctx->installed_size);
-	adb_wo_blob(&pkgi, ADBI_PI_UNIQUE_ID, uid);
-
 	adb_wo_obj(&pkg, ADBI_PKG_PKGINFO, &pkgi);
 	adb_wo_obj(&pkg, ADBI_PKG_PATHS, &ctx->paths);
 	if (ctx->has_scripts) {
@@ -400,12 +395,6 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	adb_r_rootobj(&ctx->db, &pkg, &schema_package);
 	adb_ro_obj(&pkg, ADBI_PKG_PKGINFO, &pkgi);
 	adb_ro_obj(&pkg, ADBI_PKG_PATHS, &ctx->paths);
-
-	// fill in unique id
-	apk_digest_calc(&d, APK_DIGEST_SHA256, ctx->db.adb.ptr, ctx->db.adb.len);
-	uid = adb_ro_blob(&pkgi, ADBI_PI_UNIQUE_ID);
-	memcpy(uid.ptr, d.data, uid.len);
-
 	if (!ctx->output) {
 		ctx->output = pkgi_filename(&pkgi, outbuf, sizeof outbuf);
 	}

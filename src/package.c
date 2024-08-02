@@ -583,7 +583,7 @@ void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl
 	struct apk_package *pkg = &tmpl->pkg;
 	apk_blob_t uid;
 
-	uid = adb_ro_blob(pkginfo, ADBI_PI_UNIQUE_ID);
+	uid = adb_ro_blob(pkginfo, ADBI_PI_HASHES);
 	if (uid.len >= APK_DIGEST_LENGTH_SHA1) apk_digest_from_blob(&tmpl->id, uid);
 
 	pkg->name = apk_db_get_name(db, adb_ro_blob(pkginfo, ADBI_PI_NAME));

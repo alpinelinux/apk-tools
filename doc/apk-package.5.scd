@@ -65,15 +65,12 @@ Unfortunately it is not possible to deduce if a given string is of format
 
 	Finally an optional package build component *-r{number}* can follow.
 
-*unique-id* (*C*)
-	Unique identifier for the package. This changes for each unique build
-	of the package. Apk *mkpkg* will calculate this field deterministically
-	from the package contents and other metadata at package build time.
-	In APKv2 packages this field is not present, but is calculated
-	directly from specific portions of the package data. APKv2 used to also
-	call this the package identity hash.
+*hashes* (*C*)
+	Hash of the package meta data. This field is present only in
+	the index copy of the package info.
 
 	APK uses this fields in multiple ways:
+	- authenticate and verify the package against an index
 	- determine if same identical package is available from multiple
 	  repositories
 	- make package filename unique when storing a copy in the package
