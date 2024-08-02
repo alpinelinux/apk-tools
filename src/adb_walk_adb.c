@@ -49,7 +49,7 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 		d->ops->start_object(d);
 		adb_m_process(&ctx->db, &is,
 			container_of(kind, struct adb_adb_schema, kind)->schema_id | ADB_SCHEMA_IMPLIED,
-			0, adb_walk_block);
+			0, NULL, adb_walk_block);
 		d->ops->end(d);
 		ctx->db = origdb;
 		break;
@@ -166,7 +166,7 @@ int adb_walk_adb(struct adb_walk *d, struct apk_istream *is, struct apk_trust *t
 
 	if (IS_ERR(is)) return PTR_ERR(is);
 
-	r = adb_m_process(&ctx.db, is, 0, &allow_untrusted, adb_walk_block);
+	r = adb_m_process(&ctx.db, is, 0, &allow_untrusted, NULL, adb_walk_block);
 	adb_free(&ctx.db);
 	return r;
 }

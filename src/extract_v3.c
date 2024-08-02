@@ -251,7 +251,7 @@ int apk_extract_v3(struct apk_extract_ctx *ectx, struct apk_istream *is)
 
 	ectx->pctx = &ctx;
 	r = adb_m_process(&ctx.db, adb_decompress(is, 0),
-		ADB_SCHEMA_ANY, trust, apk_extract_v3_data_block);
+		ADB_SCHEMA_ANY, trust, ectx, apk_extract_v3_data_block);
 	if (r == 0) {
 		switch (ctx.db.schema) {
 		case ADB_SCHEMA_PACKAGE:

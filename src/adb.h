@@ -7,6 +7,7 @@
 #include "apk_io.h"
 #include "apk_trust.h"
 
+struct apk_extract_ctx;
 struct adb;
 struct adb_obj;
 struct adb_verify_ctx;
@@ -194,9 +195,9 @@ int adb_free(struct adb *);
 void adb_reset(struct adb *);
 
 int adb_m_blob(struct adb *, apk_blob_t, struct apk_trust *);
-int adb_m_process(struct adb *db, struct apk_istream *is, uint32_t expected_schema, struct apk_trust *trust, int (*cb)(struct adb *, struct adb_block *, struct apk_istream *));
+int adb_m_process(struct adb *db, struct apk_istream *is, uint32_t expected_schema, struct apk_trust *trust, struct apk_extract_ctx *ectx, int (*cb)(struct adb *, struct adb_block *, struct apk_istream *));
 static inline int adb_m_open(struct adb *db, struct apk_istream *is, uint32_t expected_schema, struct apk_trust *trust) {
-	return adb_m_process(db, is, expected_schema, trust, 0);
+	return adb_m_process(db, is, expected_schema, trust, NULL, 0);
 }
 #define adb_w_init_alloca(db, schema, num_buckets) adb_w_init_dynamic(db, schema, alloca(sizeof(struct list_head[num_buckets])), num_buckets)
 #define adb_w_init_tmp(db, size) adb_w_init_static(db, alloca(size), size)
@@ -273,6 +274,7 @@ int adb_c_create(struct apk_ostream *os, struct adb *db, struct apk_trust *t);
 /* Trust */
 struct adb_verify_ctx {
 	uint32_t calc;
+	struct apk_digest sha256;
 	struct apk_digest sha512;
 };
 

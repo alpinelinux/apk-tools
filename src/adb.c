@@ -9,6 +9,7 @@
 #include "adb.h"
 #include "apk_blob.h"
 #include "apk_trust.h"
+#include "apk_extract.h"
 
 static char padding_zeroes[ADB_BLOCK_ALIGNMENT] = {0};
 
@@ -70,12 +71,63 @@ void adb_reset(struct adb *db)
 	db->adb.len = sizeof(struct adb_hdr);
 }
 
+static int adb_digest_adb(struct adb_verify_ctx *vfy, unsigned int hash_alg, apk_blob_t data, apk_blob_t *pmd)
+{
+	struct apk_digest *d;
+	int r;
+
+	switch (hash_alg) {
+	case APK_DIGEST_SHA256:
+		d = &vfy->sha256;
+		break;
+	case APK_DIGEST_SHA512:
+		d = &vfy->sha512;
+		break;
+	default:
+		return -APKE_CRYPTO_NOT_SUPPORTED;
+	}
+
+	if (!(vfy->calc & (1 << hash_alg))) {
+		if (APK_BLOB_IS_NULL(data)) return -APKE_ADB_BLOCK;
+		r = apk_digest_calc(d, hash_alg, data.ptr, data.len);
+		if (r != 0) return r;
+		vfy->calc |= (1 << hash_alg);
+	}
+
+	if (pmd) *pmd = APK_DIGEST_BLOB(*d);
+	return 0;
+}
+
 static int __adb_dummy_cb(struct adb *db, struct adb_block *b, struct apk_istream *is)
 {
 	return 0;
 }
 
-static int __adb_m_parse(struct adb *db, apk_blob_t data, struct apk_trust *t,
+static int __adb_handle_identity(struct apk_extract_ctx *ectx, struct adb_verify_ctx *vfy, apk_blob_t b)
+{
+	uint32_t alg;
+	apk_blob_t calculated;
+	int r;
+
+	if (!ectx) return 0;
+
+	alg = ectx->generate_identity ? APK_DIGEST_SHA256 : ectx->verify_alg;
+	// Ignore the sha1 identity as they are 'unique-id' instead of hash
+	if (alg == APK_DIGEST_NONE || alg == APK_DIGEST_SHA1) return 0;
+
+	r = adb_digest_adb(vfy, alg, b, &calculated);
+	if (r != 0) return r;
+	if (ectx->generate_identity) {
+		apk_digest_set(ectx->generate_identity, alg);
+		memcpy(ectx->generate_identity->data, calculated.ptr, calculated.len);
+		return 0;
+	}
+	if (apk_blob_compare(ectx->verify_digest, calculated) != 0) return -APKE_ADB_SIGNATURE;
+	return 1;
+}
+
+static int __adb_m_parse(struct adb *db, apk_blob_t data,
+	struct apk_trust *t, struct apk_extract_ctx *ectx,
 	int (*cb)(struct adb *, struct adb_block *, struct apk_istream *))
 {
 	struct adb_verify_ctx vfy = {};
@@ -103,6 +155,9 @@ static int __adb_m_parse(struct adb *db, apk_blob_t data, struct apk_trust *t,
 				goto err;
 			}
 			db->adb = b;
+			r = __adb_handle_identity(ectx, &vfy, b);
+			if (r < 0) goto err;
+			if (r == 1) trusted = 1;
 			break;
 		case ADB_BLOCK_SIG:
 			if (!trusted &&
@@ -134,10 +189,11 @@ err:
 int adb_m_blob(struct adb *db, apk_blob_t blob, struct apk_trust *t)
 {
 	adb_init(db);
-	return __adb_m_parse(db, blob, t, __adb_dummy_cb);
+	return __adb_m_parse(db, blob, t, NULL, __adb_dummy_cb);
 }
 
-static int __adb_m_mmap(struct adb *db, apk_blob_t mmap, uint32_t expected_schema, struct apk_trust *t,
+static int __adb_m_mmap(struct adb *db, apk_blob_t mmap, uint32_t expected_schema,
+	struct apk_trust *t, struct apk_extract_ctx *ectx,
 	int (*cb)(struct adb *, struct adb_block *, struct apk_istream *))
 {
 	struct adb_file_header *hdr;
@@ -153,7 +209,7 @@ static int __adb_m_mmap(struct adb *db, apk_blob_t mmap, uint32_t expected_schem
 		data = APK_BLOB_PTR_LEN(mmap.ptr + sizeof *hdr, mmap.len - sizeof *hdr);
 	}
 
-	r = __adb_m_parse(db, data, t, cb);
+	r = __adb_m_parse(db, data, t, ectx, cb);
 	if (r) goto err;
 	return 0;
 err:
@@ -162,7 +218,8 @@ err:
 }
 
 static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expected_schema,
-	struct apk_trust *t, int (*cb)(struct adb *, struct adb_block *, struct apk_istream *))
+	struct apk_trust *t, struct apk_extract_ctx *ectx,
+	int (*cb)(struct adb *, struct adb_block *, struct apk_istream *))
 {
 	struct adb_file_header hdr;
 	struct adb_verify_ctx vfy = {};
@@ -215,6 +272,10 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 				r = -APKE_ADB_VERSION;
 				goto err;
 			}
+			r = __adb_handle_identity(ectx, &vfy, db->adb);
+			if (r < 0) goto err;
+			if (r == 1) trusted = 1;
+
 			r = cb(db, &blk, apk_istream_from_blob(&seg.is, db->adb));
 			if (r < 0) goto err;
 			goto skip_padding;
@@ -260,7 +321,8 @@ err:
 }
 
 int adb_m_process(struct adb *db, struct apk_istream *is, uint32_t expected_schema,
-	struct apk_trust *t, int (*cb)(struct adb *, struct adb_block *, struct apk_istream *))
+	struct apk_trust *t, struct apk_extract_ctx *ectx,
+	int (*cb)(struct adb *, struct adb_block *, struct apk_istream *))
 {
 	apk_blob_t mmap;
 
@@ -272,9 +334,9 @@ int adb_m_process(struct adb *db, struct apk_istream *is, uint32_t expected_sche
 	if (!cb) cb = __adb_dummy_cb;
 	if (!APK_BLOB_IS_NULL(mmap)) {
 		db->is = is;
-		return __adb_m_mmap(db, mmap, expected_schema, t, cb);
+		return __adb_m_mmap(db, mmap, expected_schema, t, ectx, cb);
 	}
-	return __adb_m_stream(db, is, expected_schema, t, cb);
+	return __adb_m_stream(db, is, expected_schema, t, ectx, cb);
 }
 
 static size_t adb_w_raw(struct adb *db, struct iovec *vec, size_t n, size_t len, size_t alignment)
@@ -1184,30 +1246,6 @@ int adb_c_create(struct apk_ostream *os, struct adb *db, struct apk_trust *t)
 }
 
 /* Signatures */
-static int adb_digest_adb(struct adb_verify_ctx *vfy, unsigned int hash_alg, apk_blob_t data, apk_blob_t *pmd)
-{
-	struct apk_digest *d;
-	int r;
-
-	switch (hash_alg) {
-	case APK_DIGEST_SHA512:
-		d = &vfy->sha512;
-		break;
-	default:
-		return -APKE_CRYPTO_NOT_SUPPORTED;
-	}
-
-	if (!(vfy->calc & (1 << hash_alg))) {
-		if (APK_BLOB_IS_NULL(data)) return -APKE_ADB_BLOCK;
-		r = apk_digest_calc(d, hash_alg, data.ptr, data.len);
-		if (r != 0) return r;
-		vfy->calc |= (1 << hash_alg);
-	}
-
-	*pmd = APK_DIGEST_BLOB(*d);
-	return 0;
-}
-
 static int adb_digest_v0_signature(struct apk_digest_ctx *dctx, uint32_t schema, struct adb_sign_v0 *sig0, apk_blob_t md)
 {
 	int r;

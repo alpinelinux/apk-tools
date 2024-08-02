@@ -84,7 +84,7 @@ static int adbsign_resign(struct sign_ctx *ctx, struct apk_istream *is, struct a
 	}
 	ctx->os = os;
 	memset(&ctx->vfy, 0, sizeof ctx->vfy);
-	r = adb_m_process(&ctx->db, is, 0, &ctx->ac->trust, process_block);
+	r = adb_m_process(&ctx->db, is, 0, &ctx->ac->trust, NULL, process_block);
 	if (r == 0) r = process_signatures(ctx);
 	adb_free(&ctx->db);
 	return apk_ostream_close_error(os, r);
