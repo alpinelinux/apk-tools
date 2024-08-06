@@ -74,6 +74,22 @@ static int process_block(struct adb *db, struct adb_block *blk, struct apk_istre
 	return 0;
 }
 
+static int adbsign_resign(struct sign_ctx *ctx, struct apk_istream *is, struct apk_ostream *os)
+{
+	int r;
+
+	if (IS_ERR(os)) {
+		apk_istream_close(is);
+		return PTR_ERR(os);
+	}
+	ctx->os = os;
+	memset(&ctx->vfy, 0, sizeof ctx->vfy);
+	r = adb_m_process(&ctx->db, is, 0, &ctx->ac->trust, process_block);
+	if (r == 0) r = process_signatures(ctx);
+	adb_free(&ctx->db);
+	return apk_ostream_close_error(os, r);
+}
+
 static int adbsign_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
@@ -84,13 +100,9 @@ static int adbsign_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 
 	ctx->ac = ac;
 	foreach_array_item(arg, args) {
-		memset(&ctx->vfy, 0, sizeof ctx->vfy);
 		struct apk_istream *is = adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, *arg), &spec);
-		ctx->os = adb_compress(apk_ostream_to_file(AT_FDCWD, *arg, 0644), &spec);
-		apk_ostream_cancel(ctx->os, adb_m_process(&ctx->db, is, 0, 0, process_block));
-		apk_ostream_cancel(ctx->os, process_signatures(ctx));
-		adb_free(&ctx->db);
-		r = apk_ostream_close(ctx->os);
+		struct apk_ostream *os = adb_compress(apk_ostream_to_file(AT_FDCWD, *arg, 0644), &spec);
+		r = adbsign_resign(ctx, is, os);
 		if (r) apk_err(out, "%s: %s", *arg, apk_error_str(r));
 	}
 

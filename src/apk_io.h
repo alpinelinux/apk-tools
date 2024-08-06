@@ -182,6 +182,11 @@ static inline int apk_ostream_close(struct apk_ostream *os)
 	int rc = os->rc;
 	return os->ops->close(os) ?: rc;
 }
+static inline int apk_ostream_close_error(struct apk_ostream *os, int r)
+{
+	apk_ostream_cancel(os, r);
+	return apk_ostream_close(os);
+}
 
 int apk_blob_from_istream(struct apk_istream *is, size_t size, apk_blob_t *b);
 int apk_blob_from_file(int atfd, const char *file, apk_blob_t *b);
