@@ -1141,7 +1141,7 @@ int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_ist
 	size_t padding = adb_block_padding(b);
 	int r;
 
-	r = apk_ostream_write(os, b, sizeof *b);
+	r = apk_ostream_write(os, b, adb_block_hdrsize(b));
 	if (r < 0) return r;
 
 	if (vfy) {
