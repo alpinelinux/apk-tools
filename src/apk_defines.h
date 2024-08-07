@@ -95,6 +95,10 @@ static inline int IS_ERR(const void *ptr) { return (unsigned long)ptr >= (unsign
 #define typeof(x) __typeof__(x)
 #endif
 
+#ifndef alignof
+#define alignof(x) _Alignof(x)
+#endif
+
 #ifndef container_of
 #define container_of(ptr, type, member) ({                      \
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
