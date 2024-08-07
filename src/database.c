@@ -140,7 +140,6 @@ static const struct apk_hash_ops dir_hash_ops = {
 	.get_key = apk_db_dir_get_key,
 	.hash_key = apk_blob_hash,
 	.compare = apk_blob_compare,
-	.delete_item = (apk_hash_delete_f) free,
 };
 
 struct apk_db_file_hash_key {
@@ -185,7 +184,6 @@ static const struct apk_hash_ops file_hash_ops = {
 	.hash_key = apk_db_file_hash_key,
 	.hash_item = apk_db_file_hash_item,
 	.compare_item = apk_db_file_compare_item,
-	.delete_item = (apk_hash_delete_f) free,
 };
 
 struct apk_name *apk_db_query_name(struct apk_database *db, apk_blob_t name)
@@ -345,7 +343,8 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 	dir = (struct apk_db_dir *) apk_hash_get_hashed(&db->installed.dirs, name, hash);
 	if (dir != NULL && dir->refs) return apk_db_dir_ref(dir);
 	if (dir == NULL) {
-		dir = calloc(1, sizeof(*dir) + name.len + 1);
+		dir = apk_balloc_new_extra(&db->ba_files, struct apk_db_dir, name.len+1);
+		memset(dir, 0, sizeof *dir);
 		dir->rooted_name[0] = '/';
 		memcpy(dir->name, name.ptr, name.len);
 		dir->name[name.len] = 0;
@@ -492,21 +491,20 @@ struct apk_db_file *apk_db_file_query(struct apk_database *db,
 						   APK_BLOB_BUF(&key));
 }
 
-static struct apk_db_file *apk_db_file_new(struct apk_db_dir_instance *diri,
+static struct apk_db_file *apk_db_file_new(struct apk_database *db,
+					   struct apk_db_dir_instance *diri,
 					   apk_blob_t name,
 					   struct hlist_node ***after)
 {
 	struct apk_db_file *file;
 
-	file = malloc(sizeof(*file) + name.len + 1);
-	if (file == NULL)
-		return NULL;
+	file = apk_balloc_new_extra(&db->ba_files, struct apk_db_file, name.len+1);
+	if (file == NULL) return NULL;
 
 	memset(file, 0, sizeof(*file));
 	memcpy(file->name, name.ptr, name.len);
 	file->name[name.len] = 0;
 	file->namelen = name.len;
-
 	file->diri = diri;
 	file->acl = apk_default_acl_file;
 	hlist_add_after(&file->diri_files_list, *after);
@@ -536,7 +534,7 @@ static struct apk_db_file *apk_db_file_get(struct apk_database *db,
 	if (file != NULL)
 		return file;
 
-	file = apk_db_file_new(diri, name, after);
+	file = apk_db_file_new(db, diri, name, after);
 	apk_hash_insert_hashed(&db->installed.files, file, hash);
 	db->installed.stats.files++;
 
@@ -1664,6 +1662,7 @@ void apk_db_init(struct apk_database *db)
 {
 	memset(db, 0, sizeof(*db));
 	apk_balloc_init(&db->ba_names, (sizeof(struct apk_name) + 16) * 256);
+	apk_balloc_init(&db->ba_files, (sizeof(struct apk_db_file) + 32) * 256);
 	apk_hash_init(&db->available.names, &pkg_name_hash_ops, 20000);
 	apk_hash_init(&db->available.packages, &pkg_info_hash_ops, 10000);
 	apk_hash_init(&db->installed.dirs, &dir_hash_ops, 20000);
@@ -2002,6 +2001,7 @@ void apk_db_close(struct apk_database *db)
 	apk_hash_free(&db->installed.dirs);
 	apk_atom_free(&db->atoms);
 	apk_balloc_destroy(&db->ba_names);
+	apk_balloc_destroy(&db->ba_files);
 
 	unmount_proc(db);
 	remount_cache(db);
@@ -2702,7 +2702,7 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 
 		if (opkg != pkg) {
 			/* Create the file entry without adding it to hash */
-			file = apk_db_file_new(diri, bfile, &ctx->file_diri_node);
+			file = apk_db_file_new(db, diri, bfile, &ctx->file_diri_node);
 		}
 
 		apk_dbg2(out, "%s", ae->name);
