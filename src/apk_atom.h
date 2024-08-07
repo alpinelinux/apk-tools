@@ -12,10 +12,12 @@
 
 #include "apk_hash.h"
 #include "apk_blob.h"
+#include "apk_balloc.h"
 
 extern apk_blob_t apk_atom_null;
 
 struct apk_atom_pool {
+	struct apk_balloc ba;
 	struct apk_hash hash;
 };
 
