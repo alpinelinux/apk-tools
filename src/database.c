@@ -94,11 +94,9 @@ static apk_blob_t pkg_name_get_key(apk_hash_item item)
 
 static void pkg_name_free(struct apk_name *name)
 {
-	free(name->name);
 	apk_provider_array_free(&name->providers);
 	apk_name_array_free(&name->rdepends);
 	apk_name_array_free(&name->rinstall_if);
-	free(name);
 }
 
 static const struct apk_hash_ops pkg_name_hash_ops = {
@@ -204,11 +202,12 @@ struct apk_name *apk_db_get_name(struct apk_database *db, apk_blob_t name)
 	if (pn != NULL)
 		return pn;
 
-	pn = calloc(1, sizeof(struct apk_name));
-	if (pn == NULL)
-		return NULL;
+	pn = apk_balloc_new_extra(&db->ba_names, struct apk_name, name.len+1);
+	if (pn == NULL) return NULL;
 
-	pn->name = apk_blob_cstr(name);
+	memset(pn, 0, sizeof *pn);
+	memcpy(pn->name, name.ptr, name.len);
+	pn->name[name.len] = 0;
 	apk_provider_array_init(&pn->providers);
 	apk_name_array_init(&pn->rdepends);
 	apk_name_array_init(&pn->rinstall_if);
@@ -1664,6 +1663,7 @@ static void setup_uvol_target(struct apk_database *db) { }
 void apk_db_init(struct apk_database *db)
 {
 	memset(db, 0, sizeof(*db));
+	apk_balloc_init(&db->ba_names, (sizeof(struct apk_name) + 16) * 256);
 	apk_hash_init(&db->available.names, &pkg_name_hash_ops, 20000);
 	apk_hash_init(&db->available.packages, &pkg_info_hash_ops, 10000);
 	apk_hash_init(&db->installed.dirs, &dir_hash_ops, 20000);
@@ -2001,6 +2001,7 @@ void apk_db_close(struct apk_database *db)
 	apk_hash_free(&db->installed.files);
 	apk_hash_free(&db->installed.dirs);
 	apk_atom_free(&db->atoms);
+	apk_balloc_destroy(&db->ba_names);
 
 	unmount_proc(db);
 	remount_cache(db);

@@ -13,6 +13,7 @@
 #include "apk_version.h"
 #include "apk_hash.h"
 #include "apk_atom.h"
+#include "apk_balloc.h"
 #include "apk_package.h"
 #include "apk_io.h"
 #include "apk_context.h"
@@ -99,7 +100,6 @@ struct apk_db_dir_instance {
 
 struct apk_name {
 	apk_hash_node hash_node;
-	char *name;
 	struct apk_provider_array *providers;
 	struct apk_name_array *rdepends;
 	struct apk_name_array *rinstall_if;
@@ -114,6 +114,7 @@ struct apk_name {
 		unsigned long state_buf[4];
 		int state_int;
 	};
+	char name[];
 };
 
 struct apk_repository {
@@ -139,6 +140,7 @@ struct apk_repository_tag {
 
 struct apk_database {
 	struct apk_ctx *ctx;
+	struct apk_balloc ba_names;
 	int root_fd, lock_fd, cache_fd;
 	unsigned num_repos, num_repo_tags;
 	const char *cache_dir;
