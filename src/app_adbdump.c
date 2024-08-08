@@ -66,7 +66,10 @@ static int adbgen_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 		}
 		adb_free(&genadb.db);
 		adb_free(&genadb.idb[0]);
-		if (r) apk_err(out, "%s: %s", *arg, apk_error_str(r));
+		if (r) {
+			apk_err(out, "%s: %s", *arg, apk_error_str(r));
+			return r;
+		}
 	}
 
 	return 0;
