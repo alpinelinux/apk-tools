@@ -10,7 +10,7 @@ static int adb_walk_genadb_schema(struct adb_walk *d, uint32_t schema_id)
 	dt->db.schema = schema_id;
 	for (s = d->schemas; s->magic; s++)
 		if (s->magic == schema_id) break;
-	if (!s) return -APKE_ADB_SCHEMA;
+	if (!s || !s->magic) return -APKE_ADB_SCHEMA;
 
 	adb_wo_init(&dt->objs[0], &dt->vals[0], s->root, &dt->db);
 	dt->num_vals += s->root->num_fields;
