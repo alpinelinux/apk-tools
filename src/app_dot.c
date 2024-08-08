@@ -75,14 +75,13 @@ static void dump_error_name(struct dot_ctx *ctx, struct apk_name *name)
 
 static void dump_broken_deps(struct dot_ctx *ctx, struct apk_package *pkg, const char *kind, struct apk_dependency *dep)
 {
-	char buf[256];
 	if (!dep->broken) return;
 
 	dump_error_name(ctx, dep->name);
-	printf("  \"" PKG_VER_FMT "\" -> \"%s\" [arrowhead=%s,style=dashed,color=red,fontcolor=red,label=\"%s\"];\n",
+	printf("  \"" PKG_VER_FMT "\" -> \"%s\" [arrowhead=%s,style=dashed,color=red,fontcolor=red,label=\"" DEP_FMT "\"];\n",
 		PKG_VER_PRINTF(pkg), dep->name->name,
 		kind,
-		apk_dep_snprintf(buf, sizeof buf, dep));
+		DEP_PRINTF(dep));
 }
 
 static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)

@@ -114,6 +114,11 @@ APK_ARRAY(apk_package_array, struct apk_package *);
 #define PKG_FILE_FMT		PKG_VER_FMT ".apk"
 #define PKG_FILE_PRINTF(pkg)	PKG_VER_PRINTF(pkg)
 
+#define DEP_FMT			"%s%s%s" BLOB_FMT
+#define DEP_PRINTF(dep)		apk_dep_conflict(dep) ? "!" : "", (dep)->name->name, \
+				APK_BLOB_IS_NULL(*(dep)->version) ? "" : apk_version_op_string((dep)->op), \
+				BLOB_PRINTF(*(dep)->version)
+
 extern const char *apk_script_types[];
 
 static inline int apk_dep_conflict(const struct apk_dependency *dep) { return !!(dep->op & APK_VERSION_CONFLICT); }
@@ -122,7 +127,6 @@ void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
 int apk_dep_is_materialized(const struct apk_dependency *dep, const struct apk_package *pkg);
 int apk_dep_is_provided(const struct apk_dependency *dep, const struct apk_provider *p);
 int apk_dep_analyze(struct apk_dependency *dep, struct apk_package *pkg);
-char *apk_dep_snprintf(char *buf, size_t n, struct apk_dependency *dep);
 
 void apk_blob_push_dep(apk_blob_t *to, struct apk_database *, struct apk_dependency *dep);
 void apk_blob_push_deps(apk_blob_t *to, struct apk_database *, struct apk_dependency_array *deps);

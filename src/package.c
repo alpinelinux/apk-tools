@@ -320,17 +320,6 @@ int apk_dep_analyze(struct apk_dependency *dep, struct apk_package *pkg)
 	return APK_DEP_IRRELEVANT;
 }
 
-char *apk_dep_snprintf(char *buf, size_t n, struct apk_dependency *dep)
-{
-	apk_blob_t b = APK_BLOB_PTR_LEN(buf, n);
-	apk_blob_push_dep(&b, NULL, dep);
-	if (b.len)
-		apk_blob_push_blob(&b, APK_BLOB_PTR_LEN("", 1));
-	else
-		b.ptr[-1] = 0;
-	return buf;
-}
-
 void apk_blob_push_dep(apk_blob_t *to, struct apk_database *db, struct apk_dependency *dep)
 {
 	if (apk_dep_conflict(dep))

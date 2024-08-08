@@ -482,7 +482,6 @@ static void print_conflicts(struct print_state *ps, struct apk_package *pkg)
 {
 	struct apk_provider *p;
 	struct apk_dependency *d;
-	char tmp[256];
 	int once;
 
 	foreach_array_item(p, pkg->name->providers) {
@@ -506,9 +505,9 @@ static void print_conflicts(struct print_state *ps, struct apk_package *pkg)
 			}
 			label_start(ps, "conflicts:");
 			apk_print_indented_fmt(
-				&ps->i, PKG_VER_FMT "[%s]",
+				&ps->i, PKG_VER_FMT "[" DEP_FMT "]",
 				PKG_VER_PRINTF(p->pkg),
-				apk_dep_snprintf(tmp, sizeof(tmp), d));
+				DEP_PRINTF(d));
 		}
 	}
 	label_end(ps);
@@ -518,15 +517,14 @@ static void print_dep(struct apk_package *pkg0, struct apk_dependency *d0, struc
 {
 	struct print_state *ps = (struct print_state *) ctx;
 	const char *label = (ps->match & APK_DEP_SATISFIES) ? "satisfies:" : "breaks:";
-	char tmp[256];
 
 	label_start(ps, label);
 	if (pkg0 == NULL)
-		apk_print_indented_fmt(&ps->i, "world[%s]", apk_dep_snprintf(tmp, sizeof(tmp), d0));
+		apk_print_indented_fmt(&ps->i, "world[" DEP_FMT "]", DEP_PRINTF(d0));
 	else
-		apk_print_indented_fmt(&ps->i, PKG_VER_FMT "[%s]",
+		apk_print_indented_fmt(&ps->i, PKG_VER_FMT "[" DEP_FMT "]",
 				       PKG_VER_PRINTF(pkg0),
-				       apk_dep_snprintf(tmp, sizeof(tmp), d0));
+				       DEP_PRINTF(d0));
 }
 
 static void print_deps(struct print_state *ps, struct apk_package *pkg, int match)
@@ -541,12 +539,11 @@ static void print_deps(struct print_state *ps, struct apk_package *pkg, int matc
 static void print_broken_deps(struct print_state *ps, struct apk_dependency_array *deps, const char *label)
 {
 	struct apk_dependency *dep;
-	char tmp[256];
 
 	foreach_array_item(dep, deps) {
 		if (!dep->broken) continue;
 		label_start(ps, label);
-		apk_print_indented_fmt(&ps->i, "%s", apk_dep_snprintf(tmp, sizeof(tmp), dep));
+		apk_print_indented_fmt(&ps->i, DEP_FMT, DEP_PRINTF(dep));
 	}
 	label_end(ps);
 }
@@ -617,8 +614,8 @@ static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 	foreach_array_item(d0, ps->world) {
 		if (d0->name != name || apk_dep_conflict(d0))
 			continue;
-		apk_print_indented_fmt(&ps->i, "world[%s]",
-			apk_dep_snprintf(tmp, sizeof(tmp), d0));
+		apk_print_indented_fmt(&ps->i, "world[" DEP_FMT "]",
+			DEP_PRINTF(d0));
 	}
 	genid = apk_foreach_genid();
 	foreach_array_item(pname0, name->rdepends) {
@@ -633,9 +630,9 @@ static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 				if (d0->name != name || apk_dep_conflict(d0))
 					continue;
 				apk_print_indented_fmt(&ps->i,
-					PKG_VER_FMT "[%s]",
+					PKG_VER_FMT "[" DEP_FMT "]",
 					PKG_VER_PRINTF(p0->pkg),
-					apk_dep_snprintf(tmp, sizeof(tmp), d0));
+					DEP_PRINTF(d0));
 				break;
 			}
 			if (d0 != NULL)
