@@ -47,7 +47,7 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 				if ((r = d->ops->end(d)) != 0) goto err;
 			}
 		}
-		if (l.ptr[0] == '-' && l.ptr[1] == ' ') {
+		if (l.len >= 2 && l.ptr[0] == '-' && l.ptr[1] == ' ') {
 			l.ptr += 2, l.len -= 2;
 			if (!started[nesting]) {
 				dbg_printf("Array %d\n", nesting);
@@ -66,7 +66,7 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 			continue;
 		}
 
-		if (l.ptr[0] == '#') {
+		if (l.len && l.ptr[0] == '#') {
 			if ((r = d->ops->comment(d, l)) != 0) goto err;
 			continue;
 		}
