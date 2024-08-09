@@ -35,7 +35,7 @@ static void print_package_name(struct search_ctx *ctx, struct apk_package *pkg)
 	if (ctx->verbosity > 0)
 		printf("-" BLOB_FMT, BLOB_PRINTF(*pkg->version));
 	if (ctx->verbosity > 1)
-		printf(" - %s", pkg->description);
+		printf(" - " BLOB_FMT, BLOB_PRINTF(*pkg->description));
 	printf("\n");
 }
 
@@ -118,7 +118,7 @@ static void print_result_pkg(struct search_ctx *ctx, struct apk_package *pkg)
 
 	if (ctx->search_description) {
 		foreach_array_item(pmatch, ctx->filter) {
-			if (fnmatch(*pmatch, pkg->description, FNM_CASEFOLD) == 0 ||
+			if (fnmatch(*pmatch, pkg->description->ptr, FNM_CASEFOLD) == 0 ||
 			    fnmatch(*pmatch, pkg->name->name, FNM_CASEFOLD) == 0)
 				goto match;
 		}

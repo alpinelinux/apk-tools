@@ -9,7 +9,7 @@
 
 #include "apk_atom.h"
 
-apk_blob_t apk_atom_null = APK_BLOB_NULL;
+apk_blob_t apk_atom_null = {0,""};
 
 struct apk_atom_hashnode {
 	struct hlist_node hash_node;
@@ -52,9 +52,10 @@ apk_blob_t *apk_atom_get(struct apk_atom_pool *atoms, apk_blob_t blob, int dupli
 
 	if (duplicate) {
 		char *ptr;
-		atom = apk_balloc_new_extra(&atoms->ba, struct apk_atom_hashnode, blob.len);
+		atom = apk_balloc_new_extra(&atoms->ba, struct apk_atom_hashnode, blob.len + duplicate - 1);
 		ptr = (char*) (atom + 1);
 		memcpy(ptr, blob.ptr, blob.len);
+		if (duplicate > 1) ptr[blob.len] = 0;
 		atom->blob = APK_BLOB_PTR_LEN(ptr, blob.len);
 	} else {
 		atom = apk_balloc_new(&atoms->ba, struct apk_atom_hashnode);

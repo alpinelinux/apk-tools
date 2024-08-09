@@ -31,5 +31,8 @@ static inline apk_blob_t *apk_atomize(struct apk_atom_pool *atoms, apk_blob_t bl
 static inline apk_blob_t *apk_atomize_dup(struct apk_atom_pool *atoms, apk_blob_t blob) {
 	return apk_atom_get(atoms, blob, 1);
 }
+static inline apk_blob_t *apk_atomize_dup0(struct apk_atom_pool *atoms, apk_blob_t blob) {
+	return apk_atom_get(atoms, blob, 2);
+}
 
 #endif

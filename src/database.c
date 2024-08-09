@@ -573,6 +573,9 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *
 
 	if (!pkg->name || !pkg->version) return NULL;
 
+	if (!pkg->description) pkg->description = &apk_atom_null;
+	if (!pkg->url) pkg->url = &apk_atom_null;
+	if (!pkg->commit) pkg->commit = &apk_atom_null;
 	if (!pkg->license) pkg->license = &apk_atom_null;
 
 	// Set as "cached" if installing from specified file

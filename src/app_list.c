@@ -105,9 +105,9 @@ static void print_package(const struct apk_database *db, const struct apk_packag
 
 
 	if (ctx->verbosity > 1) {
-		printf("\n  %s\n", pkg->description);
+		printf("\n  " BLOB_FMT "\n", BLOB_PRINTF(*pkg->description));
 		if (ctx->verbosity > 2)
-			printf("  <%s>\n", pkg->url);
+			printf("  <"BLOB_FMT">\n", BLOB_PRINTF(*pkg->url));
 	}
 
 	printf("\n");

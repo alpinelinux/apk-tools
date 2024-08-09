@@ -94,8 +94,7 @@ struct apk_package {
 	struct apk_checksum csum;
 
 	time_t build_time;
-	apk_blob_t *arch, *license, *origin, *maintainer;
-	char *url, *description, *commit;
+	apk_blob_t *arch, *license, *origin, *maintainer, *url, *description, *commit;
 };
 APK_ARRAY(apk_package_array, struct apk_package *);
 

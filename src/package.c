@@ -455,10 +455,10 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		pkg->version = apk_atomize_dup(&db->atoms, value);
 		break;
 	case 'T':
-		pkg->description = apk_blob_cstr(value);
+		pkg->description = apk_atomize_dup0(&db->atoms, value);
 		break;
 	case 'U':
-		pkg->url = apk_blob_cstr(value);
+		pkg->url = apk_atomize_dup(&db->atoms, value);
 		break;
 	case 'L':
 		pkg->license = apk_atomize_dup(&db->atoms, value);
@@ -506,7 +506,7 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		pkg->build_time = apk_blob_pull_uint(&value, 10);
 		break;
 	case 'c':
-		pkg->commit = apk_blob_cstr(value);
+		pkg->commit = apk_atomize_dup(&db->atoms, value);
 		break;
 	case 'k':
 		pkg->provider_priority = apk_blob_pull_uint(&value, 10);
@@ -526,15 +526,15 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 	return 0;
 }
 
-static char *commit_id(apk_blob_t b)
+static apk_blob_t *commit_id(struct apk_atom_pool *atoms, apk_blob_t b)
 {
 	char buf[80];
 	apk_blob_t to = APK_BLOB_BUF(buf);
 
 	apk_blob_push_hexdump(&to, b);
 	to = apk_blob_pushed(APK_BLOB_BUF(buf), to);
-	if (APK_BLOB_IS_NULL(to)) return NULL;
-	return apk_blob_cstr(to);
+	if (APK_BLOB_IS_NULL(to)) return &apk_atom_null;
+	return apk_atomize_dup(atoms, to);
 }
 
 void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct adb_obj *pkginfo)
@@ -550,8 +550,8 @@ void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct a
 
 	pkg->name = apk_db_get_name(db, adb_ro_blob(pkginfo, ADBI_PI_NAME));
 	pkg->version = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_VERSION));
-	pkg->description = apk_blob_cstr(adb_ro_blob(pkginfo, ADBI_PI_DESCRIPTION));
-	pkg->url = apk_blob_cstr(adb_ro_blob(pkginfo, ADBI_PI_URL));
+	pkg->description = apk_atomize_dup0(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_DESCRIPTION));
+	pkg->url = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_URL));
 	pkg->license = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_LICENSE));
 	pkg->arch = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_ARCH));
 	pkg->installed_size = adb_ro_int(pkginfo, ADBI_PI_INSTALLED_SIZE);
@@ -560,7 +560,7 @@ void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct a
 	pkg->origin = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_ORIGIN));
 	pkg->maintainer = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_MAINTAINER));
 	pkg->build_time = adb_ro_int(pkginfo, ADBI_PI_BUILD_TIME);
-	pkg->commit = commit_id(adb_ro_blob(pkginfo, ADBI_PI_REPO_COMMIT));
+	pkg->commit = commit_id(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_REPO_COMMIT));
 	pkg->layer = adb_ro_int(pkginfo, ADBI_PI_LAYER);
 
 	apk_deps_from_adb(&pkg->depends, db, adb_ro_obj(pkginfo, ADBI_PI_DEPENDS, &obj));
@@ -690,9 +690,6 @@ void apk_pkg_free(struct apk_package *pkg)
 	apk_dependency_array_free(&pkg->depends);
 	apk_dependency_array_free(&pkg->provides);
 	apk_dependency_array_free(&pkg->install_if);
-	if (pkg->url) free(pkg->url);
-	if (pkg->description) free(pkg->description);
-	if (pkg->commit) free(pkg->commit);
 	free(pkg);
 }
 
@@ -876,9 +873,9 @@ int apk_pkg_write_index_header(struct apk_package *info, struct apk_ostream *os)
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nI:"));
 	apk_blob_push_uint(&bbuf, info->installed_size, 10);
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nT:"));
-	apk_blob_push_blob(&bbuf, APK_BLOB_STR(info->description));
+	apk_blob_push_blob(&bbuf, *info->description);
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nU:"));
-	apk_blob_push_blob(&bbuf, APK_BLOB_STR(info->url));
+	apk_blob_push_blob(&bbuf, *info->url);
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nL:"));
 	apk_blob_push_blob(&bbuf, *info->license);
 	if (info->origin) {
@@ -893,9 +890,9 @@ int apk_pkg_write_index_header(struct apk_package *info, struct apk_ostream *os)
 		apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nt:"));
 		apk_blob_push_uint(&bbuf, info->build_time, 10);
 	}
-	if (info->commit) {
+	if (!APK_BLOB_IS_NULL(*info->commit)) {
 		apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nc:"));
-		apk_blob_push_blob(&bbuf, APK_BLOB_STR(info->commit));
+		apk_blob_push_blob(&bbuf, *info->commit);
 	}
 	if (info->provider_priority) {
 		apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nk:"));

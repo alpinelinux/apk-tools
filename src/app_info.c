@@ -46,7 +46,7 @@ static void verbose_print_pkg(struct apk_package *pkg, int minimal_verbosity)
 	if (pkg == NULL || v < 1) return;
 	printf("%s", pkg->name->name);
 	if (v > 1) printf("-" BLOB_FMT, BLOB_PRINTF(*pkg->version));
-	if (v > 2) printf(" - %s", pkg->description);
+	if (v > 2) printf(" - " BLOB_FMT, BLOB_PRINTF(*pkg->description));
 	printf("\n");
 }
 
@@ -157,21 +157,21 @@ static void info_who_owns(struct info_ctx *ctx, struct apk_database *db,
 static void info_print_description(struct apk_database *db, struct apk_package *pkg)
 {
 	if (verbosity > 1)
-		printf("%s: %s", pkg->name->name, pkg->description);
+		printf("%s: " BLOB_FMT, pkg->name->name, BLOB_PRINTF(*pkg->description));
 	else
-		printf(PKG_VER_FMT " description:\n%s\n",
+		printf(PKG_VER_FMT " description:\n" BLOB_FMT "\n",
 		       PKG_VER_PRINTF(pkg),
-		       pkg->description);
+		       BLOB_PRINTF(*pkg->description));
 }
 
 static void info_print_url(struct apk_database *db, struct apk_package *pkg)
 {
 	if (verbosity > 1)
-		printf("%s: %s", pkg->name->name, pkg->url);
+		printf("%s: " BLOB_FMT, pkg->name->name, BLOB_PRINTF(*pkg->url));
 	else
-		printf(PKG_VER_FMT " webpage:\n%s\n",
+		printf(PKG_VER_FMT " webpage:\n" BLOB_FMT "\n",
 		       PKG_VER_PRINTF(pkg),
-		       pkg->url);
+		       BLOB_PRINTF(*pkg->url));
 }
 
 static void info_print_license(struct apk_database *db, struct apk_package *pkg)

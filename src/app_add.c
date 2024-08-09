@@ -91,8 +91,8 @@ static struct apk_package *create_virtual_package(struct apk_database *db, struc
 
 	virtpkg->name = dep->name;
 	virtpkg->version = dep->version;
-	virtpkg->description = strdup("virtual meta package");
-	virtpkg->arch = apk_atomize(&db->atoms, APK_BLOB_STR("noarch"));
+	virtpkg->description = apk_atomize_dup0(&db->atoms, APK_BLOB_STRLIT("virtual meta package"));
+	virtpkg->arch = apk_atomize(&db->atoms, APK_BLOB_STRLIT("noarch"));
 	virtpkg->repos |= BIT(APK_REPOSITORY_CACHED);
 
 	apk_digest_ctx_init(&dctx, APK_DIGEST_SHA1);
