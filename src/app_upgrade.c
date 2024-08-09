@@ -163,7 +163,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 	unsigned short solver_flags;
 	struct apk_dependency *dep;
 	struct apk_provider *p;
-	struct apk_dependency_array *world = NULL;
+	struct apk_dependency_array *world;
 	int r = 0;
 
 	apk_dependency_array_init(&world);
@@ -219,9 +219,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 
 	r = apk_solver_commit(db, solver_flags, world);
 
-	if (world != db->world)
-		apk_dependency_array_free(&world);
-
+	if (world != db->world) apk_dependency_array_free(&world);
 	return r;
 }
 

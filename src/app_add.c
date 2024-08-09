@@ -79,15 +79,11 @@ static int non_repository_check(struct apk_database *db)
 	return 1;
 }
 
-static struct apk_package *create_virtual_package(struct apk_database *db, struct apk_dependency *dep)
+static void create_virtual_package(struct apk_package *virtpkg, struct apk_database *db, struct apk_dependency *dep)
 {
-	struct apk_package *virtpkg;
 	struct apk_digest_ctx dctx;
 	struct apk_digest d;
 	pid_t pid = getpid();
-
-	virtpkg = apk_pkg_new();
-	if (virtpkg == NULL) return 0;
 
 	virtpkg->name = dep->name;
 	virtpkg->version = dep->version;
@@ -102,8 +98,6 @@ static struct apk_package *create_virtual_package(struct apk_database *db, struc
 	apk_digest_ctx_final(&dctx, &d);
 	apk_digest_ctx_free(&dctx);
 	apk_checksum_from_digest(&virtpkg->csum, &d);
-
-	return virtpkg;
 }
 
 static apk_blob_t *generate_version(struct apk_database *db)
@@ -122,12 +116,13 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 	struct apk_out *out = &ac->out;
 	struct apk_database *db = ac->db;
 	struct add_ctx *actx = (struct add_ctx *) ctx;
-	struct apk_package *virtpkg = NULL;
+	struct apk_package virtpkg;
 	struct apk_dependency virtdep;
 	struct apk_dependency_array *world;
 	char **parg;
 	int r = 0;
 
+	apk_pkg_init(&virtpkg);
 	apk_dependency_array_init(&world);
 	apk_dependency_array_copy(&world, db->world);
 
@@ -154,12 +149,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 			return -1;
 		}
 
-		virtpkg = create_virtual_package(db, &virtdep);
-		if (!virtpkg) {
-			apk_err(out, "Failed to allocate virtual meta package");
-			return -1;
-		}
-
+		create_virtual_package(&virtpkg, db, &virtdep);
 		if (apk_array_len(args) == 0) apk_warn(out, "creating empty virtual package");
 	}
 
@@ -182,25 +172,26 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 			apk_blob_t b = APK_BLOB_STR(*parg);
 
 			apk_blob_pull_dep(&b, db, &dep);
-			if (APK_BLOB_IS_NULL(b) || b.len > 0 || (virtpkg != NULL && dep.repository_tag)) {
+			if (APK_BLOB_IS_NULL(b) || b.len > 0 || (actx->virtpkg && dep.repository_tag)) {
 				apk_err(out, "'%s' is not a valid %s dependency, format is %s",
-					*parg, virtpkg == NULL ? "world" : "child",
-					virtpkg == NULL ? "name(@tag)([<>~=]version)" : "name([<>~=]version)");
+					*parg,
+					actx->virtpkg ? "package" : "world",
+					actx->virtpkg ? "name([<>~=]version)" : "name(@tag)([<>~=]version)");
 				return -1;
 			}
 		}
 
-		if (virtpkg == NULL) {
+		if (actx->virtpkg) {
+			apk_deps_add(&virtpkg.depends, &dep);
+		} else {
 			apk_deps_add(&world, &dep);
 			apk_solver_set_name_flags(dep.name,
 						  actx->solver_flags,
 						  actx->solver_flags);
-		} else {
-			apk_deps_add(&virtpkg->depends, &dep);
 		}
 	}
-	if (virtpkg) {
-		virtpkg = apk_db_pkg_add(db, virtpkg);
+	if (actx->virtpkg) {
+		apk_db_pkg_add(db, &virtpkg);
 		apk_deps_add(&world, &virtdep);
 		apk_solver_set_name_flags(virtdep.name,
 					  actx->solver_flags,
@@ -209,6 +200,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 
 	r = apk_solver_commit(db, 0, world);
 	apk_dependency_array_free(&world);
+	apk_pkg_free(&virtpkg);
 
 	return r;
 }

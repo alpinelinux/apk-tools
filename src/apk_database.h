@@ -141,7 +141,9 @@ struct apk_repository_tag {
 struct apk_database {
 	struct apk_ctx *ctx;
 	struct apk_balloc ba_names;
+	struct apk_balloc ba_pkgs;
 	struct apk_balloc ba_files;
+	struct apk_balloc ba_deps;
 	int root_fd, lock_fd, cache_fd;
 	unsigned num_repos, num_repo_tags;
 	const char *cache_dir;
@@ -174,6 +176,7 @@ struct apk_database {
 	struct apk_repository_tag repo_tags[APK_MAX_TAGS];
 	struct apk_atom_pool atoms;
 	struct apk_string_array *filename_array;
+	struct apk_package overlay_pkg;
 
 	struct {
 		unsigned stale, updated, unavailable;

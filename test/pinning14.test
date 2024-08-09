@@ -2,4 +2,4 @@
 --test-repo testing:pinning-overlay1.repo
 add -t .foo samever@testing=10
 @EXPECT
-ERROR: 'samever@testing=10' is not a valid child dependency, format is name([<>~=]version)
+ERROR: 'samever@testing=10' is not a valid package dependency, format is name([<>~=]version)

@@ -17,6 +17,7 @@
 
 struct adb_obj;
 struct apk_database;
+struct apk_balloc;
 struct apk_name;
 struct apk_provider;
 struct apk_trust;
@@ -131,18 +132,19 @@ void apk_dep_from_adb(struct apk_dependency *dep, struct apk_database *db, struc
 void apk_deps_from_adb(struct apk_dependency_array **deps, struct apk_database *db, struct adb_obj *da);
 
 int apk_dep_parse(apk_blob_t spec, apk_blob_t *name, int *op, apk_blob_t *version);
-void apk_deps_add(struct apk_dependency_array **depends, struct apk_dependency *dep);
+struct apk_dependency_array *apk_deps_bclone(struct apk_dependency_array *deps, struct apk_balloc *ba);
+int apk_deps_balloc(struct apk_dependency_array **deps, uint32_t capacity, struct apk_balloc *ba);
+void apk_deps_add(struct apk_dependency_array **deps, struct apk_dependency *dep);
 void apk_deps_del(struct apk_dependency_array **deps, struct apk_name *name);
 int apk_script_type(const char *name);
 
 struct apk_package *apk_pkg_get_installed(struct apk_name *name);
 
-struct apk_package *apk_pkg_new(void);
-int apk_pkg_read(struct apk_database *db, const char *name, struct apk_package **pkg, int v3ok);
+void apk_pkg_init(struct apk_package *pkg);
 void apk_pkg_free(struct apk_package *pkg);
-
+void apk_pkg_reset(struct apk_package *pkg);
+int apk_pkg_read(struct apk_database *db, const char *name, struct apk_package **pkg, int v3ok);
 int apk_pkg_parse_name(apk_blob_t apkname, apk_blob_t *name, apk_blob_t *version);
-
 int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		     char field, apk_blob_t value);
 void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct adb_obj *pkginfo);
@@ -157,7 +159,6 @@ int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 int apk_ipkg_run_script(struct apk_installed_package *ipkg, struct apk_database *db,
 			unsigned int type, char **argv);
 
-struct apk_package *apk_pkg_parse_index_entry(struct apk_database *db, apk_blob_t entry);
 int apk_pkg_write_index_header(struct apk_package *pkg, struct apk_ostream *os);
 int apk_pkg_write_index_entry(struct apk_package *pkg, struct apk_ostream *os);
 
