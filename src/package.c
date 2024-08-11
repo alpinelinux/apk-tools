@@ -95,7 +95,7 @@ void apk_pkg_uninstall(struct apk_database *db, struct apk_package *pkg)
 
 	list_del(&ipkg->installed_pkgs_list);
 
-	if (ipkg->triggers->num) {
+	if (apk_array_len(ipkg->triggers) != 0) {
 		list_del(&ipkg->trigger_pkgs_list);
 		list_init(&ipkg->trigger_pkgs_list);
 		foreach_array_item(trigger, ipkg->triggers)
@@ -193,8 +193,8 @@ void apk_deps_del(struct apk_dependency_array **pdeps, struct apk_name *name)
 
 	foreach_array_item(d0, deps) {
 		if (d0->name == name) {
-			*d0 = deps->item[deps->num - 1];
-			apk_dependency_array_resize(pdeps, deps->num - 1);
+			*d0 = deps->item[apk_array_len(deps) - 1];
+			apk_dependency_array_resize(pdeps, apk_array_len(deps) - 1);
 			break;
 		}
 	}
@@ -344,33 +344,30 @@ void apk_blob_push_dep(apk_blob_t *to, struct apk_database *db, struct apk_depen
 
 void apk_blob_push_deps(apk_blob_t *to, struct apk_database *db, struct apk_dependency_array *deps)
 {
-	int i;
+	struct apk_dependency *dep;
 
-	if (deps == NULL)
-		return;
+	if (deps == NULL) return;
 
-	for (i = 0; i < deps->num; i++) {
-		if (i)
-			apk_blob_push_blob(to, APK_BLOB_PTR_LEN(" ", 1));
-		apk_blob_push_dep(to, db, &deps->item[i]);
+	foreach_array_item(dep, deps) {
+		if (dep != &deps->item[0]) apk_blob_push_blob(to, APK_BLOB_PTR_LEN(" ", 1));
+		apk_blob_push_dep(to, db, dep);
 	}
 }
 
 int apk_deps_write_layer(struct apk_database *db, struct apk_dependency_array *deps, struct apk_ostream *os, apk_blob_t separator, unsigned layer)
 {
+	struct apk_dependency *dep;
 	apk_blob_t blob;
 	char tmp[256];
-	int i, n = 0;
+	int n = 0;
 
-	if (deps == NULL)
-		return 0;
-
-	for (i = 0; i < deps->num; i++) {
-		if (layer != -1 && deps->item[i].layer != layer) continue;
+	if (deps == NULL) return 0;
+	foreach_array_item(dep, deps) {
+		if (layer != -1 && dep->layer != layer) continue;
 
 		blob = APK_BLOB_BUF(tmp);
 		if (n) apk_blob_push_blob(&blob, separator);
-		apk_blob_push_dep(&blob, db, &deps->item[i]);
+		apk_blob_push_dep(&blob, db, dep);
 
 		blob = apk_blob_pushed(APK_BLOB_BUF(tmp), blob);
 		if (APK_BLOB_IS_NULL(blob) || 
@@ -671,7 +668,7 @@ int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package *
 		goto err;
 	}
 	*apk_string_array_add(&db->filename_array) = strdup(file);
-	ctx.pkg->filename_ndx = db->filename_array->num;
+	ctx.pkg->filename_ndx = apk_array_len(db->filename_array);
 
 	ctx.pkg = apk_db_pkg_add(db, ctx.pkg);
 	if (pkg != NULL)
@@ -849,7 +846,7 @@ static int write_depends(struct apk_ostream *os, const char *field,
 {
 	int r;
 
-	if (deps->num == 0) return 0;
+	if (apk_array_len(deps) == 0) return 0;
 	if (apk_ostream_write(os, field, 2) < 0) return -1;
 	if ((r = apk_deps_write(NULL, deps, os, APK_BLOB_PTR_LEN(" ", 1))) < 0) return r;
 	if (apk_ostream_write(os, "\n", 1) < 0) return -1;

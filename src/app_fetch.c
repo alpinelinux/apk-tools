@@ -276,6 +276,7 @@ static void mark_names_recursive(struct apk_database *db, struct apk_string_arra
 	struct apk_change *change;
 	int r;
 
+	apk_change_array_init(&changeset.changes);
 	r = apk_solver_solve(db, APK_SOLVERF_IGNORE_CONFLICT, ctx->world, &changeset);
 	if (r == 0) {
 		foreach_array_item(change, changeset.changes)
@@ -359,7 +360,7 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	if (ctx->outdir_fd == 0)
 		ctx->outdir_fd = AT_FDCWD;
 
-	if ((args->num == 1) && (strcmp(args->item[0], "coffee") == 0)) {
+	if ((apk_array_len(args) == 1) && (strcmp(args->item[0], "coffee") == 0)) {
 		if (db->ctx->force) return cup();
 		apk_msg(out, "Go and fetch your own coffee.");
 		return 0;
@@ -369,13 +370,13 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		apk_dependency_array_init(&ctx->world);
 		foreach_array_item(dep, db->world)
 			mark_dep_flags(ctx, dep);
-		if (args->num)
+		if (apk_array_len(args) != 0)
 			apk_db_foreach_matching_name(db, args, mark_name_flags, ctx);
 		if (ctx->errors == 0)
 			mark_names_recursive(db, args, ctx);
 		apk_dependency_array_free(&ctx->world);
 	} else {
-		if (args->num)
+		if (apk_array_len(args) != 0)
 			apk_db_foreach_matching_name(db, args, mark_name, ctx);
 	}
 	if (!ctx->errors)

@@ -144,7 +144,7 @@ static int warn_if_no_providers(struct apk_database *db, const char *match, stru
 	struct counts *counts = (struct counts *) ctx;
 
 	if (!name->is_dependency) return 0;
-	if (name->providers->num) return 0;
+	if (apk_array_len(name->providers) != 0) return 0;
 
 	if (!counts->header) {
 		apk_print_indented_group(&counts->indent, 2, "WARNING: No provider for the dependencies:\n");

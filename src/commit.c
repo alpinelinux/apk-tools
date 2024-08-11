@@ -219,7 +219,7 @@ static int run_triggers(struct apk_database *db, struct apk_changeset *changeset
 		if (pkg == NULL)
 			continue;
 		ipkg = pkg->ipkg;
-		if (ipkg == NULL || ipkg->pending_triggers->num == 0)
+		if (ipkg == NULL || apk_array_len(ipkg->pending_triggers) == 0)
 			continue;
 
 		*apk_string_array_add(&ipkg->pending_triggers) = NULL;
@@ -321,7 +321,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 
 		apk_change_array_init(&sorted);
 		apk_change_array_copy(&sorted, changeset->changes);
-		qsort(sorted->item, sorted->num, sizeof(struct apk_change), sort_change);
+		apk_array_qsort(sorted, sort_change);
 
 		r = dump_packages(out, sorted, cmp_remove,
 				  "The following packages will be REMOVED");
@@ -583,7 +583,7 @@ static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 	unsigned int genid;
 	int refs;
 
-	if (name->providers->num) {
+	if (apk_array_len(name->providers) != 0) {
 		snprintf(tmp, sizeof(tmp), "%s (virtual)", name->name);
 		ps->label = tmp;
 
@@ -597,7 +597,7 @@ static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 		foreach_array_item(p0, name->providers) {
 			name0 = p0->pkg->name;
 			refs = (name0->state_int & STATE_COUNT_MASK);
-			if (refs == name0->providers->num) {
+			if (refs == apk_array_len(name0->providers)) {
 				/* name only */
 				apk_print_indented(&ps->i, APK_BLOB_STR(name0->name));
 				name0->state_int &= ~STATE_COUNT_MASK;
@@ -675,7 +675,7 @@ static void discover_reverse_iif(struct apk_name *name)
 		foreach_array_item(p, name0->providers) {
 			int ok = 1;
 			if (!p->pkg->marked) continue;
-			if (p->pkg->install_if->num == 0) continue;
+			if (apk_array_len(p->pkg->install_if) == 0) continue;
 			foreach_array_item(d, p->pkg->install_if) {
 				if (apk_dep_conflict(d) == !!(d->name->state_int & (STATE_PRESENT|STATE_INSTALLIF))) {
 					ok = 0;
@@ -829,12 +829,12 @@ int apk_solver_commit(struct apk_database *db,
 		return -1;
 	}
 
+	apk_change_array_init(&changeset.changes);
 	r = apk_solver_solve(db, solver_flags, world, &changeset);
 	if (r == 0)
 		r = apk_solver_commit_changeset(db, &changeset, world);
 	else
 		apk_solver_print_errors(db, &changeset, world);
-
 	apk_change_array_free(&changeset.changes);
 	return r;
 }

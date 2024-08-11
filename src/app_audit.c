@@ -447,7 +447,7 @@ static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	atctx.pathlen = 0;
 	atctx.path[0] = 0;
 
-	if (args->num == 0) {
+	if (apk_array_len(args) == 0) {
 		r |= audit_directory_tree(&atctx, dup(db->root_fd));
 	} else {
 		foreach_array_item(parg, args) {

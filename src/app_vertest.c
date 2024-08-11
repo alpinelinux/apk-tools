@@ -57,10 +57,10 @@ static int vertest_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	apk_blob_t l;
 	int errors = 0, count = 0;
 
-	if (args->num != 0) {
+	if (apk_array_len(args) != 0) {
 		foreach_array_item(parg, args)
 			errors += vertest_one(ac, APK_BLOB_STR(*parg));
-		count = args->num;
+		count = apk_array_len(args);
 	} else {
 		is = apk_istream_from_fd(STDIN_FILENO);
 		if (IS_ERR(is)) return 1;

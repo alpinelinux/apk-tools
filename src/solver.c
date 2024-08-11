@@ -212,7 +212,7 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 			 * currently works only if SOLVERF_AVAILABLE is set in the
 			 * global solver flags. */
 			pkg->ss.iif_failed =
-				(pkg->install_if->num == 0) ||
+				(apk_array_len(pkg->install_if) == 0) ||
 				((ss->solver_flags_inherit & APK_SOLVERF_AVAILABLE) &&
 				 !pkg->ss.pkg_available);
 
@@ -1075,7 +1075,7 @@ int apk_solver_solve(struct apk_database *db,
 	struct apk_solver_state ss_data, *ss = &ss_data;
 	struct apk_dependency *d;
 
-	qsort(world->item, world->num, sizeof(world->item[0]), cmp_pkgname);
+	apk_array_qsort(world, cmp_pkgname);
 
 restart:
 	memset(ss, 0, sizeof(*ss));

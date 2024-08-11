@@ -143,7 +143,7 @@ static void info_who_owns(struct info_ctx *ctx, struct apk_database *db,
 			       BLOB_PRINTF(fn), via, PKG_VER_PRINTF(pkg));
 		}
 	}
-	if (verbosity < 1 && deps->num != 0) {
+	if (verbosity < 1 && apk_array_len(deps) != 0) {
 		os = apk_ostream_to_fd(STDOUT_FILENO);
 		if (!IS_ERR(os)) {
 			apk_deps_write(db, deps, os, APK_BLOB_PTR_LEN(" ", 1));
@@ -252,7 +252,8 @@ static void info_print_install_if(struct apk_database *db, struct apk_package *p
 
 static void info_print_rinstall_if(struct apk_database *db, struct apk_package *pkg)
 {
-	int i, j;
+	struct apk_name **name0;
+	struct apk_dependency *dep;
 	char *separator = verbosity > 1 ? " " : "\n";
 
 	if (verbosity == 1)
@@ -260,20 +261,14 @@ static void info_print_rinstall_if(struct apk_database *db, struct apk_package *
 		       PKG_VER_PRINTF(pkg));
 	if (verbosity > 1)
 		printf("%s: ", pkg->name->name);
-	for (i = 0; i < pkg->name->rinstall_if->num; i++) {
-		struct apk_name *name0;
-		struct apk_package *pkg0;
 
+	foreach_array_item(name0, pkg->name->rinstall_if) {
 		/* Check only the package that is installed, and that
 		 * it actually has this package in install_if. */
-		name0 = pkg->name->rinstall_if->item[i];
-		pkg0 = apk_pkg_get_installed(name0);
-		if (pkg0 == NULL)
-			continue;
-
-		for (j = 0; j < pkg0->install_if->num; j++) {
-			if (pkg0->install_if->item[j].name != pkg->name)
-				continue;
+		struct apk_package *pkg0 = apk_pkg_get_installed(*name0);
+		if (pkg0 == NULL) continue;
+		foreach_array_item(dep, pkg0->install_if) {
+			if (dep->name != pkg->name) continue;
 			printf(PKG_VER_FMT "%s",
 			       PKG_VER_PRINTF(pkg0),
 			       separator);
@@ -462,7 +457,7 @@ static int info_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *arg
 		ictx->subaction_mask = APK_INFO_DESC | APK_INFO_URL | APK_INFO_SIZE;
 	if (ictx->action != NULL) {
 		ictx->action(ictx, db, args);
-	} else if (args->num > 0) {
+	} else if (apk_array_len(args) > 0) {
 		/* Print info on given packages */
 		apk_db_foreach_sorted_providers(db, args, print_name_info, ctx);
 	} else {

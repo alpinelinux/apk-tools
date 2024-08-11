@@ -157,9 +157,11 @@ static int del_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 	struct apk_dependency *d;
 	int r = 0;
 
+	apk_change_array_init(&changeset.changes);
 	ctx->genid = apk_foreach_genid();
+	apk_dependency_array_init(&ctx->world);
 	apk_dependency_array_copy(&ctx->world, db->world);
-	if (args->num) apk_db_foreach_matching_name(db, args, delete_name, ctx);
+	if (apk_array_len(args)) apk_db_foreach_matching_name(db, args, delete_name, ctx);
 	if (ctx->errors) return ctx->errors;
 
 	r = apk_solver_solve(db, 0, ctx->world, &changeset);
@@ -170,7 +172,7 @@ static int del_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 				change->new_pkg->marked = 1;
 		foreach_array_item(d, ctx->world)
 			d->name->state_int = 1;
-		if (args->num)
+		if (apk_array_len(args))
 			apk_db_foreach_sorted_name(db, args, print_not_deleted_name, &ndctx);
 		if (ndctx.header)
 			printf("\n");

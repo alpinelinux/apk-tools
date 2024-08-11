@@ -387,9 +387,10 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	}
 	if (ctx->triggers) {
 		struct adb_obj triggers;
+		char **trigger;
 		adb_wo_alloca(&triggers, &schema_string_array, &ctx->db);
-		for (i = 0; i < ctx->triggers->num; i++)
-			adb_wa_append_fromstring(&triggers, APK_BLOB_STR(ctx->triggers->item[i]));
+		foreach_array_item(trigger, ctx->triggers)
+			adb_wa_append_fromstring(&triggers, APK_BLOB_STR(*trigger));
 		adb_wo_obj(&pkg, ADBI_PKG_TRIGGERS, &triggers);
 		adb_wo_free(&triggers);
 	}

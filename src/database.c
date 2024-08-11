@@ -227,7 +227,7 @@ static int cmp_provider(const void *a, const void *b)
 struct apk_provider_array *apk_name_sorted_providers(struct apk_name *name)
 {
 	if (!name->providers_sorted) {
-		qsort(name->providers->item,  name->providers->num, sizeof name->providers->item[0], cmp_provider);
+		apk_array_qsort(name->providers, cmp_provider);
 		name->providers_sorted = 0;
 	}
 	return name->providers;
@@ -998,7 +998,7 @@ static int apk_db_fdb_write(struct apk_database *db, struct apk_installed_packag
 	r = apk_pkg_write_index_header(pkg, os);
 	if (r < 0) goto err;
 
-	if (ipkg->replaces->num) {
+	if (apk_array_len(ipkg->replaces) != 0) {
 		apk_blob_push_blob(&bbuf, APK_BLOB_STR("r:"));
 		apk_blob_push_deps(&bbuf, db, ipkg->replaces);
 		apk_blob_push_blob(&bbuf, APK_BLOB_STR("\n"));
@@ -1171,7 +1171,7 @@ static int apk_db_triggers_write(struct apk_database *db, struct apk_installed_p
 	char **trigger;
 
 	if (IS_ERR(os)) return PTR_ERR(os);
-	if (!ipkg->triggers || ipkg->triggers->num == 0) return 0;
+	if (apk_array_len(ipkg->triggers) == 0) return 0;
 
 	bfn = APK_BLOB_BUF(buf);
 	apk_blob_push_csum(&bfn, &ipkg->pkg->csum);
@@ -1205,7 +1205,7 @@ static int apk_db_triggers_read(struct apk_database *db, struct apk_istream *is)
 
 		ipkg = pkg->ipkg;
 		apk_blob_for_each_segment(l, " ", parse_triggers, ipkg);
-		if (ipkg->triggers->num != 0 &&
+		if (apk_array_len(ipkg->triggers) != 0 &&
 		    !list_hashed(&ipkg->trigger_pkgs_list))
 			list_add_tail(&ipkg->trigger_pkgs_list,
 				      &db->installed.triggers);
@@ -1451,7 +1451,7 @@ static int apk_db_name_rdepends(apk_hash_item item, void *pctx)
 	}
 	if (num_virtual == 0)
 		name->priority = 0;
-	else if (num_virtual != name->providers->num)
+	else if (num_virtual != apk_array_len(name->providers))
 		name->priority = 1;
 	else
 		name->priority = 2;
@@ -2063,28 +2063,21 @@ static int fire_triggers(apk_hash_item item, void *ctx)
 	struct apk_database *db = (struct apk_database *) ctx;
 	struct apk_db_dir *dbd = (struct apk_db_dir *) item;
 	struct apk_installed_package *ipkg;
-	int i;
+	char **triggerptr, *trigger;
 
 	list_for_each_entry(ipkg, &db->installed.triggers, trigger_pkgs_list) {
-		if (!ipkg->run_all_triggers && !dbd->modified)
-			continue;
-
-		for (i = 0; i < ipkg->triggers->num; i++) {
-			if (ipkg->triggers->item[i][0] != '/')
-				continue;
-
-			if (fnmatch(ipkg->triggers->item[i], dbd->rooted_name,
-				    FNM_PATHNAME) != 0)
-				continue;
+		if (!ipkg->run_all_triggers && !dbd->modified) continue;
+		foreach_array_item(triggerptr, ipkg->triggers) {
+			trigger = *triggerptr;
+			if (trigger[0] != '/') continue;
+			if (fnmatch(trigger, dbd->rooted_name, FNM_PATHNAME) != 0) continue;
 
 			/* And place holder for script name */
-			if (ipkg->pending_triggers->num == 0) {
-				*apk_string_array_add(&ipkg->pending_triggers) =
-					NULL;
+			if (apk_array_len(ipkg->pending_triggers) == 0) {
+				*apk_string_array_add(&ipkg->pending_triggers) = NULL;
 				db->pending_triggers++;
 			}
-			*apk_string_array_add(&ipkg->pending_triggers) =
-				dbd->rooted_name;
+			*apk_string_array_add(&ipkg->pending_triggers) = dbd->rooted_name;
 			break;
 		}
 	}
@@ -2506,7 +2499,7 @@ static int read_info_line(void *_ctx, apk_blob_t line)
 		apk_string_array_resize(&ipkg->triggers, 0);
 		apk_blob_for_each_segment(r, " ", parse_triggers, ctx->ipkg);
 
-		if (ctx->ipkg->triggers->num != 0 &&
+		if (apk_array_len(ctx->ipkg->triggers) != 0 &&
 		    !list_hashed(&ipkg->trigger_pkgs_list))
 			list_add_tail(&ipkg->trigger_pkgs_list,
 				      &db->installed.triggers);
@@ -2601,7 +2594,7 @@ static int apk_db_install_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *p
 	adb_ro_obj(pkg, ADBI_PKG_TRIGGERS, &triggers);
 	for (i = ADBI_FIRST; i <= adb_ra_num(&triggers); i++)
 		*apk_string_array_add(&ipkg->triggers) = apk_blob_cstr(adb_ro_blob(&triggers, i));
-	if (ctx->ipkg->triggers->num != 0 && !list_hashed(&ipkg->trigger_pkgs_list))
+	if (apk_array_len(ctx->ipkg->triggers) != 0 && !list_hashed(&ipkg->trigger_pkgs_list))
 		list_add_tail(&ipkg->trigger_pkgs_list, &db->installed.triggers);
 
 	return 0;
@@ -3072,7 +3065,7 @@ int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg,
 	ipkg->broken_script = 0;
 	ipkg->broken_files = 0;
 	ipkg->broken_xattr = 0;
-	if (ipkg->triggers->num != 0) {
+	if (apk_array_len(ipkg->triggers) != 0) {
 		list_del(&ipkg->trigger_pkgs_list);
 		list_init(&ipkg->trigger_pkgs_list);
 		apk_string_array_free(&ipkg->triggers);
@@ -3173,7 +3166,7 @@ int apk_db_foreach_matching_name(
 	};
 	int r;
 
-	if (!filter || !filter->num) goto all;
+	if (!filter || apk_array_len(filter) == 0) goto all;
 
 	mctx.filter = filter;
 	foreach_array_item(pmatch, filter)
@@ -3224,8 +3217,7 @@ static struct apk_name_array *apk_db_sorted_names(struct apk_database *db)
 		struct add_name_ctx ctx = { .a = db->available.sorted_names, .i = 0 };
 		apk_hash_foreach(&db->available.names, add_name, &ctx);
 
-		qsort(db->available.sorted_names->item, db->available.sorted_names->num,
-		      sizeof(db->available.sorted_names->item[0]), cmp_name);
+		apk_array_qsort(db->available.sorted_names, cmp_name);
 		db->sorted_names = 1;
 	}
 	return db->available.sorted_names;
@@ -3241,8 +3233,7 @@ struct apk_package_array *apk_db_sorted_installed_packages(struct apk_database *
 		apk_package_array_resize(&db->installed.sorted_packages, db->installed.stats.packages);
 		list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list)
 			db->installed.sorted_packages->item[n++] = ipkg->pkg;
-		qsort(db->installed.sorted_packages->item, db->installed.sorted_packages->num,
-		      sizeof db->installed.sorted_packages->item[0], cmp_package);
+		apk_array_qsort(db->installed.sorted_packages, cmp_package);
 	}
 	return db->installed.sorted_packages;
 }
@@ -3257,7 +3248,7 @@ int apk_db_foreach_sorted_name(struct apk_database *db, struct apk_string_array 
 	struct apk_name *results[128], **res;
 	size_t i, num_res = 0;
 
-	if (filter && filter->num) {
+	if (filter && apk_array_len(filter) != 0) {
 		foreach_array_item(pmatch, filter) {
 			name = (struct apk_name *) apk_hash_get(&db->available.names, APK_BLOB_STR(*pmatch));
 			if (strchr(*pmatch, '*')) {
@@ -3283,7 +3274,7 @@ int apk_db_foreach_sorted_name(struct apk_database *db, struct apk_string_array 
 	if (walk_all) {
 		struct apk_name_array *a = apk_db_sorted_names(db);
 		res = a->item;
-		num_res = a->num;
+		num_res = apk_array_len(a);
 	} else {
 		qsort(results, num_res, sizeof results[0], cmp_name);
 		res = results;
@@ -3310,7 +3301,7 @@ int __apk_db_foreach_sorted_package(struct apk_database *db, struct apk_string_a
 	size_t i, num_res = 0;
 	int r;
 
-	if (!filter || !filter->num) {
+	if (!filter || apk_array_len(filter) == 0) {
 		filter = NULL;
 		goto walk_all;
 	}
@@ -3345,9 +3336,10 @@ int __apk_db_foreach_sorted_package(struct apk_database *db, struct apk_string_a
 walk_all:
 	for (i = 0; i < num_res; i++) results[i]->seen = 0;
 
-	struct apk_name_array *a = apk_db_sorted_names(db);
-	for (i = 0; i < a->num; i++) {
-		name = a->item[i];
+	struct apk_name_array *name_array = apk_db_sorted_names(db);
+	struct apk_name **nameptr;
+	foreach_array_item(nameptr, name_array) {
+		name = *nameptr;
 		apk_name_sorted_providers(name);
 		foreach_array_item(p, name->providers) {
 			if (p->pkg->name != name) continue;

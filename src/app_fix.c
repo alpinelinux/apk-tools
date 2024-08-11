@@ -111,7 +111,7 @@ static int fix_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 	if (!ctx->solver_flags)
 		ctx->solver_flags = APK_SOLVERF_REINSTALL;
 
-	if (args->num == 0) {
+	if (apk_array_len(args) == 0) {
 		list_for_each_entry(ipkg, &db->installed.packages, installed_pkgs_list) {
 			if (ipkg->broken_files || ipkg->broken_script ||
 			    (ipkg->broken_xattr && ctx->fix_xattrs))

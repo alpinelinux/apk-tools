@@ -191,7 +191,7 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 	}
 
 	/* extract xattrs */
-	if (!S_ISLNK(fi->mode) && fi->xattrs && fi->xattrs->num) {
+	if (!S_ISLNK(fi->mode) && fi->xattrs && apk_array_len(fi->xattrs) != 0) {
 		r = 0;
 		fd = openat(atfd, fn, O_RDWR);
 		if (fd >= 0) {

@@ -124,10 +124,11 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 	struct add_ctx *actx = (struct add_ctx *) ctx;
 	struct apk_package *virtpkg = NULL;
 	struct apk_dependency virtdep;
-	struct apk_dependency_array *world = NULL;
+	struct apk_dependency_array *world;
 	char **parg;
 	int r = 0;
 
+	apk_dependency_array_init(&world);
 	apk_dependency_array_copy(&world, db->world);
 
 	if (actx->virtpkg) {
@@ -159,7 +160,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 			return -1;
 		}
 
-		if (!args->num) apk_warn(out, "creating empty virtual package");
+		if (apk_array_len(args) == 0) apk_warn(out, "creating empty virtual package");
 	}
 
 	foreach_array_item(parg, args) {

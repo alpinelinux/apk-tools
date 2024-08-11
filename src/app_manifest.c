@@ -170,7 +170,7 @@ static int process_match(struct apk_database *db, const char *match, struct apk_
 
 static int manifest_main(void *applet_ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	if (!args->num) return 0;
+	if (apk_array_len(args) == 0) return 0;
 	apk_db_foreach_sorted_name(ac->db, args, process_match, NULL);
 	return 0;
 }

@@ -200,9 +200,18 @@ time_t apk_get_build_time(void);
 
 void *apk_array_resize(void *array, size_t new_size, size_t elem_size);
 
+struct apk_array {
+	uint32_t num;
+	uint32_t capacity : 31;
+	uint32_t allocated : 1;
+};
+
+#define apk_array_len(array) (array)->hdr.num
+#define apk_array_qsort(array, compare) qsort((array)->item, (array)->hdr.num, sizeof((array)->item[0]), compare)
+
 #define APK_ARRAY(array_type_name, elem_type_name)			\
 	struct array_type_name {					\
-		size_t num;						\
+		struct apk_array hdr;					\
 		elem_type_name item[];					\
 	};								\
 	static inline void						\
@@ -224,13 +233,13 @@ void *apk_array_resize(void *array, size_t new_size, size_t elem_size);
 	array_type_name##_copy(struct array_type_name **a, struct array_type_name *b)\
 	{								\
 		if (*a == b) return;					\
-		*a = apk_array_resize(*a, b->num, sizeof(elem_type_name));\
-		memcpy((*a)->item, b->item, b->num * sizeof(elem_type_name));\
+		*a = apk_array_resize(*a, b->hdr.num, sizeof(elem_type_name));\
+		memcpy((*a)->item, b->item, b->hdr.num * sizeof(elem_type_name));\
 	}								\
 	static inline elem_type_name *					\
 	array_type_name##_add(struct array_type_name **a)		\
 	{								\
-		int size = 1 + ((*a) ? (*a)->num : 0);			\
+		int size = 1 + ((*a) ? (*a)->hdr.num : 0);		\
 		*a = apk_array_resize(*a, size, sizeof(elem_type_name));\
 		return &(*a)->item[size-1];				\
 	}
@@ -238,7 +247,7 @@ void *apk_array_resize(void *array, size_t new_size, size_t elem_size);
 APK_ARRAY(apk_string_array, char *);
 
 #define foreach_array_item(iter, array) \
-	for (iter = &(array)->item[0]; iter < &(array)->item[(array)->num]; iter++)
+	for (iter = &(array)->item[0]; iter < &(array)->item[(array)->hdr.num]; iter++)
 
 #define LIST_HEAD(name) struct list_head name = { &name, &name }
 #define LIST_END (void *) 0xe01

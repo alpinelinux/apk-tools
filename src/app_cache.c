@@ -97,9 +97,9 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db, struc
 	int i, r, ret = 0;
 
 	apk_dependency_array_init(&deps);
-	if (args->num == 1 || cctx->add_dependencies)
+	if (apk_array_len(args) == 1 || cctx->add_dependencies)
 		apk_dependency_array_copy(&deps, db->world);
-	for (i = 1; i < args->num; i++) {
+	for (i = 1; i < apk_array_len(args); i++) {
 		apk_blob_t b = APK_BLOB_STR(args->item[i]);
 		apk_blob_pull_dep(&b, db, &dep);
 		if (APK_BLOB_IS_NULL(b)) {
@@ -193,9 +193,7 @@ static int cache_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	char *arg;
 	int r = 0, actions = 0;
 
-	if (args->num < 1)
-		return -EINVAL;
-
+	if (apk_array_len(args) < 1) return -EINVAL;
 	arg = args->item[0];
 	if (strcmp(arg, "sync") == 0) {
 		actions = CACHE_CLEAN | CACHE_DOWNLOAD;

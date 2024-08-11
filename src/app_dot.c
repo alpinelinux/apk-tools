@@ -111,7 +111,7 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 		if (dep->op & APK_VERSION_CONFLICT)
 			continue;
 
-		if (name->providers->num == 0) {
+		if (apk_array_len(name->providers) == 0) {
 			dump_error_name(ctx, name);
 			printf("  \"" PKG_VER_FMT "\" -> \"%s\" [color=red];\n",
 				PKG_VER_PRINTF(pkg), name->name);

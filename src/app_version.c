@@ -46,7 +46,7 @@ static int ver_test(struct apk_database *db, struct apk_string_array *args)
 	struct apk_out *out = &db->ctx->out;
 	int r;
 
-	if (args->num != 2) return 1;
+	if (apk_array_len(args) != 2) return 1;
 	r = apk_version_compare(APK_BLOB_STR(args->item[0]), APK_BLOB_STR(args->item[1]));
 	apk_out(out, "%s", apk_version_op_string(r));
 	return 0;
@@ -215,7 +215,7 @@ static int ver_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 	if (ctx->limchars) {
 		if (strlen(ctx->limchars) == 0)
 			ctx->limchars = NULL;
-	} else if (args->num == 0 && apk_out_verbosity(out) == 1) {
+	} else if (apk_array_len(args) == 0 && apk_out_verbosity(out) == 1) {
 		ctx->limchars = "<";
 	}
 

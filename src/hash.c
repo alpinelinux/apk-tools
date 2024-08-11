@@ -50,7 +50,7 @@ apk_hash_item apk_hash_get_hashed(struct apk_hash *h, apk_blob_t key, unsigned l
 	apk_hash_item item;
 	apk_blob_t itemkey;
 
-	hash %= h->buckets->num;
+	hash %= apk_array_len(h->buckets);
 	if (h->ops->compare_item != NULL) {
 		hlist_for_each(pos, &h->buckets->item[hash]) {
 			item = ((void *) pos) - offset;
@@ -73,7 +73,7 @@ void apk_hash_insert_hashed(struct apk_hash *h, apk_hash_item item, unsigned lon
 {
 	apk_hash_node *node;
 
-	hash %= h->buckets->num;
+	hash %= apk_array_len(h->buckets);
 	node = (apk_hash_node *) (item + h->ops->node_offset);
 	hlist_add_head(node, &h->buckets->item[hash]);
 	h->num_items++;
@@ -87,7 +87,7 @@ void apk_hash_delete_hashed(struct apk_hash *h, apk_blob_t key, unsigned long ha
 
 	assert(h->ops->compare_item != NULL);
 
-	hash %= h->buckets->num;
+	hash %= apk_array_len(h->buckets);
 	hlist_for_each(pos, &h->buckets->item[hash]) {
 		item = ((void *) pos) - offset;
 		if (h->ops->compare_item(item, key) == 0) {

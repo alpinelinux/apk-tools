@@ -771,10 +771,10 @@ static void apk_fileinfo_hash_xattr_array(struct apk_xattr_array *xattrs, uint8_
 	struct apk_digest_ctx dctx;
 
 	apk_digest_reset(d);
-	if (!xattrs || xattrs->num == 0) return;
+	if (!xattrs || apk_array_len(xattrs) == 0) return;
 	if (apk_digest_ctx_init(&dctx, alg)) return;
 
-	qsort(xattrs->item, xattrs->num, sizeof(xattrs->item[0]), cmp_xattr);
+	apk_array_qsort(xattrs, cmp_xattr);
 	foreach_array_item(xattr, xattrs) {
 		hash_len_data(&dctx, strlen(xattr->name), xattr->name);
 		hash_len_data(&dctx, xattr->value.len, xattr->value.ptr);

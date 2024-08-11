@@ -566,7 +566,7 @@ int main(int argc, char **argv)
 	if (test_installed_db != NULL) {
 		apk_db_index_read(&db, apk_istream_from_file(AT_FDCWD, test_installed_db), -1);
 	}
-	for (int i = 0; i < test_repos->num; i++) {
+	for (int i = 0; i < apk_array_len(test_repos); i++) {
 		apk_blob_t spec = APK_BLOB_STR(test_repos->item[i]), name, tag;
 		int repo_tag = 0, repo = APK_REPOSITORY_FIRST_CONFIGURED + i;
 
@@ -595,6 +595,7 @@ int main(int argc, char **argv)
 			db.repo_tags[repo_tag].allowed_repos |= BIT(repo);
 		}
 	}
+	apk_string_array_free(&test_repos);
 #endif
 
 	apk_string_array_resize(&args, argc);

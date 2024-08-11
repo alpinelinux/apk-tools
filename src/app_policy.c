@@ -61,7 +61,7 @@ zlib1g policy:
 
 static int policy_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	if (!args->num) return 0;
+	if (apk_array_len(args) == 0) return 0;
 	apk_db_foreach_sorted_name(ac->db, args, print_policy, NULL);
 	return 0;
 }

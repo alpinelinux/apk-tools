@@ -80,6 +80,7 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	struct apk_changeset changeset = {};
 	int r;
 
+	apk_change_array_init(&changeset.changes);
 	name = apk_db_get_name(db, APK_BLOB_STR("apk-tools"));
 
 	/* First check if new version is even available */
@@ -165,6 +166,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 	struct apk_dependency_array *world = NULL;
 	int r = 0;
 
+	apk_dependency_array_init(&world);
 	if (apk_db_check_world(db, db->world) != 0) {
 		apk_err(out,
 			"Not continuing with upgrade due to missing repository tags. "
@@ -174,7 +176,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 	if (apk_db_repository_check(db) != 0) return -1;
 
 	solver_flags = APK_SOLVERF_UPGRADE | uctx->solver_flags;
-	if (!uctx->no_self_upgrade && !args->num) {
+	if (!uctx->no_self_upgrade && apk_array_len(args) == 0) {
 		r = apk_do_self_upgrade(db, solver_flags, uctx->self_upgrade_only);
 		if (r != 0)
 			return r;
@@ -194,7 +196,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 		}
 		if (uctx->prune) {
 			int i, j;
-			for (i = j = 0; i < world->num; i++) {
+			for (i = j = 0; i < apk_array_len(world); i++) {
 				foreach_array_item(p, world->item[i].name->providers) {
 					if (p->pkg->repos & ~APK_REPOSITORY_CACHED) {
 						world->item[j++] = world->item[i];
@@ -208,7 +210,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 		world = db->world;
 	}
 
-	if (args->num > 0) {
+	if (apk_array_len(args) > 0) {
 		/* if specific packages are listed, we don't want to upgrade world. */
 		if (!uctx->ignore) solver_flags &= ~APK_SOLVERF_UPGRADE;
 		apk_db_foreach_matching_name(db, args, set_upgrade_for_name, uctx);
