@@ -95,10 +95,10 @@ static void handle_extended_header(struct apk_file_info *fi, apk_blob_t hdr)
 			fi->link_target = value.ptr;
 		} else if (apk_blob_pull_blob_match(&name, APK_BLOB_STR("SCHILY.xattr."))) {
 			name.ptr[name.len] = 0;
-			*apk_xattr_array_add(&fi->xattrs) = (struct apk_xattr) {
+			apk_xattr_array_add(&fi->xattrs, (struct apk_xattr) {
 				.name = name.ptr,
 				.value = value,
-			};
+			});
 		} else if (apk_blob_pull_blob_match(&name, APK_BLOB_STR("APK-TOOLS.checksum."))) {
 			int alg = APK_DIGEST_NONE;
 			if (apk_blob_compare(name, APK_BLOB_STR("SHA1")) == 0)
@@ -128,6 +128,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 	if (IS_ERR(is)) return PTR_ERR(is);
 
 	memset(&entry, 0, sizeof(entry));
+	apk_xattr_array_init(&entry.xattrs);
 	entry.name = buf.name;
 	while ((r = apk_istream_read_max(is, &buf, 512)) == 512) {
 		if (buf.name[0] == '\0') {
@@ -164,7 +165,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 		}
 		buf.mode[0] = 0; /* to nul terminate 100-byte buf.name */
 		buf.magic[0] = 0; /* to nul terminate 100-byte buf.linkname */
-		apk_xattr_array_resize(&entry.xattrs, 0);
+		apk_array_truncate(entry.xattrs, 0);
 
 		if (entry.size >= SSIZE_MAX-512) goto err;
 

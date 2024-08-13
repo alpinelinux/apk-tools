@@ -779,14 +779,13 @@ static void record_change(struct apk_solver_state *ss, struct apk_package *opkg,
 	struct apk_changeset *changeset = ss->changeset;
 	struct apk_change *change;
 
-	change = apk_change_array_add(&changeset->changes);
-	*change = (struct apk_change) {
+	change = apk_change_array_add(&changeset->changes, (struct apk_change) {
 		.old_pkg = opkg,
 		.old_repository_tag = opkg ? opkg->ipkg->repository_tag : 0,
 		.new_pkg = npkg,
 		.new_repository_tag = npkg ? get_tag(ss->db, npkg->ss.pinning_allowed, get_pkg_repos(ss->db, npkg)) : 0,
 		.reinstall = npkg ? !!(npkg->ss.solver_flags & APK_SOLVERF_REINSTALL) : 0,
-	};
+	});
 	if (npkg == NULL)
 		changeset->num_remove++;
 	else if (opkg == NULL)
@@ -996,7 +995,7 @@ static void generate_changeset(struct apk_solver_state *ss, struct apk_dependenc
 	struct apk_installed_package *ipkg;
 	struct apk_dependency *d;
 
-	apk_change_array_init(&changeset->changes);
+	apk_array_truncate(changeset->changes, 0);
 
 	apk_hash_foreach(&ss->db->available.names, cset_reset_name, NULL);
 	list_for_each_entry(ipkg, &ss->db->installed.packages, installed_pkgs_list) {

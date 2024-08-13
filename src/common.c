@@ -11,32 +11,49 @@
 #include <unistd.h>
 #include "apk_defines.h"
 
-static struct apk_array empty_array = { .num = 0 };
+const struct apk_array _apk_array_empty = { .num = 0 };
 
-void *apk_array_resize(void *array, size_t new_size, size_t elem_size)
+void *_apk_array_resize(const struct apk_array *array, size_t item_size, size_t num, size_t cap)
 {
-	size_t old_size;
-	ssize_t diff;
-	void *tmp;
+	uint32_t old_num;
+	struct apk_array *tmp;
 
-	if (new_size == 0) {
-		if (array != &empty_array) free(array);
-		return &empty_array;
+	if (cap == 0) {
+		_apk_array_free(array);
+		return (void*) &_apk_array_empty;
 	}
+	if (num > cap) num = cap;
+	old_num = array->num;
 
-	old_size = array ? *((size_t *) array) : 0;
-	diff = new_size - old_size;
-
-	if (array == &empty_array)
-		array = NULL;
-
-	tmp = realloc(array, sizeof(size_t) + new_size * elem_size);
-	if (diff > 0)
-		memset(tmp + sizeof(size_t) + old_size * elem_size, 0,
-		       diff * elem_size);
-	*((size_t*) tmp) = new_size;
-
+	if (!array->allocated) array = NULL;
+	tmp = realloc((void *) array, sizeof(struct apk_array) + cap * item_size);
+	*tmp = (struct apk_array) {
+		.num = num,
+		.capacity = cap,
+		.allocated = 1,
+	};
+	if (unlikely(old_num < num)) memset(((void*)(tmp+1)) + item_size * old_num, 0, item_size * (num - old_num));
 	return tmp;
+}
+
+void *_apk_array_copy(const struct apk_array *array, size_t item_size)
+{
+	struct apk_array *copy = _apk_array_resize(&_apk_array_empty, item_size, 0, array->num);
+	if (array->num != 0) {
+		memcpy(copy+1, array+1, item_size * array->num);
+		copy->num = array->num;
+	}
+	return copy;
+}
+
+void *_apk_array_grow(const struct apk_array *array, size_t item_size)
+{
+	return _apk_array_resize(array, item_size, array->num, array->capacity + min(array->capacity + 2, 64));
+}
+
+void _apk_array__free(const struct apk_array *array)
+{
+	free((void*) array);
 }
 
 time_t apk_get_build_time(void)

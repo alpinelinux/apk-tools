@@ -15,7 +15,7 @@ void apk_hash_init(struct apk_hash *h, const struct apk_hash_ops *ops,
 {
 	h->ops = ops;
 	apk_hash_array_init(&h->buckets);
-	apk_hash_array_resize(&h->buckets, num_buckets);
+	apk_hash_array_resize(&h->buckets, num_buckets, num_buckets);
 	h->num_items = 0;
 }
 

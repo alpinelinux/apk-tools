@@ -180,7 +180,7 @@ void apk_deps_add(struct apk_dependency_array **depends, struct apk_dependency *
 			}
 		}
 	}
-	*apk_dependency_array_add(depends) = *dep;
+	apk_dependency_array_add(depends, *dep);
 }
 
 void apk_deps_del(struct apk_dependency_array **pdeps, struct apk_name *name)
@@ -193,8 +193,9 @@ void apk_deps_del(struct apk_dependency_array **pdeps, struct apk_name *name)
 
 	foreach_array_item(d0, deps) {
 		if (d0->name == name) {
-			*d0 = deps->item[apk_array_len(deps) - 1];
-			apk_dependency_array_resize(pdeps, apk_array_len(deps) - 1);
+			size_t nlen = apk_array_len(deps) - 1;
+			*d0 = deps->item[nlen];
+			apk_array_truncate(*pdeps, nlen);
 			break;
 		}
 	}
@@ -246,7 +247,7 @@ int apk_blob_pull_deps(apk_blob_t *b, struct apk_database *db, struct apk_depend
 			continue;
 		}
 		if (dep.broken) rc = -APKE_PKGVERSION_FORMAT;
-		*apk_dependency_array_add(deps) = dep;
+		apk_dependency_array_add(deps, dep);
 	}
 	return rc;
 }
@@ -403,12 +404,14 @@ void apk_dep_from_adb(struct apk_dependency *dep, struct apk_database *db, struc
 void apk_deps_from_adb(struct apk_dependency_array **deps, struct apk_database *db, struct adb_obj *da)
 {
 	struct adb_obj obj;
+	struct apk_dependency d;
 	int i;
 
+	apk_dependency_array_resize(deps, 0, adb_ra_num(da));
 	for (i = ADBI_FIRST; i <= adb_ra_num(da); i++) {
-		struct apk_dependency *d = apk_dependency_array_add(deps);
 		adb_ro_obj(da, i, &obj);
-		apk_dep_from_adb(d, db, &obj);
+		apk_dep_from_adb(&d, db, &obj);
+		apk_dependency_array_add(deps, d);
 	}
 }
 
@@ -667,7 +670,7 @@ int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package *
 		r = -APKE_V2PKG_FORMAT;
 		goto err;
 	}
-	*apk_string_array_add(&db->filename_array) = strdup(file);
+	apk_string_array_add(&db->filename_array, strdup(file));
 	ctx.pkg->filename_ndx = apk_array_len(db->filename_array);
 
 	ctx.pkg = apk_db_pkg_add(db, ctx.pkg);

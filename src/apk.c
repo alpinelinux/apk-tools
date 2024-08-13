@@ -118,7 +118,7 @@ static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const cha
 		ac->repositories_file = optarg;
 		break;
 	case OPT_GLOBAL_repository:
-		*apk_string_array_add(&ac->repository_list) = (char*) optarg;
+		apk_string_array_add(&ac->repository_list, (char*) optarg);
 		break;
 	case OPT_GLOBAL_quiet:
 		if (ac->out.verbosity) ac->out.verbosity--;
@@ -219,7 +219,7 @@ static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const cha
 		return -ESHUTDOWN;
 #ifdef TEST_MODE
 	case OPT_GLOBAL_test_repo:
-		*apk_string_array_add(&test_repos) = (char*) optarg;
+		apk_string_array_add(&test_repos, (char*) optarg);
 		break;
 	case OPT_GLOBAL_test_instdb:
 		test_installed_db = optarg;
@@ -598,8 +598,8 @@ int main(int argc, char **argv)
 	apk_string_array_free(&test_repos);
 #endif
 
-	apk_string_array_resize(&args, argc);
-	memcpy(args->item, argv, argc * sizeof(*argv));
+	apk_string_array_resize(&args, 0, argc);
+	for (r = 0; r < argc; r++) apk_string_array_add(&args, argv[r]);
 	apk_io_url_set_redirect_callback(NULL);
 
 	r = applet->main(applet_ctx, &ctx, args);

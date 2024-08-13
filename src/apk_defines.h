@@ -198,50 +198,63 @@ typedef void (*apk_progress_cb)(void *cb_ctx, size_t);
 
 time_t apk_get_build_time(void);
 
-void *apk_array_resize(void *array, size_t new_size, size_t elem_size);
-
 struct apk_array {
 	uint32_t num;
 	uint32_t capacity : 31;
 	uint32_t allocated : 1;
 };
 
-#define apk_array_len(array) (array)->hdr.num
-#define apk_array_qsort(array, compare) qsort((array)->item, (array)->hdr.num, sizeof((array)->item[0]), compare)
+extern const struct apk_array _apk_array_empty;
 
-#define APK_ARRAY(array_type_name, elem_type_name)			\
+void *_apk_array_resize(const struct apk_array *hdr, size_t item_size, size_t num, size_t cap);
+void *_apk_array_copy(const struct apk_array *hdr, size_t item_size);
+void *_apk_array_grow(const struct apk_array *hdr, size_t item_size);
+void _apk_array__free(const struct apk_array *hdr);
+
+static inline uint32_t _apk_array_len(const struct apk_array *hdr) { return hdr->num; }
+static inline void _apk_array_free(const struct apk_array *hdr) {
+	if (hdr->allocated) _apk_array__free(hdr);
+}
+static inline void _apk_array_truncate(struct apk_array *hdr, size_t num) {
+	assert(num <= hdr->num);
+	if (hdr->num != num) hdr->num = num;
+}
+
+#define apk_array_len(array)		_apk_array_len(&(array)->hdr)
+#define apk_array_truncate(array, num)	_apk_array_truncate(&(array)->hdr, num)
+#define apk_array_item_size(array)	sizeof((array)->item[0])
+#define apk_array_qsort(array, compare)	qsort((array)->item, (array)->hdr.num, apk_array_item_size(array), compare)
+
+#define APK_ARRAY(array_type_name, item_type_name)			\
 	struct array_type_name {					\
 		struct apk_array hdr;					\
-		elem_type_name item[];					\
+		item_type_name item[];					\
 	};								\
 	static inline void						\
-	array_type_name##_init(struct array_type_name **a)		\
-	{								\
-		*a = apk_array_resize(NULL, 0, 0);			\
+	array_type_name##_init(struct array_type_name **a) {		\
+		*a = (void *) &_apk_array_empty;			\
 	}								\
 	static inline void						\
-	array_type_name##_free(struct array_type_name **a)		\
-	{								\
-		*a = apk_array_resize(*a, 0, 0);			\
+	array_type_name##_free(struct array_type_name **a) {		\
+		_apk_array_free(&(*a)->hdr);				\
+		*a = (void *) &_apk_array_empty;			\
 	}								\
 	static inline void						\
-	array_type_name##_resize(struct array_type_name **a, size_t size)\
-	{								\
-		*a = apk_array_resize(*a, size, sizeof(elem_type_name));\
+	array_type_name##_resize(struct array_type_name **a, size_t num, size_t cap) { \
+		*a = _apk_array_resize(&(*a)->hdr, apk_array_item_size(*a), num, cap);\
 	}								\
 	static inline void						\
-	array_type_name##_copy(struct array_type_name **a, struct array_type_name *b)\
-	{								\
-		if (*a == b) return;					\
-		*a = apk_array_resize(*a, b->hdr.num, sizeof(elem_type_name));\
-		memcpy((*a)->item, b->item, b->hdr.num * sizeof(elem_type_name));\
+	array_type_name##_copy(struct array_type_name **dst, struct array_type_name *src) { \
+		if (*dst == src) return;				\
+		_apk_array_free(&(*dst)->hdr);				\
+		*dst = _apk_array_copy(&src->hdr, apk_array_item_size(src)); \
 	}								\
-	static inline elem_type_name *					\
-	array_type_name##_add(struct array_type_name **a)		\
-	{								\
-		int size = 1 + ((*a) ? (*a)->hdr.num : 0);		\
-		*a = apk_array_resize(*a, size, sizeof(elem_type_name));\
-		return &(*a)->item[size-1];				\
+	static inline item_type_name *					\
+	array_type_name##_add(struct array_type_name **a, item_type_name item) {\
+		if ((*a)->hdr.num >= (*a)->hdr.capacity) *a = _apk_array_grow(&(*a)->hdr, apk_array_item_size(*a)); \
+		item_type_name *nitem = &(*a)->item[((*a)->hdr.num)++];	\
+		*nitem = item;						\
+		return nitem;						\
 	}
 
 APK_ARRAY(apk_string_array, char *);

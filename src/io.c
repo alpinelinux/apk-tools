@@ -833,10 +833,10 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 						if (r == ENODATA) continue;
 						break;
 					}
-					*apk_xattr_array_add(&xattrs) = (struct apk_xattr) {
+					apk_xattr_array_add(&xattrs, (struct apk_xattr) {
 						.name = &buf[i],
 						.value = *apk_atomize_dup(atoms, APK_BLOB_PTR_LEN(val, vlen)),
-					};
+					});
 				}
 				apk_fileinfo_hash_xattr_array(xattrs, xattr_hash_alg, &fi->xattr_digest);
 				apk_xattr_array_free(&xattrs);

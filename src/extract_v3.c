@@ -34,15 +34,14 @@ static void apk_extract_v3_acl(struct apk_file_info *fi, struct adb_obj *o, stru
 
 	adb_ro_obj(o, ADBI_ACL_XATTRS, &xa);
 
-	apk_xattr_array_resize(&fi->xattrs, adb_ra_num(&xa));
+	apk_xattr_array_resize(&fi->xattrs, 0, adb_ra_num(&xa));
 	for (i = ADBI_FIRST; i <= adb_ra_num(&xa); i++) {
 		x = adb_ro_blob(&xa, i);
 		apk_blob_split(x, APK_BLOB_BUF(""), &key, &value);
-
-		fi->xattrs->item[i-1] = (struct apk_xattr) {
+		apk_xattr_array_add(&fi->xattrs, (struct apk_xattr) {
 			.name = key.ptr,
 			.value = value,
-		};
+		});
 	}
 	apk_fileinfo_hash_xattr(fi, APK_DIGEST_SHA1);
 }

@@ -123,7 +123,7 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 		ictx->has_scripts = 1;
 		break;
 	case OPT_MKPKG_trigger:
-		*apk_string_array_add(&ictx->triggers) = (char*) optarg;
+		apk_string_array_add(&ictx->triggers, (char*) optarg);
 		break;
 	default:
 		return -ENOTSUP;

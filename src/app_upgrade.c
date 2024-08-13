@@ -204,7 +204,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 					}
 				}
 			}
-			apk_dependency_array_resize(&world, j);
+			apk_array_truncate(world, j);
 		}
 	} else {
 		world = db->world;

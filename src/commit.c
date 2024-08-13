@@ -222,7 +222,7 @@ static int run_triggers(struct apk_database *db, struct apk_changeset *changeset
 		if (ipkg == NULL || apk_array_len(ipkg->pending_triggers) == 0)
 			continue;
 
-		*apk_string_array_add(&ipkg->pending_triggers) = NULL;
+		apk_string_array_add(&ipkg->pending_triggers, NULL);
 		errors += apk_ipkg_run_script(ipkg, db, APK_SCRIPT_TRIGGER,
 					      ipkg->pending_triggers->item) != 0;
 		apk_string_array_free(&ipkg->pending_triggers);

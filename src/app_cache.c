@@ -106,7 +106,7 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db, struc
 			apk_err(out, "bad dependency: %s", args->item[i]);
 			return -EINVAL;
 		}
-		*apk_dependency_array_add(&deps) = dep;
+		apk_dependency_array_add(&deps, dep);
 	}
 	r = apk_solver_solve(db, cctx->solver_flags, deps, &changeset);
 	apk_dependency_array_free(&deps);
