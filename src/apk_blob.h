@@ -87,8 +87,8 @@ static inline char *apk_blob_chr(apk_blob_t b, unsigned char ch)
 
 void apk_blob_push_blob(apk_blob_t *to, apk_blob_t literal);
 void apk_blob_push_uint(apk_blob_t *to, unsigned int value, int radix);
-void apk_blob_push_csum(apk_blob_t *to, struct apk_checksum *csum);
-void apk_blob_push_csum_hex(apk_blob_t *to, struct apk_checksum *csum);
+void apk_blob_push_hash(apk_blob_t *to, apk_blob_t digest);
+void apk_blob_push_hash_hex(apk_blob_t *to, apk_blob_t digest);
 void apk_blob_push_base64(apk_blob_t *to, apk_blob_t binary);
 void apk_blob_push_hexdump(apk_blob_t *to, apk_blob_t binary);
 void apk_blob_push_fmt(apk_blob_t *to, const char *fmt, ...)
@@ -100,5 +100,12 @@ void apk_blob_pull_csum(apk_blob_t *b, struct apk_checksum *csum);
 void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to);
 void apk_blob_pull_hexdump(apk_blob_t *b, apk_blob_t to);
 int apk_blob_pull_blob_match(apk_blob_t *b, apk_blob_t match);
+
+static inline void apk_blob_push_csum(apk_blob_t *to, struct apk_checksum *csum) {
+	return apk_blob_push_hash(to, APK_BLOB_CSUM(*csum));
+}
+static inline void apk_blob_push_csum_hex(apk_blob_t *to, struct apk_checksum *csum) {
+	return apk_blob_push_hash_hex(to, APK_BLOB_CSUM(*csum));
+}
 
 #endif

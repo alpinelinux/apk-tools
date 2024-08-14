@@ -229,17 +229,18 @@ struct apk_provider_array *apk_name_sorted_providers(struct apk_name *name)
 	return name->providers;
 }
 
-static struct apk_db_acl *__apk_db_acl_atomize(struct apk_database *db, mode_t mode, uid_t uid, gid_t gid, uint8_t csum_type, const uint8_t *csum_data)
+static struct apk_db_acl *__apk_db_acl_atomize(struct apk_database *db, mode_t mode, uid_t uid, gid_t gid, uint8_t hash_len, const uint8_t *hash)
 {
-	struct apk_db_acl acl = { .mode = mode & 07777, .uid = uid, .gid = gid };
+	struct {
+		struct apk_db_acl acl;
+		uint8_t digest[APK_DIGEST_MAX_LENGTH];
+	} data;
 	apk_blob_t *b;
 
-	if (csum_data && csum_type != APK_CHECKSUM_NONE) {
-		acl.xattr_csum.type = csum_type;
-		memcpy(acl.xattr_csum.data, csum_data, csum_type);
-	}
+	data.acl = (struct apk_db_acl) { .mode = mode & 07777, .uid = uid, .gid = gid, .xattr_hash_len = hash_len };
+	if (hash_len) memcpy(data.digest, hash, hash_len);
 
-	b = apk_atomize_dup(&db->atoms, APK_BLOB_STRUCT(acl));
+	b = apk_atomize_dup(&db->atoms, APK_BLOB_PTR_LEN((char*) &data, sizeof(data.acl) + hash_len));
 	return (struct apk_db_acl *) b->ptr;
 }
 
@@ -962,9 +963,9 @@ static void apk_blob_push_db_acl(apk_blob_t *b, char field, struct apk_db_acl *a
 	apk_blob_push_uint(b, acl->gid, 10);
 	apk_blob_push_blob(b, APK_BLOB_STR(":"));
 	apk_blob_push_uint(b, acl->mode, 8);
-	if (acl->xattr_csum.type != APK_CHECKSUM_NONE) {
+	if (acl->xattr_hash_len != 0) {
 		apk_blob_push_blob(b, APK_BLOB_STR(":"));
-		apk_blob_push_csum(b, &acl->xattr_csum);
+		apk_blob_push_hash(b, apk_acl_digest_blob(acl));
 	}
 	apk_blob_push_blob(b, APK_BLOB_STR("\n"));
 }

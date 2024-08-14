@@ -771,7 +771,7 @@ static void apk_fileinfo_hash_xattr_array(struct apk_xattr_array *xattrs, uint8_
 	struct apk_digest_ctx dctx;
 
 	apk_digest_reset(d);
-	if (!xattrs || apk_array_len(xattrs) == 0) return;
+	if (apk_array_len(xattrs) == 0) return;
 	if (apk_digest_ctx_init(&dctx, alg)) return;
 
 	apk_array_qsort(xattrs, cmp_xattr);
@@ -796,14 +796,11 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 	unsigned int xattr_hash_alg = (flags >> 8) & 0xff;
 	int atflags = 0;
 
-	if (atfd_error(atfd)) return atfd;
-
 	memset(fi, 0, sizeof *fi);
-	if (flags & APK_FI_NOFOLLOW)
-		atflags |= AT_SYMLINK_NOFOLLOW;
 
-	if (fstatat(atfd, filename, &st, atflags) != 0)
-		return -errno;
+	if (atfd_error(atfd)) return atfd;
+	if (flags & APK_FI_NOFOLLOW) atflags |= AT_SYMLINK_NOFOLLOW;
+	if (fstatat(atfd, filename, &st, atflags) != 0) return -errno;
 
 	*fi = (struct apk_file_info) {
 		.size = st.st_size,
@@ -833,7 +830,7 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 						if (r == ENODATA) continue;
 						break;
 					}
-					apk_xattr_array_add(&xattrs, (struct apk_xattr) {
+					apk_xattr_array_add(&fi->xattrs, (struct apk_xattr) {
 						.name = &buf[i],
 						.value = *apk_atomize_dup(atoms, APK_BLOB_PTR_LEN(val, vlen)),
 					});

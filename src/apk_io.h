@@ -196,9 +196,7 @@ int apk_blob_to_file(int atfd, const char *file, apk_blob_t b, unsigned int flag
 
 #define APK_FI_NOFOLLOW		0x80000000
 #define APK_FI_XATTR_DIGEST(x)	(((x) & 0xff) << 8)
-#define APK_FI_XATTR_CSUM(x)	APK_FI_XATTR_DIGEST(apk_digest_alg_by_len(x))
 #define APK_FI_DIGEST(x)	(((x) & 0xff))
-#define APK_FI_CSUM(x)		APK_FI_DIGEST(apk_digest_alg_by_len(x))
 int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		     struct apk_file_info *fi, struct apk_atom_pool *atoms);
 void apk_fileinfo_hash_xattr(struct apk_file_info *fi, uint8_t alg);

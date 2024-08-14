@@ -28,8 +28,13 @@ struct apk_db_acl {
 	mode_t mode;
 	uid_t uid;
 	gid_t gid;
-	struct apk_checksum xattr_csum;
-};
+	uint8_t xattr_hash_len;
+	uint8_t xattr_hash[];
+} __attribute__((packed));
+
+static inline apk_blob_t apk_acl_digest_blob(struct apk_db_acl *acl) {
+	return APK_BLOB_PTR_LEN((char*) acl->xattr_hash, acl->xattr_hash_len);
+}
 
 struct apk_db_file {
 	struct hlist_node hash_node;

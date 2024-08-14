@@ -140,19 +140,19 @@ static int audit_file(struct audit_ctx *actx,
 		      struct apk_file_info *fi)
 {
 	int digest_type = APK_DIGEST_SHA256;
-	int xattr_csum_type = APK_CHECKSUM_DEFAULT;
+	int xattr_type = APK_DIGEST_SHA1;
 	int rv = 0;
 
 	if (dbf) {
 		digest_type = apk_dbf_digest(dbf);
-		xattr_csum_type = dbf->acl->xattr_csum.type ?: APK_CHECKSUM_DEFAULT;
+		xattr_type = apk_digest_alg_by_len(dbf->acl->xattr_hash_len) ?: APK_DIGEST_SHA1;
 	} else {
 		if (!actx->details) return 'A';
 	}
 
 	if (apk_fileinfo_get(dirfd, name,
 				APK_FI_NOFOLLOW |
-				APK_FI_XATTR_CSUM(xattr_csum_type) |
+				APK_FI_XATTR_DIGEST(xattr_type) |
 				APK_FI_DIGEST(digest_type),
 				fi, &db->atoms) != 0)
 		return 'e';
@@ -163,7 +163,7 @@ static int audit_file(struct audit_ctx *actx,
 	    apk_digest_cmp_csum(&fi->digest, &dbf->csum) != 0)
 		rv = 'U';
 	else if (!S_ISLNK(fi->mode) && !dbf->diri->pkg->ipkg->broken_xattr &&
-		 apk_digest_cmp_csum(&fi->xattr_digest, &dbf->acl->xattr_csum) != 0)
+		 apk_digest_cmp_blob(&fi->xattr_digest, apk_acl_digest_blob(dbf->acl)) != 0)
 		rv = 'x';
 	else if (S_ISLNK(fi->mode) && dbf->csum.type == APK_CHECKSUM_NONE)
 		rv = 'U';

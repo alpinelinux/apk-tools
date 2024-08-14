@@ -261,15 +261,15 @@ void apk_blob_push_uint(apk_blob_t *to, unsigned int value, int radix)
 	apk_blob_push_blob(to, APK_BLOB_PTR_PTR(ptr+1, &buf[sizeof(buf)-1]));
 }
 
-void apk_blob_push_csum_hex(apk_blob_t *to, struct apk_checksum *csum)
+void apk_blob_push_hash_hex(apk_blob_t *to, apk_blob_t hash)
 {
-	switch (csum->type) {
+	switch (hash.len) {
 	case APK_CHECKSUM_MD5:
-		apk_blob_push_hexdump(to, APK_BLOB_CSUM(*csum));
+		apk_blob_push_hexdump(to, hash);
 		break;
 	case APK_CHECKSUM_SHA1:
 		apk_blob_push_blob(to, APK_BLOB_STR("X1"));
-		apk_blob_push_hexdump(to, APK_BLOB_CSUM(*csum));
+		apk_blob_push_hexdump(to, hash);
 		break;
 	default:
 		*to = APK_BLOB_NULL;
@@ -277,15 +277,15 @@ void apk_blob_push_csum_hex(apk_blob_t *to, struct apk_checksum *csum)
 	}
 }
 
-void apk_blob_push_csum(apk_blob_t *to, struct apk_checksum *csum)
+void apk_blob_push_hash(apk_blob_t *to, apk_blob_t hash)
 {
-	switch (csum->type) {
+	switch (hash.len) {
 	case APK_CHECKSUM_MD5:
-		apk_blob_push_hexdump(to, APK_BLOB_CSUM(*csum));
+		apk_blob_push_hexdump(to, hash);
 		break;
 	case APK_CHECKSUM_SHA1:
 		apk_blob_push_blob(to, APK_BLOB_STR("Q1"));
-		apk_blob_push_base64(to, APK_BLOB_CSUM(*csum));
+		apk_blob_push_base64(to, hash);
 		break;
 	default:
 		*to = APK_BLOB_NULL;
