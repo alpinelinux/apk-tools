@@ -257,7 +257,7 @@ err:
 ok:
 	free(pax.ptr);
 	free(longname.ptr);
-	apk_fileinfo_free(&entry);
+	apk_xattr_array_free(&entry.xattrs);
 	return apk_istream_close_error(is, r);
 }
 

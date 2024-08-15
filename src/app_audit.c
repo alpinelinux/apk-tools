@@ -381,7 +381,6 @@ recurse_check:
 		}
 		if (!reason) reason = audit_file(actx, db, dbf, dirfd, name, &fi);
 		report_audit(actx, reason, bfull, NULL, dbf, &fi);
-		apk_fileinfo_free(&fi);
 	}
 
 done:

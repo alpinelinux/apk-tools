@@ -110,7 +110,7 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 	r = ectx->ops->file(ectx, &fi, apk_istream_verify(&dis, is, fi.size, &fi.digest));
 	r = apk_istream_close_error(&dis.is, r);
 done:
-	apk_fileinfo_free(&fi);
+	apk_xattr_array_free(&fi.xattrs);
 	return r;
 }
 
@@ -127,7 +127,7 @@ static int apk_extract_v3_directory(struct apk_extract_ctx *ectx)
 	apk_extract_v3_acl(&fi, adb_ro_obj(&ctx->path, ADBI_DI_ACL, &acl), apk_ctx_get_id_cache(ectx->ac));
 	fi.mode |= S_IFDIR;
 	r = ectx->ops->file(ectx, &fi, 0);
-	apk_fileinfo_free(&fi);
+	apk_xattr_array_free(&fi.xattrs);
 
 	return r;
 }

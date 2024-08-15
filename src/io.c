@@ -876,11 +876,6 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 	return 0;
 }
 
-void apk_fileinfo_free(struct apk_file_info *fi)
-{
-	apk_xattr_array_free(&fi->xattrs);
-}
-
 int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx)
 {
 	struct dirent *de;
