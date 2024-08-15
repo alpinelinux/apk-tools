@@ -65,12 +65,13 @@ static inline void apk_digest_set(struct apk_digest *d, uint8_t alg) {
 	d->len = apk_digest_alg_len(alg);
 }
 
-static inline int apk_digest_cmp_blob(const struct apk_digest *d, const apk_blob_t b) {
+static inline int apk_digest_cmp_blob(const struct apk_digest *d, uint8_t alg, const apk_blob_t b) {
+	if (d->alg != alg) return (int)alg - (int)d->alg;
 	return apk_blob_compare(APK_DIGEST_BLOB(*d), b);
 }
 
 static inline int apk_digest_cmp_csum(const struct apk_digest *d, const struct apk_checksum *csum) {
-	return apk_digest_cmp_blob(d, APK_BLOB_CSUM(*csum));
+	return apk_blob_compare(APK_DIGEST_BLOB(*d), APK_BLOB_CSUM(*csum));
 }
 
 int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg);

@@ -810,7 +810,7 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 	struct apk_db_acl *acl;
 	struct hlist_node **diri_node = NULL;
 	struct hlist_node **file_diri_node = NULL;
-	struct apk_checksum xattr_csum;
+	struct apk_checksum file_csum, xattr_csum;
 	apk_blob_t token = APK_BLOB_STR("\n"), l;
 	mode_t mode;
 	uid_t uid;
@@ -901,7 +901,10 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 			break;
 		case 'Z':
 			if (file == NULL) goto bad_entry;
-			apk_blob_pull_csum(&l, &file->csum);
+			apk_blob_pull_csum(&l, &file_csum);
+			r = apk_digest_alg_from_csum(file_csum.type);
+			if (r == APK_DIGEST_SHA1 && ipkg->sha256_160) r = APK_DIGEST_SHA256_160;
+			apk_dbf_digest_set(file, r, file_csum.data);
 			break;
 		case 'r':
 			apk_blob_pull_deps(&l, db, &ipkg->replaces);
@@ -1037,9 +1040,9 @@ static int apk_db_fdb_write(struct apk_database *db, struct apk_installed_packag
 			if (file->acl != apk_default_acl_file)
 				apk_blob_push_db_acl(&bbuf, 'a', file->acl);
 
-			if (file->csum.type != APK_CHECKSUM_NONE) {
+			if (file->digest_alg != APK_DIGEST_NONE) {
 				apk_blob_push_blob(&bbuf, APK_BLOB_STR("Z:"));
-				apk_blob_push_csum(&bbuf, &file->csum);
+				apk_blob_push_hash(&bbuf, apk_dbf_digest_blob(file));
 				apk_blob_push_blob(&bbuf, APK_BLOB_STR("\n"));
 			}
 
@@ -2716,21 +2719,19 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 		case 0:
 			// Hardlinks need special care for checksum
 			if (link_target_file)
-				memcpy(&file->csum, &link_target_file->csum, sizeof file->csum);
+				apk_dbf_digest_set(file, link_target_file->digest_alg, link_target_file->digest);
 			else
-				apk_checksum_from_digest(&file->csum, &ae->digest);
+				apk_dbf_digest_set(file, ae->digest.alg, ae->digest.data);
 
 			if (ipkg->v3 && S_ISLNK(ae->mode)) {
 				struct apk_digest d;
-				apk_digest_calc(&d, APK_DIGEST_SHA256,
+				apk_digest_calc(&d, APK_DIGEST_SHA256_160,
 						ae->link_target, strlen(ae->link_target));
 				ipkg->sha256_160 = 1;
-				file->csum.type = APK_CHECKSUM_SHA1;
-				memcpy(file->csum.data, d.data, file->csum.type);
-			} else if (file->csum.type == APK_CHECKSUM_NONE && ae->digest.alg == APK_DIGEST_SHA256) {
+				apk_dbf_digest_set(file, d.alg, d.data);
+			} else if (file->digest_alg == APK_DIGEST_NONE && ae->digest.alg == APK_DIGEST_SHA256) {
 				ipkg->sha256_160 = 1;
-				file->csum.type = APK_CHECKSUM_SHA1;
-				memcpy(file->csum.data, ae->digest.data, file->csum.type);
+				apk_dbf_digest_set(file, APK_DIGEST_SHA256_160, ae->digest.data);
 			} else if (link_target_file == NULL && need_checksum(ae->mode) && !ctx->missing_checksum) {
 				if (ae->digest.alg == APK_DIGEST_NONE) {
 					apk_warn(out,
@@ -2739,7 +2740,7 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 						PKG_VER_PRINTF(pkg));
 					ipkg->broken_files = 1;
 					ctx->missing_checksum = 1;
-				} else if (file->csum.type == APK_CHECKSUM_NONE) {
+				} else if (file->digest_alg == APK_DIGEST_NONE) {
 					apk_warn(out,
 						PKG_VER_FMT": unknown v3 checksum",
 						PKG_VER_PRINTF(pkg));
@@ -2791,9 +2792,9 @@ static int apk_db_audit_file(struct apk_fsdir *d, apk_blob_t filename, struct ap
 	int r;
 
 	// Check file first
-	r = apk_fsdir_file_info(d, filename, APK_FI_NOFOLLOW | APK_FI_DIGEST(apk_dbf_digest(dbf)), &fi);
-	if (r != 0 || !dbf || dbf->csum.type == APK_CHECKSUM_NONE) return r != -ENOENT;
-	if (apk_digest_cmp_csum(&fi.digest, &dbf->csum) != 0) return 1;
+	r = apk_fsdir_file_info(d, filename, APK_FI_NOFOLLOW | APK_FI_DIGEST(dbf->digest_alg), &fi);
+	if (r != 0 || !dbf || dbf->digest_alg == APK_DIGEST_NONE) return r != -ENOENT;
+	if (apk_digest_cmp_blob(&fi.digest, dbf->digest_alg, apk_dbf_digest_blob(dbf)) != 0) return 1;
 	return 0;
 }
 

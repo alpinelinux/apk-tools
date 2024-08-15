@@ -144,7 +144,7 @@ static int audit_file(struct audit_ctx *actx,
 	int rv = 0;
 
 	if (dbf) {
-		digest_type = apk_dbf_digest(dbf);
+		digest_type = dbf->digest_alg;
 		xattr_type = apk_digest_alg_by_len(dbf->acl->xattr_hash_len) ?: APK_DIGEST_SHA1;
 	} else {
 		if (!actx->details) return 'A';
@@ -159,13 +159,13 @@ static int audit_file(struct audit_ctx *actx,
 
 	if (!dbf) return 'A';
 
-	if (dbf->csum.type != APK_CHECKSUM_NONE &&
-	    apk_digest_cmp_csum(&fi->digest, &dbf->csum) != 0)
+	if (dbf->digest_alg != APK_DIGEST_NONE &&
+	    apk_digest_cmp_blob(&fi->digest, dbf->digest_alg, apk_dbf_digest_blob(dbf)) != 0)
 		rv = 'U';
 	else if (!S_ISLNK(fi->mode) && !dbf->diri->pkg->ipkg->broken_xattr &&
-		 apk_digest_cmp_blob(&fi->xattr_digest, apk_acl_digest_blob(dbf->acl)) != 0)
+		 apk_digest_cmp_blob(&fi->xattr_digest, xattr_type, apk_acl_digest_blob(dbf->acl)) != 0)
 		rv = 'x';
-	else if (S_ISLNK(fi->mode) && dbf->csum.type == APK_CHECKSUM_NONE)
+	else if (S_ISLNK(fi->mode) && dbf->digest_alg == APK_DIGEST_NONE)
 		rv = 'U';
 	else if (actx->check_permissions) {
 		if ((fi->mode & 07777) != (dbf->acl->mode & 07777))
@@ -236,7 +236,7 @@ static void report_audit(struct audit_ctx *actx,
 			else if (dir && reason != 'D' && reason != 'd') acl = dir->owner->acl;
 			if (acl) printf("- mode=%o uid=%d gid=%d%s\n",
 				acl->mode & 07777, acl->uid, acl->gid,
-				file ? format_checksum(APK_BLOB_CSUM(file->csum), APK_BLOB_BUF(csum_buf)) : "");
+				file ? format_checksum(apk_dbf_digest_blob(file), APK_BLOB_BUF(csum_buf)) : "");
 			if (fi) printf("+ mode=%o uid=%d gid=%d%s\n",
 				fi->mode & 07777, fi->uid, fi->gid,
 				format_checksum(APK_DIGEST_BLOB(fi->digest), APK_BLOB_BUF(csum_buf)));

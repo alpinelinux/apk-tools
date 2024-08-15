@@ -43,11 +43,25 @@ struct apk_db_file {
 	struct apk_db_dir_instance *diri;
 	struct apk_db_acl *acl;
 
-	unsigned short audited : 1;
-	unsigned short namelen : 15;
-	struct apk_checksum csum;
+	unsigned char audited : 1;
+	unsigned char digest_alg : 7;
+	unsigned char namelen;
+	uint8_t digest[20]; // sha1 length
 	char name[];
 };
+
+static inline apk_blob_t apk_dbf_digest_blob(struct apk_db_file *file) {
+	return APK_BLOB_PTR_LEN((char*) file->digest, apk_digest_alg_len(file->digest_alg));
+}
+static inline void apk_dbf_digest_set(struct apk_db_file *file, uint8_t alg, const uint8_t *data) {
+	uint8_t len = apk_digest_alg_len(alg);
+	if (len > sizeof file->digest) {
+		file->digest_alg = APK_DIGEST_NONE;
+		return;
+	}
+	file->digest_alg = alg;
+	memcpy(file->digest, data, len);
+}
 
 enum apk_protect_mode {
 	APK_PROTECT_NONE = 0,
@@ -301,17 +315,6 @@ static inline int apk_db_foreach_sorted_package(struct apk_database *db, struct 
 static inline int apk_db_foreach_sorted_providers(struct apk_database *db, struct apk_string_array *filter,
 						  apk_db_foreach_package_cb cb, void *cb_ctx) {
 	return __apk_db_foreach_sorted_package(db, filter, cb, cb_ctx, 1);
-}
-
-
-static inline uint8_t apk_dbf_digest(struct apk_db_file *dbf)
-{
-	uint8_t alg;
-	if (!dbf) return APK_DIGEST_NONE;
-	alg = apk_digest_alg_by_len(dbf->csum.type);
-	if (alg == APK_DIGEST_SHA1 && dbf->diri->pkg->ipkg->sha256_160)
-		alg = APK_DIGEST_SHA256_160;
-	return alg;
 }
 
 #endif

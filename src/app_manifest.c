@@ -21,11 +21,6 @@
 #include "apk_pathbuilder.h"
 
 /* TODO: support package files as well as generating manifest from the installed DB. */
-static char *csum_types[APK_CHECKSUM_SHA1 + 1] = {
-	/* Note: if adding new algorithms, update apk-manifest(8) */
-	[APK_CHECKSUM_MD5] = "md5",
-	[APK_CHECKSUM_SHA1] = "sha1",
-};
 
 static void process_package(struct apk_database *db, struct apk_package *pkg)
 {
@@ -51,12 +46,12 @@ static void process_package(struct apk_database *db, struct apk_package *pkg)
 					  diri_files_list) {
 			apk_blob_t csum_blob = APK_BLOB_BUF(csum_buf);
 			memset(csum_buf, '\0', sizeof(csum_buf));
-			apk_blob_push_hexdump(&csum_blob, APK_BLOB_CSUM(file->csum));
+			apk_blob_push_hexdump(&csum_blob, apk_dbf_digest_blob(file));
 
 			apk_out(out, "%s%s%s:%s  " DIR_FILE_FMT,
 				prefix1, prefix2,
-				csum_types[file->csum.type], csum_buf,
-				DIR_FILE_PRINTF(diri->dir, file));
+				apk_digest_alg_str(file->digest_alg),
+				csum_buf, DIR_FILE_PRINTF(diri->dir, file));
 		}
 	}
 }
