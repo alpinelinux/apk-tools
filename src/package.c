@@ -266,7 +266,7 @@ void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
 	char buf[64];
 	apk_blob_t b = APK_BLOB_BUF(buf);
 
-	apk_blob_push_csum(&b, &pkg->csum);
+	apk_blob_push_hash(&b, apk_pkg_digest_blob(pkg));
 	b = apk_blob_pushed(APK_BLOB_BUF(buf), b);
 
 	*dep = (struct apk_dependency) {
@@ -276,19 +276,13 @@ void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
 	};
 }
 
-static const int apk_checksum_compare(const struct apk_checksum *a, const struct apk_checksum *b)
-{
-	return apk_blob_compare(APK_BLOB_PTR_LEN((char *) a->data, a->type),
-				APK_BLOB_PTR_LEN((char *) b->data, b->type));
-}
-
 static int apk_dep_match_checksum(const struct apk_dependency *dep, const struct apk_package *pkg)
 {
 	struct apk_checksum csum;
 	apk_blob_t b = *dep->version;
 
 	apk_blob_pull_csum(&b, &csum);
-	return apk_checksum_compare(&csum, &pkg->csum) == 0;
+	return apk_blob_compare(APK_BLOB_CSUM(csum), apk_pkg_digest_blob(pkg)) == 0;
 }
 
 int apk_dep_is_provided(const struct apk_dependency *dep, const struct apk_provider *p)
@@ -445,51 +439,54 @@ int apk_script_type(const char *name)
 	return APK_SCRIPT_INVALID;
 }
 
-void apk_pkg_init(struct apk_package *pkg)
+void apk_pkgtmpl_init(struct apk_package_tmpl *tmpl)
 {
-	memset(pkg, 0, sizeof *pkg);
-	apk_dependency_array_init(&pkg->depends);
-	apk_dependency_array_init(&pkg->install_if);
-	apk_dependency_array_init(&pkg->provides);
-	apk_pkg_reset(pkg);
+	memset(tmpl, 0, sizeof *tmpl);
+	apk_dependency_array_init(&tmpl->pkg.depends);
+	apk_dependency_array_init(&tmpl->pkg.install_if);
+	apk_dependency_array_init(&tmpl->pkg.provides);
+	apk_pkgtmpl_reset(tmpl);
 }
 
-void apk_pkg_free(struct apk_package *pkg)
+void apk_pkgtmpl_free(struct apk_package_tmpl *tmpl)
 {
-	apk_dependency_array_free(&pkg->depends);
-	apk_dependency_array_free(&pkg->install_if);
-	apk_dependency_array_free(&pkg->provides);
+	apk_dependency_array_free(&tmpl->pkg.depends);
+	apk_dependency_array_free(&tmpl->pkg.install_if);
+	apk_dependency_array_free(&tmpl->pkg.provides);
 }
 
-void apk_pkg_reset(struct apk_package *pkg)
+void apk_pkgtmpl_reset(struct apk_package_tmpl *tmpl)
 {
-	*pkg = (struct apk_package) {
-		.depends = pkg->depends,
-		.install_if = pkg->install_if,
-		.provides = pkg->provides,
-		.arch = &apk_atom_null,
-		.license = &apk_atom_null,
-		.origin = &apk_atom_null,
-		.maintainer = &apk_atom_null,
-		.url = &apk_atom_null,
-		.description = &apk_atom_null,
-		.commit = &apk_atom_null,
+	*tmpl = (struct apk_package_tmpl) {
+		.pkg = (struct apk_package) {
+			.depends = tmpl->pkg.depends,
+			.install_if = tmpl->pkg.install_if,
+			.provides = tmpl->pkg.provides,
+			.arch = &apk_atom_null,
+			.license = &apk_atom_null,
+			.origin = &apk_atom_null,
+			.maintainer = &apk_atom_null,
+			.url = &apk_atom_null,
+			.description = &apk_atom_null,
+			.commit = &apk_atom_null,
+		},
 	};
-	apk_array_truncate(pkg->depends, 0);
-	apk_array_truncate(pkg->install_if, 0);
-	apk_array_truncate(pkg->provides, 0);
+	apk_array_truncate(tmpl->pkg.depends, 0);
+	apk_array_truncate(tmpl->pkg.install_if, 0);
+	apk_array_truncate(tmpl->pkg.provides, 0);
 }
 
 struct read_info_ctx {
 	struct apk_database *db;
 	struct apk_extract_ctx ectx;
-	struct apk_package pkg;
+	struct apk_package_tmpl tmpl;
 	int v3ok;
 };
 
-int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
-		     char field, apk_blob_t value)
+int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl, char field, apk_blob_t value)
 {
+	struct apk_package *pkg = &tmpl->pkg;
+
 	switch (field) {
 	case 'P':
 		pkg->name = apk_db_get_name(db, value);
@@ -517,7 +514,7 @@ int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
 		}
 		break;
 	case 'C':
-		apk_blob_pull_csum(&value, &pkg->csum);
+		apk_blob_pull_csum(&value, &tmpl->id);
 		break;
 	case 'S':
 		pkg->size = apk_blob_pull_uint(&value, 10);
@@ -580,15 +577,16 @@ static apk_blob_t *commit_id(struct apk_atom_pool *atoms, apk_blob_t b)
 	return apk_atomize_dup(atoms, to);
 }
 
-void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct adb_obj *pkginfo)
+void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl, struct adb_obj *pkginfo)
 {
 	struct adb_obj obj;
+	struct apk_package *pkg = &tmpl->pkg;
 	apk_blob_t uid;
 
 	uid = adb_ro_blob(pkginfo, ADBI_PI_UNIQUE_ID);
 	if (uid.len >= APK_CHECKSUM_SHA1) {
-		pkg->csum.type = APK_CHECKSUM_SHA1;
-		memcpy(pkg->csum.data, uid.ptr, uid.len);
+		tmpl->id.type = APK_CHECKSUM_SHA1;
+		memcpy(tmpl->id.data, uid.ptr, uid.len);
 	}
 
 	pkg->name = apk_db_get_name(db, adb_ro_blob(pkginfo, ADBI_PI_NAME));
@@ -646,7 +644,7 @@ static int read_info_line(struct read_info_ctx *ri, apk_blob_t line)
 
 	for (i = 0; i < ARRAY_SIZE(fields); i++)
 		if (apk_blob_compare(APK_BLOB_STR(fields[i].str), l) == 0)
-			return apk_pkg_add_info(ri->db, &ri->pkg, fields[i].field, r);
+			return apk_pkgtmpl_add_info(ri->db, &ri->tmpl, fields[i].field, r);
 
 	return 0;
 }
@@ -673,7 +671,7 @@ static int apk_pkg_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 	if (!ri->v3ok) return -APKE_FORMAT_NOT_SUPPORTED;
 
 	adb_ro_obj(pkg, ADBI_PKG_PKGINFO, &pkginfo);
-	apk_pkg_from_adb(ri->db, &ri->pkg, &pkginfo);
+	apk_pkgtmpl_from_adb(ri->db, &ri->tmpl, &pkginfo);
 
 	return -ECANCELED;
 }
@@ -695,23 +693,29 @@ int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package *
 	r = apk_fileinfo_get(AT_FDCWD, file, 0, &fi, &db->atoms);
 	if (r != 0) return r;
 
-	ctx.pkg.size = fi.size;
+	apk_pkgtmpl_init(&ctx.tmpl);
+	ctx.tmpl.pkg.size = fi.size;
 	apk_extract_init(&ctx.ectx, db->ctx, &extract_pkgmeta_ops);
-	apk_extract_generate_identity(&ctx.ectx, &ctx.pkg.csum);
+	apk_extract_generate_identity(&ctx.ectx, &ctx.tmpl.id);
 
 	r = apk_extract(&ctx.ectx, apk_istream_from_file(AT_FDCWD, file));
-	if (r < 0 && r != -ECANCELED) return r;
-	if (ctx.pkg.csum.type == APK_CHECKSUM_NONE ||
-	    ctx.pkg.name == NULL ||
-	    ctx.pkg.uninstallable)
-		return -APKE_V2PKG_FORMAT;
+	if (r < 0 && r != -ECANCELED) goto err;
+	if (ctx.tmpl.id.type == APK_CHECKSUM_NONE ||
+	    ctx.tmpl.pkg.name == NULL ||
+	    ctx.tmpl.pkg.uninstallable) {
+		r = -APKE_V2PKG_FORMAT;
+		goto err;
+	}
 
 	apk_string_array_add(&db->filename_array, (char*) file);
-	ctx.pkg.filename_ndx = apk_array_len(db->filename_array);
+	ctx.tmpl.pkg.filename_ndx = apk_array_len(db->filename_array);
 
-	if (pkg) *pkg = apk_db_pkg_add(db, &ctx.pkg);
-	else apk_db_pkg_add(db, &ctx.pkg);
-	return 0;
+	if (pkg) *pkg = apk_db_pkg_add(db, &ctx.tmpl);
+	else apk_db_pkg_add(db, &ctx.tmpl);
+	r = 0;
+err:
+	apk_pkgtmpl_free(&ctx.tmpl);
+	return r;
 }
 
 int apk_ipkg_assign_script(struct apk_installed_package *ipkg, unsigned int type, apk_blob_t b)
@@ -847,7 +851,7 @@ int apk_pkg_write_index_header(struct apk_package *info, struct apk_ostream *os)
 	apk_blob_t bbuf = APK_BLOB_BUF(buf);
 
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("C:"));
-	apk_blob_push_csum(&bbuf, &info->csum);
+	apk_blob_push_hash(&bbuf, apk_pkg_digest_blob(info));
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nP:"));
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR(info->name->name));
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nV:"));

@@ -77,7 +77,9 @@ struct apk_package {
 	struct apk_installed_package *ipkg;
 	struct apk_dependency_array *depends, *install_if, *provides;
 	apk_blob_t *version;
+	apk_blob_t *arch, *license, *origin, *maintainer, *url, *description, *commit;
 	size_t installed_size, size;
+	time_t build_time;
 
 	union {
 		struct apk_solver_package_state ss;
@@ -87,16 +89,20 @@ struct apk_package {
 	unsigned short provider_priority;
 	unsigned short repos;
 	unsigned short filename_ndx;
+
 	unsigned char seen : 1;
 	unsigned char marked : 1;
 	unsigned char uninstallable : 1;
 	unsigned char cached_non_repository : 1;
 	unsigned char layer : 4;
-	struct apk_checksum csum;
-
-	time_t build_time;
-	apk_blob_t *arch, *license, *origin, *maintainer, *url, *description, *commit;
+	uint8_t digest_alg;
+	uint8_t digest[];
 };
+
+static inline apk_blob_t apk_pkg_digest_blob(const struct apk_package *pkg) {
+	return APK_BLOB_PTR_LEN((char*) pkg->digest, apk_digest_alg_len(pkg->digest_alg));
+}
+
 APK_ARRAY(apk_package_array, struct apk_package *);
 
 #define APK_PROVIDER_FROM_PACKAGE(pkg)	  (struct apk_provider){(pkg),(pkg)->version}
@@ -138,17 +144,20 @@ void apk_deps_add(struct apk_dependency_array **deps, struct apk_dependency *dep
 void apk_deps_del(struct apk_dependency_array **deps, struct apk_name *name);
 int apk_script_type(const char *name);
 
-struct apk_package *apk_pkg_get_installed(struct apk_name *name);
+struct apk_package_tmpl {
+	struct apk_package pkg;
+	struct apk_checksum id;
+};
+void apk_pkgtmpl_init(struct apk_package_tmpl *tmpl);
+void apk_pkgtmpl_free(struct apk_package_tmpl *tmpl);
+void apk_pkgtmpl_reset(struct apk_package_tmpl *tmpl);
+int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl, char field, apk_blob_t value);
+void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl, struct adb_obj *pkginfo);
 
-void apk_pkg_init(struct apk_package *pkg);
-void apk_pkg_free(struct apk_package *pkg);
-void apk_pkg_reset(struct apk_package *pkg);
 int apk_pkg_read(struct apk_database *db, const char *name, struct apk_package **pkg, int v3ok);
 int apk_pkg_parse_name(apk_blob_t apkname, apk_blob_t *name, apk_blob_t *version);
-int apk_pkg_add_info(struct apk_database *db, struct apk_package *pkg,
-		     char field, apk_blob_t value);
-void apk_pkg_from_adb(struct apk_database *db, struct apk_package *pkg, struct adb_obj *pkginfo);
 
+struct apk_package *apk_pkg_get_installed(struct apk_name *name);
 struct apk_installed_package *apk_pkg_install(struct apk_database *db, struct apk_package *pkg);
 void apk_pkg_uninstall(struct apk_database *db, struct apk_package *pkg);
 

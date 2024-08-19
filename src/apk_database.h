@@ -195,7 +195,7 @@ struct apk_database {
 	struct apk_repository_tag repo_tags[APK_MAX_TAGS];
 	struct apk_atom_pool atoms;
 	struct apk_string_array *filename_array;
-	struct apk_package overlay_pkg;
+	struct apk_package_tmpl overlay_tmpl;
 
 	struct {
 		unsigned stale, updated, unavailable;
@@ -258,7 +258,7 @@ static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
 	return apk_ctx_since(db->ctx, since);
 }
 
-struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package *pkg);
+struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_tmpl *tmpl);
 struct apk_package *apk_db_get_pkg(struct apk_database *db, struct apk_checksum *csum);
 struct apk_package *apk_db_get_file_owner(struct apk_database *db, apk_blob_t filename);
 

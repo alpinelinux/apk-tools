@@ -79,25 +79,25 @@ static int non_repository_check(struct apk_database *db)
 	return 1;
 }
 
-static void create_virtual_package(struct apk_package *virtpkg, struct apk_database *db, struct apk_dependency *dep)
+static void create_virtual_package(struct apk_package_tmpl *virtpkg, struct apk_database *db, struct apk_dependency *dep)
 {
 	struct apk_digest_ctx dctx;
 	struct apk_digest d;
 	pid_t pid = getpid();
 
-	virtpkg->name = dep->name;
-	virtpkg->version = dep->version;
-	virtpkg->description = apk_atomize_dup0(&db->atoms, APK_BLOB_STRLIT("virtual meta package"));
-	virtpkg->arch = apk_atomize(&db->atoms, APK_BLOB_STRLIT("noarch"));
-	virtpkg->repos |= BIT(APK_REPOSITORY_CACHED);
+	virtpkg->pkg.name = dep->name;
+	virtpkg->pkg.version = dep->version;
+	virtpkg->pkg.description = apk_atomize_dup0(&db->atoms, APK_BLOB_STRLIT("virtual meta package"));
+	virtpkg->pkg.arch = apk_atomize(&db->atoms, APK_BLOB_STRLIT("noarch"));
+	virtpkg->pkg.repos |= BIT(APK_REPOSITORY_CACHED);
 
 	apk_digest_ctx_init(&dctx, APK_DIGEST_SHA1);
 	apk_digest_ctx_update(&dctx, &pid, sizeof pid);
-	apk_digest_ctx_update(&dctx, virtpkg->name->name, strlen(virtpkg->name->name) + 1);
+	apk_digest_ctx_update(&dctx, dep->name->name, strlen(dep->name->name) + 1);
 	apk_digest_ctx_update(&dctx, dep->version->ptr, dep->version->len);
 	apk_digest_ctx_final(&dctx, &d);
 	apk_digest_ctx_free(&dctx);
-	apk_checksum_from_digest(&virtpkg->csum, &d);
+	apk_checksum_from_digest(&virtpkg->id, &d);
 }
 
 static apk_blob_t *generate_version(struct apk_database *db)
@@ -116,13 +116,13 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 	struct apk_out *out = &ac->out;
 	struct apk_database *db = ac->db;
 	struct add_ctx *actx = (struct add_ctx *) ctx;
-	struct apk_package virtpkg;
+	struct apk_package_tmpl virtpkg;
 	struct apk_dependency virtdep;
 	struct apk_dependency_array *world;
 	char **parg;
 	int r = 0;
 
-	apk_pkg_init(&virtpkg);
+	apk_pkgtmpl_init(&virtpkg);
 	apk_dependency_array_init(&world);
 	apk_dependency_array_copy(&world, db->world);
 
@@ -182,7 +182,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 		}
 
 		if (actx->virtpkg) {
-			apk_deps_add(&virtpkg.depends, &dep);
+			apk_deps_add(&virtpkg.pkg.depends, &dep);
 		} else {
 			apk_deps_add(&world, &dep);
 			apk_solver_set_name_flags(dep.name,
@@ -200,7 +200,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 
 	r = apk_solver_commit(db, 0, world);
 	apk_dependency_array_free(&world);
-	apk_pkg_free(&virtpkg);
+	apk_pkgtmpl_free(&virtpkg);
 
 	return r;
 }

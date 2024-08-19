@@ -18,6 +18,7 @@
 #define APK_SIGN_VERIFY_AND_GENERATE	3
 
 struct apk_sign_ctx {
+	struct apk_extract_ctx *ectx;
 	struct apk_trust *trust;
 	int action;
 	int num_signatures;
@@ -31,7 +32,6 @@ struct apk_sign_ctx {
 	unsigned char end_seen : 1;
 	uint8_t alg;
 	struct apk_digest data_hash;
-	struct apk_digest identity;
 	struct apk_digest_ctx digest_ctx;
 	struct apk_digest_ctx identity_ctx;
 
@@ -42,7 +42,7 @@ struct apk_sign_ctx {
 	} signature;
 };
 
-static void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action, struct apk_checksum *identity, struct apk_trust *trust)
+static void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action, struct apk_extract_ctx *ectx, struct apk_trust *trust)
 {
 	memset(ctx, 0, sizeof(struct apk_sign_ctx));
 	ctx->trust = trust;
@@ -50,14 +50,13 @@ static void apk_sign_ctx_init(struct apk_sign_ctx *ctx, int action, struct apk_c
 	ctx->allow_untrusted = trust->allow_untrusted;
 	ctx->verify_error = -APKE_SIGNATURE_UNTRUSTED;
 	ctx->alg = APK_DIGEST_SHA1;
+	ctx->ectx = ectx;
 	switch (action) {
 	case APK_SIGN_VERIFY_AND_GENERATE:
 		apk_digest_ctx_init(&ctx->identity_ctx, APK_DIGEST_SHA1);
 		break;
 	case APK_SIGN_VERIFY:
-		break;
 	case APK_SIGN_VERIFY_IDENTITY:
-		apk_digest_from_checksum(&ctx->identity, identity);
 		break;
 	default:
 		assert(!"unreachable");
@@ -233,7 +232,8 @@ static int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 	switch (sctx->action) {
 	case APK_SIGN_VERIFY_AND_GENERATE:
 		/* Package identity is the checksum */
-		apk_digest_ctx_final(&sctx->identity_ctx, &sctx->identity);
+		apk_digest_ctx_final(&sctx->identity_ctx, &calculated);
+		apk_checksum_from_digest(sctx->ectx->generate_identity, &calculated);
 		if (!sctx->has_data_checksum) return -APKE_V2PKG_FORMAT;
 		/* Fallthrough to check signature */
 	case APK_SIGN_VERIFY:
@@ -254,7 +254,7 @@ static int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 	case APK_SIGN_VERIFY_IDENTITY:
 		/* Reset digest for hashing data */
 		apk_digest_ctx_final(&sctx->digest_ctx, &calculated);
-		if (apk_digest_cmp(&calculated, &sctx->identity) != 0)
+		if (apk_digest_cmp_blob(&calculated, sctx->ectx->verify_alg, sctx->ectx->verify_digest) != 0)
 			return -APKE_V2PKG_INTEGRITY;
 		sctx->verify_error = 0;
 		sctx->control_verified = 1;
@@ -335,14 +335,14 @@ int apk_extract_v2(struct apk_extract_ctx *ectx, struct apk_istream *is)
 
 	if (ectx->generate_identity)
 		action = APK_SIGN_VERIFY_AND_GENERATE;
-	else if (ectx->identity)
+	else if (ectx->verify_alg != APK_DIGEST_NONE)
 		action = APK_SIGN_VERIFY_IDENTITY;
 	else
 		action = APK_SIGN_VERIFY;
 
 	if (!ectx->ops) ectx->ops = &extract_v2verify_ops;
 	ectx->pctx = &sctx;
-	apk_sign_ctx_init(&sctx, action, ectx->identity, trust);
+	apk_sign_ctx_init(&sctx, action, ectx, trust);
 	r = apk_tar_parse(
 		apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx),
 		apk_extract_v2_entry, ectx, apk_ctx_get_id_cache(ac));
@@ -351,7 +351,6 @@ int apk_extract_v2(struct apk_extract_ctx *ectx, struct apk_istream *is)
 	if (r == 0 && (!sctx.data_verified || !sctx.end_seen)) r = -APKE_V2PKG_INTEGRITY;
 	if ((r == 0 || r == -ECANCELED) && sctx.verify_error) r = sctx.verify_error;
 	if (r == -APKE_SIGNATURE_UNTRUSTED && sctx.allow_untrusted) r = 0;
-	if (ectx->generate_identity) apk_checksum_from_digest(ectx->identity, &sctx.identity);
 	apk_sign_ctx_free(&sctx);
 	free(ectx->desc.ptr);
 	apk_extract_reset(ectx);
