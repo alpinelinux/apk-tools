@@ -232,8 +232,7 @@ static int apk_sign_ctx_mpart_cb(void *ctx, int part, apk_blob_t data)
 	switch (sctx->action) {
 	case APK_SIGN_VERIFY_AND_GENERATE:
 		/* Package identity is the checksum */
-		apk_digest_ctx_final(&sctx->identity_ctx, &calculated);
-		apk_checksum_from_digest(sctx->ectx->generate_identity, &calculated);
+		apk_digest_ctx_final(&sctx->identity_ctx, sctx->ectx->generate_identity);
 		if (!sctx->has_data_checksum) return -APKE_V2PKG_FORMAT;
 		/* Fallthrough to check signature */
 	case APK_SIGN_VERIFY:

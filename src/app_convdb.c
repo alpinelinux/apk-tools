@@ -100,7 +100,7 @@ static int read_triggers(struct conv_ctx *ctx, struct apk_istream *is)
 static int convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 {
 	struct apk_id_cache *idc = apk_ctx_get_id_cache(ctx->ac);
-	struct apk_checksum csum;
+	struct apk_digest digest;
 	struct adb_obj pkg, pkginfo, files, file, paths, path, scripts, triggers, acl;
 	apk_blob_t l, val, spc = APK_BLOB_STR(" "), nl = APK_BLOB_STR("\n");
 	struct conv_script *s;
@@ -179,8 +179,8 @@ static int convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 			adb_wo_obj(&file, ADBI_FI_ACL, &acl);
 			break;
 		case 'Z': // file content hash
-			apk_blob_pull_csum(&val, &csum);
-			adb_wo_blob(&file, ADBI_FI_HASHES, APK_BLOB_CSUM(csum));
+			apk_blob_pull_digest(&val, &digest);
+			adb_wo_blob(&file, ADBI_FI_HASHES, APK_DIGEST_BLOB(digest));
 			break;
 		case 's': // repository_tag
 		case 'f': // fix required (flags: fsx)

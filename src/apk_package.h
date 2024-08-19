@@ -146,7 +146,7 @@ int apk_script_type(const char *name);
 
 struct apk_package_tmpl {
 	struct apk_package pkg;
-	struct apk_checksum id;
+	struct apk_digest id;
 };
 void apk_pkgtmpl_init(struct apk_package_tmpl *tmpl);
 void apk_pkgtmpl_free(struct apk_package_tmpl *tmpl);

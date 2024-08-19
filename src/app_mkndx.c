@@ -188,7 +188,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	struct adb odb, tmpdb;
 	struct adb_obj oroot, opkgs, ndx, tmpl;
 	struct apk_file_info fi;
-	struct apk_checksum csum;
+	struct apk_digest digest;
 	adb_val_t val;
 	int r, found, errors = 0, newpkgs = 0, numpkgs;
 	struct mkndx_ctx *ctx = pctx;
@@ -268,16 +268,16 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		}
 		if (!found) {
 		do_file:
+			apk_digest_reset(&digest);
 			apk_extract_reset(&ctx->ectx);
-			apk_extract_generate_identity(&ctx->ectx, &csum);
-			csum.type = APK_CHECKSUM_NONE;
+			apk_extract_generate_identity(&ctx->ectx, &digest);
 			r = apk_extract(&ctx->ectx, apk_istream_from_file(AT_FDCWD, *parg));
 			if (r < 0 && r != -ECANCELED) goto err_pkg;
 
 			adb_wo_int(&ctx->pkginfo, ADBI_PI_FILE_SIZE, ctx->file_size);
-			if (csum.type != APK_CHECKSUM_NONE)
+			if (digest.alg != APK_DIGEST_NONE)
 				adb_wo_blob(&ctx->pkginfo, ADBI_PI_UNIQUE_ID,
-					APK_BLOB_CSUM(csum));
+					APK_DIGEST_BLOB(digest));
 
 			val = adb_wa_append_obj(&ctx->pkgs, &ctx->pkginfo);
 			newpkgs++;

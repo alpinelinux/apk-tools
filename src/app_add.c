@@ -82,7 +82,6 @@ static int non_repository_check(struct apk_database *db)
 static void create_virtual_package(struct apk_package_tmpl *virtpkg, struct apk_database *db, struct apk_dependency *dep)
 {
 	struct apk_digest_ctx dctx;
-	struct apk_digest d;
 	pid_t pid = getpid();
 
 	virtpkg->pkg.name = dep->name;
@@ -95,9 +94,8 @@ static void create_virtual_package(struct apk_package_tmpl *virtpkg, struct apk_
 	apk_digest_ctx_update(&dctx, &pid, sizeof pid);
 	apk_digest_ctx_update(&dctx, dep->name->name, strlen(dep->name->name) + 1);
 	apk_digest_ctx_update(&dctx, dep->version->ptr, dep->version->len);
-	apk_digest_ctx_final(&dctx, &d);
+	apk_digest_ctx_final(&dctx, &virtpkg->id);
 	apk_digest_ctx_free(&dctx);
-	apk_checksum_from_digest(&virtpkg->id, &d);
 }
 
 static apk_blob_t *generate_version(struct apk_database *db)

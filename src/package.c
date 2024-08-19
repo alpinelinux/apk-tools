@@ -278,11 +278,11 @@ void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
 
 static int apk_dep_match_checksum(const struct apk_dependency *dep, const struct apk_package *pkg)
 {
-	struct apk_checksum csum;
+	struct apk_digest d;
 	apk_blob_t b = *dep->version;
 
-	apk_blob_pull_csum(&b, &csum);
-	return apk_blob_compare(APK_BLOB_CSUM(csum), apk_pkg_digest_blob(pkg)) == 0;
+	apk_blob_pull_digest(&b, &d);
+	return apk_digest_cmp_blob(&d, pkg->digest_alg, apk_pkg_digest_blob(pkg)) == 0;
 }
 
 int apk_dep_is_provided(const struct apk_dependency *dep, const struct apk_provider *p)
@@ -514,7 +514,7 @@ int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl,
 		}
 		break;
 	case 'C':
-		apk_blob_pull_csum(&value, &tmpl->id);
+		apk_blob_pull_digest(&value, &tmpl->id);
 		break;
 	case 'S':
 		pkg->size = apk_blob_pull_uint(&value, 10);
@@ -584,9 +584,9 @@ void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl
 	apk_blob_t uid;
 
 	uid = adb_ro_blob(pkginfo, ADBI_PI_UNIQUE_ID);
-	if (uid.len >= APK_CHECKSUM_SHA1) {
-		tmpl->id.type = APK_CHECKSUM_SHA1;
-		memcpy(tmpl->id.data, uid.ptr, uid.len);
+	if (uid.len >= APK_DIGEST_LENGTH_SHA1) {
+		apk_digest_set(&tmpl->id, APK_DIGEST_SHA1);
+		memcpy(tmpl->id.data, uid.ptr, tmpl->id.len);
 	}
 
 	pkg->name = apk_db_get_name(db, adb_ro_blob(pkginfo, ADBI_PI_NAME));
@@ -700,7 +700,7 @@ int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package *
 
 	r = apk_extract(&ctx.ectx, apk_istream_from_file(AT_FDCWD, file));
 	if (r < 0 && r != -ECANCELED) goto err;
-	if (ctx.tmpl.id.type == APK_CHECKSUM_NONE ||
+	if (ctx.tmpl.id.alg == APK_DIGEST_NONE ||
 	    ctx.tmpl.pkg.name == NULL ||
 	    ctx.tmpl.pkg.uninstallable) {
 		r = -APKE_V2PKG_FORMAT;

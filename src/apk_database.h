@@ -259,7 +259,7 @@ static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
 }
 
 struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_tmpl *tmpl);
-struct apk_package *apk_db_get_pkg(struct apk_database *db, struct apk_checksum *csum);
+struct apk_package *apk_db_get_pkg(struct apk_database *db, struct apk_digest *id);
 struct apk_package *apk_db_get_file_owner(struct apk_database *db, apk_blob_t filename);
 
 int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo);

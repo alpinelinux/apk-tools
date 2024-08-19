@@ -21,21 +21,21 @@ int apk_dep_split(apk_blob_t *b, apk_blob_t *bdep)
 
 adb_val_t adb_wo_pkginfo(struct adb_obj *obj, unsigned int f, apk_blob_t val)
 {
-	struct apk_checksum csum;
+	struct apk_digest digest;
+	char buf[20];
 	adb_val_t v = ADB_ERROR(APKE_ADB_PACKAGE_FORMAT);
 
 	/* FIXME: get rid of this function, and handle the conversion via schema? */
 	switch (f) {
 	case ADBI_PI_UNIQUE_ID:
 		if (!val.ptr || val.len < 4) break;
-		apk_blob_pull_csum(&val, &csum);
-		v = adb_w_blob(obj->db, APK_BLOB_CSUM(csum));
+		apk_blob_pull_digest(&val, &digest);
+		v = adb_w_blob(obj->db, APK_DIGEST_BLOB(digest));
 		break;
 	case ADBI_PI_REPO_COMMIT:
 		if (val.len < 40) break;
-		csum.type = 20;
-		apk_blob_pull_hexdump(&val, APK_BLOB_CSUM(csum));
-		if (val.ptr) v = adb_w_blob(obj->db, APK_BLOB_CSUM(csum));
+		apk_blob_pull_hexdump(&val, APK_BLOB_BUF(buf));
+		if (val.ptr) v = adb_w_blob(obj->db, APK_BLOB_BUF(buf));
 		break;
 	default:
 		return adb_wo_val_fromstring(obj, f, val);

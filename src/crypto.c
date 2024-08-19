@@ -41,16 +41,6 @@ uint8_t apk_digest_alg_by_len(int len)
 	}
 }
 
-uint8_t apk_digest_alg_from_csum(int csum)
-{
-	switch (csum) {
-	case APK_CHECKSUM_NONE:		return APK_DIGEST_NONE;
-	case APK_CHECKSUM_MD5:		return APK_DIGEST_MD5;
-	case APK_CHECKSUM_SHA1:		return APK_DIGEST_SHA1;
-	default:			return APK_DIGEST_NONE;
-	}
-}
-
 uint8_t apk_digest_from_blob(struct apk_digest *d, apk_blob_t b)
 {
 	d->alg = apk_digest_alg_by_len(b.len);
@@ -60,21 +50,4 @@ uint8_t apk_digest_from_blob(struct apk_digest *d, apk_blob_t b)
 		memcpy(d->data, b.ptr, d->len);
 	}
 	return d->alg;
-}
-
-void apk_digest_from_checksum(struct apk_digest *d, const struct apk_checksum *c)
-{
-	apk_digest_set(d, apk_digest_alg_from_csum(c->type));
-	memcpy(d->data, c->data, d->len);
-}
-
-
-void apk_checksum_from_digest(struct apk_checksum *csum, const struct apk_digest *d)
-{
-	if (d->len > sizeof csum->data) {
-		csum->type = APK_CHECKSUM_NONE;
-	} else {
-		csum->type = d->len;
-		memcpy(csum->data, d->data, d->len);
-	}
 }

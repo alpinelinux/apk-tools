@@ -37,8 +37,11 @@
 #define APK_DIGEST_LENGTH_SHA512	64
 #define APK_DIGEST_LENGTH_MAX		APK_DIGEST_LENGTH_SHA512
 
+/* Enough space for a hexdump of the longest checksum possible plus
+ * a two-character type prefix */
+#define APK_BLOB_DIGEST_BUF	(2 + (2 * APK_DIGEST_LENGTH_MAX))
+
 const char *apk_digest_alg_str(uint8_t);
-uint8_t apk_digest_alg_from_csum(int);
 
 struct apk_digest {
 	uint8_t alg, len;
@@ -50,8 +53,6 @@ struct apk_digest {
 int apk_digest_alg_len(uint8_t alg);
 uint8_t apk_digest_alg_by_len(int len);
 uint8_t apk_digest_from_blob(struct apk_digest *d, apk_blob_t b);
-void apk_digest_from_checksum(struct apk_digest *d, const struct apk_checksum *c);
-void apk_checksum_from_digest(struct apk_checksum *csum, const struct apk_digest *d);
 
 int apk_digest_calc(struct apk_digest *d, uint8_t alg, const void *ptr, size_t sz);
 
@@ -75,8 +76,12 @@ static inline int apk_digest_cmp_blob(const struct apk_digest *d, uint8_t alg, c
 	return apk_blob_compare(APK_DIGEST_BLOB(*d), b);
 }
 
-static inline int apk_digest_cmp_csum(const struct apk_digest *d, const struct apk_checksum *csum) {
-	return apk_blob_compare(APK_DIGEST_BLOB(*d), APK_BLOB_CSUM(*csum));
+static inline void apk_digest_push(apk_blob_t *to, struct apk_digest *digest) {
+	return apk_blob_push_hash(to, APK_DIGEST_BLOB(*digest));
+}
+
+static inline void apk_digest_push_hex(apk_blob_t *to, struct apk_digest *digest) {
+	return apk_blob_push_hash_hex(to, APK_DIGEST_BLOB(*digest));
 }
 
 int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg);

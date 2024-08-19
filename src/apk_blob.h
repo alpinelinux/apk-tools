@@ -25,27 +25,9 @@ typedef int (*apk_blob_cb)(void *ctx, apk_blob_t blob);
 #define BLOB_FMT		"%.*s"
 #define BLOB_PRINTF(b)		(int)(b).len, (b).ptr
 
-#define APK_CHECKSUM_NONE	0
-#define APK_CHECKSUM_MD5	16
-#define APK_CHECKSUM_SHA1	20
-#define APK_CHECKSUM_DEFAULT	APK_CHECKSUM_SHA1
-#define APK_CHECKSUM_MAX	APK_CHECKSUM_SHA1
-
-/* Enough space for a hexdump of the longest checksum possible plus
- * a two-character type prefix */
-#define APK_BLOB_CHECKSUM_BUF	(2 + (2 * APK_CHECKSUM_MAX))
-
-/* Internal container for checksums */
-struct apk_checksum {
-	unsigned char data[APK_CHECKSUM_MAX];
-	unsigned char type;
-};
-
 #define APK_BLOB_IS_NULL(blob)		((blob).ptr == NULL)
-
 #define APK_BLOB_NULL			((apk_blob_t){0, NULL})
 #define APK_BLOB_BUF(buf)		((apk_blob_t){sizeof(buf), (char *)(buf)})
-#define APK_BLOB_CSUM(csum)		((apk_blob_t){(csum).type, (char *)(csum).data})
 #define APK_BLOB_STRUCT(s)		((apk_blob_t){sizeof(s), (char*)&(s)})
 #define APK_BLOB_STRLIT(s)		((apk_blob_t){sizeof(s)-1, (char *)(s)})
 #define APK_BLOB_PTR_LEN(beg,len)	((apk_blob_t){(len), (beg)})
@@ -96,16 +78,11 @@ void apk_blob_push_fmt(apk_blob_t *to, const char *fmt, ...)
 
 void apk_blob_pull_char(apk_blob_t *b, int expected);
 uint64_t apk_blob_pull_uint(apk_blob_t *b, int radix);
-void apk_blob_pull_csum(apk_blob_t *b, struct apk_checksum *csum);
 void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to);
 void apk_blob_pull_hexdump(apk_blob_t *b, apk_blob_t to);
 int apk_blob_pull_blob_match(apk_blob_t *b, apk_blob_t match);
 
-static inline void apk_blob_push_csum(apk_blob_t *to, struct apk_checksum *csum) {
-	return apk_blob_push_hash(to, APK_BLOB_CSUM(*csum));
-}
-static inline void apk_blob_push_csum_hex(apk_blob_t *to, struct apk_checksum *csum) {
-	return apk_blob_push_hash_hex(to, APK_BLOB_CSUM(*csum));
-}
+struct apk_digest;
+void apk_blob_pull_digest(apk_blob_t *b, struct apk_digest *digest);
 
 #endif

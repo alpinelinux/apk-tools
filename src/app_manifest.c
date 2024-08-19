@@ -30,7 +30,7 @@ static void process_package(struct apk_database *db, struct apk_package *pkg)
 	struct apk_db_file *file;
 	struct hlist_node *dc, *dn, *fc, *fn;
 	const char *prefix1 = "", *prefix2 = "";
-	char csum_buf[APK_BLOB_CHECKSUM_BUF];
+	char csum_buf[APK_BLOB_DIGEST_BUF];
 
 	if (ipkg == NULL)
 		return;
@@ -66,7 +66,7 @@ static int process_pkg_file(struct apk_extract_ctx *ectx, const struct apk_file_
 {
 	struct manifest_file_ctx *mctx = container_of(ectx, struct manifest_file_ctx, ectx);
 	struct apk_out *out = mctx->out;
-	char csum_buf[APK_BLOB_CHECKSUM_BUF];
+	char csum_buf[APK_BLOB_DIGEST_BUF];
 	apk_blob_t csum_blob = APK_BLOB_BUF(csum_buf);
 
 	if ((fi->mode & S_IFMT) != S_IFREG) return 0;
