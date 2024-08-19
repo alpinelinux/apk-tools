@@ -37,9 +37,11 @@ libapk_src = [
 ]
 
 libapk_headers = [
+	'adb.h',
 	'apk_applet.h',
 	'apk_atom.h',
 	'apk_blob.h',
+	'apk_context.h',
 	'apk_crypto.h',
         'apk_crypto_@0@.h'.format(crypto_backend),
 	'apk_ctype.h',
@@ -56,6 +58,7 @@ libapk_headers = [
 	'apk_solver_data.h',
 	'apk_solver.h',
 	'apk_tar.h',
+	'apk_trust.h',
 	'apk_version.h',
 ]
 
