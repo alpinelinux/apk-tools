@@ -584,10 +584,7 @@ void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl
 	apk_blob_t uid;
 
 	uid = adb_ro_blob(pkginfo, ADBI_PI_UNIQUE_ID);
-	if (uid.len >= APK_DIGEST_LENGTH_SHA1) {
-		apk_digest_set(&tmpl->id, APK_DIGEST_SHA1);
-		memcpy(tmpl->id.data, uid.ptr, tmpl->id.len);
-	}
+	if (uid.len >= APK_DIGEST_LENGTH_SHA1) apk_digest_from_blob(&tmpl->id, uid);
 
 	pkg->name = apk_db_get_name(db, adb_ro_blob(pkginfo, ADBI_PI_NAME));
 	pkg->version = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_VERSION));

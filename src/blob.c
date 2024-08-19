@@ -272,6 +272,10 @@ void apk_blob_push_hash_hex(apk_blob_t *to, apk_blob_t hash)
 		apk_blob_push_blob(to, APK_BLOB_STR("X1"));
 		apk_blob_push_hexdump(to, hash);
 		break;
+	case APK_DIGEST_LENGTH_SHA256:
+		apk_blob_push_blob(to, APK_BLOB_STR("X2"));
+		apk_blob_push_hexdump(to, hash);
+		break;
 	default:
 		*to = APK_BLOB_NULL;
 		break;
@@ -286,6 +290,10 @@ void apk_blob_push_hash(apk_blob_t *to, apk_blob_t hash)
 		break;
 	case APK_DIGEST_LENGTH_SHA1:
 		apk_blob_push_blob(to, APK_BLOB_STR("Q1"));
+		apk_blob_push_base64(to, hash);
+		break;
+	case APK_DIGEST_LENGTH_SHA256:
+		apk_blob_push_blob(to, APK_BLOB_STR("Q2"));
 		apk_blob_push_base64(to, hash);
 		break;
 	default:
@@ -427,6 +435,9 @@ void apk_blob_pull_digest(apk_blob_t *b, struct apk_digest *d)
 	switch (b->ptr[1]) {
 	case '1':
 		apk_digest_set(d, APK_DIGEST_SHA1);
+		break;
+	case '2':
+		apk_digest_set(d, APK_DIGEST_SHA256);
 		break;
 	default:
 		goto fail;
