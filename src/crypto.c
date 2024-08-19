@@ -20,11 +20,11 @@ const char *apk_digest_alg_str(uint8_t alg)
 int apk_digest_alg_len(uint8_t alg)
 {
 	switch (alg) {
-	case APK_DIGEST_MD5:		return 16;
-	case APK_DIGEST_SHA1:		return 20;
-	case APK_DIGEST_SHA256_160:	return 20;
-	case APK_DIGEST_SHA256:		return 32;
-	case APK_DIGEST_SHA512:		return 64;
+	case APK_DIGEST_MD5:		return APK_DIGEST_LENGTH_MD5;
+	case APK_DIGEST_SHA1:		return APK_DIGEST_LENGTH_SHA1;
+	case APK_DIGEST_SHA256_160:	return APK_DIGEST_LENGTH_SHA256_160;
+	case APK_DIGEST_SHA256:		return APK_DIGEST_LENGTH_SHA256;
+	case APK_DIGEST_SHA512:		return APK_DIGEST_LENGTH_SHA512;
 	default:			return 0;
 	}
 }
@@ -32,12 +32,12 @@ int apk_digest_alg_len(uint8_t alg)
 uint8_t apk_digest_alg_by_len(int len)
 {
 	switch (len) {
-	case 0:	 return APK_DIGEST_NONE;
-	case 16: return APK_DIGEST_MD5;
-	case 20: return APK_DIGEST_SHA1;
-	case 32: return APK_DIGEST_SHA256;
-	case 64: return APK_DIGEST_SHA512;
-	default: return APK_DIGEST_NONE;
+	case 0:				return APK_DIGEST_NONE;
+	case APK_DIGEST_LENGTH_MD5:	return APK_DIGEST_MD5;
+	case APK_DIGEST_LENGTH_SHA1:	return APK_DIGEST_SHA1;
+	case APK_DIGEST_LENGTH_SHA256:	return APK_DIGEST_SHA256;
+	case APK_DIGEST_LENGTH_SHA512:	return APK_DIGEST_SHA512;
+	default:			return APK_DIGEST_NONE;
 	}
 }
 

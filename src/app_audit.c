@@ -215,7 +215,7 @@ static void report_audit(struct audit_ctx *actx,
 			 struct apk_file_info *fi)
 {
 	struct apk_package *pkg = file ? file->diri->pkg : NULL;
-	char csum_buf[8+2*APK_DIGEST_MAX_LENGTH];
+	char csum_buf[8+2*APK_DIGEST_LENGTH_MAX];
 	int verbosity = actx->verbosity;
 
 	if (!reason) return;

@@ -10,7 +10,7 @@
 struct conv_script {
 	struct list_head script_node;
 	char csum_len;
-	char csum[32];
+	char csum[2*APK_DIGEST_LENGTH_MAX];
 	int type;
 	size_t size;
 	apk_blob_t *triggers;

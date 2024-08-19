@@ -30,14 +30,19 @@
 #define APK_DIGEST_SHA512	0x04
 #define APK_DIGEST_SHA256_160	0x05
 
-#define APK_DIGEST_MAX_LENGTH	64	// longest is SHA512
+#define APK_DIGEST_LENGTH_MD5		16
+#define APK_DIGEST_LENGTH_SHA1		20
+#define APK_DIGEST_LENGTH_SHA256_160	20
+#define APK_DIGEST_LENGTH_SHA256	32
+#define APK_DIGEST_LENGTH_SHA512	64
+#define APK_DIGEST_LENGTH_MAX		APK_DIGEST_LENGTH_SHA512
 
 const char *apk_digest_alg_str(uint8_t);
 uint8_t apk_digest_alg_from_csum(int);
 
 struct apk_digest {
 	uint8_t alg, len;
-	uint8_t data[APK_DIGEST_MAX_LENGTH];
+	uint8_t data[APK_DIGEST_LENGTH_MAX];
 };
 
 #define APK_DIGEST_BLOB(d) APK_BLOB_PTR_LEN((void*)((d).data), (d).len)

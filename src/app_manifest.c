@@ -89,7 +89,7 @@ static int process_v3_meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 	struct adb_obj paths, path, files, file;
 	struct apk_digest digest;
 	struct apk_pathbuilder pb;
-	char buf[APK_DIGEST_MAX_LENGTH*2+1];
+	char buf[APK_DIGEST_LENGTH_MAX*2+1];
 	apk_blob_t hex;
 	int i, j, n;
 

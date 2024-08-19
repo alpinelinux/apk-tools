@@ -15,6 +15,7 @@
 
 #include "apk_blob.h"
 #include "apk_hash.h"
+#include "apk_crypto.h"
 
 char *apk_blob_cstr(apk_blob_t blob)
 {
@@ -264,10 +265,10 @@ void apk_blob_push_uint(apk_blob_t *to, unsigned int value, int radix)
 void apk_blob_push_hash_hex(apk_blob_t *to, apk_blob_t hash)
 {
 	switch (hash.len) {
-	case APK_CHECKSUM_MD5:
+	case APK_DIGEST_LENGTH_MD5:
 		apk_blob_push_hexdump(to, hash);
 		break;
-	case APK_CHECKSUM_SHA1:
+	case APK_DIGEST_LENGTH_SHA1:
 		apk_blob_push_blob(to, APK_BLOB_STR("X1"));
 		apk_blob_push_hexdump(to, hash);
 		break;
@@ -280,10 +281,10 @@ void apk_blob_push_hash_hex(apk_blob_t *to, apk_blob_t hash)
 void apk_blob_push_hash(apk_blob_t *to, apk_blob_t hash)
 {
 	switch (hash.len) {
-	case APK_CHECKSUM_MD5:
+	case APK_DIGEST_LENGTH_MD5:
 		apk_blob_push_hexdump(to, hash);
 		break;
-	case APK_CHECKSUM_SHA1:
+	case APK_DIGEST_LENGTH_SHA1:
 		apk_blob_push_blob(to, APK_BLOB_STR("Q1"));
 		apk_blob_push_base64(to, hash);
 		break;

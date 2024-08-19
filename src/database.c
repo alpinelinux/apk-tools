@@ -233,7 +233,7 @@ static struct apk_db_acl *__apk_db_acl_atomize(struct apk_database *db, mode_t m
 {
 	struct {
 		struct apk_db_acl acl;
-		uint8_t digest[APK_DIGEST_MAX_LENGTH];
+		uint8_t digest[APK_DIGEST_LENGTH_MAX];
 	} data;
 	apk_blob_t *b;
 
@@ -1390,7 +1390,7 @@ static void apk_db_setup_repositories(struct apk_database *db, const char *cache
 		.hash.data = {
 			0xb0,0x35,0x92,0x80,0x6e,0xfa,0xbf,0xee,0xb7,0x09,
 			0xf5,0xa7,0x0a,0x7c,0x17,0x26,0x69,0xb0,0x05,0x38 },
-		.hash.len = 20,
+		.hash.len = APK_DIGEST_LENGTH_SHA1,
 		.hash.alg = APK_DIGEST_SHA1,
 	};
 

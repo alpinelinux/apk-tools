@@ -157,7 +157,7 @@ static int apk_load_file_at(int dirfd, const char *fn, unsigned char **buf, size
 
 static int apk_pkey_init(struct apk_pkey *pkey)
 {
-	unsigned char dig[APK_DIGEST_MAX_LENGTH];
+	unsigned char dig[APK_DIGEST_LENGTH_MAX];
 	unsigned char pub[APK_ENC_KEY_MAX_LENGTH] = {};
 	unsigned char *c;
 	int len, r = -APKE_CRYPTO_ERROR;
