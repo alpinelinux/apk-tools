@@ -20,52 +20,67 @@
 #include "apk_print.h"
 #include "apk_io.h"
 
+#define DECLARE_ERRMSGS(func) \
+	func(APKE_EOF,			"unexpected end of file") \
+	func(APKE_DNS,			"DNS error (try again later)") \
+	func(APKE_URL_FORMAT,		"invalid URL (check your repositories file)") \
+	func(APKE_CRYPTO_ERROR,		"crypto error") \
+	func(APKE_CRYPTO_NOT_SUPPORTED,	"cryptographic algorithm not supported") \
+	func(APKE_CRYPTO_KEY_FORMAT,	"cryptographic key format not recognized") \
+	func(APKE_SIGNATURE_GEN_FAILURE,"signing failure") \
+	func(APKE_SIGNATURE_UNTRUSTED,	"UNTRUSTED signature") \
+	func(APKE_SIGNATURE_INVALID,	"BAD signature") \
+	func(APKE_FORMAT_INVALID,	"file format is invalid or inconsistent") \
+	func(APKE_FORMAT_NOT_SUPPORTED,	"file format not supported (in this applet)") \
+	func(APKE_PKGNAME_FORMAT,	"package name is invalid") \
+	func(APKE_PKGVERSION_FORMAT,	"package version is invalid") \
+	func(APKE_DEPENDENCY_FORMAT,	"dependency format is invalid") \
+	func(APKE_ADB_COMPRESSION,	"ADB compression not supported") \
+	func(APKE_ADB_HEADER,		"ADB header error") \
+	func(APKE_ADB_VERSION,		"incompatible ADB version") \
+	func(APKE_ADB_SCHEMA,		"ADB schema error") \
+	func(APKE_ADB_BLOCK,		"ADB block error") \
+	func(APKE_ADB_SIGNATURE,	"ADB signature block error") \
+	func(APKE_ADB_NO_FROMSTRING,	"ADB schema error (no fromstring)") \
+	func(APKE_ADB_LIMIT,		"ADB schema limit reached") \
+	func(APKE_ADB_PACKAGE_FORMAT,	"ADB package format") \
+	func(APKE_V2DB_FORMAT,		"v2 database format error") \
+	func(APKE_V2PKG_FORMAT,		"v2 package format error") \
+	func(APKE_V2PKG_INTEGRITY,	"v2 package integrity error") \
+	func(APKE_V2NDX_FORMAT,		"v2 index format error") \
+	func(APKE_PACKAGE_NOT_FOUND,	"could not find a repo which provides this package (check repositories file and run 'apk update')") \
+	func(APKE_INDEX_STALE,		"package mentioned in index not found (try 'apk update')") \
+	func(APKE_FILE_INTEGRITY,	"file integrity error") \
+	func(APKE_CACHE_NOT_AVAILABLE,	"cache not available") \
+	func(APKE_UVOL_NOT_AVAILABLE,	"uvol manager not available") \
+	func(APKE_UVOL_ERROR,		"uvol error") \
+	func(APKE_UVOL_ROOT,		"uvol not supported with --root") \
+	func(APKE_REMOTE_IO,		"remote server returned error (try 'apk update')")
+
 const char *apk_error_str(int error)
 {
-	if (error < 0)
-		error = -error;
+	static const struct error_literals {
+#define ERRMSG_DEFINE(n, str) char errmsg_##n[sizeof(str)];
+		DECLARE_ERRMSGS(ERRMSG_DEFINE)
+	} errors = {
+#define ERRMSG_ASSIGN(n, str) str,
+		DECLARE_ERRMSGS(ERRMSG_ASSIGN)
+	};
+	static const unsigned short errmsg_index[] = {
+#define ERRMSG_INDEX(n, str) [n - APKE_FIRST_VALUE] = offsetof(struct error_literals, errmsg_##n),
+		DECLARE_ERRMSGS(ERRMSG_INDEX)
+	};
+
+	if (error < 0) error = -error;
+	if (error >= APKE_FIRST_VALUE && error < APKE_FIRST_VALUE + ARRAY_SIZE(errmsg_index))
+		return (char *)&errors + errmsg_index[error - APKE_FIRST_VALUE];
+
 	switch (error) {
-	case ECONNABORTED:			return "network connection aborted";
-	case ECONNREFUSED:			return "could not connect to server (check repositories file)";
-	case ENETUNREACH:			return "network error (check Internet connection and firewall)";
-	case EAGAIN:				return "temporary error (try again later)";
-	case APKE_EOF:				return "unexpected end of file";
-	case APKE_DNS:				return "DNS error (try again later)";
-	case APKE_URL_FORMAT:			return "invalid URL (check your repositories file)";
-	case APKE_CRYPTO_ERROR:			return "crypto error";
-	case APKE_CRYPTO_NOT_SUPPORTED:		return "cryptographic algorithm not supported";
-	case APKE_CRYPTO_KEY_FORMAT:		return "cryptographic key format not recognized";
-	case APKE_SIGNATURE_GEN_FAILURE:	return "signing failure";
-	case APKE_SIGNATURE_UNTRUSTED:		return "UNTRUSTED signature";
-	case APKE_SIGNATURE_INVALID:		return "BAD signature";
-	case APKE_FORMAT_INVALID:		return "file format is invalid or inconsistent";
-	case APKE_FORMAT_NOT_SUPPORTED:		return "file format not supported (in this applet)";
-	case APKE_PKGNAME_FORMAT:		return "package name is invalid";
-	case APKE_PKGVERSION_FORMAT:		return "package version is invalid";
-	case APKE_DEPENDENCY_FORMAT:		return "dependency format is invalid";
-	case APKE_ADB_COMPRESSION:		return "ADB compression not supported";
-	case APKE_ADB_HEADER:			return "ADB header error";
-	case APKE_ADB_VERSION:			return "incompatible ADB version";
-	case APKE_ADB_SCHEMA:			return "ADB schema error";
-	case APKE_ADB_BLOCK:			return "ADB block error";
-	case APKE_ADB_SIGNATURE:		return "ADB signature block error";
-	case APKE_ADB_NO_FROMSTRING:		return "ADB schema error (no fromstring)";
-	case APKE_ADB_LIMIT:			return "ADB schema limit reached";
-	case APKE_ADB_PACKAGE_FORMAT:		return "ADB package format";
-	case APKE_V2DB_FORMAT:			return "v2 database format error";
-	case APKE_V2PKG_FORMAT:			return "v2 package format error";
-	case APKE_V2PKG_INTEGRITY:		return "v2 package integrity error";
-	case APKE_V2NDX_FORMAT:			return "v2 index format error";
-	case APKE_PACKAGE_NOT_FOUND:		return "could not find a repo which provides this package (check repositories file and run 'apk update')";
-	case APKE_INDEX_STALE:			return "package mentioned in index not found (try 'apk update')";
-	case APKE_FILE_INTEGRITY:		return "file integrity error";
-	case APKE_CACHE_NOT_AVAILABLE:		return "cache not available";
-	case APKE_UVOL_NOT_AVAILABLE:		return "uvol manager not available";
-	case APKE_UVOL_ERROR:			return "uvol error";
-	case APKE_UVOL_ROOT:			return "uvol not supported with --root";
-	case APKE_REMOTE_IO:			return "remote server returned error (try 'apk update')";
-	default:
-		return strerror(error);
+	case ECONNABORTED:	return "network connection aborted";
+	case ECONNREFUSED:	return "could not connect to server (check repositories file)";
+	case ENETUNREACH:	return "network error (check Internet connection and firewall)";
+	case EAGAIN:		return "temporary error (try again later)";
+	default:		return strerror(error);
 	}
 }
 
