@@ -5,7 +5,6 @@ option('docs', description: 'Build manpages with scdoc', type: 'feature', value:
 option('help', description: 'Build help into apk binaries, needs lua', type: 'feature', value: 'auto')
 option('lua', description: 'Build luaapk (lua bindings)', type: 'feature', value: 'auto')
 option('lua_version', description: 'Lua version to build against', type: 'string', value: '5.3')
-option('static_apk', description: 'Also build apk.static', type: 'boolean', value: false)
 option('url_backend', description: 'URL backend', type: 'combo', choices: ['libfetch', 'wget'], value: 'libfetch')
 option('uvol_db_target', description: 'Default target for uvol database layer', type: 'string')
 option('zstd', description: 'Build with zstd support', type: 'boolean', value: true)

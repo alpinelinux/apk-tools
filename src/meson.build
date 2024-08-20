@@ -140,7 +140,7 @@ if get_option('zstd')
 	apk_cargs += [ '-DHAVE_ZSTD' ]
 endif
 
-libapk_shared = shared_library(
+libapk_lib = library(
 	'apk',
 	libapk_src,
 	version: libapk_so_version,
@@ -148,30 +148,18 @@ libapk_shared = shared_library(
 	dependencies: [
 		libfetch_dep,
 		libportability_dep,
-		shared_deps,
+		apk_deps,
 	],
 	c_args: apk_cargs,
 )
 
-libapk_static = static_library(
-	'apk',
-	libapk_src,
-	install: not subproject,
-	dependencies: [
-		libfetch_dep,
-		libportability_dep,
-		static_deps,
-	],
-	c_args: [apk_cargs, '-DOPENSSL_NO_ENGINE'],
-)
-
 libapk_dep = declare_dependency(
-	link_with: libapk_shared,
+	link_with: libapk_lib,
 )
 
 if not subproject
 	pkgc.generate(
-		libapk_shared,
+		libapk_lib,
 		name: 'apk',
 		version: libapk_so_version,
 	)
@@ -193,7 +181,7 @@ if(lua_dep.found())
 		dependencies: [
 			lua_dep,
 			libapk_dep,
-			shared_deps,
+			apk_deps,
 			libportability_dep.partial_dependency(includes: true),
 		],
 		install: true,
@@ -208,25 +196,9 @@ apk_exe = executable(
 	install: not subproject,
 	dependencies: [
 		libapk_dep,
-		shared_deps,
+		apk_deps,
 		libfetch_dep.partial_dependency(includes: true),
 		libportability_dep.partial_dependency(includes: true),
 	],
 	c_args: apk_cargs,
 )
-
-if get_option('static_apk')
-	apk_static_exe = executable(
-		'apk.static',
-		apk_src,
-		install: not subproject,
-		dependencies: [
-			static_deps,
-			libfetch_dep.partial_dependency(includes: true),
-			libportability_dep.partial_dependency(includes: true),
-		],
-		link_with: libapk_static,
-		c_args: [apk_cargs, '-DOPENSSL_NO_ENGINE'],
-		link_args: '-static',
-	)
-endif
