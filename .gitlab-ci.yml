@@ -24,8 +24,10 @@ test:alpine:
     script:
         - apk update
         - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib meson zlib-static zstd-static openssl-libs-static
-        - meson setup build -Dstatic_apk=true
+        - meson setup build
         - ninja -C build
+        - LDFLAGS="-static" meson setup build-static -Ddefault_library=static -Dprefer_static=true
+        - ninja -C build-static
     tags:
         - docker-alpine
         - x86_64
