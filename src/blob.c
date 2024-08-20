@@ -296,13 +296,19 @@ void apk_blob_push_csum(apk_blob_t *to, struct apk_checksum *csum)
 static const char b64encode[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-static inline void push_b64_chunk(unsigned char *to, const unsigned char *from, int len)
+static inline void push_b64_tail(unsigned char *to, const unsigned char *from, int len)
 {
-	to[0] = b64encode[from[0] >> 2];
-	to[1] = b64encode[((from[0] & 0x03) << 4) | ((from[1] & 0xf0) >> 4)];
-	to[2] = len < 2 ? '=' : b64encode[((from[1] & 0x0f) << 2) |
-	                                  ((from[2] & 0xc0) >> 6)];
-	to[3] = len < 3 ? '=' : b64encode[from[2] & 0x3f ];
+	char t2 = '=';
+	unsigned char f0 = from[0], f1 = 0;
+
+	if (likely(len == 2)) {
+		f1 = from[1];
+		t2 = b64encode[(f1 & 0x0f) << 2];
+	}
+	to[0] = b64encode[f0 >> 2];
+	to[1] = b64encode[((f0 & 0x03) << 4) | ((f1 & 0xf0) >> 4)];
+	to[2] = t2;
+	to[3] = '=';
 }
 
 void apk_blob_push_base64(apk_blob_t *to, apk_blob_t binary)
@@ -311,8 +317,7 @@ void apk_blob_push_base64(apk_blob_t *to, apk_blob_t binary)
 	unsigned char *dst = (unsigned char *) to->ptr;
 	int i, needed;
 
-	if (unlikely(APK_BLOB_IS_NULL(*to)))
-		return;
+	if (unlikely(APK_BLOB_IS_NULL(*to))) return;
 
 	needed = ((binary.len + 2) / 3) * 4;
 	if (unlikely(to->len < needed)) {
@@ -320,11 +325,14 @@ void apk_blob_push_base64(apk_blob_t *to, apk_blob_t binary)
 		return;
 	}
 
-	for (i = 0; i < binary.len / 3; i++, src += 3, dst += 4)
-		push_b64_chunk(dst, src, 4);
+	for (i = 0; i < binary.len / 3; i++, src += 3, dst += 4) {
+		dst[0] = b64encode[src[0] >> 2];
+		dst[1] = b64encode[((src[0] & 0x03) << 4) | ((src[1] & 0xf0) >> 4)];
+		dst[2] = b64encode[((src[1] & 0x0f) << 2) | ((src[2] & 0xc0) >> 6)];
+		dst[3] = b64encode[src[2] & 0x3f];
+	}
 	i = binary.len % 3;
-	if (i != 0)
-		push_b64_chunk(dst, src, i);
+	if (likely(i != 0)) push_b64_tail(dst, src, i);
 	to->ptr += needed;
 	to->len -= needed;
 }
@@ -334,9 +342,7 @@ void apk_blob_push_hexdump(apk_blob_t *to, apk_blob_t binary)
 	char *d;
 	int i;
 
-	if (unlikely(APK_BLOB_IS_NULL(*to)))
-		return;
-
+	if (unlikely(APK_BLOB_IS_NULL(*to))) return;
 	if (unlikely(to->len < binary.len * 2)) {
 		*to = APK_BLOB_NULL;
 		return;
@@ -408,8 +414,7 @@ void apk_blob_pull_csum(apk_blob_t *b, struct apk_checksum *csum)
 
 	if (unlikely(APK_BLOB_IS_NULL(*b))) goto fail;
 	if (unlikely(b->len < 2)) goto fail;
-
-	if (dx(b->ptr[0]) != 0xff) {
+	if (unlikely(dx(b->ptr[0]) != 0xff)) {
 		/* Assume MD5 for backwards compatibility */
 		csum->type = APK_CHECKSUM_MD5;
 		apk_blob_pull_hexdump(b, APK_BLOB_CSUM(*csum));
@@ -515,7 +520,7 @@ static unsigned char b64decode[] = {
 };
 
 static inline __attribute__((always_inline))
-int pull_b64_chunk(unsigned char *restrict to, const unsigned char *restrict from, int len)
+int pull_b64_tail(unsigned char *restrict to, const unsigned char *restrict from, int len)
 {
 	unsigned char tmp[4];
 	int i, r = 0;
@@ -524,18 +529,13 @@ int pull_b64_chunk(unsigned char *restrict to, const unsigned char *restrict fro
 		tmp[i] = b64decode[from[i]];
 		r |= tmp[i];
 	}
-	if (unlikely(r == 0xff))
-		return -1;
+	if (unlikely(r == 0xff)) return -1;
 
 	to[0] = (tmp[0] << 2 | tmp[1] >> 4);
-	if (len > 1)
-		to[1] = (tmp[1] << 4 | tmp[2] >> 2);
-	else if (unlikely(from[2] != '='))
-		return -1;
-	if (len > 2)
-		to[2] = (((tmp[2] << 6) & 0xc0) | tmp[3]);
-	else if (unlikely(from[3] != '='))
-		return -1;
+	if (len > 1) to[1] = (tmp[1] << 4 | tmp[2] >> 2);
+	else if (unlikely(from[2] != '=')) return -1;
+	if (len > 2) to[2] = (((tmp[2] << 6) & 0xc0) | tmp[3]);
+	else if (unlikely(from[3] != '=')) return -1;
 	return 0;
 }
 
@@ -547,8 +547,7 @@ void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to)
 	unsigned char *dend;
 	int r, needed;
 
-	if (unlikely(APK_BLOB_IS_NULL(*b)))
-		return;
+	if (unlikely(APK_BLOB_IS_NULL(*b))) return;
 
 	needed = ((to.len + 2) / 3) * 4;
 	if (unlikely(b->len < needed)) goto err;
@@ -567,8 +566,8 @@ void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to)
 	if (unlikely(r == 0xff)) goto err;
 
 	dend += 2;
-	if (dst != dend &&
-	    pull_b64_chunk(dst, src, dend - dst) != 0)
+	if (likely(dst != dend) &&
+	    unlikely(pull_b64_tail(dst, src, dend - dst) != 0))
 		goto err;
 
 	b->ptr += needed;
