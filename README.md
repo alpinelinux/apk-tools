@@ -13,6 +13,8 @@ The preferred build system for building apk-tools is Meson:
 # meson install -C build
 ```
 
+For bootstrapping without Python, muon is also compatible. All you have to do is replace `meson` with `muon` in the above example.
+
 While there is a legacy Makefile-based system available, it only works for musl-linux
 targets, and will be dropped in the apk-tools 3.0 release.
 
