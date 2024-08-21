@@ -2825,10 +2825,14 @@ static void apk_db_purge_pkg(struct apk_database *db,
 	struct apk_fsdir d;
 	struct hlist_node *dc, *dn, *fc, *fn;
 	unsigned long hash;
+	int purge = db->ctx->flags & APK_PURGE;
 	int ctrl = is_installed ? APK_FS_CTRL_DELETE : APK_FS_CTRL_CANCEL;
 
 	hlist_for_each_entry_safe(diri, dc, dn, &ipkg->owned_dirs, pkg_dirs_list) {
+		int dirclean = purge || !is_installed || apk_protect_mode_none(diri->dir->protect_mode);
+		int delapknew = is_installed && !apk_protect_mode_none(diri->dir->protect_mode);
 		apk_blob_t dirname = APK_BLOB_PTR_LEN(diri->dir->name, diri->dir->namelen);
+
 		if (is_installed) diri->dir->modified = 1;
 		apk_fsdir_get(&d, dirname, db->extract_flags, db->ctx, apk_pkg_ctx(ipkg->pkg));
 
@@ -2838,11 +2842,10 @@ static void apk_db_purge_pkg(struct apk_database *db,
 				.filename = APK_BLOB_PTR_LEN(file->name, file->namelen),
 			};
 			hash = apk_blob_hash_seed(key.filename, diri->dir->hash);
-			if (!is_installed ||
-			    apk_protect_mode_none(diri->dir->protect_mode) ||
-			    (db->ctx->flags & APK_PURGE) ||
-			    apk_db_audit_file(&d, key.filename, file) == 0)
+			if (dirclean || apk_db_audit_file(&d, key.filename, file) == 0)
 				apk_fsdir_file_control(&d, key.filename, ctrl);
+			if (delapknew)
+				apk_fsdir_file_control(&d, key.filename, APK_FS_CTRL_DELETE_APKNEW);
 
 			apk_dbg2(out, DIR_FILE_FMT, DIR_FILE_PRINTF(diri->dir, file));
 			__hlist_del(fc, &diri->owned_files.first);

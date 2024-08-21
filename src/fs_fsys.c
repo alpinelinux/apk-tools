@@ -267,6 +267,11 @@ static int fsys_file_control(struct apk_fsdir *d, apk_blob_t filename, int ctrl)
 		if (unlinkat(atfd, fn, 0) < 0)
 			rc = -errno;
 		break;
+	case APK_FS_CTRL_DELETE_APKNEW:
+		// remove apknew (which may or may not exist)
+		snprintf(apknewname, sizeof apknewname, "%s%s", fn, ".apk-new");
+		unlinkat(atfd, apknewname, 0);
+		break;
 	default:
 		rc = -ENOSYS;
 		break;

@@ -148,6 +148,8 @@ static int uvol_file_control(struct apk_fsdir *d, apk_blob_t filename, int ctrl)
 		if (r)
 			return r;
 		return uvol_run(ac, "remove", uvol_name, 0, 0);
+	case APK_FS_CTRL_DELETE_APKNEW:
+		return 0;
 	default:
 		return -APKE_UVOL_ERROR;
 	}
