@@ -47,19 +47,19 @@ struct apk_solver_package_state {
 	unsigned short max_dep_chain;
 	unsigned short pinning_allowed;
 	unsigned short pinning_preferred;
-	unsigned solver_flags : 6;
-	unsigned solver_flags_inheritable : 6;
-	unsigned seen : 1;
-	unsigned pkg_available : 1;
-	unsigned pkg_selectable : 1;
-	unsigned tag_ok : 1;
-	unsigned tag_preferred : 1;
-	unsigned dependencies_used : 1;
-	unsigned dependencies_merged : 1;
-	unsigned in_changeset : 1;
-	unsigned iif_triggered : 1;
-	unsigned iif_failed : 1;
-	unsigned error : 1;
+	unsigned short solver_flags;
+	unsigned short solver_flags_inheritable;
+	unsigned char seen : 1;
+	unsigned char pkg_available : 1;
+	unsigned char pkg_selectable : 1;
+	unsigned char tag_ok : 1;
+	unsigned char tag_preferred : 1;
+	unsigned char dependencies_used : 1;
+	unsigned char dependencies_merged : 1;
+	unsigned char in_changeset : 1;
+	unsigned char iif_triggered : 1;
+	unsigned char iif_failed : 1;
+	unsigned char error : 1;
 };
 
 #endif

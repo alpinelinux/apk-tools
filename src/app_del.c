@@ -111,6 +111,7 @@ static void delete_pkg(struct apk_package *pkg0, struct apk_dependency *dep0,
 	struct apk_dependency *d;
 
 	apk_deps_del(&ctx->world, pkg0->name);
+	apk_solver_set_name_flags(pkg0->name, APK_SOLVERF_REMOVE, 0);
 
 	if (ctx->recursive_delete) {
 		foreach_array_item(d, pkg0->provides)
