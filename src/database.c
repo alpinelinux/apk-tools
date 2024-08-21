@@ -2786,12 +2786,13 @@ static const struct apk_extract_ops extract_installer = {
 static int apk_db_audit_file(struct apk_fsdir *d, apk_blob_t filename, struct apk_db_file *dbf)
 {
 	struct apk_file_info fi;
-	int r;
+	int r, alg = APK_DIGEST_NONE;
 
 	// Check file first
-	r = apk_fsdir_file_info(d, filename, APK_FI_NOFOLLOW | APK_FI_DIGEST(dbf->digest_alg), &fi);
-	if (r != 0 || !dbf || dbf->digest_alg == APK_DIGEST_NONE) return r != -ENOENT;
-	if (apk_digest_cmp_blob(&fi.digest, dbf->digest_alg, apk_dbf_digest_blob(dbf)) != 0) return 1;
+	if (dbf) alg = dbf->digest_alg;
+	r = apk_fsdir_file_info(d, filename, APK_FI_NOFOLLOW | APK_FI_DIGEST(alg), &fi);
+	if (r != 0 || alg == APK_DIGEST_NONE) return r != -ENOENT;
+	if (apk_digest_cmp_blob(&fi.digest, alg, apk_dbf_digest_blob(dbf)) != 0) return 1;
 	return 0;
 }
 
