@@ -925,9 +925,7 @@ int apk_pkg_write_index_entry(struct apk_package *pkg, struct apk_ostream *os)
 
 int apk_pkg_version_compare(const struct apk_package *a, const struct apk_package *b)
 {
-	if (a->version == b->version)
-		return APK_VERSION_EQUAL;
-
+	if (a->version == b->version) return APK_VERSION_EQUAL;
 	return apk_version_compare(*a->version, *b->version);
 }
 
