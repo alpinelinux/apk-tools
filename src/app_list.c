@@ -188,6 +188,7 @@ static int option_parse_applet(void *pctx, struct apk_db_options *dbopts, int op
 		break;
 	case OPT_LIST_installed:
 		ctx->installed = 1;
+		dbopts->open_flags |= APK_OPENF_NO_SYS_REPOS;
 		break;
 	case OPT_LIST_depends:
 		ctx->match_depends = 1;
