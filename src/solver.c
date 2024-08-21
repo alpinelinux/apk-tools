@@ -519,9 +519,18 @@ static int compare_providers(struct apk_solver_state *ss,
 		dbg_printf("   prefer existing package\n");
 		return (pkgA != NULL) - (pkgB != NULL);
 	}
+	solver_flags = pkgA->ss.solver_flags | pkgB->ss.solver_flags;
+
+	/* Honor removal preference */
+	if (solver_flags & APK_SOLVERF_REMOVE) {
+		r = (int)(pkgB->ss.solver_flags&APK_SOLVERF_REMOVE) - (int)(pkgA->ss.solver_flags&APK_SOLVERF_REMOVE);
+		if (r) {
+			dbg_printf("    prefer removal hint\n");
+			return r;
+		}
+	}
 
 	/* Latest version required? */
-	solver_flags = pkgA->ss.solver_flags | pkgB->ss.solver_flags;
 	if ((solver_flags & APK_SOLVERF_LATEST) &&
 	    (pkgA->ss.pinning_allowed == APK_DEFAULT_PINNING_MASK) &&
 	    (pkgB->ss.pinning_allowed == APK_DEFAULT_PINNING_MASK)) {
