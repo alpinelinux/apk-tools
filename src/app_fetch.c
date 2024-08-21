@@ -304,7 +304,7 @@ static int mark_name(struct apk_database *db, const char *match, struct apk_name
 	foreach_array_item(p, name->providers) {
 		if (pkg == NULL ||
 		    (p->pkg->name == name && pkg->name != name) ||
-		    apk_pkg_version_compare(p->pkg, pkg) == APK_VERSION_GREATER)
+		    apk_version_compare_blob(*p->version, *pkg->version) == APK_VERSION_GREATER)
 			pkg = p->pkg;
 	}
 
