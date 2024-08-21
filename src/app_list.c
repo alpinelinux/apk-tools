@@ -200,6 +200,7 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 		break;
 	case OPT_LIST_installed:
 		ctx->installed = 1;
+		ac->open_flags |= APK_OPENF_NO_SYS_REPOS;
 		break;
 	case OPT_LIST_manifest:
 		ctx->manifest = 1;

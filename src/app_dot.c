@@ -39,6 +39,7 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 	case OPT_DOT_installed:
 		ctx->installed_only = 1;
 		ac->open_flags &= ~APK_OPENF_NO_INSTALLED;
+		ac->open_flags |= APK_OPENF_NO_SYS_REPOS;
 		break;
 	default:
 		return -ENOTSUP;
