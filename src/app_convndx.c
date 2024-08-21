@@ -64,7 +64,7 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 			apk_err(out, "%s: %s", *arg, apk_error_str(r));
 			goto err;
 		}
-		fprintf(stderr, "%s: %u packages\n", *arg, adb_ra_num(&ctx->pkgs));
+		apk_notice(out, "%s: %u packages", *arg, adb_ra_num(&ctx->pkgs));
 	}
 
 	adb_wo_obj(&ndx, ADBI_NDX_PACKAGES, &ctx->pkgs);

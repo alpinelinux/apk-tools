@@ -717,7 +717,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		    now - st.st_mtime <= db->ctx->cache_max_age)
 			return -EALREADY;
 	}
-	apk_msg(out, "fetch " URL_FMT, URL_PRINTF(urlp));
+	apk_notice(out, "fetch " URL_FMT, URL_PRINTF(urlp));
 
 	if (db->ctx->flags & APK_SIMULATE) return 0;
 
@@ -1383,7 +1383,7 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 	if (apk_blob_from_file(dirfd, file, &blob)) {
 		if (dirfd != AT_FDCWD) return 0;
 		apk_err(out, "failed to read repositories: %s", file);
-		apk_msg(out, "NOTE: --repositories-file is relative to the startup directory since apk 2.12.0_rc2");
+		apk_notice(out, "NOTE: --repositories-file is relative to the startup directory since apk 2.12.0_rc2");
 		return -ENOENT;
 	}
 
@@ -1753,7 +1753,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 
 			if (!ac->lock_wait) goto ret_errno;
 
-			apk_msg(out, "Waiting for repository lock");
+			apk_notice(out, "Waiting for repository lock");
 			memset(&sa, 0, sizeof sa);
 			sa.sa_handler = handle_alarm;
 			sa.sa_flags   = SA_RESETHAND;
@@ -2422,7 +2422,7 @@ int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
 			db->available_repos |= BIT(repo_num);
 		if (db->ctx->flags & APK_NO_CACHE) {
 			error_action = "fetching";
-			apk_msg(out, "fetch " URL_FMT, URL_PRINTF(urlp));
+			apk_notice(out, "fetch " URL_FMT, URL_PRINTF(urlp));
 		} else {
 			error_action = "opening from cache";
 			if (db->autoupdate) {

@@ -7,14 +7,20 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#include <stdio.h>
 #include <ctype.h>
 
 #include "apk_defines.h"
 #include "apk_version.h"
 #include "apk_ctype.h"
 
-#define DEBUG 0
+//#define DEBUG_PRINT
+
+#ifdef DEBUG_PRINT
+#include <stdio.h>
+#define dbg_printf(args...) fprintf(stderr, args)
+#else
+#define dbg_printf(args...)
+#endif
 
 /* Alpine version: digit{.digit}...{letter}{_suf{#}}...{~hash}{-r#} */
 
@@ -286,19 +292,14 @@ static int apk_version_compare_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 	     ta.token == tb.token && ta.token < TOKEN_END;
 	     token_next(&ta, &a), token_next(&tb, &b)) {
 		int r = token_cmp(&ta, &tb);
-#if DEBUG
-		fprintf(stderr, "at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT "> -> %d\n",
+		dbg_printf("at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT "> -> %d\n",
 			ta.token, BLOB_PRINTF(ta.value),
 			tb.token, BLOB_PRINTF(tb.value), r);
-#endif
 		if (r != APK_VERSION_EQUAL) return r;
 	}
-
-#if DEBUG
-	fprintf(stderr, "at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT ">\n",
+	dbg_printf("at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT ">\n",
 		ta.token, BLOB_PRINTF(ta.value),
 		tb.token, BLOB_PRINTF(tb.value));
-#endif
 
 	/* both have TOKEN_END or TOKEN_INVALID next? or fuzzy matching the prefix*/
 	if (ta.token == tb.token) return APK_VERSION_EQUAL;

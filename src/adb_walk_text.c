@@ -121,7 +121,7 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 			if ((r = d->ops->comment(d, comm)) != 0) goto err;
 		}
 
-		//fprintf(stderr, ">%d> "BLOB_FMT"\n", indent, BLOB_PRINTF(l));
+		dbg_printf(">%d> "BLOB_FMT"\n", indent, BLOB_PRINTF(l));
 	}
 	d->ops->end(d);
 

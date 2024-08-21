@@ -170,7 +170,7 @@ static int apk_out_get_width(struct apk_out *out)
 static void log_internal(FILE *dest, const char *prefix, const char *format, va_list va)
 {
 	if (dest != stdout) fflush(stdout);
-	if (prefix != NULL && prefix != APK_OUT_LOG_ONLY) fprintf(dest, "%s", prefix);
+	if (prefix != NULL && prefix != APK_OUT_LOG_ONLY && prefix[0] != 0) fprintf(dest, "%s", prefix);
 	vfprintf(dest, format, va);
 	fprintf(dest, "\n");
 	fflush(dest);
