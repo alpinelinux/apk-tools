@@ -55,11 +55,12 @@ Unfortunately it is not possible to deduce if a given string is of format
 
 	The *letter* portion can follow only after end of all the numeric
 	version components. The *letter* is a single lower case letter (a-z).
-	This can follow one or more *\_suffix{number}* components. The list
-	of valid suffixes (and their sorting order) is:
-	*alpha*, *beta*, *pre*, *rc*, <no suffix>, *cvs*, *svn*, *git*, *hg*, *p*
 
-	This can be follows with an optional *{~hash}* to indicate a commit
+	Optionally one or more *\_suffix{number}* components can follow.
+	The list of valid suffixes (and their sorting order) is:
+	*alpha*, *beta*, *pre*, *rc*, <no suffix>, *cvs*, *svn*, *git*, *hg*, *p*.
+
+	This can be followed with an optional *{~hash}* to indicate a commit
 	hash from where it was built. This can be any length string of
 	lower case hexdecimal digits (0-9a-f).
 
