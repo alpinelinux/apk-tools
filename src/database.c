@@ -577,7 +577,7 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 		memcpy(idb, pkg, sizeof *pkg);
 		memcpy(idb->digest, tmpl->id.data, tmpl->id.len);
 		idb->digest_alg = tmpl->id.alg;
-		if (idb->ipkg) idb->ipkg->pkg = idb;
+		idb->ipkg = NULL;
 		idb->depends = apk_deps_bclone(pkg->depends, &db->ba_deps);
 		idb->install_if = apk_deps_bclone(pkg->install_if, &db->ba_deps);
 		idb->provides = apk_deps_bclone(pkg->provides, &db->ba_deps);
@@ -591,11 +591,16 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 	} else {
 		idb->repos |= pkg->repos;
 		if (!idb->filename_ndx) idb->filename_ndx = pkg->filename_ndx;
-		if (idb->ipkg == NULL && pkg->ipkg != NULL) {
-			idb->ipkg = pkg->ipkg;
-			idb->ipkg->pkg = idb;
-			pkg->ipkg = NULL;
-		}
+	}
+	if (idb->ipkg == NULL && pkg->ipkg != NULL) {
+		struct apk_db_dir_instance *diri;
+		struct hlist_node *n;
+
+		hlist_for_each_entry(diri, n, &pkg->ipkg->owned_dirs, pkg_dirs_list)
+			diri->pkg = idb;
+		idb->ipkg = pkg->ipkg;
+		idb->ipkg->pkg = idb;
+		pkg->ipkg = NULL;
 	}
 	apk_pkgtmpl_reset(tmpl);
 	return idb;
