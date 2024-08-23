@@ -269,7 +269,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	char buf[32];
 	const char *size_unit;
 	off_t humanized, size_diff = 0, download_size = 0;
-	int r, errors = 0;
+	int r, errors = 0, pkg_diff = 0;
 
 	assert(world);
 	if (apk_db_check_world(db, world) != 0) {
@@ -287,12 +287,15 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		count_change(change, &prog.total);
 		if (change->new_pkg) {
 			size_diff += change->new_pkg->installed_size;
+			pkg_diff++;
 			if (change->new_pkg != change->old_pkg &&
 			    !(change->new_pkg->repos & db->local_repos))
 				download_size += change->new_pkg->size;
 		}
-		if (change->old_pkg)
+		if (change->old_pkg) {
 			size_diff -= change->old_pkg->installed_size;
+			pkg_diff--;
+		}
 	}
 
 	if ((apk_verbosity > 1 || (apk_flags & APK_INTERACTIVE)) &&
@@ -381,14 +384,16 @@ all_done:
 			strcpy(buf, "OK:");
 
 		off_t installed_bytes = db->installed.stats.bytes;
-
-		if (apk_flags & APK_SIMULATE)
+		int installed_packages = db->installed.stats.packages;
+		if (apk_flags & APK_SIMULATE) {
 			installed_bytes += size_diff;
+			installed_packages += pkg_diff;
+		}
 
 		if (apk_verbosity > 1) {
 			apk_message("%s %d packages, %d dirs, %d files, %zu MiB",
 				    buf,
-				    db->installed.stats.packages,
+				    installed_packages,
 				    db->installed.stats.dirs,
 				    db->installed.stats.files,
 				    installed_bytes / (1024 * 1024));
@@ -396,7 +401,7 @@ all_done:
 			apk_message("%s %zu MiB in %d packages",
 				    buf,
 				    installed_bytes / (1024 * 1024),
-				    db->installed.stats.packages);
+				    installed_packages);
 		}
 	}
 	return errors;

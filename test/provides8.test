@@ -3,4 +3,4 @@
 add mail-reader mailreadplus
 @EXPECT
 (1/1) Installing mailreadplus (1)
-OK: 0 MiB in 0 packages
+OK: 0 MiB in 1 packages

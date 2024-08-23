@@ -8,4 +8,4 @@ del app
 (2/4) Purging app (1)
 (3/4) Purging lib (1)
 (4/4) Purging foo (1)
-OK: 0 MiB in 4 packages
+OK: 0 MiB in 0 packages

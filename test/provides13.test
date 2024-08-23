@@ -4,4 +4,4 @@ add pulseaudio pulseaudio-alsa
 @EXPECT
 (1/2) Installing pulseaudio (1)
 (2/2) Installing pulseaudio-alsa (1)
-OK: 0 MiB in 0 packages
+OK: 0 MiB in 2 packages

@@ -4,4 +4,4 @@ add c
 @EXPECT
 (1/2) Installing d (2.0)
 (2/2) Installing c (1)
-OK: 0 MiB in 0 packages
+OK: 0 MiB in 2 packages

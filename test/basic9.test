@@ -5,4 +5,4 @@
 add -t .virtual a
 @EXPECT
 (1/1) Installing .virtual (20190603.131426)
-OK: 0 MiB in 2 packages
+OK: 0 MiB in 3 packages
