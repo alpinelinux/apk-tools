@@ -131,7 +131,7 @@ void apk_pkey_free(struct apk_pkey *pkey)
 	EVP_PKEY_free(pkey->key);
 }
 
-int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn)
+int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn, int priv)
 {
 	EVP_PKEY *key;
 	BIO *bio;
@@ -142,14 +142,10 @@ int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn)
 
 	bio = BIO_new_fp(fdopen(fd, "r"), BIO_CLOSE);
 	if (!bio) return -ENOMEM;
-
-	key = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
-	if (!key) {
-		(void)BIO_reset(bio);
+	if (priv)
 		key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
-	}
-	ERR_clear_error();
-
+	else
+		key = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
 	BIO_free(bio);
 	if (!key) return -APKE_CRYPTO_KEY_FORMAT;
 

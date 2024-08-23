@@ -210,7 +210,7 @@ static inline int apk_mbedtls_sign(struct apk_digest_ctx *dctx, struct apk_diges
 }
 #endif
 
-int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn)
+int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn, int priv)
 {
 	unsigned char *buf = NULL;
 	size_t blen = 0;

@@ -2,7 +2,7 @@
 #include "apk_trust.h"
 #include "apk_io.h"
 
-static struct apk_trust_key *apk_trust_load_key(int dirfd, const char *filename)
+static struct apk_trust_key *apk_trust_load_key(int dirfd, const char *filename, int priv)
 {
 	struct apk_trust_key *key;
 	int r;
@@ -10,7 +10,7 @@ static struct apk_trust_key *apk_trust_load_key(int dirfd, const char *filename)
 	key = calloc(1, sizeof *key);
 	if (!key) return ERR_PTR(-ENOMEM);
 
-	r = apk_pkey_load(&key->key, dirfd, filename);
+	r = apk_pkey_load(&key->key, dirfd, filename, priv);
 	if (r) {
 		free(key);
 		return ERR_PTR(r);
@@ -24,7 +24,7 @@ static struct apk_trust_key *apk_trust_load_key(int dirfd, const char *filename)
 static int __apk_trust_load_pubkey(void *pctx, int dirfd, const char *filename)
 {
 	struct apk_trust *trust = pctx;
-	struct apk_trust_key *key = apk_trust_load_key(dirfd, filename);
+	struct apk_trust_key *key = apk_trust_load_key(dirfd, filename, 0);
 
 	if (!IS_ERR(key))
 		list_add_tail(&key->key_node, &trust->trusted_key_list);
@@ -97,7 +97,7 @@ static int option_parse_signing(void *ctx, struct apk_ctx *ac, int optch, const 
 
 	switch (optch) {
 	case OPT_SIGN_sign_key:
-		key = apk_trust_load_key(AT_FDCWD, optarg);
+		key = apk_trust_load_key(AT_FDCWD, optarg, 1);
 		if (IS_ERR(key)) {
 			apk_err(out, "Failed to load signing key: %s: %s",
 				optarg, apk_error_str(PTR_ERR(key)));

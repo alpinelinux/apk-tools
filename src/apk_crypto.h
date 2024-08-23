@@ -94,7 +94,7 @@ int apk_digest_ctx_final(struct apk_digest_ctx *dctx, struct apk_digest *d);
 // Asymmetric keys
 
 void apk_pkey_free(struct apk_pkey *pkey);
-int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn);
+int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn, int priv);
 
 // Signing
 
