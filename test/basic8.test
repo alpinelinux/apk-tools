@@ -4,4 +4,4 @@ add -t .virtual
 @EXPECT
 WARNING: creating empty virtual package
 (1/1) Installing .virtual (20190603.131426)
-OK: 0 MiB in 0 packages
+OK: 0 MiB in 1 packages

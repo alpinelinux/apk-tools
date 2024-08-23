@@ -5,4 +5,4 @@ add a@testing
 @EXPECT
 (1/2) Installing b (2)
 (2/2) Installing a@testing (3)
-OK: 0 MiB in 0 packages
+OK: 0 MiB in 2 packages
