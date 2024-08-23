@@ -729,7 +729,8 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 			/* Ensure valid pinning and install-if trigger */
 			if (name->ss.requirers == 0 &&
 			    (!p->pkg->ss.iif_triggered ||
-			     !p->pkg->ss.tag_ok)) {
+			     !p->pkg->ss.tag_ok ||
+			     !p->pkg->ss.pkg_selectable)) {
 				dbg_printf("    ignore: invalid install-if trigger or invalid pinning\n");
 				continue;
 			}
@@ -1051,6 +1052,9 @@ static int compare_name_dequeue(const struct apk_name *a, const struct apk_name 
 {
 	int r;
 
+	r = (!!a->ss.requirers) - (!!b->ss.requirers);
+	if (r) return -r;
+
 	r = !!(a->solver_flags_set) - !!(b->solver_flags_set);
 	if (r) return -r;
 
@@ -1058,9 +1062,6 @@ static int compare_name_dequeue(const struct apk_name *a, const struct apk_name 
 	if (r) return r;
 
 	r = a->ss.max_dep_chain - b->ss.max_dep_chain;
-	if (r) return -r;
-
-	r = (!!a->ss.requirers) - (!!b->ss.requirers);
 	return -r;
 }
 
