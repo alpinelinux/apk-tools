@@ -459,9 +459,9 @@ void apk_pkgtmpl_reset(struct apk_package_tmpl *tmpl)
 {
 	*tmpl = (struct apk_package_tmpl) {
 		.pkg = (struct apk_package) {
-			.depends = tmpl->pkg.depends,
-			.install_if = tmpl->pkg.install_if,
-			.provides = tmpl->pkg.provides,
+			.depends = apk_array_reset(tmpl->pkg.depends),
+			.install_if = apk_array_reset(tmpl->pkg.install_if),
+			.provides = apk_array_reset(tmpl->pkg.provides),
 			.arch = &apk_atom_null,
 			.license = &apk_atom_null,
 			.origin = &apk_atom_null,
@@ -471,9 +471,6 @@ void apk_pkgtmpl_reset(struct apk_package_tmpl *tmpl)
 			.commit = &apk_atom_null,
 		},
 	};
-	apk_array_truncate(tmpl->pkg.depends, 0);
-	apk_array_truncate(tmpl->pkg.install_if, 0);
-	apk_array_truncate(tmpl->pkg.provides, 0);
 }
 
 struct read_info_ctx {

@@ -219,13 +219,15 @@ static inline uint32_t _apk_array_len(const struct apk_array *hdr) { return hdr-
 static inline void _apk_array_free(const struct apk_array *hdr) {
 	if (hdr->allocated) _apk_array__free(hdr);
 }
-static inline void _apk_array_truncate(struct apk_array *hdr, size_t num) {
+static inline struct apk_array *_apk_array_truncate(struct apk_array *hdr, size_t num) {
 	assert(num <= hdr->num);
 	if (hdr->num != num) hdr->num = num;
+	return hdr;
 }
 
 #define apk_array_len(array)		_apk_array_len(&(array)->hdr)
 #define apk_array_truncate(array, num)	_apk_array_truncate(&(array)->hdr, num)
+#define apk_array_reset(array)		(typeof(array))((array)->hdr.allocated ? apk_array_truncate(array, 0) : &_apk_array_empty)
 #define apk_array_item_size(array)	sizeof((array)->item[0])
 #define apk_array_qsort(array, compare)	qsort((array)->item, (array)->hdr.num, apk_array_item_size(array), compare)
 
