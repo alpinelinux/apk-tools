@@ -1,0 +1,7 @@
+@ARGS
+--test-repo installif8.repo
+add bar baz
+@EXPECT
+(1/2) Installing bar (1)
+(2/2) Installing baz (1)
+OK: 0 MiB in 2 packages

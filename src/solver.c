@@ -404,7 +404,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 			pkg->ss.iif_triggered = 1;
 			pkg->ss.iif_failed = 0;
 			foreach_array_item(dep, pkg->install_if) {
-				if (!dep->name->ss.locked) {
+				if (!dep->name->ss.locked && !apk_dep_conflict(dep)) {
 					pkg->ss.iif_triggered = 0;
 					pkg->ss.iif_failed = 0;
 					break;
@@ -669,6 +669,7 @@ static int compare_providers(struct apk_solver_state *ss,
 static void assign_name(struct apk_solver_state *ss, struct apk_name *name, struct apk_provider p)
 {
 	struct apk_provider *p0;
+	struct apk_dependency *dep;
 
 	if (name->ss.locked) {
 		/* If both are providing this name without version, it's ok */
@@ -683,8 +684,8 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 		return;
 	}
 
-	if (p.pkg)
-		dbg_printf("assign %s to "PKG_VER_FMT"\n", name->name, PKG_VER_PRINTF(p.pkg));
+	if (p.pkg) dbg_printf("assign %s to "PKG_VER_FMT"\n", name->name, PKG_VER_PRINTF(p.pkg));
+	else dbg_printf("assign %s to <none>\n", name->name);
 
 	name->ss.locked = 1;
 	name->ss.chosen = p;
@@ -693,11 +694,15 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 	if (list_hashed(&name->ss.dirty_list))
 		list_del(&name->ss.dirty_list);
 
+	if (p.pkg && p.pkg->ss.iif_triggered) {
+		foreach_array_item(dep, p.pkg->install_if)
+			if (!dep->name->ss.locked) apply_constraint(ss, p.pkg, dep);
+	}
+
 	/* disqualify all conflicting packages */
 	if (!ss->ignore_conflict) {
 		foreach_array_item(p0, name->providers) {
-			if (p0->pkg == p.pkg)
-				continue;
+			if (p0->pkg == p.pkg) continue;
 			if (p.version == &apk_atom_null &&
 			    p0->version == &apk_atom_null)
 				continue;
@@ -847,7 +852,7 @@ static void cset_check_install_by_iif(struct apk_solver_state *ss, struct apk_na
 
 	foreach_array_item(dep0, pkg->install_if) {
 		struct apk_name *name0 = dep0->name;
-		if (!name0->ss.in_changeset) return;
+		if (!apk_dep_conflict(dep0) == !name0->ss.in_changeset) return;
 		if (!apk_dep_is_provided(dep0, &name0->ss.chosen)) return;
 	}
 	cset_gen_name_change(ss, name);
@@ -1052,16 +1057,21 @@ static int compare_name_dequeue(const struct apk_name *a, const struct apk_name 
 {
 	int r;
 
-	r = (!!a->ss.requirers) - (!!b->ss.requirers);
+	r = !!a->ss.requirers - !!b->ss.requirers;
 	if (r) return -r;
 
-	r = !!(a->solver_flags_set) - !!(b->solver_flags_set);
+	if (a->ss.requirers == 0) {
+		r = !!a->ss.has_iif - !!b->ss.has_iif;
+		if (r) return -r;
+	}
+
+	r = !!a->solver_flags_set - !!b->solver_flags_set;
 	if (r) return -r;
 
 	r = (int)a->priority - (int)b->priority;
 	if (r) return r;
 
-	r = a->ss.max_dep_chain - b->ss.max_dep_chain;
+	r = (int)a->ss.max_dep_chain - (int)b->ss.max_dep_chain;
 	return -r;
 }
 
