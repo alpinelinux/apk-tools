@@ -419,7 +419,6 @@ struct print_state {
 	struct apk_database *db;
 	struct apk_dependency_array *world;
 	struct apk_indent i;
-	struct apk_name_array *missing;
 	const char *label;
 	int num_labels;
 	int match;
