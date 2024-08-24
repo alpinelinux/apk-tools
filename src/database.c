@@ -2958,8 +2958,11 @@ int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg,
 	ipkg->broken_files = 0;
 	ipkg->broken_xattr = 0;
 	if (ipkg->triggers->num != 0) {
+		char **trigger;
 		list_del(&ipkg->trigger_pkgs_list);
 		list_init(&ipkg->trigger_pkgs_list);
+		foreach_array_item(trigger, ipkg->triggers)
+			free(*trigger);
 		apk_string_array_free(&ipkg->triggers);
 	}
 
