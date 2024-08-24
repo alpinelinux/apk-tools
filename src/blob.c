@@ -273,8 +273,9 @@ void apk_blob_push_hash_hex(apk_blob_t *to, apk_blob_t hash)
 		apk_blob_push_hexdump(to, hash);
 		break;
 	case APK_DIGEST_LENGTH_SHA256:
-		apk_blob_push_blob(to, APK_BLOB_STR("X2"));
-		apk_blob_push_hexdump(to, hash);
+		apk_blob_push_blob(to, APK_BLOB_STR("X1"));
+		apk_blob_push_hexdump(to, APK_BLOB_PTR_LEN(hash.ptr, APK_DIGEST_LENGTH_SHA1));
+		apk_blob_push_hexdump(to, APK_BLOB_PTR_LEN(hash.ptr+APK_DIGEST_LENGTH_SHA1, APK_DIGEST_LENGTH_SHA256-APK_DIGEST_LENGTH_SHA1));
 		break;
 	default:
 		*to = APK_BLOB_NULL;
@@ -293,8 +294,9 @@ void apk_blob_push_hash(apk_blob_t *to, apk_blob_t hash)
 		apk_blob_push_base64(to, hash);
 		break;
 	case APK_DIGEST_LENGTH_SHA256:
-		apk_blob_push_blob(to, APK_BLOB_STR("Q2"));
-		apk_blob_push_base64(to, hash);
+		apk_blob_push_blob(to, APK_BLOB_STR("Q1"));
+		apk_blob_push_base64(to, APK_BLOB_PTR_LEN(hash.ptr, APK_DIGEST_LENGTH_SHA1));
+		apk_blob_push_base64(to, APK_BLOB_PTR_LEN(hash.ptr+APK_DIGEST_LENGTH_SHA1, APK_DIGEST_LENGTH_SHA256-APK_DIGEST_LENGTH_SHA1));
 		break;
 	default:
 		*to = APK_BLOB_NULL;
@@ -415,49 +417,6 @@ uint64_t apk_blob_pull_uint(apk_blob_t *b, int radix)
 	}
 
 	return val;
-}
-
-void apk_blob_pull_digest(apk_blob_t *b, struct apk_digest *d)
-{
-	int encoding;
-
-	if (unlikely(APK_BLOB_IS_NULL(*b))) goto fail;
-	if (unlikely(b->len < 2)) goto fail;
-	if (unlikely(dx(b->ptr[0]) != 0xff)) {
-		/* Assume MD5 for backwards compatibility */
-		apk_digest_set(d, APK_DIGEST_MD5);
-		apk_blob_pull_hexdump(b, APK_DIGEST_BLOB(*d));
-		if (unlikely(APK_BLOB_IS_NULL(*b))) goto fail;
-		return;
-	}
-
-	encoding = b->ptr[0];
-	switch (b->ptr[1]) {
-	case '1':
-		apk_digest_set(d, APK_DIGEST_SHA1);
-		break;
-	case '2':
-		apk_digest_set(d, APK_DIGEST_SHA256);
-		break;
-	default:
-		goto fail;
-	}
-	b->ptr += 2;
-	b->len -= 2;
-
-	switch (encoding) {
-	case 'X':
-		apk_blob_pull_hexdump(b, APK_DIGEST_BLOB(*d));
-		break;
-	case 'Q':
-		apk_blob_pull_base64(b, APK_DIGEST_BLOB(*d));
-		break;
-	default:
-	fail:
-		*b = APK_BLOB_NULL;
-		apk_digest_reset(d);
-		break;
-	}
 }
 
 void apk_blob_pull_hexdump(apk_blob_t *b, apk_blob_t to)
@@ -587,4 +546,59 @@ void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to)
 	return;
 err:
 	*b = APK_BLOB_NULL;
+}
+
+void apk_blob_pull_digest(apk_blob_t *b, struct apk_digest *d)
+{
+	int encoding;
+
+	if (unlikely(APK_BLOB_IS_NULL(*b))) goto fail;
+	if (unlikely(b->len < 2)) goto fail;
+	if (unlikely(dx(b->ptr[0]) != 0xff)) {
+		/* Assume MD5 for backwards compatibility */
+		apk_digest_set(d, APK_DIGEST_MD5);
+		apk_blob_pull_hexdump(b, APK_DIGEST_BLOB(*d));
+		if (unlikely(APK_BLOB_IS_NULL(*b))) goto fail;
+		return;
+	}
+
+	encoding = b->ptr[0];
+	switch (b->ptr[1]) {
+	case '1':
+		apk_digest_set(d, APK_DIGEST_SHA1);
+		break;
+	case '2':
+		apk_digest_set(d, APK_DIGEST_SHA256);
+		break;
+	default:
+		goto fail;
+	}
+	b->ptr += 2;
+	b->len -= 2;
+
+	switch (encoding) {
+	case 'X':
+		apk_blob_pull_hexdump(b, APK_DIGEST_BLOB(*d));
+		if (d->alg == APK_DIGEST_SHA1 &&
+		    b->len == 24 /* hexdump length of difference */ &&
+		    dx(b->ptr[0]) != 0xff) {
+			apk_digest_set(d, APK_DIGEST_SHA256);
+			apk_blob_pull_hexdump(b, APK_BLOB_PTR_LEN((char*)&d->data[APK_DIGEST_LENGTH_SHA1], APK_DIGEST_LENGTH_SHA256-APK_DIGEST_LENGTH_SHA1));
+		}
+		break;
+	case 'Q':
+		apk_blob_pull_base64(b, APK_DIGEST_BLOB(*d));
+		if (d->alg == APK_DIGEST_SHA1 &&
+		    b->len == 16 /* base64 length of difference */ &&
+		    b64decode[(unsigned char)b->ptr[0]] != 0xff) {
+			apk_digest_set(d, APK_DIGEST_SHA256);
+			apk_blob_pull_base64(b, APK_BLOB_PTR_LEN((char*)&d->data[APK_DIGEST_LENGTH_SHA1], APK_DIGEST_LENGTH_SHA256-APK_DIGEST_LENGTH_SHA1));
+		}
+		break;
+	default:
+	fail:
+		*b = APK_BLOB_NULL;
+		apk_digest_reset(d);
+		break;
+	}
 }

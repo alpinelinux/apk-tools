@@ -99,6 +99,10 @@ struct apk_package {
 	uint8_t digest[];
 };
 
+static inline apk_blob_t apk_pkg_hash_blob(const struct apk_package *pkg) {
+	return APK_BLOB_PTR_LEN((char*) pkg->digest, APK_DIGEST_LENGTH_SHA1);
+}
+
 static inline apk_blob_t apk_pkg_digest_blob(const struct apk_package *pkg) {
 	return APK_BLOB_PTR_LEN((char*) pkg->digest, apk_digest_alg_len(pkg->digest_alg));
 }

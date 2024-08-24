@@ -109,7 +109,7 @@ static const struct apk_hash_ops pkg_name_hash_ops = {
 
 static apk_blob_t pkg_info_get_key(apk_hash_item item)
 {
-	return apk_pkg_digest_blob(item);
+	return apk_pkg_hash_blob(item);
 }
 
 static unsigned long csum_hash(apk_blob_t csum)
@@ -566,12 +566,12 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 	struct apk_package *pkg = &tmpl->pkg, *idb;
 	struct apk_dependency *dep;
 
-	if (!pkg->name || !pkg->version) return NULL;
+	if (!pkg->name || !pkg->version || tmpl->id.len < APK_DIGEST_LENGTH_SHA1) return NULL;
 
 	// Set as "cached" if installing from specified file
 	if (pkg->filename_ndx) pkg->repos |= BIT(APK_REPOSITORY_CACHED);
 
-	idb = apk_hash_get(&db->available.packages, APK_DIGEST_BLOB(tmpl->id));
+	idb = apk_hash_get(&db->available.packages, APK_BLOB_PTR_LEN((char*)tmpl->id.data, APK_DIGEST_LENGTH_SHA1));
 	if (idb == NULL) {
 		idb = apk_balloc_new_extra(&db->ba_pkgs, struct apk_package, tmpl->id.len);
 		memcpy(idb, pkg, sizeof *pkg);
@@ -1163,7 +1163,7 @@ static int apk_db_triggers_write(struct apk_database *db, struct apk_installed_p
 	if (apk_array_len(ipkg->triggers) == 0) return 0;
 
 	bfn = APK_BLOB_BUF(buf);
-	apk_blob_push_hash(&bfn, apk_pkg_digest_blob(ipkg->pkg));
+	apk_blob_push_hash(&bfn, apk_pkg_hash_blob(ipkg->pkg));
 	bfn = apk_blob_pushed(APK_BLOB_BUF(buf), bfn);
 	apk_ostream_write(os, bfn.ptr, bfn.len);
 
@@ -2220,7 +2220,8 @@ int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *wor
 struct apk_package *apk_db_get_pkg(struct apk_database *db,
 				   struct apk_digest *id)
 {
-	return apk_hash_get(&db->available.packages, APK_DIGEST_BLOB(*id));
+	if (id->len < APK_DIGEST_LENGTH_SHA1) return NULL;
+	return apk_hash_get(&db->available.packages, APK_BLOB_PTR_LEN((char*)id->data, APK_DIGEST_LENGTH_SHA1));
 }
 
 struct apk_package *apk_db_get_file_owner(struct apk_database *db,
