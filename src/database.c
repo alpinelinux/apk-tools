@@ -2301,10 +2301,11 @@ static int load_v3index(struct apk_extract_ctx *ectx, struct adb_obj *ndx)
 {
 	struct apkindex_ctx *ctx = container_of(ectx, struct apkindex_ctx, ectx);
 	struct apk_database *db = ctx->db;
+	struct apk_out *out = &db->ctx->out;
 	struct apk_repository *repo = &db->repos[ctx->repo];
 	struct apk_package_tmpl tmpl;
 	struct adb_obj pkgs, pkginfo;
-	int i;
+	int i, r = 0, num_broken = 0;
 
 	apk_pkgtmpl_init(&tmpl);
 
@@ -2314,12 +2315,22 @@ static int load_v3index(struct apk_extract_ctx *ectx, struct adb_obj *ndx)
 	for (i = ADBI_FIRST; i <= adb_ra_num(&pkgs); i++) {
 		adb_ro_obj(&pkgs, i, &pkginfo);
 		apk_pkgtmpl_from_adb(db, &tmpl, &pkginfo);
+		if (tmpl.id.alg == APK_DIGEST_NONE) {
+			num_broken++;
+			apk_pkgtmpl_reset(&tmpl);
+			continue;
+		}
+
 		tmpl.pkg.repos |= BIT(ctx->repo);
-		if (!apk_db_pkg_add(db, &tmpl)) return -APKE_ADB_SCHEMA;
+		if (!apk_db_pkg_add(db, &tmpl)) {
+			r = -APKE_ADB_SCHEMA;
+			break;
+		}
 	}
 
 	apk_pkgtmpl_free(&tmpl);
-	return 0;
+	if (num_broken) apk_warn(out, "Repository %s has %d packages without hash", repo->url, num_broken);
+	return r;
 }
 
 static const struct apk_extract_ops extract_index = {
