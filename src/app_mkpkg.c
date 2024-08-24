@@ -93,6 +93,9 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 	int i, ret;
 
 	switch (optch) {
+	case APK_OPTIONS_INIT:
+		apk_string_array_init(&ictx->triggers);
+		break;
 	case OPT_MKPKG_compression:
 		if (adb_parse_compression(optarg, &ictx->spec) != 0) {
 			apk_err(out, "invalid compression type: %s", optarg);
@@ -454,6 +457,7 @@ err:
 	adb_wo_free(&ctx->paths);
 	adb_free(&ctx->db);
 	if (r) apk_err(out, "failed to create package: %s: %s", ctx->output, apk_error_str(r));
+	apk_string_array_free(&ctx->triggers);
 	return r;
 }
 

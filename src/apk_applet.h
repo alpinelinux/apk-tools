@@ -36,6 +36,8 @@
 	enum { init_macro(__APK_OPT_ENUM) init_macro2(__APK_OPT_ENUM) }; \
 	static const char var_name[] = __APK_OPTGROUP(group_name) init_macro(__APK_OPT_DESC) init_macro2(__APK_OPT_DESC);
 
+#define APK_OPTIONS_INIT 0xffff00
+
 struct apk_option_group {
 	const char *desc;
 	int (*parse)(void *ctx, struct apk_ctx *ac, int opt, const char *optarg);

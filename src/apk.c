@@ -505,6 +505,8 @@ int main(int argc, char **argv)
 			applet_ctx = calloc(1, applet->context_size);
 		ctx.open_flags = applet->open_flags;
 		ctx.force |= applet->forced_force;
+		for (int i = 0; applet->optgroups[i]; i++)
+			applet->optgroups[i]->parse(applet_ctx, &ctx, APK_OPTIONS_INIT, NULL);
 	}
 
 	apk_crypto_init();
