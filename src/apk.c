@@ -601,7 +601,7 @@ int main(int argc, char **argv)
 
 		r = apk_db_index_read(&db, apk_istream_from_file(AT_FDCWD, name.ptr), repo);
 		if (r != 0) {
-			apk_error("Failed to open repository " BLOB_FMT " : %s", BLOB_PRINTF(name), apk_error_str(r));
+			apk_error("Failed to open test repository " BLOB_FMT " : %s", BLOB_PRINTF(name), apk_error_str(r));
 			goto err;
 		}
 
