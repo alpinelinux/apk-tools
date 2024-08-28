@@ -37,12 +37,10 @@ struct mkpkg_ctx {
 	struct apk_string_array *triggers;
 	uint64_t installed_size;
 	struct apk_pathbuilder pb;
-	struct adb_compression_spec spec;
 	unsigned has_scripts : 1;
 };
 
 #define MKPKG_OPTIONS(OPT) \
-	OPT(OPT_MKPKG_compression,      APK_OPT_ARG APK_OPT_SH("c") "compression") \
 	OPT(OPT_MKPKG_files,		APK_OPT_ARG APK_OPT_SH("F") "files") \
 	OPT(OPT_MKPKG_info,		APK_OPT_ARG APK_OPT_SH("I") "info") \
 	OPT(OPT_MKPKG_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
@@ -95,12 +93,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 	switch (optch) {
 	case APK_OPTIONS_INIT:
 		apk_string_array_init(&ictx->triggers);
-		break;
-	case OPT_MKPKG_compression:
-		if (adb_parse_compression(optarg, &ictx->spec) != 0) {
-			apk_err(out, "invalid compression type: %s", optarg);
-			return -EINVAL;
-		}
 		break;
 	case OPT_MKPKG_info:
 		return parse_info(ictx, out, optarg);
@@ -415,7 +407,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 	// construct package with ADB as header, and the file data in
 	// concatenated data blocks
-	os = adb_compress(apk_ostream_to_file(AT_FDCWD, ctx->output, 0644), &ctx->spec);
+	os = adb_compress(apk_ostream_to_file(AT_FDCWD, ctx->output, 0644), &ac->compspec);
 	if (IS_ERR(os)) {
 		r = PTR_ERR(os);
 		goto err;
@@ -464,7 +456,7 @@ err:
 static struct apk_applet apk_mkpkg = {
 	.name = "mkpkg",
 	.context_size = sizeof(struct mkpkg_ctx),
-	.optgroups = { &optgroup_global, &optgroup_signing, &optgroup_applet },
+	.optgroups = { &optgroup_global, &optgroup_generation, &optgroup_applet },
 	.main = mkpkg_main,
 };
 

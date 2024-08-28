@@ -294,7 +294,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	adb_w_rootobj(&ndx);
 
 	r = adb_c_create(
-		apk_ostream_to_file(AT_FDCWD, ctx->output, 0644),
+		adb_compress(apk_ostream_to_file(AT_FDCWD, ctx->output, 0644), &ac->compspec),
 		&ctx->db, trust);
 
 	if (r == 0)
@@ -322,7 +322,7 @@ done:
 static struct apk_applet apk_mkndx = {
 	.name = "mkndx",
 	.context_size = sizeof(struct mkndx_ctx),
-	.optgroups = { &optgroup_global, &optgroup_signing, &optgroup_applet },
+	.optgroups = { &optgroup_global, &optgroup_generation, &optgroup_applet },
 	.main = mkndx_main,
 };
 

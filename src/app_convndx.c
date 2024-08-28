@@ -70,7 +70,9 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 	adb_wo_obj(&ndx, ADBI_NDX_PACKAGES, &ctx->pkgs);
 	adb_w_rootobj(&ndx);
 
-	r = adb_c_create(apk_ostream_to_fd(STDOUT_FILENO), &ctx->dbi, trust);
+	r = adb_c_create(
+		adb_compress(apk_ostream_to_fd(STDOUT_FILENO), &ac->compspec),
+		&ctx->dbi, trust);
 err:
 	adb_free(&ctx->dbi);
 
@@ -80,7 +82,7 @@ err:
 static struct apk_applet apk_convndx = {
 	.name = "convndx",
 	.context_size = sizeof(struct conv_ctx),
-	.optgroups = { &optgroup_global, &optgroup_signing },
+	.optgroups = { &optgroup_global, &optgroup_generation },
 	.main = conv_main,
 };
 APK_DEFINE_APPLET(apk_convndx);

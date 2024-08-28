@@ -534,3 +534,46 @@ const struct adb_object_schema schema_idb = {
 		ADB_FIELD(ADBI_IDB_PACKAGES,	"packages",	schema_package_adb_array),
 	},
 };
+
+/* Command group for adb generation */
+
+#include "apk_applet.h"
+
+#define GENERATION_OPTIONS(OPT) \
+	OPT(OPT_GENERATION_compression,	APK_OPT_ARG APK_OPT_SH("c") "compression") \
+	OPT(OPT_GENERATION_sign_key,	APK_OPT_ARG "sign-key")
+
+APK_OPT_GROUP(options_generation, "Generation", GENERATION_OPTIONS);
+
+static int option_parse_generation(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
+{
+	struct apk_trust *trust = &ac->trust;
+	struct apk_out *out = &ac->out;
+	struct apk_trust_key *key;
+
+	switch (optch) {
+	case OPT_GENERATION_compression:
+		if (adb_parse_compression(optarg, &ac->compspec) != 0) {
+			apk_err(out, "invalid compression type: %s", optarg);
+			return -EINVAL;
+		}
+		break;
+	case OPT_GENERATION_sign_key:
+		key = apk_trust_load_key(AT_FDCWD, optarg, 1);
+		if (IS_ERR(key)) {
+			apk_err(out, "Failed to load signing key: %s: %s",
+				optarg, apk_error_str(PTR_ERR(key)));
+			return PTR_ERR(key);
+		}
+		list_add_tail(&key->key_node, &trust->private_key_list);
+		break;
+	default:
+		return -ENOTSUP;
+	}
+	return 0;
+}
+
+const struct apk_option_group optgroup_generation = {
+	.desc = options_generation,
+	.parse = option_parse_generation,
+};

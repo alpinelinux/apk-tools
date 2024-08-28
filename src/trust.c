@@ -2,7 +2,7 @@
 #include "apk_trust.h"
 #include "apk_io.h"
 
-static struct apk_trust_key *apk_trust_load_key(int dirfd, const char *filename, int priv)
+struct apk_trust_key *apk_trust_load_key(int dirfd, const char *filename, int priv)
 {
 	struct apk_trust_key *key;
 	int r;
@@ -78,40 +78,3 @@ struct apk_pkey *apk_trust_key_by_name(struct apk_trust *trust, const char *file
 			return &tkey->key;
 	return NULL;
 }
-
-
-/* Command group for signing */
-
-#include "apk_applet.h"
-
-#define SIGNING_OPTIONS(OPT) \
-	OPT(OPT_SIGN_sign_key,		APK_OPT_ARG "sign-key")
-
-APK_OPT_GROUP(options_signing, "Signing", SIGNING_OPTIONS);
-
-static int option_parse_signing(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
-{
-	struct apk_trust *trust = &ac->trust;
-	struct apk_out *out = &ac->out;
-	struct apk_trust_key *key;
-
-	switch (optch) {
-	case OPT_SIGN_sign_key:
-		key = apk_trust_load_key(AT_FDCWD, optarg, 1);
-		if (IS_ERR(key)) {
-			apk_err(out, "Failed to load signing key: %s: %s",
-				optarg, apk_error_str(PTR_ERR(key)));
-			return PTR_ERR(key);
-		}
-		list_add_tail(&key->key_node, &trust->private_key_list);
-		break;
-	default:
-		return -ENOTSUP;
-	}
-	return 0;
-}
-
-const struct apk_option_group optgroup_signing = {
-	.desc = options_signing,
-	.parse = option_parse_signing,
-};

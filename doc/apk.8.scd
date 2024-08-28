@@ -259,12 +259,18 @@ package indexes only.
 	(exclude installed database), *installed* (exclude normal repositories)
 	or *none* (commandline repositories only).
 
-# SIGNING OPTIONS
+# GENERATION OPTIONS
 
-The following options are available for all commands which sign files.
+The following options are available for all commands which generate APKv3 files.
+
+*-c, --compression* _ALGORITHM[/LEVEL]_
+	Compress the file with given _ALGORITHM_ and _LEVEL_. Supported algorithms:
+	- none
+	- deflate (level 1-9)
+	- zstd (level 1-22)
 
 *--sign-key* _KEYFILE_
-	Sign files with the specified _KEYFILE_.
+	Sign the file with a private key in the specified _KEYFILE_.
 
 # ENVIRONMENT
 

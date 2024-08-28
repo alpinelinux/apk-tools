@@ -30,6 +30,7 @@ struct apk_trust {
 void apk_trust_init(struct apk_trust *trust);
 void apk_trust_free(struct apk_trust *trust);
 int apk_trust_load_keys(struct apk_trust *trust, int keysfd);
+struct apk_trust_key *apk_trust_load_key(int dirfd, const char *filename, int priv);
 struct apk_pkey *apk_trust_key_by_name(struct apk_trust *trust, const char *filename);
 
 #endif
