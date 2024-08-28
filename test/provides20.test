@@ -1,0 +1,8 @@
+@ARGS
+--test-repo provides.repo
+add mailreadsolo mailreadplus
+@EXPECT
+ERROR: unable to select packages:
+  mailreadplus-1:
+    breaks: mailreadsolo-1[!mail-reader]
+    satisfies: world[mailreadplus]

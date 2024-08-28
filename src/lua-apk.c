@@ -241,7 +241,7 @@ static int Papk_exists(lua_State *L)
 	if (pkg == NULL)
 		goto ret_nil;
 
-	if (apk_dep_analyze(&dep, pkg) & APK_DEP_SATISFIES)
+	if (apk_dep_analyze(NULL, &dep, pkg) & APK_DEP_SATISFIES)
 		return push_package(L, pkg);
 
 ret_nil:

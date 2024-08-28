@@ -120,7 +120,7 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 		foreach_array_item(p0, name->providers) {
 			if (ctx->installed_only && p0->pkg->ipkg == NULL)
 				continue;
-			if (!apk_dep_is_provided(dep, p0))
+			if (!apk_dep_is_provided(pkg, dep, p0))
 				continue;
 
 			r = dump_pkg(ctx, p0->pkg);

@@ -1,0 +1,6 @@
+@ARGS
+--test-repo provides.repo
+add mailreadsolo
+@EXPECT
+(1/1) Installing mailreadsolo (1)
+OK: 0 MiB in 1 packages

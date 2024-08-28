@@ -158,7 +158,7 @@ static void disqualify_package(struct apk_solver_state *ss, struct apk_package *
 	reevaluate_reverse_installif_pkg(ss, pkg);
 }
 
-static int dependency_satisfiable(struct apk_solver_state *ss, struct apk_dependency *dep)
+static int dependency_satisfiable(struct apk_solver_state *ss, const struct apk_package *dpkg, struct apk_dependency *dep)
 {
 	struct apk_name *name = dep->name;
 	struct apk_provider *p;
@@ -167,13 +167,13 @@ static int dependency_satisfiable(struct apk_solver_state *ss, struct apk_depend
 		return TRUE;
 
 	if (name->ss.locked)
-		return apk_dep_is_provided(dep, &name->ss.chosen);
+		return apk_dep_is_provided(dpkg, dep, &name->ss.chosen);
 
-	if (name->ss.requirers == 0 && apk_dep_is_provided(dep, &provider_none))
+	if (name->ss.requirers == 0 && apk_dep_is_provided(dpkg, dep, &provider_none))
 		return TRUE;
 
 	foreach_array_item(p, name->providers)
-		if (p->pkg->ss.pkg_selectable && apk_dep_is_provided(dep, p))
+		if (p->pkg->ss.pkg_selectable && apk_dep_is_provided(dpkg, dep, p))
 			return TRUE;
 
 	return FALSE;
@@ -318,7 +318,7 @@ static void apply_constraint(struct apk_solver_state *ss, struct apk_package *pp
 	foreach_array_item(p0, name->providers) {
 		struct apk_package *pkg0 = p0->pkg;
 
-		is_provided = apk_dep_is_provided(dep, p0);
+		is_provided = apk_dep_is_provided(ppkg, dep, p0);
 		dbg_printf("    apply_constraint: provider: %s-" BLOB_FMT ": %d\n",
 			pkg0->name->name, BLOB_PRINTF(*p0->version), is_provided);
 
@@ -396,7 +396,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 			if (!pkg->ss.pkg_selectable)
 				continue;
 			foreach_array_item(dep, pkg->depends) {
-				if (!dependency_satisfiable(ss, dep)) {
+				if (!dependency_satisfiable(ss, pkg, dep)) {
 					disqualify_package(ss, pkg, "dependency no longer satisfiable");
 					break;
 				}
@@ -416,7 +416,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 					pkg->ss.iif_failed = 0;
 					break;
 				}
-				if (!apk_dep_is_provided(dep, &dep->name->ss.chosen)) {
+				if (!apk_dep_is_provided(pkg, dep, &dep->name->ss.chosen)) {
 					pkg->ss.iif_triggered = 0;
 					pkg->ss.iif_failed = 1;
 					break;
@@ -860,7 +860,7 @@ static void cset_check_install_by_iif(struct apk_solver_state *ss, struct apk_na
 	foreach_array_item(dep0, pkg->install_if) {
 		struct apk_name *name0 = dep0->name;
 		if (!apk_dep_conflict(dep0) == !name0->ss.in_changeset) return;
-		if (!apk_dep_is_provided(dep0, &name0->ss.chosen)) return;
+		if (!apk_dep_is_provided(pkg, dep0, &name0->ss.chosen)) return;
 	}
 	cset_gen_name_change(ss, name);
 }
@@ -983,7 +983,7 @@ static void cset_gen_dep(struct apk_solver_state *ss, struct apk_package *ppkg, 
 	if (apk_dep_conflict(dep) && ss->ignore_conflict)
 		return;
 
-	if (!apk_dep_is_provided(dep, &name->ss.chosen))
+	if (!apk_dep_is_provided(ppkg, dep, &name->ss.chosen))
 		mark_error(ss, ppkg, "unfulfilled dependency");
 
 	cset_gen_name_change(ss, name);
@@ -1067,16 +1067,16 @@ static int compare_name_dequeue(const struct apk_name *a, const struct apk_name 
 	r = !!a->ss.requirers - !!b->ss.requirers;
 	if (r) return -r;
 
-	if (a->ss.requirers == 0) {
-		r = !!a->ss.has_iif - !!b->ss.has_iif;
-		if (r) return -r;
-	}
-
 	r = !!a->solver_flags_set - !!b->solver_flags_set;
 	if (r) return -r;
 
 	r = (int)a->priority - (int)b->priority;
 	if (r) return r;
+
+	if (a->ss.requirers == 0) {
+		r = !!a->ss.has_iif - !!b->ss.has_iif;
+		if (r) return -r;
+	}
 
 	r = (int)a->ss.max_dep_chain - (int)b->ss.max_dep_chain;
 	return -r;

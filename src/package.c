@@ -285,9 +285,10 @@ static int apk_dep_match_checksum(const struct apk_dependency *dep, const struct
 	return apk_digest_cmp_blob(&d, pkg->digest_alg, apk_pkg_digest_blob(pkg)) == 0;
 }
 
-int apk_dep_is_provided(const struct apk_dependency *dep, const struct apk_provider *p)
+int apk_dep_is_provided(const struct apk_package *deppkg, const struct apk_dependency *dep, const struct apk_provider *p)
 {
 	if (p == NULL || p->pkg == NULL) return apk_dep_conflict(dep);
+	if (apk_dep_conflict(dep) && deppkg == p->pkg) return 1;
 	if (dep->op == APK_DEPMASK_CHECKSUM) return apk_dep_match_checksum(dep, p->pkg);
 	return apk_version_match(*p->version, dep->op, *dep->version);
 }
@@ -299,7 +300,7 @@ int apk_dep_is_materialized(const struct apk_dependency *dep, const struct apk_p
 	return apk_version_match(*pkg->version, dep->op, *dep->version);
 }
 
-int apk_dep_analyze(struct apk_dependency *dep, struct apk_package *pkg)
+int apk_dep_analyze(const struct apk_package *deppkg, struct apk_dependency *dep, struct apk_package *pkg)
 {
 	struct apk_dependency *p;
 	struct apk_provider provider;
@@ -314,7 +315,7 @@ int apk_dep_analyze(struct apk_dependency *dep, struct apk_package *pkg)
 		if (p->name != dep->name)
 			continue;
 		provider = APK_PROVIDER_FROM_PROVIDES(pkg, p);
-		return apk_dep_is_provided(dep, &provider) ? APK_DEP_SATISFIES : APK_DEP_CONFLICTS;
+		return apk_dep_is_provided(deppkg, dep, &provider) ? APK_DEP_SATISFIES : APK_DEP_CONFLICTS;
 	}
 
 	return APK_DEP_IRRELEVANT;
@@ -1015,7 +1016,7 @@ void apk_pkg_foreach_matching_dependency(
 	if (apk_pkg_match_genid(pkg, match)) return;
 
 	foreach_array_item(d, deps) {
-		if (apk_dep_analyze(d, mpkg) & match) {
+		if (apk_dep_analyze(pkg, d, mpkg) & match) {
 			cb(pkg, d, mpkg, ctx);
 			if (one_dep_only) break;
 		}
@@ -1045,7 +1046,7 @@ static void foreach_reverse_dependency(
 			if (marked && !pkg0->marked) continue;
 			if (apk_pkg_match_genid(pkg0, match)) continue;
 			foreach_array_item(d0, pkg0->depends) {
-				if (apk_dep_analyze(d0, pkg) & match) {
+				if (apk_dep_analyze(pkg0, d0, pkg) & match) {
 					cb(pkg0, d0, pkg, ctx);
 					if (one_dep_only) break;
 				}

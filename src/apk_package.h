@@ -128,8 +128,8 @@ static inline int apk_dep_conflict(const struct apk_dependency *dep) { return !!
 void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
 		      struct apk_package *pkg);
 int apk_dep_is_materialized(const struct apk_dependency *dep, const struct apk_package *pkg);
-int apk_dep_is_provided(const struct apk_dependency *dep, const struct apk_provider *p);
-int apk_dep_analyze(struct apk_dependency *dep, struct apk_package *pkg);
+int apk_dep_is_provided(const struct apk_package *deppkg, const struct apk_dependency *dep, const struct apk_provider *p);
+int apk_dep_analyze(const struct apk_package *deppkg, struct apk_dependency *dep, struct apk_package *pkg);
 
 void apk_blob_push_dep(apk_blob_t *to, struct apk_database *, struct apk_dependency *dep);
 void apk_blob_push_deps(apk_blob_t *to, struct apk_database *, struct apk_dependency_array *deps);
