@@ -74,9 +74,12 @@ void adb_reset(struct adb *db)
 static int adb_digest_adb(struct adb_verify_ctx *vfy, unsigned int hash_alg, apk_blob_t data, apk_blob_t *pmd)
 {
 	struct apk_digest *d;
+	unsigned int alg = hash_alg;
 	int r;
 
 	switch (hash_alg) {
+	case APK_DIGEST_SHA256_160:
+		alg = APK_DIGEST_SHA256;
 	case APK_DIGEST_SHA256:
 		d = &vfy->sha256;
 		break;
@@ -87,14 +90,14 @@ static int adb_digest_adb(struct adb_verify_ctx *vfy, unsigned int hash_alg, apk
 		return -APKE_CRYPTO_NOT_SUPPORTED;
 	}
 
-	if (!(vfy->calc & (1 << hash_alg))) {
+	if (!(vfy->calc & (1 << alg))) {
 		if (APK_BLOB_IS_NULL(data)) return -APKE_ADB_BLOCK;
-		r = apk_digest_calc(d, hash_alg, data.ptr, data.len);
+		r = apk_digest_calc(d, alg, data.ptr, data.len);
 		if (r != 0) return r;
-		vfy->calc |= (1 << hash_alg);
+		vfy->calc |= (1 << alg);
 	}
 
-	if (pmd) *pmd = APK_DIGEST_BLOB(*d);
+	if (pmd) *pmd = APK_BLOB_PTR_LEN((char*) d->data, apk_digest_alg_len(hash_alg));
 	return 0;
 }
 
@@ -122,7 +125,13 @@ static int __adb_handle_identity(struct apk_extract_ctx *ectx, struct adb_verify
 		memcpy(ectx->generate_identity->data, calculated.ptr, calculated.len);
 		return 0;
 	}
-	if (apk_blob_compare(ectx->verify_digest, calculated) != 0) return -APKE_ADB_SIGNATURE;
+	if (apk_blob_compare(ectx->verify_digest, calculated) != 0) {
+		// The sha256-160 could be incorrectly seen with unique-id
+		// so if it does not match, ignore silently and allow signature
+		// check to verify the package.
+		if (ectx->verify_alg == APK_DIGEST_SHA256_160) return 0;
+		return -APKE_ADB_INTEGRITY;
+	}
 	return 1;
 }
 

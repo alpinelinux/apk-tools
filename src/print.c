@@ -41,6 +41,7 @@
 	func(APKE_ADB_SCHEMA,		"ADB schema error") \
 	func(APKE_ADB_BLOCK,		"ADB block error") \
 	func(APKE_ADB_SIGNATURE,	"ADB signature block error") \
+	func(APKE_ADB_INTEGRITY,	"ADB integrity error") \
 	func(APKE_ADB_NO_FROMSTRING,	"ADB schema error (no fromstring)") \
 	func(APKE_ADB_LIMIT,		"ADB schema limit reached") \
 	func(APKE_ADB_PACKAGE_FORMAT,	"ADB package format") \

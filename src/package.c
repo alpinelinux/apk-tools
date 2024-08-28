@@ -834,7 +834,7 @@ int apk_pkg_write_index_header(struct apk_package *info, struct apk_ostream *os)
 	apk_blob_t bbuf = APK_BLOB_BUF(buf);
 
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("C:"));
-	apk_blob_push_hash(&bbuf, apk_pkg_digest_blob(info));
+	apk_blob_push_hash(&bbuf, apk_pkg_hash_blob(info));
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nP:"));
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR(info->name->name));
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nV:"));

@@ -577,6 +577,8 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 		memcpy(idb, pkg, sizeof *pkg);
 		memcpy(idb->digest, tmpl->id.data, tmpl->id.len);
 		idb->digest_alg = tmpl->id.alg;
+		if (idb->digest_alg == APK_DIGEST_SHA1 && idb->ipkg && idb->ipkg->sha256_160)
+			idb->digest_alg = APK_DIGEST_SHA256_160;
 		idb->ipkg = NULL;
 		idb->depends = apk_deps_bclone(pkg->depends, &db->ba_deps);
 		idb->install_if = apk_deps_bclone(pkg->install_if, &db->ba_deps);
@@ -2586,7 +2588,7 @@ static int apk_db_install_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *p
 	adb_ro_obj(pkg, ADBI_PKG_PKGINFO, &pkginfo);
 	apk_deps_from_adb(&ipkg->replaces, db, adb_ro_obj(&pkginfo, ADBI_PI_REPLACES, &obj));
 	ipkg->replaces_priority = adb_ro_int(pkg, ADBI_PKG_REPLACES_PRIORITY);
-	ipkg->v3 = 1;
+	ipkg->sha256_160 = 1;
 
 	adb_ro_obj(pkg, ADBI_PKG_SCRIPTS, &scripts);
 	for (i = 0; i < ARRAY_SIZE(script_type_to_field); i++) {
@@ -2737,14 +2739,12 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 			else
 				apk_dbf_digest_set(file, ae->digest.alg, ae->digest.data);
 
-			if (ipkg->v3 && S_ISLNK(ae->mode)) {
+			if (ipkg->sha256_160 && S_ISLNK(ae->mode)) {
 				struct apk_digest d;
 				apk_digest_calc(&d, APK_DIGEST_SHA256_160,
 						ae->link_target, strlen(ae->link_target));
-				ipkg->sha256_160 = 1;
 				apk_dbf_digest_set(file, d.alg, d.data);
 			} else if (file->digest_alg == APK_DIGEST_NONE && ae->digest.alg == APK_DIGEST_SHA256) {
-				ipkg->sha256_160 = 1;
 				apk_dbf_digest_set(file, APK_DIGEST_SHA256_160, ae->digest.data);
 			} else if (link_target_file == NULL && need_checksum(ae->mode) && !ctx->missing_checksum) {
 				if (ae->digest.alg == APK_DIGEST_NONE) {
