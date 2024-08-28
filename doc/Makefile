@@ -19,6 +19,7 @@ scdocs-y += \
 	apk-list.8 \
 	apk-manifest.8 \
 	apk-mkndx.8 \
+	apk-mkpkg.8 \
 	apk-policy.8 \
 	apk-stats.8 \
 	apk-update.8 \

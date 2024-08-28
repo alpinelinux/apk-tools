@@ -57,10 +57,12 @@ Each command is documented in detail on its manual page.
 |  *apk-search*(8)
 :  Search for packages by name or description
 
-## REPOSITORY MAINTENANCE
+## REPOSITORY AND PACKAGE MAINTENANCE
 
 |[ *apk-mkndx*(8)
 :< Create repository index (v3) file from packages
+|  *apk-mkpkg*(8)
+:  Create package (v3)
 |  *apk-index*(8)
 :  Create repository index (v2) file from packages
 |  *apk-fetch*(8)

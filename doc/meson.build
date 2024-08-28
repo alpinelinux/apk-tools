@@ -14,6 +14,7 @@ man_filenames = [
     'apk-list.8.scd',
     'apk-manifest.8.scd',
     'apk-mkndx.8.scd',
+    'apk-mkpkg.8.scd',
     'apk-package.5.scd',
     'apk-policy.8.scd',
     'apk-repositories.5.scd',
