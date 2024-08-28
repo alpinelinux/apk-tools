@@ -59,8 +59,10 @@ Each command is documented in detail on its manual page.
 
 ## REPOSITORY MAINTENANCE
 
-|[ *apk-index*(8)
-:< Create repository index file from packages
+|[ *apk-mkndx*(8)
+:< Create repository index (v3) file from packages
+|  *apk-index*(8)
+:  Create repository index (v2) file from packages
 |  *apk-fetch*(8)
 :  Download packages from repositories to a local directory
 |  *apk-manifest*(8)
