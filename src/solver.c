@@ -185,7 +185,7 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 	struct apk_name **pname0;
 	struct apk_provider *p;
 	struct apk_dependency *dep;
-	unsigned int repos;
+	unsigned int repos, num_virtual = 0;
 
 	if (name->ss.seen)
 		return;
@@ -240,10 +240,17 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 
 		name->ss.no_iif &= pkg->ss.iif_failed;
 		name->ss.max_dep_chain = max(name->ss.max_dep_chain, pkg->ss.max_dep_chain);
-
-		dbg_printf("discover %s: max_dep_chain=%d no_iif=%d\n",
-			name->name, name->ss.max_dep_chain, name->ss.no_iif);
+		num_virtual += (p->pkg->name != name);
 	}
+	dbg_printf("discover %s: max_dep_chain=%d no_iif=%d num_virtual=%d\n",
+		name->name, name->ss.max_dep_chain, name->ss.no_iif, num_virtual);
+	if (num_virtual == 0)
+		name->priority = 0;
+	else if (num_virtual != name->providers->num)
+		name->priority = 1;
+	else
+		name->priority = 2;
+
 	foreach_array_item(p, name->providers) {
 		struct apk_package *pkg = p->pkg;
 		foreach_array_item(pname0, pkg->name->rinstall_if)
