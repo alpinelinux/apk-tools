@@ -266,7 +266,7 @@ void apk_dep_from_pkg(struct apk_dependency *dep, struct apk_database *db,
 	char buf[64];
 	apk_blob_t b = APK_BLOB_BUF(buf);
 
-	apk_blob_push_hash(&b, apk_pkg_digest_blob(pkg));
+	apk_blob_push_hash(&b, apk_pkg_hash_blob(pkg));
 	b = apk_blob_pushed(APK_BLOB_BUF(buf), b);
 
 	*dep = (struct apk_dependency) {
@@ -282,7 +282,7 @@ static int apk_dep_match_checksum(const struct apk_dependency *dep, const struct
 	apk_blob_t b = *dep->version;
 
 	apk_blob_pull_digest(&b, &d);
-	return apk_digest_cmp_blob(&d, pkg->digest_alg, apk_pkg_digest_blob(pkg)) == 0;
+	return apk_blob_compare(APK_DIGEST_BLOB(d), apk_pkg_hash_blob(pkg)) == 0;
 }
 
 int apk_dep_is_provided(const struct apk_package *deppkg, const struct apk_dependency *dep, const struct apk_provider *p)

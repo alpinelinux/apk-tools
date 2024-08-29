@@ -1091,7 +1091,7 @@ static int apk_db_scriptdb_write(struct apk_database *db, struct apk_installed_p
 		apk_blob_push_blob(&bfn, APK_BLOB_STR("-"));
 		apk_blob_push_blob(&bfn, *pkg->version);
 		apk_blob_push_blob(&bfn, APK_BLOB_STR("."));
-		apk_blob_push_hash_hex(&bfn, apk_pkg_digest_blob(pkg));
+		apk_blob_push_hash_hex(&bfn, apk_pkg_hash_blob(pkg));
 		apk_blob_push_blob(&bfn, APK_BLOB_STR("."));
 		apk_blob_push_blob(&bfn, APK_BLOB_STR(apk_script_types[i]));
 		apk_blob_push_blob(&bfn, APK_BLOB_PTR_LEN("", 1));
