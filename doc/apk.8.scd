@@ -69,6 +69,8 @@ Each command is documented in detail on its manual page.
 :  Download packages from repositories to a local directory
 |  *apk-manifest*(8)
 :  Show checksums of package contents
+|  *apk-extract*(8)
+:  Extract package file contents
 |  *apk-verify*(8)
 :  Verify package integrity and signature
 |  *apk-adbsign*(8)

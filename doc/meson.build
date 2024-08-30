@@ -7,6 +7,7 @@ man_filenames = [
     'apk-cache.8.scd',
     'apk-del.8.scd',
     'apk-dot.8.scd',
+    'apk-extract.8.scd',
     'apk-fetch.8.scd',
     'apk-fix.8.scd',
     'apk-index.8.scd',

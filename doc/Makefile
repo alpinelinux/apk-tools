@@ -13,6 +13,7 @@ scdocs-y += \
 	apk-cache.8 \
 	apk-del.8 \
 	apk-dot.8 \
+	apk-extract.8 \
 	apk-fetch.8 \
 	apk-fix.8 \
 	apk-index.8 \
