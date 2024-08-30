@@ -71,6 +71,8 @@ Each command is documented in detail on its manual page.
 :  Show checksums of package contents
 |  *apk-verify*(8)
 :  Verify package integrity and signature
+|  *apk-adbsign*(8)
+:  Sign, resign or recompress v3 packages and indexes
 
 ## MISCELLANEOUS
 

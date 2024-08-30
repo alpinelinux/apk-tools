@@ -1,5 +1,6 @@
 man_filenames = [
     'apk.8.scd',
+    'apk-adbsign.8.scd',
     'apk-add.8.scd',
     'apk-audit.8.scd',
     'apk-cache.5.scd',
