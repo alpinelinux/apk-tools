@@ -38,12 +38,15 @@ struct mkpkg_ctx {
 	uint64_t installed_size;
 	struct apk_pathbuilder pb;
 	unsigned has_scripts : 1;
+	unsigned rootnode : 1;
 };
 
 #define MKPKG_OPTIONS(OPT) \
 	OPT(OPT_MKPKG_files,		APK_OPT_ARG APK_OPT_SH("F") "files") \
 	OPT(OPT_MKPKG_info,		APK_OPT_ARG APK_OPT_SH("I") "info") \
 	OPT(OPT_MKPKG_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
+	OPT(OPT_MKPKG_rootnode,		"rootnode") \
+	OPT(OPT_MKPKG_no_rootnode,	"no-rootnode") \
 	OPT(OPT_MKPKG_script,		APK_OPT_ARG APK_OPT_SH("s") "script") \
 	OPT(OPT_MKPKG_trigger,		APK_OPT_ARG APK_OPT_SH("t") "trigger") \
 
@@ -93,14 +96,21 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 	switch (optch) {
 	case APK_OPTIONS_INIT:
 		apk_string_array_init(&ictx->triggers);
+		ictx->rootnode = 1;
 		break;
-	case OPT_MKPKG_info:
-		return parse_info(ictx, out, optarg);
 	case OPT_MKPKG_files:
 		ictx->files_dir = optarg;
 		break;
+	case OPT_MKPKG_info:
+		return parse_info(ictx, out, optarg);
 	case OPT_MKPKG_output:
 		ictx->output = optarg;
+		break;
+	case OPT_MKPKG_rootnode:
+		ictx->rootnode = 1;
+		break;
+	case OPT_MKPKG_no_rootnode:
+		ictx->rootnode = 0;
 		break;
 	case OPT_MKPKG_script:
 		apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r);
@@ -180,11 +190,13 @@ static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int dirfd, struct apk_
 	adb_wo_alloca(&fio, &schema_dir, &ctx->db);
 	adb_wo_alloca(&acl, &schema_acl, &ctx->db);
 	adb_wo_blob(&fio, ADBI_DI_NAME, dirname);
-	adb_wo_int(&acl, ADBI_ACL_MODE, fi->mode & ~S_IFMT);
-	adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi->uid));
-	adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi->gid));
-	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs(&ctx->db, dirfd));
-	adb_wo_obj(&fio, ADBI_DI_ACL, &acl);
+	if (dirname.len != 0 || ctx->rootnode) {
+		adb_wo_int(&acl, ADBI_ACL_MODE, fi->mode & ~S_IFMT);
+		adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi->uid));
+		adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi->gid));
+		adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs(&ctx->db, dirfd));
+		adb_wo_obj(&fio, ADBI_DI_ACL, &acl);
+	}
 
 	adb_wo_alloca(&files, &schema_file_array, &ctx->db);
 	prev_files = ctx->files;
@@ -196,6 +208,8 @@ static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int dirfd, struct apk_
 			apk_pathbuilder_cstr(&ctx->pb), r);
 		goto done;
 	}
+	// no need to record root folder if its empty
+	if (dirname.len == 0 && !ctx->rootnode && adb_ra_num(&files) == 0) goto done;
 
 	adb_wo_obj(&fio, ADBI_DI_FILES, &files);
 	adb_wa_append_obj(&ctx->paths, &fio);

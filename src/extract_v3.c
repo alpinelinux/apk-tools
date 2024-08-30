@@ -135,46 +135,54 @@ static int apk_extract_v3_next_file(struct apk_extract_ctx *ectx)
 {
 	struct apk_extract_v3_ctx *ctx = ectx->pctx;
 	apk_blob_t target;
-	int r;
+	int r, n;
 
 	if (!ctx->cur_path) {
 		// one time init
 		ctx->cur_path = ADBI_FIRST;
-		ctx->cur_file = 0;
+		ctx->cur_file = ADBI_FIRST;
 		adb_r_rootobj(&ctx->db, &ctx->pkg, &schema_package);
 
 		r = ectx->ops->v3meta(ectx, &ctx->pkg);
 		if (r < 0) return r;
 
 		adb_ro_obj(&ctx->pkg, ADBI_PKG_PATHS, &ctx->paths);
-		adb_ro_obj(&ctx->paths, ctx->cur_path, &ctx->path);
-		adb_ro_obj(&ctx->path, ADBI_DI_FILES, &ctx->files);
 		if (!ectx->ops->file) return -ECANCELED;
-	}
-
-	do {
+	} else {
 		ctx->cur_file++;
-		while (ctx->cur_file > adb_ra_num(&ctx->files)) {
+		if (ctx->cur_file > adb_ra_num(&ctx->files)) {
 			ctx->cur_path++;
 			ctx->cur_file = ADBI_FIRST;
-			if (ctx->cur_path > adb_ra_num(&ctx->paths)) return 1;
+		}
+	}
+
+	for (; ctx->cur_path <= adb_ra_num(&ctx->paths); ctx->cur_path++, ctx->cur_file = ADBI_FIRST) {
+		if (ctx->cur_file == ADBI_FIRST) {
 			adb_ro_obj(&ctx->paths, ctx->cur_path, &ctx->path);
-			apk_pathbuilder_setb(&ctx->pb, adb_ro_blob(&ctx->path, ADBI_DI_NAME));
 			adb_ro_obj(&ctx->path, ADBI_DI_FILES, &ctx->files);
+		}
+		apk_pathbuilder_setb(&ctx->pb, adb_ro_blob(&ctx->path, ADBI_DI_NAME));
+		if (ctx->pb.namelen != 0 && ctx->cur_file == ADBI_FIRST) {
 			r = apk_extract_v3_directory(ectx);
 			if (r != 0) return r;
 		}
-		adb_ro_obj(&ctx->files, ctx->cur_file, &ctx->file);
-		apk_pathbuilder_setb(&ctx->pb, adb_ro_blob(&ctx->path, ADBI_DI_NAME));
-		apk_pathbuilder_pushb(&ctx->pb, adb_ro_blob(&ctx->file, ADBI_FI_NAME));
-		target = adb_ro_blob(&ctx->file, ADBI_FI_TARGET);
-		if (adb_ro_int(&ctx->file, ADBI_FI_SIZE) != 0 &&
-		    APK_BLOB_IS_NULL(target)) {
-			return 0;
+
+		for (; ctx->cur_file <= adb_ra_num(&ctx->files); ctx->cur_file++) {
+			adb_ro_obj(&ctx->files, ctx->cur_file, &ctx->file);
+
+			n = apk_pathbuilder_pushb(&ctx->pb, adb_ro_blob(&ctx->file, ADBI_FI_NAME));
+
+			target = adb_ro_blob(&ctx->file, ADBI_FI_TARGET);
+			if (adb_ro_int(&ctx->file, ADBI_FI_SIZE) != 0 && APK_BLOB_IS_NULL(target))
+				return 0;
+
+			r = apk_extract_v3_file(ectx, 0, 0);
+			if (r != 0) return r;
+
+			apk_pathbuilder_pop(&ctx->pb, n);
 		}
-		r = apk_extract_v3_file(ectx, 0, 0);
-		if (r != 0) return r;
-	} while (1);
+	}
+	return 1;
 }
 
 static int apk_extract_v3_data_block(struct adb *db, struct adb_block *b, struct apk_istream *is)
