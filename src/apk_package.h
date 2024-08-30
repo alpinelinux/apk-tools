@@ -95,6 +95,7 @@ struct apk_installed_package {
 	unsigned broken_files : 1;
 	unsigned broken_script : 1;
 	unsigned broken_xattr : 1;
+	unsigned sha256_160 : 1;
 };
 
 struct apk_package {

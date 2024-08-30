@@ -873,6 +873,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 				case 'f': ipkg->broken_files = 1; break;
 				case 's': ipkg->broken_script = 1; break;
 				case 'x': ipkg->broken_xattr = 1; break;
+				case 'S': ipkg->sha256_160 = db->compat_newfeatures = 1; break;
 				default:
 					if (!(apk_force & APK_FORCE_OLD_APK))
 						goto old_apk_tools;
@@ -961,6 +962,8 @@ static int apk_db_write_fdb(struct apk_database *db, struct apk_ostream *os)
 				apk_blob_push_blob(&bbuf, APK_BLOB_STR("s"));
 			if (ipkg->broken_xattr)
 				apk_blob_push_blob(&bbuf, APK_BLOB_STR("x"));
+			if (ipkg->sha256_160)
+				apk_blob_push_blob(&bbuf, APK_BLOB_STR("S"));
 			apk_blob_push_blob(&bbuf, APK_BLOB_STR("\n"));
 		}
 		hlist_for_each_entry(diri, c1, &ipkg->owned_dirs, pkg_dirs_list) {
