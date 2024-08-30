@@ -84,6 +84,14 @@ Each command is documented in detail on its manual page.
 :  Show statistics about repositories and installations
 |  *apk-version*(8)
 :  Compare package versions or perform tests on version strings
+|  *apk-adbdump*(8)
+:  Dump v3 files in textual representation
+|  *apk-adbgen*(8)
+:  Generate v3 files from text representation
+|  *apk-convdb*(8)
+:  Convert v2 installed database to v3 format
+|  *apk-convndx*(8)
+:  Convert v2 indexes to v3 format
 
 # GLOBAL OPTIONS
 

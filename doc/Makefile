@@ -7,10 +7,14 @@ scdocs-y += \
 	apk-v3.5 \
 	apk-world.5 \
 	apk.8 \
+	apk-adbdump.8 \
+	apk-adbgen.8 \
 	apk-adbsign.8 \
 	apk-add.8 \
 	apk-audit.8 \
 	apk-cache.8 \
+	apk-convndx.8 \
+	apk-convdb.8 \
 	apk-del.8 \
 	apk-dot.8 \
 	apk-extract.8 \
