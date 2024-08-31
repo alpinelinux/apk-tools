@@ -215,7 +215,8 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		apk_fileinfo_get(AT_FDCWD, ctx->index, 0, &fi, 0);
 		index_mtime = fi.mtime;
 
-		r = adb_m_open(&odb, apk_istream_from_file_mmap(AT_FDCWD, ctx->index),
+		r = adb_m_open(&odb,
+			adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, ctx->index), NULL),
 			ADB_SCHEMA_INDEX, trust);
 		if (r) {
 			apk_err(out, "%s: %s", ctx->index, apk_error_str(r));
