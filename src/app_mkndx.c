@@ -32,13 +32,17 @@ struct mkndx_ctx {
 	struct adb_obj pkgs;
 	struct adb_obj pkginfo;
 	time_t index_mtime;
+	uint8_t hash_alg;
 
 	struct apk_extract_ctx ectx;
 	size_t file_size;
 };
 
+#define ALLOWED_HASH (BIT(APK_DIGEST_SHA256)|BIT(APK_DIGEST_SHA256_160))
+
 #define MKNDX_OPTIONS(OPT) \
 	OPT(OPT_MKNDX_description,	APK_OPT_ARG APK_OPT_SH("d") "description") \
+	OPT(OPT_MKNDX_hash,		APK_OPT_ARG "hash") \
 	OPT(OPT_MKNDX_index,		APK_OPT_ARG APK_OPT_SH("x") "index") \
 	OPT(OPT_MKNDX_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
 	OPT(OPT_MKNDX_rewrite_arch,	APK_OPT_ARG "rewrite-arch")
@@ -48,16 +52,27 @@ APK_OPT_APPLET(option_desc, MKNDX_OPTIONS);
 static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
 {
 	struct mkndx_ctx *ictx = ctx;
+	struct apk_out *out = &ac->out;
 
 	switch (optch) {
+	case APK_OPTIONS_INIT:
+		ictx->hash_alg = APK_DIGEST_SHA256;
+		break;
+	case OPT_MKNDX_description:
+		ictx->description = optarg;
+		break;
+	case OPT_MKNDX_hash:
+		ictx->hash_alg = apk_digest_alg_by_str(optarg);
+		if (!(BIT(ictx->hash_alg) & ALLOWED_HASH)) {
+			apk_err(out, "hash '%s' not recognized or allowed", optarg);
+			return -EINVAL;
+		}
+		break;
 	case OPT_MKNDX_index:
 		ictx->index = optarg;
 		break;
 	case OPT_MKNDX_output:
 		ictx->output = optarg;
-		break;
-	case OPT_MKNDX_description:
-		ictx->description = optarg;
 		break;
 	case OPT_MKNDX_rewrite_arch:
 		ictx->rewrite_arch = APK_BLOB_STR(optarg);
@@ -271,7 +286,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		do_file:
 			apk_digest_reset(&digest);
 			apk_extract_reset(&ctx->ectx);
-			apk_extract_generate_identity(&ctx->ectx, &digest);
+			apk_extract_generate_identity(&ctx->ectx, ctx->hash_alg, &digest);
 			r = apk_extract(&ctx->ectx, apk_istream_from_file(AT_FDCWD, *parg));
 			if (r < 0 && r != -ECANCELED) goto err_pkg;
 

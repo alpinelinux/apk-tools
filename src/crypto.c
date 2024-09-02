@@ -17,6 +17,13 @@ const char *apk_digest_alg_str(uint8_t alg)
 	return alg_str;
 }
 
+uint8_t apk_digest_alg_by_str(const char *algstr)
+{
+	for (uint8_t alg = 0; alg < ARRAY_SIZE(apk_digest_str); alg++)
+		if (strcmp(apk_digest_str[alg], algstr) == 0) return alg;
+	return APK_DIGEST_NONE;
+}
+
 int apk_digest_alg_len(uint8_t alg)
 {
 	switch (alg) {

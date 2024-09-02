@@ -42,6 +42,7 @@
 #define APK_BLOB_DIGEST_BUF	(2 + (2 * APK_DIGEST_LENGTH_MAX))
 
 const char *apk_digest_alg_str(uint8_t);
+uint8_t apk_digest_alg_by_str(const char *algstr);
 
 struct apk_digest {
 	uint8_t alg, len;

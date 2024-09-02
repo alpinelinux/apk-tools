@@ -114,7 +114,7 @@ static int __adb_handle_identity(struct apk_extract_ctx *ectx, struct adb_verify
 
 	if (!ectx) return 0;
 
-	alg = ectx->generate_identity ? APK_DIGEST_SHA256 : ectx->verify_alg;
+	alg = ectx->generate_alg ?: ectx->verify_alg;
 	// Ignore the sha1 identity as they are 'unique-id' instead of hash
 	if (alg == APK_DIGEST_NONE || alg == APK_DIGEST_SHA1) return 0;
 

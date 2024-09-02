@@ -31,7 +31,7 @@ struct apk_extract_ctx {
 	struct apk_ctx *ac;
 	const struct apk_extract_ops *ops;
 	struct apk_digest *generate_identity;
-	uint8_t verify_alg;
+	uint8_t generate_alg, verify_alg;
 	apk_blob_t verify_digest;
 	apk_blob_t desc;
 	void *pctx;
@@ -45,7 +45,8 @@ static inline void apk_extract_init(struct apk_extract_ctx *ectx, struct apk_ctx
 static inline void apk_extract_reset(struct apk_extract_ctx *ectx) {
 	apk_extract_init(ectx, ectx->ac, ectx->ops);
 }
-static inline void apk_extract_generate_identity(struct apk_extract_ctx *ctx, struct apk_digest *id) {
+static inline void apk_extract_generate_identity(struct apk_extract_ctx *ctx, uint8_t alg, struct apk_digest *id) {
+	ctx->generate_alg = alg;
 	ctx->generate_identity = id;
 }
 static inline void apk_extract_verify_identity(struct apk_extract_ctx *ctx, uint8_t alg, apk_blob_t digest) {
