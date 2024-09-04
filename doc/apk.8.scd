@@ -394,7 +394,7 @@ The following options are available for all commands which generate APKv3 files.
 
 ## System files
 
-*/lib/apk/db/lock*
+*/run/apk/db.lock*
 	A lock file used to allow only one concurrent write transaction on
 	the system.
 
