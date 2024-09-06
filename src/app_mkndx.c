@@ -264,7 +264,6 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 				fname++;
 			fend = strstr(fname, ".apk");
 			if (!fend) goto do_file;
-			if (fend-fname > 10 && fend[-9] == '.') fend -= 9;
 			if (apk_pkg_parse_name(APK_BLOB_PTR_PTR(fname, fend-1),
 					       &bname, &bver) < 0)
 				goto do_file;
