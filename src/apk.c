@@ -360,7 +360,7 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 	struct option all_options[80], *opt;
 	char short_options[256], *sopt;
 	unsigned short short_option_val[64];
-	int r, p, help_requested = 0, num_short;
+	int r, p, num_short;
 
 	memset(short_option_val, 0, sizeof short_option_val);
 
@@ -397,21 +397,15 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 	opt->name = 0;
 	*sopt = 0;
 
-	r = 0;
 	while ((p = getopt_long(argc, argv, short_options, all_options, NULL)) != -1) {
 		if (p >= 64 && p < 128) p = short_option_val[p - 64];
 		og = optgroups[p >> 10];
 		r = og->parse(ctx, ac, p & 0x3ff, optarg);
 		if (r == 0) continue;
-		if (r == -EINVAL) {
-			help_requested = 1;
-			continue;
-		}
-		if (r != -ENOTSUP) return r;
+		if (r == -EINVAL || r == -ENOTSUP)
+			return usage(out, applet);
+		return r;
 	}
-
-	if (help_requested || r == -ENOTSUP)
-		return usage(out, applet);
 
 	return 0;
 }
