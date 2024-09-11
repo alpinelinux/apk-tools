@@ -286,7 +286,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 	adb_wo_int(&acl, ADBI_ACL_MODE, fi.mode & 07777);
 	adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi.uid));
 	adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi.gid));
-	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs_closefd(&ctx->db, openat(dirfd, entry, O_RDONLY|O_NOFOLLOW)));
+	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs_closefd(&ctx->db, openat(dirfd, entry, O_RDONLY|O_NOFOLLOW|O_NONBLOCK)));
 	adb_wo_obj(&fio, ADBI_FI_ACL, &acl);
 
 	adb_wa_append_obj(ctx->files, &fio);
