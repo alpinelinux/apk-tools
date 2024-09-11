@@ -811,7 +811,7 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		.device = st.st_rdev,
 	};
 
-	if (xattr_hash_alg != APK_DIGEST_NONE && !S_ISLNK(fi->mode)) {
+	if (xattr_hash_alg != APK_DIGEST_NONE && !S_ISLNK(fi->mode) && !S_ISFIFO(fi->mode)) {
 		ssize_t len, vlen;
 		int fd, i, r;
 		char val[1024], buf[1024];
