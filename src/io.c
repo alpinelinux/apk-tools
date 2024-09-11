@@ -753,7 +753,7 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		char val[1024], buf[1024];
 
 		r = 0;
-		fd = openat(atfd, filename, O_RDONLY);
+		fd = openat(atfd, filename, O_RDONLY|O_NONBLOCK);
 		if (fd >= 0) {
 			len = flistxattr(fd, buf, sizeof(buf));
 			if (len > 0) {
