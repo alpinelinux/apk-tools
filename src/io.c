@@ -744,10 +744,10 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		.gid = st.st_gid,
 		.mode = st.st_mode,
 		.mtime = st.st_mtime,
-		.device = st.st_dev,
+		.device = st.st_rdev,
 	};
 
-	if (xattr_checksum != APK_CHECKSUM_NONE && !S_ISLNK(fi->mode)) {
+	if (xattr_checksum != APK_CHECKSUM_NONE && !S_ISLNK(fi->mode) && !S_ISFIFO(fi->mode)) {
 		ssize_t len, vlen;
 		int fd, i, r;
 		char val[1024], buf[1024];
