@@ -159,15 +159,17 @@ static int del_main(void *pctx, struct apk_database *db, struct apk_string_array
 
 	r = apk_solver_solve(db, 0, ctx->world, &changeset);
 	if (r == 0) {
-		/* check for non-deleted package names */
-		foreach_array_item(change, changeset.changes)
-			if (change->new_pkg != NULL)
-				change->new_pkg->marked = 1;
-		foreach_array_item(d, ctx->world)
-			d->name->state_int = 1;
-		apk_db_foreach_sorted_name(db, args, print_not_deleted_name, &ndctx);
-		if (ndctx.header)
-			printf("\n");
+		if (apk_verbosity >= 1) {
+			/* check for non-deleted package names */
+			foreach_array_item(change, changeset.changes)
+				if (change->new_pkg != NULL)
+					change->new_pkg->marked = 1;
+			foreach_array_item(d, ctx->world)
+				d->name->state_int = 1;
+			apk_db_foreach_sorted_name(db, args, print_not_deleted_name, &ndctx);
+			if (ndctx.header)
+				printf("\n");
+		}
 
 		r = apk_solver_commit_changeset(db, &changeset, ctx->world);
 	} else {
