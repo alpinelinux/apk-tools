@@ -145,14 +145,14 @@ static int audit_file(struct audit_ctx *actx,
 
 	if (dbf) {
 		digest_type = dbf->digest_alg;
-		xattr_type = apk_digest_alg_by_len(dbf->acl->xattr_hash_len) ?: APK_DIGEST_SHA1;
+		xattr_type = apk_digest_alg_by_len(dbf->acl->xattr_hash_len);
 	} else {
 		if (!actx->details) return 'A';
 	}
 
 	if (apk_fileinfo_get(dirfd, name,
 				APK_FI_NOFOLLOW |
-				APK_FI_XATTR_DIGEST(xattr_type) |
+				APK_FI_XATTR_DIGEST(xattr_type ?: APK_DIGEST_SHA1) |
 				APK_FI_DIGEST(digest_type),
 				fi, &db->atoms) != 0)
 		return 'e';
