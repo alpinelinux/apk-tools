@@ -1,0 +1,5 @@
+@ARGS
+--test-instdb basic.installed
+add -t .virtual=invalid
+@EXPECT
+ERROR: .virtual=invalid: bad package specifier
