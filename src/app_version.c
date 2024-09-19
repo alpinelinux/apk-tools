@@ -115,7 +115,7 @@ struct ver_name_state {
 
 static struct ver_name_state *state_from_name(struct apk_name *name)
 {
-	static_assert(sizeof name->state_buf >= sizeof(struct ver_name_state));
+	static_assert(sizeof name->state_buf >= sizeof(struct ver_name_state), "buffer size mismatch");
 	return (struct ver_name_state *) &name->state_buf[0];
 }
 
