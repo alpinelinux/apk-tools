@@ -157,6 +157,7 @@ libapk_lib = library(
 
 libapk_dep = declare_dependency(
 	link_with: libapk_lib,
+	include_directories: ['.'],
 )
 
 if not subproject
@@ -169,26 +170,6 @@ if not subproject
 	install_headers(
 		libapk_headers,
 		subdir: 'apk',
-	)
-endif
-
-if(lua_dep.found())
-	luaapk_src = [
-		'lua-apk.c',
-	]
-
-	libluaapk = library(
-		'luaapk',
-		luaapk_src,
-		dependencies: [
-			lua_dep,
-			libapk_dep,
-			apk_deps,
-			libportability_dep.partial_dependency(includes: true),
-		],
-		install: true,
-		install_dir: lua_dep.get_variable(pkgconfig: 'libdir'),
-		c_args: apk_cargs,
 	)
 endif
 

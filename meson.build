@@ -40,4 +40,7 @@ else
 	libfetch_dep = dependency('', required: false)
 endif
 subdir('src')
+if(lua_dep.found())
+	subdir('lua')
+endif
 subdir('tests')

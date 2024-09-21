@@ -91,7 +91,7 @@ LUA_VERSION		?= 5.3
 LUA_PC			?= lua$(LUA_VERSION)
 LUA_LIBDIR		?= /usr/lib/lua/$(LUA_VERSION)
 shlibs-y		+= apk.so
-apk.so-objs		:= lua-apk.o
+apk.so-objs		:= ../lua/lua-apk.o
 CFLAGS_lua-apk.o	:= -DAPK_VERSION=\"$(VERSION)\" \
 			   $(shell $(PKG_CONFIG) $(LUA_PC) --cflags)
 apklua_so		:= $(obj)/apk.so
@@ -112,7 +112,7 @@ LIBS_apk		:= -lapk
 LIBS_apk-test		:= -lapk
 LIBS_apk.so		:= -L$(obj) -lapk
 
-CFLAGS_ALL		+= -D_ATFILE_SOURCE -Iportability
+CFLAGS_ALL		+= -D_ATFILE_SOURCE -Iportability -Isrc
 CFLAGS_apk.o		:= -DAPK_VERSION=\"$(VERSION)\"
 CFLAGS_apk-static.o	:= -DAPK_VERSION=\"$(VERSION)\" -DOPENSSL_NO_ENGINE
 CFLAGS_apk-test.o	:= -DAPK_VERSION=\"$(VERSION)\" -DOPENSSL_NO_ENGINE -DTEST_MODE
