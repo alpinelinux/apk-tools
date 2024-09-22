@@ -39,7 +39,7 @@ test:alpine:
     - meson setup build
     - ninja -C build
     - meson setup build-static -Dc_link_args=-static -Ddefault_library=static -Dprefer_static=true
-    - ninja -C build-static
+    - ninja -C build-static src/apk
   tags:
     - docker-alpine
     - x86_64
@@ -64,7 +64,7 @@ test:alpine-muon:
     - muon setup build
     - ninja -C build
     - muon setup -Dc_link_args="-static" -Dprefer_static=true -Ddefault_library=static build-static
-    - ninja -C build-static
+    - ninja -C build-static src/apk
   tags:
     - docker-alpine
     - x86_64
