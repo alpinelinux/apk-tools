@@ -124,16 +124,16 @@ static void set_blob_field(lua_State *L, int index, const char *key,
 	lua_settable(L, index);
 }
 
-static int get_opt_int_field(lua_State *L, int index, const char *key, int def)
+static lua_Integer get_opt_int_field(lua_State *L, int index, const char *key, lua_Integer def)
 {
-	int value;
+	lua_Integer value;
 	lua_getfield(L, index, key);
 	value = luaL_optinteger(L, -1, def);
 	lua_pop(L, 1);
 	return value;
 }
 
-static void set_int_field(lua_State *L, int index, const char *key, int value)
+static void set_int_field(lua_State *L, int index, const char *key, lua_Integer value)
 {
 	lua_pushstring(L, key);
 	lua_pushinteger(L, value);
