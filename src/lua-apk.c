@@ -174,23 +174,24 @@ static struct apk_database *checkdb(lua_State *L, int index)
 
 static int Papk_db_open(lua_State *L)
 {
-	struct apk_ctx opts;
+	struct apk_ctx *ac;
 	struct apk_database *db;
 	int r;
 
-	memset(&opts, 0, sizeof(opts));
-	apk_string_array_init(&opts.repository_list);
+	ac = lua_newuserdata(L, sizeof(struct apk_ctx));
+	apk_ctx_init(ac);
 	if (lua_istable(L, 1))
-		get_ctx(L, 1, &opts);
+		get_ctx(L, 1, ac);
 	else
-		opts.open_flags |= APK_OPENF_READ;
+		ac->open_flags |= APK_OPENF_READ;
 
+	apk_ctx_prepare(ac);
 	db = lua_newuserdata(L, sizeof(struct apk_database));
 	luaL_getmetatable(L, APK_DB_META);
 	lua_setmetatable(L, -2);
 
 	apk_db_init(db);
-	r = apk_db_open(db, &opts);
+	r = apk_db_open(db, ac);
 	if (r != 0)
 		luaL_error(L, "apk_db_open() failed");
 	return 1;
@@ -200,6 +201,7 @@ static int Papk_db_close(lua_State *L)
 {
 	struct apk_database *db = checkdb(L, 1);
 	apk_db_close(db);
+	apk_ctx_free(db->ctx);
 	return 0;
 }
 
@@ -219,6 +221,7 @@ static int push_package(lua_State *L, struct apk_package *pkg)
 	set_int_field(L, -3, "size", pkg->size);
 	return 1;
 }
+
 static int Papk_who_owns(lua_State *L)
 {
 	struct apk_database *db = checkdb(L, 1);
