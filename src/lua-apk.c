@@ -57,7 +57,9 @@ static int typerror (lua_State *L, int narg, const char *tname) {
 static apk_blob_t check_blob(lua_State *L, int index)
 {
 	apk_blob_t blob;
-	blob.ptr = (char *)luaL_checklstring(L, index, (size_t *)&blob.len);
+	size_t len;
+	blob.ptr = (char *)luaL_checklstring(L, index, &len);
+	blob.len = len;
 	return blob;
 }
 
