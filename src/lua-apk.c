@@ -219,9 +219,14 @@ static int push_package(lua_State *L, struct apk_package *pkg)
 	lua_newtable(L);
 	set_string_field(L, -3, "name", pkg->name->name);
 	set_blob_field(L, -3, "version", *pkg->version);
-	set_blob_field(L, -3, "url", *pkg->url);
+	set_blob_field(L, -3, "arch", *pkg->arch);
 	set_blob_field(L, -3, "license", *pkg->license);
+	set_blob_field(L, -3, "origin", *pkg->origin);
+	set_blob_field(L, -3, "maintainer", *pkg->maintainer);
+	set_blob_field(L, -3, "url", *pkg->url);
 	set_blob_field(L, -3, "description", *pkg->description);
+	set_blob_field(L, -3, "commit", *pkg->commit);
+	set_int_field(L, -3, "installed_size", pkg->installed_size);
 	set_int_field(L, -3, "size", pkg->size);
 	return 1;
 }
