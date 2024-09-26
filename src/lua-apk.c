@@ -38,10 +38,13 @@ struct flagmap opendb_flagmap[] = {
 	{"no_world",            APK_OPENF_NO_WORLD},
 	{"no_sys_repos",        APK_OPENF_NO_SYS_REPOS},
 	{"no_installed_repo",   APK_OPENF_NO_INSTALLED_REPO},
+	{"cache_write",         APK_OPENF_CACHE_WRITE},
+	{"no_autoupdate",       APK_OPENF_NO_AUTOUPDATE},
+	{"no_cmdline_repos",    APK_OPENF_NO_CMDLINE_REPOS},
+	{"usermode",            APK_OPENF_USERMODE},
+	{"allow_arch",          APK_OPENF_ALLOW_ARCH},
 	{"no_repos",            APK_OPENF_NO_REPOS},
 	{"no_state",            APK_OPENF_NO_STATE},
-	{"no_scripts",          APK_OPENF_NO_SCRIPTS},
-	{"no_world",            APK_OPENF_NO_WORLD},
 	{NULL, 0}
 };
 
