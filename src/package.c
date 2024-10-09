@@ -774,8 +774,7 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		return 0;
 
 	if (!db->script_dirs_checked) {
-		if (apk_make_dirs(root_fd, "tmp", 01777, 0) <0 ||
-		    apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0) {
+		if (apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0) {
 			apk_err(out, "failed to prepare dirs for hook scripts: %s",
 				apk_error_str(errno));
 			goto err;
