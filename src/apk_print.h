@@ -19,6 +19,7 @@ const char *apk_error_str(int error);
 int apk_exit_status_str(int status, char *buf, size_t sz);
 int apk_get_human_size_unit(apk_blob_t b);
 const char *apk_get_human_size(off_t size, off_t *dest);
+const char *apk_last_path_segment(const char *);
 
 struct apk_url_print {
 	const char *url;

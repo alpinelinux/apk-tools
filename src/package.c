@@ -786,7 +786,7 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		db->script_dirs_checked = 1;
 	}
 
-	apk_msg(out, "Executing %s", &fn[strlen(script_exec_dir)+1]);
+	apk_msg(out, "Executing %s", apk_last_path_segment(fn));
 	fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0755);
 	if (fd < 0) {
 		fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0755);
@@ -807,7 +807,7 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	goto cleanup;
 
 err_log:
-	apk_err(out, "%s: failed to execute: %s", &fn[strlen(script_exec_dir)+1], apk_error_str(errno));
+	apk_err(out, "%s: failed to execute: %s", apk_last_path_segment(fn), apk_error_str(errno));
 err:
 	ipkg->broken_script = 1;
 	ret = 1;

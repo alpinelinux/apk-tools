@@ -2092,19 +2092,19 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 
 	pid = fork();
 	if (pid == -1) {
-		apk_err(out, "%s: fork: %s", basename(fn), strerror(errno));
+		apk_err(out, "%s: fork: %s", apk_last_path_segment(fn), strerror(errno));
 		return -2;
 	}
 	if (pid == 0) {
 		umask(0022);
 
 		if (fchdir(db->root_fd) != 0) {
-			apk_err(out, "%s: fchdir: %s", basename(fn), strerror(errno));
+			apk_err(out, "%s: fchdir: %s", apk_last_path_segment(fn), strerror(errno));
 			exit(127);
 		}
 
 		if (!(db->ctx->flags & APK_NO_CHROOT) && chroot(".") != 0) {
-			apk_err(out, "%s: chroot: %s", basename(fn), strerror(errno));
+			apk_err(out, "%s: chroot: %s", apk_last_path_segment(fn), strerror(errno));
 			exit(127);
 		}
 
@@ -2114,7 +2114,7 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
 
 	if (apk_exit_status_str(status, buf, sizeof buf)) {
-		apk_err(out, "%s: script %s", basename(fn), buf);
+		apk_err(out, "%s: script %s", apk_last_path_segment(fn), buf);
 		return -1;
 	}
 	return 0;

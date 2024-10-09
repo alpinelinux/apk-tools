@@ -124,6 +124,12 @@ const char *apk_get_human_size(off_t size, off_t *dest)
 	return size_units[min(i, ARRAY_SIZE(size_units) - 1)];
 }
 
+const char *apk_last_path_segment(const char *path)
+{
+	const char *last = strrchr(path, '/');
+	return last == NULL ? path : last + 1;
+}
+
 void apk_url_parse(struct apk_url_print *urlp, const char *url)
 {
 	const char *authority, *path_or_host, *pw;
