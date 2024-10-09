@@ -249,7 +249,7 @@ static int run_commit_hook(void *ctx, int dirfd, const char *file)
 	if (file[0] == '.') return 0;
 	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
 
-	snprintf(fn, sizeof(fn), "etc/apk/commit_hooks.d" "/%s", file);
+	snprintf(fn, sizeof(fn), "etc/apk/commit_hooks.d/%s", file);
 	if ((db->ctx->flags & APK_NO_COMMIT_HOOKS) != 0) {
 		apk_msg(out, "Skipping: %s %s", fn, commit_hook_str[hook->type]);
 		return 0;
