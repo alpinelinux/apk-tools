@@ -2080,7 +2080,7 @@ int apk_db_fire_triggers(struct apk_database *db)
 	return db->pending_triggers;
 }
 
-int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
+int apk_db_run_script(struct apk_database *db, int fd, char **argv)
 {
 	char buf[APK_EXIT_STATUS_MAX_SIZE];
 	struct apk_out *out = &db->ctx->out;
@@ -2093,29 +2093,30 @@ int apk_db_run_script(struct apk_database *db, char *fn, char **argv)
 
 	pid = fork();
 	if (pid == -1) {
-		apk_err(out, "%s: fork: %s", apk_last_path_segment(fn), strerror(errno));
+		apk_err(out, "%s: fork: %s", apk_last_path_segment(argv[0]), strerror(errno));
 		return -2;
 	}
 	if (pid == 0) {
 		umask(0022);
 
 		if (fchdir(db->root_fd) != 0) {
-			apk_err(out, "%s: fchdir: %s", apk_last_path_segment(fn), strerror(errno));
+			apk_err(out, "%s: fchdir: %s", apk_last_path_segment(argv[0]), strerror(errno));
 			exit(127);
 		}
 
 		if (!(db->ctx->flags & APK_NO_CHROOT) && chroot(".") != 0) {
-			apk_err(out, "%s: chroot: %s", apk_last_path_segment(fn), strerror(errno));
+			apk_err(out, "%s: chroot: %s", apk_last_path_segment(argv[0]), strerror(errno));
 			exit(127);
 		}
 
-		execve(fn, argv, (db->ctx->flags & APK_PRESERVE_ENV) ? environ : clean_environment);
+		fexecve(fd, argv, (db->ctx->flags & APK_PRESERVE_ENV) ? environ : clean_environment);
+		apk_err(out, "%s: fexecve: %s", argv[0], strerror(errno));
 		exit(127); /* should not get here */
 	}
 	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
 
 	if (apk_exit_status_str(status, buf, sizeof buf)) {
-		apk_err(out, "%s: script %s", apk_last_path_segment(fn), buf);
+		apk_err(out, "%s: script %s", apk_last_path_segment(argv[0]), buf);
 		return -1;
 	}
 	return 0;

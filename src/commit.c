@@ -245,6 +245,7 @@ static int run_commit_hook(void *ctx, int dirfd, const char *file)
 	struct apk_database *db = hook->db;
 	struct apk_out *out = &db->ctx->out;
 	char fn[PATH_MAX], *argv[] = { fn, (char *) commit_hook_str[hook->type], NULL };
+	int fd, ret = 0;
 
 	if (file[0] == '.') return 0;
 	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
@@ -256,10 +257,13 @@ static int run_commit_hook(void *ctx, int dirfd, const char *file)
 	}
 	apk_dbg(out, "Executing: %s %s", fn, commit_hook_str[hook->type]);
 
-	if (apk_db_run_script(db, fn, argv) < 0 && hook->type == PRE_COMMIT_HOOK)
-		return -2;
+	fd = openat(db->root_fd, fn, 0);
+	if (fd < 0) return -2;
+	if (apk_db_run_script(db, fd, argv) < 0 && hook->type == PRE_COMMIT_HOOK)
+		ret = -2;
+	close(fd);
 
-	return 0;
+	return ret;
 }
 
 static int run_commit_hooks(struct apk_database *db, int type)

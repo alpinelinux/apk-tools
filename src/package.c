@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
@@ -748,13 +749,8 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 			struct apk_database *db,
 			unsigned int type, char **argv)
 {
-	// script_exec_dir is the directory to which the script is extracted,
-	// executed from, and removed. It needs to not be 'noexec' mounted, and
-	// preferably a tmpfs disk, or something that could be wiped in boot.
-	// Originally this was /tmp, but it is often suggested to be 'noexec'.
-	// Then changed ro /var/cache/misc, but that is also often 'noexec'.
-	// /run was consider as it's tmpfs, but it also might be changing to 'noexec'.
-	// So use for now /lib/apk/exec even if it is not of temporary nature.
+	// When memfd_create is not available store the script in /lib/apk/exec
+	// and hope it allows executing.
 	static const char script_exec_dir[] = "lib/apk/exec";
 	struct apk_out *out = &db->ctx->out;
 	struct apk_package *pkg = ipkg->pkg;
@@ -764,7 +760,7 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	if (type >= APK_SCRIPT_MAX || ipkg->script[type].ptr == NULL)
 		return 0;
 
-	argv[0] = (char *) apk_script_types[type];
+	argv[0] = fn;
 
 	if (apk_fmt(fn, sizeof fn, "%s/" PKG_VER_FMT ".%s",
 		    script_exec_dir, PKG_VER_PRINTF(pkg), apk_script_types[type]) < 0)
@@ -773,8 +769,11 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
 		return 0;
 
+	apk_msg(out, "Executing %s", apk_last_path_segment(fn));
+	fd = memfd_create(fn, 0);
+
 	if (!db->script_dirs_checked) {
-		if (apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0) {
+		if (fd == -ENOSYS && apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0) {
 			apk_err(out, "failed to prepare dirs for hook scripts: %s",
 				apk_error_str(errno));
 			goto err;
@@ -786,19 +785,15 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		db->script_dirs_checked = 1;
 	}
 
-	apk_msg(out, "Executing %s", apk_last_path_segment(fn));
-	fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0755);
-	if (fd < 0) {
-		fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC|O_CLOEXEC, 0755);
-		if (fd < 0) goto err_log;
+	if (fd == -ENOSYS) {
+		fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC, 0755);
+		unlinkat(root_fd, fn, 0);
 	}
-	if (write(fd, ipkg->script[type].ptr, ipkg->script[type].len) < 0) {
-		close(fd);
+	if (fd < 0) goto err_log;
+	if (write(fd, ipkg->script[type].ptr, ipkg->script[type].len) < 0)
 		goto err_log;
-	}
-	close(fd);
 
-	if (apk_db_run_script(db, fn, argv) < 0)
+	if (apk_db_run_script(db, fd, argv) < 0)
 		goto err;
 
 	/* Script may have done something that changes id cache contents */
@@ -812,7 +807,7 @@ err:
 	ipkg->broken_script = 1;
 	ret = 1;
 cleanup:
-	unlinkat(root_fd, fn, 0);
+	if (fd >= 0) close(fd);
 	return ret;
 }
 

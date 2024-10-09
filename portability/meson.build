@@ -5,6 +5,7 @@ libportability_src = []
 check_symbols = [
 	['getrandom', 'getrandom.c', 'NEED_GETRANDOM', 'sys/random.h'],
 	['memrchr', 'memrchr.c', 'NEED_MEMRCHR', 'string.h'],
+	['memfd_create', 'memfd_create.c', 'NEED_MEMFD_CREATE', 'sys/mman.h'],
 	['mknodat', 'mknodat.c', 'NEED_MKNODAT', 'sys/stat.h'],
 	['pipe2', 'pipe2.c', 'NEED_PIPE2', 'unistd.h'],
 	['qsort_r', 'qsort_r.c', 'NEED_QSORT_R', 'stdlib.h'],

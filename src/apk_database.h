@@ -248,7 +248,7 @@ int apk_db_write_config(struct apk_database *db);
 int apk_db_permanent(struct apk_database *db);
 int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *world);
 int apk_db_fire_triggers(struct apk_database *db);
-int apk_db_run_script(struct apk_database *db, char *fn, char **argv);
+int apk_db_run_script(struct apk_database *db, int fd, char **argv);
 static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
 	return apk_ctx_since(db->ctx, since);
 }
