@@ -776,7 +776,7 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 				apk_error_str(errno));
 			goto err;
 		}
-		if (make_device_tree(db) < 0) {
+		if (!(db->ctx->flags & APK_NO_CHROOT) && make_device_tree(db) < 0) {
 			apk_warn(out, "failed to create initial device nodes for scripts: %s",
 				apk_error_str(errno));
 		}
