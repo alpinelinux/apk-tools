@@ -322,6 +322,7 @@ static int apk_extract_v2_entry(void *pctx, const struct apk_file_info *fi, stru
 
 	if (!sctx->data_started) return 0;
 	if (!ectx->ops->file) return -ECANCELED;
+	if (fi->name[0] == '.') return 0;
 	return ectx->ops->file(ectx, fi, is);
 }
 
