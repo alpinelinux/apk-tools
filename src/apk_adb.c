@@ -120,10 +120,9 @@ static apk_blob_t xattr_tostring(struct adb *db, adb_val_t val, char *buf, size_
 	apk_blob_push_blob(&to, k);
 	apk_blob_push_blob(&to, APK_BLOB_PTR_LEN("=", 1));
 	apk_blob_push_hexdump(&to, v);
-	if (!APK_BLOB_IS_NULL(to))
-		return APK_BLOB_PTR_PTR(buf, to.ptr-1);
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, BLOB_FMT "=(%d bytes)",
-		BLOB_PRINTF(k), (int)v.len));
+	if (!APK_BLOB_IS_NULL(to)) return APK_BLOB_PTR_PTR(buf, to.ptr-1);
+
+	return apk_blob_fmt(buf, bufsz, BLOB_FMT "=(%d bytes)", BLOB_PRINTF(k), (int)v.len);
 }
 
 static adb_val_t xattr_fromstring(struct adb *db, apk_blob_t val)
@@ -207,7 +206,7 @@ static apk_blob_t hexblob_tostring(struct adb *db, adb_val_t val, char *buf, siz
 	if (!APK_BLOB_IS_NULL(to))
 		return APK_BLOB_PTR_PTR(buf, to.ptr-1);
 
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "(%ld bytes)", b.len));
+	return apk_blob_fmt(buf, bufsz, "(%ld bytes)", b.len);
 }
 
 static adb_val_t hexblob_fromstring(struct adb *db, apk_blob_t val)
@@ -234,7 +233,7 @@ static struct adb_scalar_schema scalar_hexblob = {
 
 static apk_blob_t int_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%" PRIu64, adb_r_int(db, val)));
+	return apk_blob_fmt(buf, bufsz, "%" PRIu64, adb_r_int(db, val));
 }
 
 static adb_val_t int_fromstring(struct adb *db, apk_blob_t val)
@@ -262,7 +261,7 @@ static struct adb_scalar_schema scalar_int = {
 
 static apk_blob_t oct_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%" PRIo64, adb_r_int(db, val)));
+	return apk_blob_fmt(buf, bufsz, "%" PRIo64, adb_r_int(db, val));
 }
 
 static adb_val_t oct_fromstring(struct adb *db, apk_blob_t val)
@@ -284,7 +283,7 @@ static apk_blob_t hsize_tostring(struct adb *db, adb_val_t val, char *buf, size_
 	off_t v = adb_r_int(db, val);
 	const char *unit = apk_get_human_size(v, &v);
 
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%jd %s", (intmax_t)v, unit));
+	return apk_blob_fmt(buf, bufsz, "%jd %s", (intmax_t)v, unit);
 }
 
 static adb_val_t hsize_fromstring(struct adb *db, apk_blob_t val)
@@ -317,20 +316,18 @@ static apk_blob_t dependency_tostring(struct adb_obj *obj, char *buf, size_t buf
 	op   = adb_ro_int(obj, ADBI_DEP_MATCH) ?: APK_VERSION_EQUAL;
 
 	if (APK_BLOB_IS_NULL(name)) return APK_BLOB_NULL;
+
 	if (APK_BLOB_IS_NULL(ver)) {
 		if (op & APK_VERSION_CONFLICT)
-			return APK_BLOB_PTR_LEN(buf,
-				snprintf(buf, bufsz, "!"BLOB_FMT,
-					BLOB_PRINTF(name)));
+			return apk_blob_fmt(buf, bufsz, "!"BLOB_FMT, BLOB_PRINTF(name));
 		return name;
 	}
 
-	return APK_BLOB_PTR_LEN(buf,
-		snprintf(buf, bufsz, "%s"BLOB_FMT"%s"BLOB_FMT,
-			(op & APK_VERSION_CONFLICT) ? "!" : "",
-			BLOB_PRINTF(name),
-			apk_version_op_string(op),
-			BLOB_PRINTF(ver)));
+	return apk_blob_fmt(buf, bufsz, "%s"BLOB_FMT"%s"BLOB_FMT,
+		(op & APK_VERSION_CONFLICT) ? "!" : "",
+		BLOB_PRINTF(name),
+		apk_version_op_string(op),
+		BLOB_PRINTF(ver));
 }
 
 static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)

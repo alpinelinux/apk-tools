@@ -414,7 +414,6 @@ static int audit_missing_files(apk_hash_item item, void *pctx)
 	struct apk_db_file *file = item;
 	struct apk_db_dir *dir;
 	char path[PATH_MAX];
-	int len;
 
 	if (file->audited) return 0;
 
@@ -422,8 +421,9 @@ static int audit_missing_files(apk_hash_item item, void *pctx)
 	if (!dir->modified) return 0;
 	if (determine_file_protect_mode(dir, file->name) == APK_PROTECT_IGNORE) return 0;
 
-	len = snprintf(path, sizeof(path), DIR_FILE_FMT, DIR_FILE_PRINTF(dir, file));
-	report_audit(actx, 'X', APK_BLOB_PTR_LEN(path, len), NULL, file, NULL);
+	report_audit(actx, 'X',
+		apk_blob_fmt(path, sizeof path, DIR_FILE_FMT, DIR_FILE_PRINTF(dir, file)),
+		NULL, file, NULL);
 	return 0;
 }
 

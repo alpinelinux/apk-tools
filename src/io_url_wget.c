@@ -138,7 +138,7 @@ void apk_io_url_no_check_certificate(void)
 
 void apk_io_url_set_timeout(int timeout)
 {
-	snprintf(wget_timeout, sizeof wget_timeout, "%d", timeout);
+	apk_fmt(wget_timeout, sizeof wget_timeout, "%d", timeout);
 }
 
 void apk_io_url_set_redirect_callback(void (*cb)(int, const char *))

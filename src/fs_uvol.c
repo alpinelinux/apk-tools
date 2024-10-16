@@ -113,7 +113,9 @@ static int uvol_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 	uvol_name = strrchr(fi->name, '/');
 	uvol_name = uvol_name ? uvol_name + 1 : fi->name;
 
-	snprintf(size, sizeof size, "%ju", (intmax_t) fi->size);
+	r = apk_fmt(size, sizeof size, "%ju", (intmax_t) fi->size);
+	if (r < 0) return r;
+
 	r = uvol_run(ac, "create", uvol_name, size, "ro");
 	if (r != 0) return r;
 

@@ -639,10 +639,9 @@ int apk_repo_format_real_url(apk_blob_t *default_arch, struct apk_repository *re
 			     struct apk_package *pkg, char *buf, size_t len,
 			     struct apk_url_print *urlp)
 {
-
 	apk_blob_t uri = APK_BLOB_STR(repo->url);
 	apk_blob_t arch;
-	int r;
+	int r = -EINVAL;
 
 	if (pkg && pkg->arch) arch = *pkg->arch;
 	else arch = *default_arch;
@@ -650,24 +649,21 @@ int apk_repo_format_real_url(apk_blob_t *default_arch, struct apk_repository *re
 	if (apk_blob_ends_with(uri, APK_BLOB_STR(".adb"))) {
 		if (pkg != NULL) {
 			apk_blob_rsplit(uri, '/', &uri, NULL);
-			r = snprintf(buf, len, BLOB_FMT "/" PKG_FILE_FMT,
+			r = apk_fmt(buf, len, BLOB_FMT "/" PKG_FILE_FMT,
 				BLOB_PRINTF(uri), PKG_FILE_PRINTF(pkg));
 		} else {
-			r = snprintf(buf, len, BLOB_FMT, BLOB_PRINTF(uri));
+			r = apk_fmt(buf, len, BLOB_FMT, BLOB_PRINTF(uri));
 		}
 	} else {
 		while (uri.len && uri.ptr[uri.len-1] == '/') uri.len--;
 		if (pkg != NULL)
-			r = snprintf(buf, len, BLOB_FMT "/" BLOB_FMT "/" PKG_FILE_FMT,
+			r = apk_fmt(buf, len, BLOB_FMT "/" BLOB_FMT "/" PKG_FILE_FMT,
 				BLOB_PRINTF(uri), BLOB_PRINTF(arch), PKG_FILE_PRINTF(pkg));
 		else
-			r = snprintf(buf, len, BLOB_FMT "/" BLOB_FMT "/%s",
+			r = apk_fmt(buf, len, BLOB_FMT "/" BLOB_FMT "/%s",
 				BLOB_PRINTF(uri), BLOB_PRINTF(arch), apkindex_tar_gz);
 	}
-
-	if (r >= len)
-		return -ENOBUFS;
-
+	if (r < 0) return r;
 	if (urlp) apk_url_parse(urlp, buf);
 	return 0;
 }

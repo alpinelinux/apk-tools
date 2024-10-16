@@ -165,10 +165,8 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 		goto err;
 	}
 
-	if (snprintf(filename, sizeof(filename), PKG_FILE_FMT, PKG_FILE_PRINTF(pkg)) >= sizeof(filename)) {
-		r = -ENOBUFS;
-		goto err;
-	}
+	r = apk_fmt(filename, sizeof filename, PKG_FILE_FMT, PKG_FILE_PRINTF(pkg));
+	if (r < 0) goto err;
 
 	if (!(ctx->flags & FETCH_STDOUT)) {
 		if (apk_fileinfo_get(ctx->outdir_fd, filename, 0, &fi, &db->atoms) == 0 &&
@@ -319,8 +317,7 @@ static int purge_package(void *pctx, int dirfd, const char *filename)
 	struct apk_out *out = &db->ctx->out;
 	struct apk_provider *p0;
 	struct apk_name *name;
-	apk_blob_t b = APK_BLOB_STR(filename), bname, bver;
-	size_t l;
+	apk_blob_t b = APK_BLOB_STR(filename), bname, bver, pkgname;
 
 	if (apk_pkg_parse_name(b, &bname, &bver)) return 0;
 	name = apk_db_get_name(db, bname);
@@ -328,9 +325,9 @@ static int purge_package(void *pctx, int dirfd, const char *filename)
 
 	foreach_array_item(p0, name->providers) {
 		if (p0->pkg->name != name) continue;
-		l = snprintf(tmp, sizeof tmp, PKG_FILE_FMT, PKG_FILE_PRINTF(p0->pkg));
-		if (l > sizeof tmp) continue;
-		if (apk_blob_compare(b, APK_BLOB_PTR_LEN(tmp, l)) != 0) continue;
+		pkgname = apk_blob_fmt(tmp, sizeof tmp, PKG_FILE_FMT, PKG_FILE_PRINTF(p0->pkg));
+		if (APK_BLOB_IS_NULL(pkgname)) continue;
+		if (apk_blob_compare(b, pkgname) != 0) continue;
 		if (p0->pkg->marked) return 0;
 		break;
 	}

@@ -158,9 +158,10 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 		if (r != 0) goto err;
 
 		if (buf.prefix[0] && buf.typeflag != 'x' && buf.typeflag != 'g') {
-			snprintf(filename, sizeof filename, "%.*s/%.*s",
+			r = apk_fmt(filename, sizeof filename, "%.*s/%.*s",
 				 (int) sizeof buf.prefix, buf.prefix,
 				 (int) sizeof buf.name, buf.name);
+			if (r < 0) goto err;
 			entry.name = filename;
 		}
 		buf.mode[0] = 0; /* to nul terminate 100-byte buf.name */

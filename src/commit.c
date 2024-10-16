@@ -45,14 +45,14 @@ static int print_change(struct apk_database *db, struct apk_change *change,
 	struct apk_name *name;
 	struct apk_package *oldpkg = change->old_pkg;
 	struct apk_package *newpkg = change->new_pkg;
-	const char *msg = NULL;
-	char status[32];
+	const char *msg = NULL, *status;
+	char statusbuf[32];
 	apk_blob_t *oneversion = NULL;
 	int r;
 
-	snprintf(status, sizeof status, "(%*i/%i)",
+	status = apk_fmts(statusbuf, sizeof statusbuf, "(%*i/%i)",
 		prog->total_changes_digits, prog->done.changes+1,
-		prog->total.changes);
+		prog->total.changes) ?: "(?)";
 
 	name = newpkg ? newpkg->name : oldpkg->name;
 	if (oldpkg == NULL) {
@@ -248,8 +248,8 @@ static int run_commit_hook(void *ctx, int dirfd, const char *file)
 
 	if (file[0] == '.') return 0;
 	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
+	if (apk_fmt(fn, sizeof fn, "etc/apk/commit_hooks.d/%s", file) < 0) return 0;
 
-	snprintf(fn, sizeof(fn), "etc/apk/commit_hooks.d/%s", file);
 	if ((db->ctx->flags & APK_NO_COMMIT_HOOKS) != 0) {
 		apk_msg(out, "Skipping: %s %s", fn, commit_hook_str[hook->type]);
 		return 0;
@@ -286,7 +286,6 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	struct apk_out *out = &db->ctx->out;
 	struct progress prog = { .prog = db->ctx->progress };
 	struct apk_change *change;
-	char buf[32];
 	const char *size_unit;
 	off_t humanized, size_diff = 0, download_size = 0;
 	int r, errors = 0, pkg_diff = 0;
@@ -397,11 +396,11 @@ all_done:
 	run_commit_hooks(db, POST_COMMIT_HOOK);
 
 	if (!db->performing_self_upgrade) {
-		if (errors)
-			snprintf(buf, sizeof(buf), "%d error%s;", errors,
-				 errors > 1 ? "s" : "");
-		else
-			strcpy(buf, "OK:");
+		char buf[32];
+		const char *msg = "OK:";
+
+		if (errors) msg = apk_fmts(buf, sizeof buf, "%d error%s;",
+				errors, errors > 1 ? "s" : "") ?: "ERRORS;";
 
 		off_t installed_bytes = db->installed.stats.bytes;
 		int installed_packages = db->installed.stats.packages;
@@ -412,7 +411,7 @@ all_done:
 
 		if (apk_out_verbosity(out) > 1) {
 			apk_msg(out, "%s %d packages, %d dirs, %d files, %zu MiB",
-				buf,
+				msg,
 				installed_packages,
 				db->installed.stats.dirs,
 				db->installed.stats.files,
@@ -420,7 +419,7 @@ all_done:
 				);
 		} else {
 			apk_msg(out, "%s %zu MiB in %d packages",
-				buf,
+				msg,
 				installed_bytes / (1024 * 1024),
 				installed_packages);
 		}
@@ -563,8 +562,7 @@ static void analyze_package(struct print_state *ps, struct apk_package *pkg, uns
 {
 	char pkgtext[256];
 
-	snprintf(pkgtext, sizeof(pkgtext), PKG_VER_FMT, PKG_VER_PRINTF(pkg));
-	ps->label = pkgtext;
+	ps->label = apk_fmts(pkgtext, sizeof pkgtext, PKG_VER_FMT, PKG_VER_PRINTF(pkg));
 
 	if (pkg->uninstallable) {
 		label_start(ps, "error:");
@@ -587,13 +585,12 @@ static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 	struct apk_name **pname0, *name0;
 	struct apk_provider *p0;
 	struct apk_dependency *d0;
-	char tmp[256];
+	char label[256];
 	unsigned int genid;
 	int refs;
 
 	if (apk_array_len(name->providers) != 0) {
-		snprintf(tmp, sizeof(tmp), "%s (virtual)", name->name);
-		ps->label = tmp;
+		ps->label = apk_fmts(label, sizeof label, "%s (virtual)", name->name);
 
 		label_start(ps, "note:");
 		apk_print_indented_words(&ps->i, "please select one of the 'provided by' packages explicitly");
@@ -617,8 +614,7 @@ static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 		}
 		label_end(ps);
 	} else {
-		snprintf(tmp, sizeof(tmp), "%s (no such package)", name->name);
-		ps->label = tmp;
+		ps->label = apk_fmts(label, sizeof label, "%s (no such package)", name->name);
 	}
 
 	label_start(ps, "required by:");

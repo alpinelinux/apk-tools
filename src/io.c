@@ -964,6 +964,7 @@ static int fdo_write(struct apk_ostream *os, const void *ptr, size_t size)
 static int fdo_close(struct apk_ostream *os)
 {
 	struct apk_fd_ostream *fos = container_of(os, struct apk_fd_ostream, os);
+	char tmpname[PATH_MAX];
 	int rc;
 
 	fdo_flush(fos);
@@ -971,10 +972,7 @@ static int fdo_close(struct apk_ostream *os)
 		apk_ostream_cancel(os, -errno);
 
 	rc = fos->os.rc;
-	if (fos->file) {
-		char tmpname[PATH_MAX];
-
-		snprintf(tmpname, sizeof tmpname, "%s.tmp", fos->file);
+	if (fos->file && apk_fmt(tmpname, sizeof tmpname, "%s.tmp", fos->file) > 0) {
 		if (rc == 0) {
 			if (renameat(fos->atfd, tmpname,
 				     fos->atfd, fos->file) < 0)
@@ -1021,9 +1019,7 @@ struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode)
 	int fd;
 
 	if (atfd_error(atfd)) return ERR_PTR(atfd);
-
-	if (snprintf(tmpname, sizeof tmpname, "%s.tmp", file) >= sizeof tmpname)
-		return ERR_PTR(-ENAMETOOLONG);
+	if (apk_fmt(tmpname, sizeof tmpname, "%s.tmp", file) < 0) return ERR_PTR(-ENAMETOOLONG);
 
 	fd = openat(atfd, tmpname, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, mode);
 	if (fd < 0) return ERR_PTR(-errno);

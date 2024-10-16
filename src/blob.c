@@ -187,6 +187,19 @@ int apk_blob_for_each_segment(apk_blob_t blob, const char *split,
 	return 0;
 }
 
+apk_blob_t apk_blob_fmt(char *str, size_t sz, const char *fmt, ...)
+{
+	va_list va;
+	int n;
+
+	va_start(va, fmt);
+	n = vsnprintf(str, sz, fmt, va);
+	va_end(va);
+
+	if (n >= sz) return APK_BLOB_NULL;
+	return APK_BLOB_PTR_LEN(str, n);
+}
+
 static unsigned char digitdecode[] = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,

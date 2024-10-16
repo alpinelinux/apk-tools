@@ -21,7 +21,8 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 	struct apk_repository *repo;
 	struct apk_url_print urlp;
 	int i;
-	char buf[32] = "OK:";
+	const char *msg = "OK:";
+	char buf[64];
 
 	if (apk_out_verbosity(out) < 1)
 		return db->repositories.unavailable + db->repositories.stale;
@@ -39,11 +40,11 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 	}
 
 	if (db->repositories.unavailable || db->repositories.stale)
-		snprintf(buf, sizeof(buf), "%d unavailable, %d stale;",
+		msg = apk_fmts(buf, sizeof buf, "%d unavailable, %d stale;",
 			 db->repositories.unavailable,
-			 db->repositories.stale);
+			 db->repositories.stale) ?: "ERRORS;";
 
-	apk_msg(out, "%s %d distinct packages available", buf,
+	apk_msg(out, "%s %d distinct packages available", msg,
 		db->available.packages.num_items);
 
 	return db->repositories.unavailable + db->repositories.stale;

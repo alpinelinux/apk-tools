@@ -165,7 +165,7 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 {
 	struct apk_database *db = ac->db;
 	struct search_ctx *ctx = (struct search_ctx *) pctx;
-	char *tmp, **pmatch;
+	char **pmatch;
 
 	ctx->verbosity = apk_out_verbosity(&db->ctx->out);
 	ctx->filter = args;
@@ -183,9 +183,8 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 
 	if (!ctx->search_exact) {
 		foreach_array_item(pmatch, ctx->filter) {
-			tmp = alloca(strlen(*pmatch) + 3);
-			sprintf(tmp, "*%s*", *pmatch);
-			*pmatch = tmp;
+			size_t slen = strlen(*pmatch) + 3;
+			*pmatch = apk_fmts(alloca(slen), slen, "*%s*", *pmatch);
 		}
 	}
 	apk_db_foreach_sorted_providers(db, args, print_result, ctx);

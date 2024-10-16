@@ -61,6 +61,11 @@ int apk_blob_starts_with(apk_blob_t a, apk_blob_t b);
 int apk_blob_ends_with(apk_blob_t str, apk_blob_t suffix);
 int apk_blob_for_each_segment(apk_blob_t blob, const char *split,
 			      apk_blob_cb cb, void *ctx);
+apk_blob_t apk_blob_fmt(char *str, size_t sz, const char *fmt, ...)
+	__attribute__ ((format (printf, 3, 4)));
+
+#define apk_fmt(args...) ({ apk_blob_t b = apk_blob_fmt(args); b.ptr ? b.len : -ENOBUFS; })
+#define apk_fmts(args...) ({ apk_blob_fmt(args).ptr; })
 
 static inline char *apk_blob_chr(apk_blob_t b, unsigned char ch)
 {

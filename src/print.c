@@ -90,14 +90,14 @@ int apk_exit_status_str(int status, char *buf, size_t sz)
 	if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
 		return 0;
 	if (WIFEXITED(status))
-		return snprintf(buf, sz, "exited with error %d", WEXITSTATUS(status));
+		return apk_fmt(buf, sz, "exited with error %d", WEXITSTATUS(status));
 	if (WIFSIGNALED(status))
-		return snprintf(buf, sz, "killed by signal %d", WTERMSIG(status));
+		return apk_fmt(buf, sz, "killed by signal %d", WTERMSIG(status));
 	if (WIFSTOPPED(status))
-		return snprintf(buf, sz, "stopped by signal %d", WSTOPSIG(status));
+		return apk_fmt(buf, sz, "stopped by signal %d", WSTOPSIG(status));
 	if (WIFCONTINUED(status))
-		return snprintf(buf, sz, "continued");
-	return snprintf(buf, sz, "status unknown %x", status);
+		return apk_fmt(buf, sz, "continued");
+	return apk_fmt(buf, sz, "status unknown %x", status);
 }
 
 static const char *size_units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
@@ -227,8 +227,8 @@ void apk_print_progress(struct apk_progress *p, size_t done, size_t total)
 
 	if (p->last_done == done && (!p->out || p->last_out_change == p->out->last_change)) return;
 	if (p->fd != 0) {
-		i = snprintf(buf, sizeof(buf), "%zu/%zu\n", done, total);
-		if (apk_write_fully(p->fd, buf, i) != i) {
+		i = apk_fmt(buf, sizeof buf, "%zu/%zu\n", done, total);
+		if (i < 0 || apk_write_fully(p->fd, buf, i) != i) {
 			close(p->fd);
 			p->fd = 0;
 		}
@@ -325,7 +325,7 @@ void apk_print_indented_fmt(struct apk_indent *i, const char *fmt, ...)
 	va_list va;
 
 	va_start(va, fmt);
-	n = vsnprintf(tmp, sizeof(tmp), fmt, va);
+	n = vsnprintf(tmp, sizeof tmp, fmt, va);
 	apk_print_indented(i, APK_BLOB_PTR_LEN(tmp, n));
 	va_end(va);
 }
