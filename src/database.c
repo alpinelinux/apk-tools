@@ -2955,6 +2955,9 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 				} else {
 					// All files differ. Use the package's file as .apk-new.
 					ctrl = APK_FS_CTRL_APKNEW;
+					apk_msg(out, PKG_VER_FMT ": installing file to " DIR_FILE_FMT ".apk-new",
+					    PKG_VER_PRINTF(ipkg->pkg),
+					    DIR_FILE_PRINTF(diri->dir, file));
 				}
 			}
 
