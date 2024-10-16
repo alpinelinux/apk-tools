@@ -154,6 +154,13 @@ static inline int IS_ERR(const void *ptr) { return (unsigned long)ptr >= (unsign
 #define APK_DEFAULT_BASE_ARCH	"archs"
 #elif defined(__ARC700__)
 #define APK_DEFAULT_BASE_ARCH	"arc700"
+#elif defined(__sh__) && defined(__SH2__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define APK_DEFAULT_ARCH	"sh2eb"
+#elif defined(__sh__) && defined(__SH3__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define APK_DEFAULT_ARCH	"sh3"
+#elif defined(__sh__) && defined(__SH4__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define APK_DEFAULT_ARCH	"sh4"
+
 #else
 #error APK_DEFAULT_BASE_ARCH not detected for this architecture
 #endif
