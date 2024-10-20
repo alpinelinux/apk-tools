@@ -240,7 +240,7 @@ static adb_val_t int_fromstring(struct adb *db, apk_blob_t val)
 {
 	uint32_t n = apk_blob_pull_uint(&val, 10);
 	if (val.len) return ADB_ERROR(EINVAL);
-	return adb_w_int(db, n) ?: ADB_VAL_NULL;
+	return adb_w_int(db, n);
 }
 
 static int int_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2)
@@ -268,7 +268,7 @@ static adb_val_t oct_fromstring(struct adb *db, apk_blob_t val)
 {
 	uint32_t n = apk_blob_pull_uint(&val, 8);
 	if (val.len) return ADB_ERROR(EINVAL);
-	return adb_w_int(db, n) ?: ADB_VAL_NULL;
+	return adb_w_int(db, n);
 }
 
 static struct adb_scalar_schema scalar_oct = {
