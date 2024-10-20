@@ -96,6 +96,7 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db, struc
 	struct progress prog = { .prog = db->ctx->progress };
 	int i, r, ret = 0;
 
+	apk_change_array_init(&changeset.changes);
 	apk_dependency_array_init(&deps);
 	if (apk_array_len(args) == 1 || cctx->add_dependencies)
 		apk_dependency_array_copy(&deps, db->world);
