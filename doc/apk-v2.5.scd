@@ -59,14 +59,16 @@ checksums in a header named APK-TOOLS.checksum.*<hash>*.
 As an example, the v2 apk for *scdoc*(1) itself contains these files in
 this order:
 
-	.SIGN.RSA.alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub
-	.PKGINFO
-	usr/
-	usr/bin/
-	usr/bin/scdoc
-	usr/share/
-	usr/share/pkgconfig/
-	usr/share/pkgconfig/scdoc.pc
+```
+.SIGN.RSA.alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub
+.PKGINFO
+usr/
+usr/bin/
+usr/bin/scdoc
+usr/share/
+usr/share/pkgconfig/
+usr/share/pkgconfig/scdoc.pc
+```
 
 Since v2 apk files are simply tarballs (broken into multiple gzip
 streams), they can be inspected and unpacked with *tar*(1), although

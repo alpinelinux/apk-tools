@@ -18,15 +18,33 @@ which begins with a 32-bit little-endian word - the value's tag. The
 high 4 bits of the tag are a type code, and the low 28 bits are used for
 an immediate value. Defined type codes are:
 
-	0x0   Special  (direct)
-	0x1   Int      (direct)
-	0x2   Int32    (indirect)
-	0x3   Int64    (indirect)
-	0x8   Blob8    (indirect)
-	0x9   Blob16   (indirect)
-	0xa   Blob32   (indirect)
-	0xd   Array    (indirect)
-	0xe   Object   (indirect)
+|[ 0x0
+:[ Special
+:[ (direct)
+|  0x1
+:  Int
+:  (direct)
+|  0x2
+:  Int32
+:  (indirect)
+|  0x3
+:  Int64
+:  (indirect)
+|  0x8
+:  Blob8
+:  (indirect)
+|  0x9
+:  Blob16
+:  (indirect)
+|  0xa
+:  Blob32
+:  (indirect)
+|  0xd
+:  Array
+:  (indirect)
+|  0xe
+:  Object
+:  (indirect)
 
 A direct value is packed into the low 28 bits of the tag word; an
 indirect value is instead stored elsewhere in the file, and the offset
@@ -43,9 +61,12 @@ separate defined type for each slot.
 
 The special type is used to represent three atoms:
 
-	0x0  NULL
-	0x1  TRUE
-	0x2  FALSE
+|[ 0x0
+:[ NULL
+|  0x1
+:  TRUE
+|  0x2
+:  FALSE
 
 # FILE SCHEMAS
 
@@ -61,19 +82,37 @@ they exist in the parts of *apk*(1) that read and write such files. A
 full description of all of apk's schemas would be lengthy, but as an
 example, here is the schema for a single file inside a package:
 
-	ADBI_FI_NAME    "name"    string
-	ADBI_FI_ACL     "acl"     acl
-	ADBI_FI_SIZE    "size"    int
-	ADBI_FI_MTIME   "mtime"   int
-	ADBI_FI_HASHES  "hash"    hexblob
-	ADBI_FI_TARGET  "target"  hexblob
+|[ ADBI_FI_NAME
+:[ "name"
+:[ string
+|  ADBI_FI_ACL
+:  "acl"
+:  acl
+|  ADBI_FI_SIZE
+:  "size"
+:  int
+|  ADBI_FI_MTIME
+:  "mtime"
+:  int
+|  ADBI_FI_HASHES
+:  "hash"
+:  hexblob
+|  ADBI_FI_TARGET
+:  "target"
+:  hexblob
 
 Here, all of the fields except for "acl" are scalars, and acl is itself
 a schema looking like:
 
-	ADBI_ACL_MODE   "mode"    oct
-	ADBI_ACL_USER   "user"    string
-	ADBI_ACL_GROUP  "group"   string
+|[ ADBI_ACL_MODE
+:[ "mode"
+:[ oct
+|  ADBI_ACL_USER
+:  "user"
+:  string
+|  ADBI_ACL_GROUP
+:  "group"
+:  string
 
 # BLOCKS
 
@@ -81,10 +120,14 @@ An actual adb file is composed of a sequence of typed blocks; a block
 also begins with a 32-bit little-endian tag word, which has two bits of
 type and 30 bits of size. The two type bits are:
 
-	0x0  ADB
-	0x1  SIG
-	0x2  DATA
-	0x3  DATAX
+|[ 0x0
+:[ ADB
+|  0x1
+:  SIG
+|  0x2
+:  DATA
+|  0x3
+:  DATAX
 
 The adb file must begin with one ADB block, then optionally one SIG
 block, then one or more DATA blocks. The ADB block must begin with a
