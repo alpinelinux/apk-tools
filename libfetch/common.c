@@ -1,6 +1,6 @@
 /*	$NetBSD: common.c,v 1.31 2016/10/20 21:25:57 joerg Exp $	*/
 /*-
- * Copyright (c) 1998-2004 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1998-2004 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * Copyright (c) 2008, 2010 Joerg Sonnenberger <joerg@NetBSD.org>
  * Copyright (c) 2020 Noel Kuntze <noel.kuntze@thermi.consulting>
  * All rights reserved.
