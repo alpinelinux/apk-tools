@@ -1354,6 +1354,11 @@ static void mark_in_cache(struct apk_database *db, int static_cache, int dirfd, 
 	pkg->repos |= BIT(APK_REPOSITORY_CACHED);
 }
 
+static int apk_db_add_repository_cb(void *pdb, apk_blob_t repository)
+{
+	return apk_db_add_repository((struct apk_database *)pdb, repository);
+}
+
 static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 {
 	struct apk_database *db = (struct apk_database *) ctx;
@@ -1373,7 +1378,7 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 		return -ENOENT;
 	}
 
-	apk_blob_for_each_segment(blob, "\n", apk_db_add_repository, db);
+	apk_blob_for_each_segment(blob, "\n", apk_db_add_repository_cb, db);
 	free(blob.ptr);
 
 	return 0;
@@ -2356,9 +2361,8 @@ int apk_db_repository_check(struct apk_database *db)
 	return -1;
 }
 
-int apk_db_add_repository(apk_database_t _db, apk_blob_t _repository)
+int apk_db_add_repository(struct apk_database *db, apk_blob_t _repository)
 {
-	struct apk_database *db = _db.db;
 	struct apk_out *out = &db->ctx->out;
 	struct apk_repository *repo;
 	struct apk_url_print urlp;

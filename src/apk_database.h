@@ -222,11 +222,6 @@ struct apk_database {
 	} installed;
 };
 
-typedef union apk_database_or_void {
-	struct apk_database *db;
-	void *ptr;
-} apk_database_t __attribute__ ((__transparent_union__));
-
 static inline int apk_name_cmp_display(const struct apk_name *a, const struct apk_name *b) {
 	return strcasecmp(a->name, b->name) ?: strcmp(a->name, b->name);
 }
@@ -266,7 +261,7 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 int apk_db_index_read_file(struct apk_database *db, const char *file, int repo);
 
 int apk_db_repository_check(struct apk_database *db);
-int apk_db_add_repository(apk_database_t db, apk_blob_t repository);
+int apk_db_add_repository(struct apk_database *db, apk_blob_t repository);
 struct apk_repository *apk_db_select_repo(struct apk_database *db,
 					  struct apk_package *pkg);
 
