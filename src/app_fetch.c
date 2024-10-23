@@ -16,6 +16,7 @@
 
 #include "apk_applet.h"
 #include "apk_database.h"
+#include "apk_extract.h"
 #include "apk_io.h"
 #include "apk_print.h"
 #include "apk_solver.h"
@@ -153,6 +154,7 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 	struct apk_ostream *os;
 	struct apk_repository *repo;
 	struct apk_file_info fi;
+	struct apk_extract_ctx ectx;
 	char url[PATH_MAX], filename[256];
 	int r, urlfd;
 
@@ -207,13 +209,11 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 		goto err;
 	}
 
-	apk_stream_copy(is, os, pkg->size, progress_cb, ctx, 0);
-	apk_ostream_copy_meta(os, is);
-	apk_istream_close(is);
-	r = apk_ostream_close(os);
-	if (r) goto err;
-	goto done;
-
+	is = apk_istream_tee(is, os, APK_ISTREAM_TEE_COPY_META, progress_cb, ctx);
+	apk_extract_init(&ectx, db->ctx, NULL);
+	apk_extract_verify_identity(&ectx, pkg->digest_alg, apk_pkg_digest_blob(pkg));
+	r = apk_extract(&ectx, is);
+	if (r == 0) goto done;
 err:
 	apk_err(out, PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
 	ctx->errors++;
