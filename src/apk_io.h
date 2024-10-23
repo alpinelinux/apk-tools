@@ -133,6 +133,8 @@ struct apk_segment_istream {
 struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, size_t len, time_t mtime);
 struct apk_istream *apk_istream_tee(struct apk_istream *from, int atfd, const char *to, int copy_meta,
 				    apk_progress_cb cb, void *cb_ctx);
+struct apk_istream *apk_istream_tee_fd(struct apk_istream *from, int fd, int copy_meta,
+				       apk_progress_cb cb, void *cb_ctx);
 
 struct apk_ostream_ops {
 	ssize_t (*write)(struct apk_ostream *os, const void *buf, size_t size);

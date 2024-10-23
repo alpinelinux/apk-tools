@@ -146,12 +146,13 @@ static void progress_cb(void *pctx, size_t bytes_done)
 
 static int fetch_package(struct apk_database *db, const char *match, struct apk_package *pkg, void *pctx)
 {
+	struct apk_sign_ctx sctx;
 	struct fetch_ctx *ctx = pctx;
 	struct apk_istream *is;
 	struct apk_repository *repo;
 	struct apk_file_info fi;
 	char url[PATH_MAX], filename[256];
-	int r, fd, urlfd;
+	int r, fd, urlfd, copy_meta = 1;
 
 	if (!pkg->marked)
 		return 0;
@@ -186,6 +187,7 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 
 	if (ctx->flags & FETCH_STDOUT) {
 		fd = STDOUT_FILENO;
+		copy_meta = 0;
 	} else {
 		if ((ctx->flags & FETCH_LINK) && urlfd >= 0) {
 			const char *urlfile = apk_url_local_file(url);
@@ -201,27 +203,15 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 		}
 	}
 
+	apk_sign_ctx_init(&sctx, APK_SIGN_VERIFY_IDENTITY, &pkg->csum, db->keys_fd);
 	is = apk_istream_from_fd_url(urlfd, url);
-	if (IS_ERR_OR_NULL(is)) {
-		r = PTR_ERR(is) ?: -EIO;
-		goto err;
-	}
-
-	r = apk_istream_splice(is, fd, pkg->size, progress_cb, ctx);
-	if (fd != STDOUT_FILENO) {
-		struct apk_file_meta meta;
-		apk_istream_get_meta(is, &meta);
-		apk_file_meta_to_fd(fd, &meta);
-		close(fd);
-	}
-	apk_istream_close(is);
-
-	if (r != pkg->size) {
-		unlinkat(ctx->outdir_fd, filename, 0);
-		if (r >= 0) r = -EIO;
-		goto err;
-	}
-	goto done;
+	is = apk_istream_tee_fd(is, fd, copy_meta, progress_cb, pctx);
+	is = apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx);
+	r = apk_tar_parse(is, apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
+	r = apk_sign_ctx_status(&sctx, r);
+	apk_sign_ctx_free(&sctx);
+	if (r == 0) goto done;
+	if (fd != STDOUT_FILENO) unlinkat(ctx->outdir_fd, filename, 0);
 
 err:
 	apk_error(PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
