@@ -126,6 +126,8 @@ static inline int IS_ERR(const void *ptr) { return (unsigned long)ptr >= (unsign
 #define APK_DEFAULT_BASE_ARCH	"armhf"
 #elif defined(__arm__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define APK_DEFAULT_BASE_ARCH	"armel"
+#elif defined(__arm__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define APK_DEFAULT_BASE_ARCH	"armeb"
 #elif defined(__aarch64__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define APK_DEFAULT_BASE_ARCH	"aarch64"
 #elif defined(__s390x__)
