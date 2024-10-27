@@ -815,6 +815,11 @@ adb_val_t adb_w_copy(struct adb *db, struct adb *srcdb, adb_val_t v)
 		align = sizeof(uint16_t);
 		sz = align + *(uint16_t*) ptr;
 		goto copy;
+	case ADB_TYPE_BLOB_32:
+		ptr = adb_r_deref(srcdb, v, 0, 4);
+		align = sizeof(uint32_t);
+		sz = align + *(uint32_t*) ptr;
+		goto copy;
 	case ADB_TYPE_OBJECT:
 	case ADB_TYPE_ARRAY: {
 		adb_val_t cpy[512];
@@ -826,7 +831,6 @@ adb_val_t adb_w_copy(struct adb *db, struct adb *srcdb, adb_val_t v)
 		for (int i = ADBI_FIRST; i < sz; i++) cpy[i] = adb_w_copy(db, srcdb, adb_ro_val(&obj, i));
 		return ADB_VAL(ADB_VAL_TYPE(v), adb_w_data1(db, cpy, sizeof(adb_val_t[sz]), sizeof(adb_val_t)));
 	}
-	case ADB_TYPE_BLOB_32:
 	default:
 		return adb_w_error(db, ENOSYS);
 	}
