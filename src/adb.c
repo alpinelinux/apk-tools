@@ -791,7 +791,7 @@ adb_val_t adb_w_int(struct adb *db, uint64_t val)
 adb_val_t adb_w_copy(struct adb *db, struct adb *srcdb, adb_val_t v)
 {
 	void *ptr;
-	size_t sz, align = 1;
+	size_t sz, align;
 
 	if (db == srcdb) return v;
 
@@ -807,11 +807,13 @@ adb_val_t adb_w_copy(struct adb *db, struct adb *srcdb, adb_val_t v)
 		goto copy;
 	case ADB_TYPE_BLOB_8:
 		ptr = adb_r_deref(srcdb, v, 0, 1);
-		sz = 1UL + *(uint8_t*) ptr;
+		align = sizeof(uint8_t);
+		sz = align + *(uint8_t*) ptr;
 		goto copy;
 	case ADB_TYPE_BLOB_16:
 		ptr = adb_r_deref(srcdb, v, 0, 2);
-		sz = 1UL + *(uint16_t*) ptr;
+		align = sizeof(uint16_t);
+		sz = align + *(uint16_t*) ptr;
 		goto copy;
 	case ADB_TYPE_OBJECT:
 	case ADB_TYPE_ARRAY: {
