@@ -171,7 +171,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 			apk_blob_t b = APK_BLOB_STR(*parg);
 
 			apk_blob_pull_dep(&b, db, &dep);
-			if (APK_BLOB_IS_NULL(b) || b.len > 0 || (actx->virtpkg && dep.repository_tag)) {
+			if (APK_BLOB_IS_NULL(b) || b.len > 0 || dep.broken || (actx->virtpkg && dep.repository_tag)) {
 				apk_err(out, "'%s' is not a valid %s dependency, format is %s",
 					*parg,
 					actx->virtpkg ? "package" : "world",
