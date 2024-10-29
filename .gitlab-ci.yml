@@ -1,141 +1,151 @@
 stages:
-    - test
-    - build
-    - upload
-    - release
+  - test
+  - build
+  - upload
+  - release
 
 variables:
   PACKAGE_ENDPOINT: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/"
 
-test-legacy:alpine:
-    image: alpine
-    stage: test
-    script:
-        - apk update
-        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib zstd-dev
-        - make -j$(nproc) check
-    tags:
-        - docker-alpine
-        - x86_64
+.test-legacy:alpine:
+  stage: test
+  image:
+    name: alpine
+  script:
+    - apk add -u make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib zstd-dev
+    - make -j$(nproc) check
+
+test-legacy:alpine:x86_64:
+  extends: .test-legacy:alpine
+  tags:
+    - docker-alpine
+    - x86_64
+
+test-legacy:alpine:x86:
+  extends: .test-legacy:alpine
+  image:
+    entrypoint: ["linux32", "sh", "-c"]
+    docker:
+      platform: linux/i386
+  tags:
+    - docker-alpine
+    - x86
 
 test:alpine:
-    image: alpine
-    stage: test
-    script:
-        - apk update
-        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib meson zlib-static zstd-static openssl-libs-static
-        - meson setup build
-        - ninja -C build
-        - meson setup build-static -Dc_link_args=-static -Ddefault_library=static -Dprefer_static=true
-        - ninja -C build-static
-    tags:
-        - docker-alpine
-        - x86_64
+  image: alpine
+  stage: test
+  script:
+    - apk add -u make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib meson zlib-static zstd-static openssl-libs-static
+    - meson setup build
+    - ninja -C build
+    - meson setup build-static -Dc_link_args=-static -Ddefault_library=static -Dprefer_static=true
+    - ninja -C build-static
+  tags:
+    - docker-alpine
+    - x86_64
 
 test:alpine-alt-config:
-    image: alpine
-    stage: test
-    script:
-        - apk update
-        - apk add make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib meson
-        - meson setup build -Durl_backend=wget -Dzstd=false
-        - ninja -C build
-    tags:
-        - docker-alpine
-        - x86_64
+  image: alpine
+  stage: test
+  script:
+    - apk add -u make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib meson
+    - meson setup build -Durl_backend=wget -Dzstd=false
+    - ninja -C build
+  tags:
+    - docker-alpine
+    - x86_64
 
 test:alpine-muon:
-    image: alpine:edge
-    stage: test
-    script:
-        - echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories
-        - apk update
-        - apk add gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib muon zlib-static zstd-static openssl-libs-static
-        - muon setup build
-        - ninja -C build
-        - muon setup -Dc_link_args="-static" -Dprefer_static=true -Ddefault_library=static build-static
-        - ninja -C build-static
-    tags:
-        - docker-alpine
-        - x86_64
+  image: alpine:edge
+  stage: test
+  script:
+    - echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories
+    - apk add -u gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib muon zlib-static zstd-static openssl-libs-static
+    - muon setup build
+    - ninja -C build
+    - muon setup -Dc_link_args="-static" -Dprefer_static=true -Ddefault_library=static build-static
+    - ninja -C build-static
+  tags:
+    - docker-alpine
+    - x86_64
 
 test:debian:
-    image: debian
-    stage: test
-    script:
-        - apt-get update
-        - apt-get install -y make gcc git libssl-dev zlib1g-dev libzstd-dev lua5.3-dev lua5.2 lua-zlib-dev sudo meson
-        - unlink /bin/sh
-        - ln -s /bin/bash /bin/sh
-        - meson setup build
-        - ninja -C build
-    tags:
-        - docker-alpine
-        - x86_64
+  image: debian
+  stage: test
+  script:
+    - apt-get update
+    - apt-get install -y make gcc git libssl-dev zlib1g-dev libzstd-dev lua5.3-dev lua5.2 lua-zlib-dev sudo meson
+    - unlink /bin/sh
+    - ln -s /bin/bash /bin/sh
+    - meson setup build
+    - ninja -C build
+  tags:
+    - docker-alpine
+    - x86_64
 
 build-static:
-    stage: build
-    image: alpinelinux/build-base:latest-$ARCH
-    script:
-        - abuild-apk add -u make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib zlib-static zstd-static openssl-libs-static
-        - make -j$(nproc) static
-        - install -s -m0755 src/apk.static src/apk.static-$ARCH
-    parallel:
-      matrix:
-        - ARCH:
-            - x86_64
-            - x86
-            - armv7
-            - armhf
-            - aarch64
-            - s390x
-            - ppc64le
-            - riscv64
-    artifacts:
-      paths:
-        - src/apk.static-*
-    tags:
-      - docker-alpine
-      - $ARCH
+  stage: build
+  image: alpinelinux/build-base:latest-$ARCH
+  script:
+    - abuild-apk add -u make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib zlib-static zstd-static openssl-libs-static
+    - make -j$(nproc) static
+    - install -s -m0755 src/apk.static src/apk.static-$ARCH
+  parallel:
+    matrix:
+      - ARCH:
+        - x86_64
+        - x86
+        - armv7
+        - armhf
+        - aarch64
+        - s390x
+        - ppc64le
+        - riscv64
+  artifacts:
+    paths:
+      - src/apk.static-*
+  tags:
+    - docker-alpine
+    - $ARCH
 
 make-release:
-    stage: release
-    image: registry.gitlab.com/gitlab-org/release-cli:latest
-    script:
-        - |-
-          apk add curl
-          for artifact in src/apk.static-*; do
-            ! [ -f "$artifact" ] && { echo "No artifacts found"; exit 1; }
-            ARCH=${artifact#*-}
-            echo "Uploading binary for $ARCH"
-            curl --fail -H "JOB-TOKEN: $CI_JOB_TOKEN" -T "$artifact" -o /dev/null ${PACKAGE_ENDPOINT}/$CI_COMMIT_TAG/$ARCH/apk.static
-          done
-        - echo "Making a release"
-    release:
-      name: $CI_COMMIT_TAG
-      description: "Release $CI_COMMIT_TAG"
-      tag_name: $CI_COMMIT_TAG
-      ref: $CI_COMMIT_TAG
-      assets:
-        links:
-          - name: apk.static (x86_64)
-            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/x86_64/apk.static
-          - name: apk.static (x86)
-            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/x86/apk.static
-          - name: apk.static (armv7)
-            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/armv7/apk.static
-          - name: apk.static (armhf)
-            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/armhf/apk.static
-          - name: apk.static (aarch64)
-            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/aarch64/apk.static
-          - name: apk.static (s390x)
-            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/s390x/apk.static
-          - name: apk.static (ppc64le)
-            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/ppc64le/apk.static
-          - name: apk.static (riscv64)
-            url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/riscv64/apk.static
-    rules:
-        - if: $CI_COMMIT_TAG
-    tags:
-      - docker-alpine
-      - x86_64
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  script:
+    - |-
+      apk add curl
+      for artifact in src/apk.static-*; do
+        ! [ -f "$artifact" ] && { echo "No artifacts found"; exit 1; }
+        ARCH=${artifact#*-}
+        echo "Uploading binary for $ARCH"
+        curl --fail -H "JOB-TOKEN: $CI_JOB_TOKEN" -T "$artifact" -o /dev/null ${PACKAGE_ENDPOINT}/$CI_COMMIT_TAG/$ARCH/apk.static
+        done
+    - echo "Making a release"
+  release:
+    name: $CI_COMMIT_TAG
+    description: "Release $CI_COMMIT_TAG"
+    tag_name: $CI_COMMIT_TAG
+    ref: $CI_COMMIT_TAG
+    assets:
+      links:
+        - name: apk.static (x86_64)
+          url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/x86_64/apk.static
+        - name: apk.static (x86)
+          url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/x86/apk.static
+        - name: apk.static (armv7)
+          url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/armv7/apk.static
+        - name: apk.static (armhf)
+          url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/armhf/apk.static
+        - name: apk.static (aarch64)
+          url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/aarch64/apk.static
+        - name: apk.static (s390x)
+          url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/s390x/apk.static
+        - name: apk.static (ppc64le)
+          url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/ppc64le/apk.static
+        - name: apk.static (riscv64)
+          url: $PACKAGE_ENDPOINT/$CI_COMMIT_TAG/riscv64/apk.static
+  rules:
+    - if: $CI_COMMIT_TAG
+  tags:
+    - docker-alpine
+    - x86_64

@@ -39,8 +39,8 @@ install:
 	$(INSTALLDIR) $(DESTDIR)$(DOCDIR)
 	$(INSTALL) README.md $(DESTDIR)$(DOCDIR)
 
-check test: FORCE src/
-	$(Q)$(MAKE) TEST=y
+check test: FORCE
+	$(Q)$(MAKE) TEST=y compile
 	$(Q)$(MAKE) -C test
 
 static:

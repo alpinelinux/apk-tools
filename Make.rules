@@ -35,7 +35,7 @@ else
   Q = @
 endif
 
-ifneq ($(findstring s,$(MAKEFLAGS)),)
+ifneq ($(findstring -s,$(MAKEFLAGS)),)
   quiet=silent_
 endif
 
