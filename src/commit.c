@@ -410,17 +410,17 @@ all_done:
 		}
 
 		if (apk_out_verbosity(out) > 1) {
-			apk_msg(out, "%s %d packages, %d dirs, %d files, %zu MiB",
+			apk_msg(out, "%s %d packages, %d dirs, %d files, %llu MiB",
 				msg,
 				installed_packages,
 				db->installed.stats.dirs,
 				db->installed.stats.files,
-				installed_bytes / (1024 * 1024)
+				(unsigned long long)installed_bytes / (1024 * 1024)
 				);
 		} else {
-			apk_msg(out, "%s %zu MiB in %d packages",
+			apk_msg(out, "%s %llu MiB in %d packages",
 				msg,
-				installed_bytes / (1024 * 1024),
+				(unsigned long long)installed_bytes / (1024 * 1024),
 				installed_packages);
 		}
 	}
