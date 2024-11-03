@@ -1,14 +1,3 @@
-PKG_CONFIG		?= pkg-config
-LUA			?= $(firstword $(wildcard /usr/bin/lua5.3 /usr/bin/lua5.2))
-
-ifeq ($(LUA),no)
-LUAAPK			?= no
-else ifneq ($(LUA),)
-LUAAPK			?= yes
-else
-$(error Lua interpreter not found. Please specify LUA interpreter, or use LUA=no to build without help.)
-endif
-
 ifeq ($(URL_BACKEND),wget)
 IO_URL_OBJ		:= io_url_wget.o
 else
@@ -18,13 +7,11 @@ IO_URL_OBJ_LIBS		:= libfetch/libfetch.a
 endif
 
 ifeq ($(CRYPTO),mbedtls)
-CRYPTO_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags mbedtls mbedcrypto) -DCRYPTO_USE_MBEDTLS
+CRYPTO_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags mbedtls mbedcrypto)
 CRYPTO_LIBS		:= $(shell $(PKG_CONFIG) --libs mbedtls mbedcrypto)
-CRYPTO_OBJ		:= crypto_mbedtls.o
 else
-CRYPTO_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags openssl) -DCRYPTO_USE_OPENSSL
+CRYPTO_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags openssl)
 CRYPTO_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
-CRYPTO_OBJ		:= crypto_openssl.o
 endif
 
 ZLIB_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags zlib)
@@ -35,28 +22,14 @@ libapk_soname		:= 2.99.0
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
 	adb.o adb_comp.o adb_walk_adb.o adb_walk_genadb.o adb_walk_gentext.o adb_walk_text.o apk_adb.o \
-	atom.o balloc.o blob.o commit.o common.o context.o crypto.o ctype.o database.o hash.o extract_v2.o \
-	extract_v3.o fs_fsys.o fs_uvol.o io.o io_gunzip.o tar.o package.o pathbuilder.o print.o \
-	solver.o trust.o version.o
+	atom.o balloc.o blob.o commit.o common.o context.o crypto.o crypto_$(CRYPTO).o ctype.o \
+	database.o hash.o extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o \
+	io.o io_gunzip.o io_url_$(URL_BACKEND).o tar.o package.o pathbuilder.o print.o solver.o \
+	trust.o version.o
 
-libapk.so.$(libapk_soname)-libs :=
-
-ifeq ($(URL_BACKEND),wget)
-libapk.so.$(libapk_soname)-objs += io_url_wget.o
-else
+ifneq ($(URL_BACKEND),wget)
 CFLAGS_ALL += -Ilibfetch
-libapk.so.$(libapk_soname)-objs += io_url_libfetch.o
 libapk.so.$(libapk_soname)-libs += libfetch/libfetch.a
-endif
-
-ifeq ($(CRYPTO),mbedtls)
-CRYPTO_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags mbedtls mbedcrypto) -DCRYPTO_USE_MBEDTLS
-CRYPTO_LIBS		:= $(shell $(PKG_CONFIG) --libs mbedtls mbedcrypto)
-libapk.so.$(libapk_soname)-objs += crypto_mbedtls.o
-else
-CRYPTO_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags openssl) -DCRYPTO_USE_OPENSSL
-CRYPTO_LIBS		:= $(shell $(PKG_CONFIG) --libs openssl)
-libapk.so.$(libapk_soname)-objs += crypto_openssl.o
 endif
 
 # ZSTD support can be disabled
@@ -84,20 +57,6 @@ libapk_a		:= $(obj)/libapk.a
 install-libapk_a	:= $(INSTALLDIR) $(DESTDIR)$(LIBDIR) && \
 			   $(INSTALL) $(libapk_a) $(DESTDIR)$(LIBDIR)
 apk-static-libs		:= $(libapk.a-libs) $(obj)/libapk.a
-
-# Lua module
-ifeq ($(LUAAPK),yes)
-LUA_VERSION		?= 5.3
-LUA_PC			?= lua$(LUA_VERSION)
-LUA_LIBDIR		?= /usr/lib/lua/$(LUA_VERSION)
-shlibs-y		+= apk.so
-apk.so-objs		:= ../lua/lua-apk.o
-CFLAGS_lua-apk.o	:= -DAPK_VERSION=\"$(VERSION)\" \
-			   $(shell $(PKG_CONFIG) $(LUA_PC) --cflags)
-apklua_so		:= $(obj)/apk.so
-install-apklua_so	:= $(INSTALLDIR) $(DESTDIR)$(LUA_LIBDIR) && \
-			   $(INSTALL) $(apklua_so) $(DESTDIR)$(LUA_LIBDIR)
-endif
 
 # Apk utility
 progs-y			+= apk
@@ -164,12 +123,11 @@ $(obj)/libapk.so:
 
 generate-y	+= apk.pc
 
-install: $(obj)/apk $(libapk_so) $(libapk_a) $(apklua_so)
+install: $(obj)/apk $(libapk_so) $(libapk_a)
 	$(INSTALLDIR) $(DESTDIR)$(SBINDIR)
 	$(INSTALL) $(obj)/apk $(DESTDIR)$(SBINDIR)
 	$(install-libapk_so)
 	$(install-libapk_a)
-	$(install-apklua_so)
 	$(INSTALLDIR) $(DESTDIR)$(INCLUDEDIR)/apk
 	$(INSTALL) -m644 src/*.h $(DESTDIR)$(INCLUDEDIR)/apk
 	$(INSTALLDIR) $(DESTDIR)$(PKGCONFIGDIR)

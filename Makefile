@@ -25,12 +25,21 @@ export DESTDIR SBINDIR LIBDIR CONFDIR MANDIR DOCDIR INCLUDEDIR PKGCONFIGDIR
 ##
 # Top-level subdirs
 
-subdirs		:= libfetch/ src/ doc/
+subdirs		:= libfetch/ src/ doc/ lua/
 
 ##
 # Include all rules and stuff
 
 include Make.rules
+
+##
+# Globals
+
+URL_BACKEND	?= libfetch
+CRYPTO		?= openssl
+export URL_BACKEND CRYPTO
+
+CFLAGS_ALL	+= -DCRYPTO_USE_$(shell echo $(CRYPTO) | tr '[:lower:]' '[:upper:]')
 
 ##
 # Top-level targets
@@ -52,3 +61,5 @@ tag: check
 	git tag -s v$${TAG_VERSION} -m "apk-tools-$${TAG_VERSION}"
 
 src/: libfetch/
+
+lua/: src/

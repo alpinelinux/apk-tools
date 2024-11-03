@@ -60,6 +60,7 @@ export FULL_VERSION RCS_FIND_IGNORE
 ##
 # Utilities and default flags for them.
 
+PKG_CONFIG	:= pkg-config
 CROSS_COMPILE	?=
 CC		:= $(CROSS_COMPILE)gcc
 AR		:= $(CROSS_COMPILE)ar
@@ -69,6 +70,7 @@ SCDOC		:= scdoc
 SED		:= sed
 INSTALL		:= install
 INSTALLDIR	:= $(INSTALL) -d
+LUA		:= $(firstword $(wildcard /usr/bin/lua5.3 /usr/bin/lua5.2))
 
 CFLAGS		?= -g -O2
 CFLAGS_ALL	:= -Wall -Wstrict-prototypes -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -std=gnu11 -fPIC
@@ -77,7 +79,7 @@ CFLAGS_ALL	+= $(CFLAGS)
 LDFLAGS		?= -g
 LDFLAGS_ALL	+= $(LDFLAGS)
 
-export CC AR LD LN SCDOC SED INSTALL INSTALLDIR CFLAGS_ALL LDFLAGS_ALL
+export PKG_CONFIG CC AR LD LN SCDOC SED INSTALL INSTALLDIR LUA CFLAGS_ALL LDFLAGS_ALL
 
 build		:=
 
