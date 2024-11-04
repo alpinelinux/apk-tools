@@ -86,6 +86,7 @@ static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, co
 					"-run\n"
 					"-sys\n"
 					"-tmp\n"
+					"-usr/lib/apk\n"
 					"-var\n"
 				)));
 		break;
