@@ -1897,14 +1897,14 @@ static int apk_db_write_layers(struct apk_database *db)
 
 		ld->fd = openat(db->root_fd, apk_db_layer_name(i), O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 		if (ld->fd < 0) {
-			if (i == 0) return -errno;
+			if (i == APK_DB_LAYER_ROOT) return -errno;
 			continue;
 		}
 		ld->installed = apk_ostream_to_file(ld->fd, "installed", 0644);
 		ld->scripts   = apk_ostream_to_file(ld->fd, "scripts.tar", 0644);
 		ld->triggers  = apk_ostream_to_file(ld->fd, "triggers", 0644);
 
-		if (i == 0)
+		if (i == APK_DB_LAYER_ROOT)
 			os = apk_ostream_to_file(db->root_fd, apk_world_file, 0644);
 		else
 			os = apk_ostream_to_file(ld->fd, "world", 0644);
