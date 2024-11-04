@@ -8,7 +8,9 @@ project(
 pkgc = import('pkgconfig')
 
 apk_confdir = get_option('sysconfdir') / 'apk'
-apk_libdir = get_option('libdir')
+apk_prefix = get_option('prefix')
+apk_libdir = apk_prefix / get_option('libdir')
+apk_libexecdir = apk_prefix / get_option('libexecdir')
 
 lua_bin = find_program('lua' + get_option('lua_version'), required: get_option('help'))
 lua_dep = dependency('lua' + get_option('lua_version'), required: get_option('lua'))

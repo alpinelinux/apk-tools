@@ -98,6 +98,7 @@ apk_cargs = [
 	'-D_ATFILE_SOURCE',
 	'-DAPK_VERSION="' + meson.project_version() + '"',
 	'-DCRYPTO_USE_@0@'.format(crypto_backend.to_upper()),
+	'-DRELATIVE_LIBEXECDIR="' + apk_libexecdir.strip('/') +'"',
 ]
 
 if lua_bin.found()
