@@ -406,17 +406,17 @@ The following options are available for all commands which generate APKv3 files.
 	Temporary directory for extraction and execution of package scripts
 	and triggers. Only used when memfd_create is not available
 
-*/lib/apk/db/installed*
+*/usr/lib/apk/db/installed*
 	Database of installed packages and their contents.
 
-*/lib/apk/db/scripts.tar*
+*/usr/lib/apk/db/scripts.tar*
 	Collection of all package scripts from currently installed packages.
 
-*/lib/apk/db/triggers*
+*/usr/lib/apk/db/triggers*
 	List of triggers rules for currently installed packages.
 
-*/lib/apk/db-uvol*
-	Database symlink or a directory with similar structure as */lib/apk/db/*,
+*/usr/lib/apk/db-uvol*
+	Database symlink or a directory with similar structure as */usr/lib/apk/db/*,
 	but which used for package content when managed using OpenWRT *uvol*
 	volume manager.
 

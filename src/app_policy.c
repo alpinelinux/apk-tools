@@ -74,5 +74,3 @@ static struct apk_applet apk_policy = {
 };
 
 APK_DEFINE_APPLET(apk_policy);
-
-

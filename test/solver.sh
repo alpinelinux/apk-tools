@@ -17,11 +17,11 @@ run_test() {
 	[ -d "$tmproot" ] || return 1
 
 	mkdir -p "$tmproot/etc/apk/cache" \
-		"$tmproot/lib/apk/db" \
+		"$tmproot/usr/lib/apk/db" \
 		"$tmproot/var/log" \
 		"$tmproot/data/src"
 	touch "$tmproot/etc/apk/world"
-	touch "$tmproot/lib/apk/db/installed"
+	touch "$tmproot/usr/lib/apk/db/installed"
 	ln -sf /dev/null "$tmproot/var/log/apk.log"
 
 	local args="" repo run_found
@@ -38,7 +38,7 @@ run_test() {
 			done > "$tmproot/etc/apk/world"
 			;;
 		"@INSTALLED "*)
-			ln -snf "${testdir}/${ln#* }" "$tmproot/lib/apk/db/installed"
+			ln -snf "${testdir}/${ln#* }" "$tmproot/usr/lib/apk/db/installed"
 			;;
 		"@REPO @"*)
 			tag="${ln#* }"

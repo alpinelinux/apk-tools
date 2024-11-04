@@ -164,7 +164,7 @@ struct apk_database {
 	struct apk_balloc ba_pkgs;
 	struct apk_balloc ba_files;
 	struct apk_balloc ba_deps;
-	int root_fd, lock_fd, cache_fd;
+	int root_fd, lock_fd, cache_fd, db_root_fd;
 	unsigned num_repos, num_repo_tags;
 	const char *cache_dir;
 	char *cache_remount_dir, *root_proc_dir;

@@ -1237,7 +1237,7 @@ static int apk_db_read_layer(struct apk_database *db, unsigned layer)
 	 * 4. scripts db
 	 */
 
-	fd = openat(db->root_fd, apk_db_layer_name(layer), O_RDONLY | O_CLOEXEC);
+	fd = openat(db->db_root_fd, apk_db_layer_name(layer), O_RDONLY | O_CLOEXEC);
 	if (fd < 0) return -errno;
 
 	if (!(flags & APK_OPENF_NO_WORLD)) {
@@ -1630,8 +1630,8 @@ static int setup_cache(struct apk_database *db)
 const char *apk_db_layer_name(int layer)
 {
 	switch (layer) {
-	case APK_DB_LAYER_ROOT: return "lib/apk/db";
-	case APK_DB_LAYER_UVOL: return "lib/apk/db-uvol";
+	case APK_DB_LAYER_ROOT: return "db";
+	case APK_DB_LAYER_UVOL: return "db-uvol";
 	default:
 		assert(!"invalid layer");
 		return 0;
@@ -1644,15 +1644,15 @@ static void setup_uvol_target(struct apk_database *db)
 	const struct apk_ctx *ac = db->ctx;
 	const char *uvol_db = apk_db_layer_name(APK_DB_LAYER_UVOL);
 	const char *uvol_target = APK_UVOL_DB_TARGET;
-	const char *uvol_symlink_target = "../../" APK_UVOL_DB_TARGET;
+	const char *uvol_symlink_target = "../../../" APK_UVOL_DB_TARGET;
 
 	if (!(ac->open_flags & (APK_OPENF_WRITE|APK_OPENF_CREATE))) return;
 	if (IS_ERR(ac->uvol)) return;
-	if (faccessat(db->root_fd, uvol_db, F_OK, 0) == 0) return;
+	if (faccessat(db->db_root_fd, uvol_db, F_OK, 0) == 0) return;
 	if (faccessat(db->root_fd, uvol_target, F_OK, 0) != 0) return;
 
 	// Create symlink from uvol_db to uvol_target in relative form
-	symlinkat(uvol_symlink_target, db->root_fd, uvol_db);
+	symlinkat(uvol_symlink_target, db->db_root_fd, uvol_db);
 }
 #else
 static void setup_uvol_target(struct apk_database *db) { }
@@ -1706,13 +1706,14 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	apk_db_setup_repositories(db, ac->cache_dir);
 	db->root_fd = apk_ctx_fd_root(ac);
 	db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
+	db->db_root_fd = apk_ctx_fd_db_root(ac);
 	db->permanent = !detect_tmpfs_root(db);
 	db->usermode = !!(ac->open_flags & APK_OPENF_USERMODE);
 
 	if (!(ac->open_flags & APK_OPENF_CREATE)) {
 		// Autodetect usermode from the installeddb owner
 		struct stat st;
-		if (fstatat(db->root_fd, apk_db_layer_name(APK_DB_LAYER_ROOT), &st, 0) == 0 &&
+		if (fstatat(db->db_root_fd, apk_db_layer_name(APK_DB_LAYER_ROOT), &st, 0) == 0 &&
 		    st.st_uid != 0)
 			db->usermode = 1;
 	}
@@ -1895,7 +1896,7 @@ static int apk_db_write_layers(struct apk_database *db)
 		struct layer_data *ld = &layers[i];
 		if (!(db->active_layers & BIT(i))) continue;
 
-		ld->fd = openat(db->root_fd, apk_db_layer_name(i), O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+		ld->fd = openat(db->db_root_fd, apk_db_layer_name(i), O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 		if (ld->fd < 0) {
 			if (i == APK_DB_LAYER_ROOT) return -errno;
 			continue;
@@ -1977,7 +1978,8 @@ int apk_db_write_config(struct apk_database *db)
 		return 0;
 
 	if (db->ctx->open_flags & APK_OPENF_CREATE) {
-		apk_make_dirs(db->root_fd, "lib/apk/db", 0755, 0755);
+		const char *adb_root = apk_db_layer_name(APK_DB_LAYER_ROOT);
+		apk_make_dirs(db->db_root_fd, adb_root, 0755, 0755);
 		apk_make_dirs(db->root_fd, "etc/apk", 0755, 0755);
 	} else if (db->lock_fd == 0) {
 		apk_err(out, "Refusing to write db without write lock!");
