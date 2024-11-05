@@ -20,10 +20,36 @@
 #include "apk_database.h"
 #include "apk_pathbuilder.h"
 #include "apk_extract.h"
+#include "apk_balloc.h"
 #include "apk_print.h"
 #include "apk_xattr.h"
 
 #define BLOCK_SIZE 4096
+
+struct mkpkg_hardlink_key {
+	dev_t device;
+	ino_t inode;
+};
+
+struct mkpkg_hardlink {
+	apk_hash_node hash_node;
+	struct mkpkg_hardlink_key key;
+	uint16_t name_len;
+	char name[];
+};
+
+static apk_blob_t mkpkg_hardlink_get_key(apk_hash_item item)
+{
+	struct mkpkg_hardlink *link = item;
+	return APK_BLOB_STRUCT(link->key);
+}
+
+static const struct apk_hash_ops mkpkg_hardlink_hash_ops = {
+	.node_offset = offsetof(struct mkpkg_hardlink, hash_node),
+	.get_key = mkpkg_hardlink_get_key,
+	.hash_key = apk_blob_hash,
+	.compare = apk_blob_compare,
+};
 
 struct mkpkg_ctx {
 	struct apk_ctx *ac;
@@ -37,6 +63,8 @@ struct mkpkg_ctx {
 	struct apk_string_array *triggers;
 	uint64_t installed_size;
 	struct apk_pathbuilder pb;
+	struct apk_hash link_by_inode;
+	struct apk_balloc ba;
 	unsigned has_scripts : 1;
 	unsigned rootnode : 1;
 };
@@ -95,6 +123,8 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 
 	switch (optch) {
 	case APK_OPTIONS_INIT:
+		apk_balloc_init(&ictx->ba, sizeof(struct mkpkg_hardlink) * 256);
+		apk_hash_init(&ictx->link_by_inode, &mkpkg_hardlink_hash_ops, 256);
 		apk_string_array_init(&ictx->triggers);
 		ictx->rootnode = 1;
 		break;
@@ -226,6 +256,8 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
 	struct apk_file_info fi;
 	struct adb_obj fio, acl;
+	struct mkpkg_hardlink *link = NULL;
+	struct mkpkg_hardlink_key key;
 	apk_blob_t target = APK_BLOB_NULL;
 	union {
 		uint16_t mode;
@@ -245,6 +277,27 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 
 	switch (fi.mode & S_IFMT) {
 	case S_IFREG:
+		key = (struct mkpkg_hardlink_key) {
+			.device = fi.data_device,
+			.inode = fi.data_inode,
+		};
+		if (fi.num_links > 1)
+			link = apk_hash_get(&ctx->link_by_inode, APK_BLOB_STRUCT(key));
+		if (link) {
+			ft.symlink.mode = htole16(fi.mode & S_IFMT);
+			if (link->name_len > sizeof ft.symlink.target) return -ENAMETOOLONG;
+			memcpy(ft.symlink.target, link->name, link->name_len);
+			target = APK_BLOB_PTR_LEN((void*)&ft.symlink, sizeof(ft.symlink.mode) + link->name_len);
+			break;
+		}
+		if (fi.num_links > 1) {
+			size_t len = strlen(entry);
+			link = apk_balloc_new_extra(&ctx->ba, struct mkpkg_hardlink, len);
+			link->key = key;
+			link->name_len = len;
+			memcpy(link->name, entry, len);
+			apk_hash_insert(&ctx->link_by_inode, link);
+		}
 		ctx->installed_size += (fi.size + BLOCK_SIZE - 1) & ~(BLOCK_SIZE-1);
 		break;
 	case S_IFBLK:
@@ -276,9 +329,9 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 	adb_wo_alloca(&fio, &schema_file, &ctx->db);
 	adb_wo_alloca(&acl, &schema_acl, &ctx->db);
 	adb_wo_blob(&fio, ADBI_FI_NAME, APK_BLOB_STR(entry));
-	if (APK_BLOB_IS_NULL(target))
+	if ((fi.mode & S_IFMT) == S_IFREG)
 		adb_wo_blob(&fio, ADBI_FI_HASHES, APK_DIGEST_BLOB(fi.digest));
-	else
+	if (!APK_BLOB_IS_NULL(target))
 		adb_wo_blob(&fio, ADBI_FI_TARGET, target);
 	adb_wo_int(&fio, ADBI_FI_MTIME, fi.mtime);
 	adb_wo_int(&fio, ADBI_FI_SIZE, fi.size);
@@ -464,6 +517,8 @@ err:
 	adb_free(&ctx->db);
 	if (r) apk_err(out, "failed to create package: %s: %s", ctx->output, apk_error_str(r));
 	apk_string_array_free(&ctx->triggers);
+	apk_hash_free(&ctx->link_by_inode);
+	apk_balloc_destroy(&ctx->ba);
 	return r;
 }
 

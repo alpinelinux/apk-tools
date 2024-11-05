@@ -809,6 +809,9 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		.mode = st.st_mode,
 		.mtime = st.st_mtime,
 		.device = st.st_rdev,
+		.data_device = st.st_dev,
+		.data_inode = st.st_ino,
+		.num_links = st.st_nlink,
 	};
 
 	if (xattr_hash_alg != APK_DIGEST_NONE && !S_ISLNK(fi->mode) && !S_ISFIFO(fi->mode)) {

@@ -62,6 +62,7 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 
 	apk_xattr_array_init(&fi.xattrs);
 	apk_extract_v3_acl(&fi, adb_ro_obj(&ctx->file, ADBI_FI_ACL, &acl), apk_ctx_get_id_cache(ectx->ac));
+	apk_digest_from_blob(&fi.digest, adb_ro_blob(&ctx->file, ADBI_FI_HASHES));
 
 	target = adb_ro_blob(&ctx->file, ADBI_FI_TARGET);
 	if (!APK_BLOB_IS_NULL(target)) {
@@ -83,6 +84,7 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 			fi.device = le64toh(((struct unaligned64 *)target.ptr)->value);
 			break;
 		case S_IFLNK:
+		case S_IFREG:
 			target_path = alloca(target.len + 1);
 			memcpy(target_path, target.ptr, target.len);
 			target_path[target.len] = 0;
@@ -98,7 +100,6 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, off_t sz, struct ap
 		goto done;
 	}
 
-	apk_digest_from_blob(&fi.digest, adb_ro_blob(&ctx->file, ADBI_FI_HASHES));
 	if (fi.digest.alg == APK_DIGEST_NONE) goto err_schema;
 	fi.mode |= S_IFREG;
 	if (!is) {

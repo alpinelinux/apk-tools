@@ -53,6 +53,9 @@ struct apk_file_info {
 	mode_t mode;
 	time_t mtime;
 	dev_t device;
+	dev_t data_device;
+	ino_t data_inode;
+	nlink_t num_links;
 	struct apk_digest digest;
 	struct apk_digest xattr_digest;
 	struct apk_xattr_array *xattrs;
