@@ -3,9 +3,10 @@ cc = meson.get_compiler('c')
 libportability_src = []
 
 check_symbols = [
+	['fexecve', '', 'NEED_FEXECVE', 'unistd.h'],
 	['getrandom', 'getrandom.c', 'NEED_GETRANDOM', 'sys/random.h'],
 	['memrchr', 'memrchr.c', 'NEED_MEMRCHR', 'string.h'],
-	['memfd_create', 'memfd_create.c', 'NEED_MEMFD_CREATE', 'sys/mman.h'],
+	['memfd_create', '', 'NEED_MEMFD_CREATE', 'sys/mman.h'],
 	['mknodat', 'mknodat.c', 'NEED_MKNODAT', 'sys/stat.h'],
 	['pipe2', 'pipe2.c', 'NEED_PIPE2', 'unistd.h'],
 	['qsort_r', 'qsort_r.c', 'NEED_QSORT_R', 'stdlib.h'],
@@ -18,7 +19,10 @@ check_symbols = [
 foreach f : check_symbols
 	if not cc.has_header_symbol(f.get(3), f.get(0), args: ['-D_GNU_SOURCE'])
 		add_project_arguments('-D' + f.get(2), language: 'c')
-		libportability_src += [f.get(1)]
+		compat_src = f.get(1)
+		if compat_src != ''
+			libportability_src += [compat_src]
+		endif
 	endif
 endforeach
 

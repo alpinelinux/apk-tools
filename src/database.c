@@ -2097,8 +2097,9 @@ int apk_db_run_script(struct apk_database *db, int fd, char **argv)
 		return -2;
 	}
 	if (pid == 0) {
-		umask(0022);
+		char *const *env = (db->ctx->flags & APK_PRESERVE_ENV) ? environ : clean_environment;
 
+		umask(0022);
 		if (fchdir(db->root_fd) != 0) {
 			apk_err(out, "%s: fchdir: %s", apk_last_path_segment(argv[0]), strerror(errno));
 			exit(127);
@@ -2109,8 +2110,10 @@ int apk_db_run_script(struct apk_database *db, int fd, char **argv)
 			exit(127);
 		}
 
-		fexecve(fd, argv, (db->ctx->flags & APK_PRESERVE_ENV) ? environ : clean_environment);
-		apk_err(out, "%s: fexecve: %s", argv[0], strerror(errno));
+		if (fd >= 0) fexecve(fd, argv, env);
+		execve(argv[0], argv, env);
+
+		apk_err(out, "%s: execve: %s", argv[0], strerror(errno));
 		exit(127); /* should not get here */
 	}
 	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);

@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -755,25 +756,22 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	struct apk_out *out = &db->ctx->out;
 	struct apk_package *pkg = ipkg->pkg;
 	char fn[PATH_MAX];
-	int fd, root_fd = db->root_fd, ret = 0;
+	int fd = -1, root_fd = db->root_fd, ret = 0;
+	bool created = false;
 
-	if (type >= APK_SCRIPT_MAX || ipkg->script[type].ptr == NULL)
-		return 0;
-
-	argv[0] = fn;
+	if (type >= APK_SCRIPT_MAX || ipkg->script[type].ptr == NULL) return 0;
+	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
 
 	if (apk_fmt(fn, sizeof fn, "%s/" PKG_VER_FMT ".%s",
 		    script_exec_dir, PKG_VER_PRINTF(pkg), apk_script_types[type]) < 0)
 		return 0;
 
-	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0)
-		return 0;
-
+	argv[0] = fn;
 	apk_msg(out, "Executing %s", apk_last_path_segment(fn));
-	fd = memfd_create(fn, 0);
 
+	fd = memfd_create(fn, 0);
 	if (!db->script_dirs_checked) {
-		if (fd == -ENOSYS && apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0) {
+		if (fd < 0 && apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0) {
 			apk_err(out, "failed to prepare dirs for hook scripts: %s",
 				apk_error_str(errno));
 			goto err;
@@ -784,14 +782,19 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		}
 		db->script_dirs_checked = 1;
 	}
-
-	if (fd == -ENOSYS) {
+	if (fd < 0) {
 		fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC, 0755);
-		unlinkat(root_fd, fn, 0);
+		created = fd >= 0;
 	}
 	if (fd < 0) goto err_log;
+
 	if (write(fd, ipkg->script[type].ptr, ipkg->script[type].len) < 0)
 		goto err_log;
+
+	if (created) {
+		close(fd);
+		fd = -1;
+	}
 
 	if (apk_db_run_script(db, fd, argv) < 0)
 		goto err;
@@ -808,6 +811,7 @@ err:
 	ret = 1;
 cleanup:
 	if (fd >= 0) close(fd);
+	if (created) unlinkat(root_fd, fn, 0);
 	return ret;
 }
 
