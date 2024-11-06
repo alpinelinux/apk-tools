@@ -87,6 +87,9 @@ Unfortunately it is not possible to deduce if a given string is of format
 	uses the following default architectures:
 	- noarch
 	- aarch64
+	- arc700
+	- archs
+	- armeb
 	- armel
 	- armhf
 	- armv7
@@ -100,6 +103,9 @@ Unfortunately it is not possible to deduce if a given string is of format
 	- riscv32
 	- riscv64
 	- s390x
+	- sh2eb
+	- sh3
+	- sh4
 	- loongarchx32
 	- loongarch64
 	- x86
