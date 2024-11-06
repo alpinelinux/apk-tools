@@ -44,6 +44,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 	}
 	if (ac->flags & APK_ALLOW_UNTRUSTED) ac->trust.allow_untrusted = 1;
 	if (!ac->cache_dir) ac->cache_dir = "etc/apk/cache";
+	else ac->cache_dir_set = 1;
 	if (!ac->keys_dir) ac->keys_dir = "etc/apk/keys";
 	if (!ac->root) ac->root = "/";
 	if (!ac->cache_max_age) ac->cache_max_age = 4*60*60; /* 4 hours default */

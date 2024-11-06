@@ -83,6 +83,7 @@ struct apk_ctx {
 	struct apk_database *db;
 	int root_fd, dest_fd;
 	unsigned int root_set : 1;
+	unsigned int cache_dir_set : 1;
 };
 
 void apk_ctx_init(struct apk_ctx *ac);
