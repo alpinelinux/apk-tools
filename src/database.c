@@ -1609,7 +1609,7 @@ static int setup_cache(struct apk_database *db)
 		return remount_cache_rw(db, &stfs);
 	}
 	if (fd >= 0) close(fd);
-	if (db->ctx->cache_dir_set || errno == ENOENT) return -errno;
+	if (db->ctx->cache_dir_set || errno != ENOENT) return -errno;
 
 	// The default cache does not exists, fallback to static cache directory
 	db->cache_dir = apk_static_cache_dir;
