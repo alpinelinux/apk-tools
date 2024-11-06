@@ -118,7 +118,7 @@ static int apk_load_file_at(int dirfd, const char *fn, unsigned char **buf, size
 	size_t size;
 	int fd;
 
-	if ((fd = openat(dirfd, fn, O_RDONLY|O_CLOEXEC)) < 0)
+	if ((fd = openat(dirfd, fn, O_RDONLY | O_CLOEXEC)) < 0)
 		return -errno;
 
 	if (fstat(fd, &stats)) {

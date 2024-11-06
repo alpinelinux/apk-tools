@@ -193,7 +193,7 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 	/* extract xattrs */
 	if (!S_ISLNK(fi->mode) && fi->xattrs && apk_array_len(fi->xattrs) != 0) {
 		r = 0;
-		fd = openat(atfd, fn, O_RDWR);
+		fd = openat(atfd, fn, O_RDWR | O_CLOEXEC);
 		if (fd >= 0) {
 			foreach_array_item(xattr, fi->xattrs) {
 				if ((extract_flags & APK_FSEXTRACTF_NO_SYS_XATTRS) && is_system_xattr(xattr->name))

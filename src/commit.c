@@ -266,7 +266,7 @@ static int run_commit_hook(void *ctx, int dirfd, const char *file)
 static int run_commit_hooks(struct apk_database *db, int type)
 {
 	struct apk_commit_hook hook = { .db = db, .type = type };
-	return apk_dir_foreach_file(openat(db->root_fd, "etc/apk/commit_hooks.d", O_RDONLY | O_CLOEXEC),
+	return apk_dir_foreach_file(openat(db->root_fd, "etc/apk/commit_hooks.d", O_DIRECTORY | O_RDONLY | O_CLOEXEC),
 				    run_commit_hook, &hook);
 }
 

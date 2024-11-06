@@ -62,10 +62,10 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		ac->uvol = ERR_PTR(-APKE_UVOL_ROOT);
 	}
 
-	ac->root_fd = openat(AT_FDCWD, ac->root, O_RDONLY | O_CLOEXEC);
+	ac->root_fd = openat(AT_FDCWD, ac->root, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 	if (ac->root_fd < 0 && (ac->open_flags & APK_OPENF_CREATE)) {
 		mkdirat(AT_FDCWD, ac->root, 0755);
-		ac->root_fd = openat(AT_FDCWD, ac->root, O_RDONLY | O_CLOEXEC);
+		ac->root_fd = openat(AT_FDCWD, ac->root, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 	}
 	if (ac->root_fd < 0) {
 		apk_err(&ac->out, "Unable to open root: %s", apk_error_str(errno));
@@ -109,7 +109,7 @@ struct apk_trust *apk_ctx_get_trust(struct apk_ctx *ac)
 {
 	if (!ac->trust.keys_loaded) {
 		int r = apk_trust_load_keys(&ac->trust,
-			openat(ac->root_fd, ac->keys_dir, O_RDONLY | O_CLOEXEC));
+			openat(ac->root_fd, ac->keys_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC));
 		if (r != 0) apk_err(&ac->out, "Unable to load trust keys: %s", apk_error_str(r));
 	}
 	return &ac->trust;

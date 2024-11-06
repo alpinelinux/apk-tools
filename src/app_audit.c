@@ -319,7 +319,7 @@ recurse_check:
 		if (reason != 'D' && recurse) {
 			atctx->dir = child;
 			apk_dir_foreach_file(
-				openat(dirfd, name, O_RDONLY|O_CLOEXEC),
+				openat(dirfd, name, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
 				audit_directory_tree_item, atctx);
 			atctx->dir = dir;
 		}
@@ -462,7 +462,7 @@ static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 			if (atctx.path[atctx.pathlen-1] != '/')
 				atctx.path[atctx.pathlen++] = '/';
 
-			r |= audit_directory_tree(&atctx, openat(db->root_fd, arg, O_RDONLY|O_CLOEXEC));
+			r |= audit_directory_tree(&atctx, openat(db->root_fd, arg, O_DIRECTORY | O_RDONLY | O_CLOEXEC));
 		}
 	}
 	if (actx->mode == MODE_SYSTEM || actx->mode == MODE_FULL)

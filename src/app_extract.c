@@ -89,7 +89,7 @@ static int extract_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	if (!(ac->force & APK_FORCE_OVERWRITE)) ctx->extract_flags |= APK_FSEXTRACTF_NO_OVERWRITE;
 	if (!ctx->destination) ctx->destination = ".";
 
-	ac->dest_fd = openat(AT_FDCWD, ctx->destination, O_RDONLY);
+	ac->dest_fd = openat(AT_FDCWD, ctx->destination, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 	if (ac->dest_fd < 0) {
 		r = -errno;
 		apk_err(out, "Error opening destination '%s': %s",

@@ -317,7 +317,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 		break;
 	case S_IFDIR:
 		n = apk_pathbuilder_push(&ctx->pb, entry);
-		r = mkpkg_process_directory(ctx, openat(dirfd, entry, O_RDONLY), &fi);
+		r = mkpkg_process_directory(ctx, openat(dirfd, entry, O_RDONLY | O_CLOEXEC), &fi);
 		apk_pathbuilder_pop(&ctx->pb, n);
 		return r;
 	default:
@@ -340,7 +340,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 	adb_wo_int(&acl, ADBI_ACL_MODE, fi.mode & 07777);
 	adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi.uid));
 	adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi.gid));
-	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs_closefd(&ctx->db, openat(dirfd, entry, O_RDONLY|O_NOFOLLOW|O_NONBLOCK)));
+	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs_closefd(&ctx->db, openat(dirfd, entry, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)));
 	adb_wo_obj(&fio, ADBI_FI_ACL, &acl);
 
 	adb_wa_append_obj(ctx->files, &fio);
@@ -431,7 +431,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 				ctx->files_dir, apk_error_str(r));
 			goto err;
 		}
-		r = mkpkg_process_directory(ctx, openat(AT_FDCWD, ctx->files_dir, O_RDONLY), &fi);
+		r = mkpkg_process_directory(ctx, openat(AT_FDCWD, ctx->files_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC), &fi);
 		if (r) goto err;
 		if (!ctx->installed_size) ctx->installed_size = BLOCK_SIZE;
 	}
@@ -482,7 +482,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	}
 
 	adb_c_adb(os, &ctx->db, trust);
-	int files_fd = openat(AT_FDCWD, ctx->files_dir, O_RDONLY);
+	int files_fd = openat(AT_FDCWD, ctx->files_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 	for (i = ADBI_FIRST; i <= adb_ra_num(&ctx->paths); i++) {
 		struct adb_obj path, files, file;
 		adb_ro_obj(&ctx->paths, i, &path);
@@ -506,7 +506,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 				os, APK_BLOB_STRUCT(hdr), sz,
 				apk_istream_from_fd(openat(files_fd,
 					apk_pathbuilder_cstr(&ctx->pb),
-					O_RDONLY)));
+					O_RDONLY | O_CLOEXEC)));
 			apk_pathbuilder_pop(&ctx->pb, n);
 		}
 	}

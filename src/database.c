@@ -1604,16 +1604,16 @@ static void unmount_proc(struct apk_database *db)
 static int setup_cache(struct apk_database *db)
 {
 	db->cache_dir = db->ctx->cache_dir;
-	db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
+	db->cache_fd = openat(db->root_fd, db->cache_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 	if (db->cache_fd >= 0) return remount_cache_rw(db);
 	if (db->ctx->cache_dir_set || errno != ENOENT) return -errno;
 
 	// The default cache does not exists, fallback to static cache directory
 	db->cache_dir = apk_static_cache_dir;
-	db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
+	db->cache_fd = openat(db->root_fd, db->cache_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 	if (db->cache_fd < 0) {
 		apk_make_dirs(db->root_fd, db->cache_dir, 0755, 0755);
-		db->cache_fd = openat(db->root_fd, db->cache_dir, O_RDONLY | O_CLOEXEC);
+		db->cache_fd = openat(db->root_fd, db->cache_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 		if (db->cache_fd < 0) {
 			if (db->ctx->open_flags & APK_OPENF_WRITE) return -EROFS;
 			db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
@@ -1767,7 +1767,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		blob = APK_BLOB_STR("+etc\n" "@etc/init.d\n" "!etc/apk\n");
 		apk_blob_for_each_segment(blob, "\n", add_protected_path, db);
 
-		apk_dir_foreach_file(openat(db->root_fd, "etc/apk/protected_paths.d", O_RDONLY | O_CLOEXEC),
+		apk_dir_foreach_file(openat(db->root_fd, "etc/apk/protected_paths.d", O_DIRECTORY | O_RDONLY | O_CLOEXEC),
 				     add_protected_paths_from_file, db);
 	}
 
@@ -1813,7 +1813,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS)) {
 		if (ac->repositories_file == NULL) {
 			add_repos_from_file(db, db->root_fd, "etc/apk/repositories");
-			apk_dir_foreach_file(openat(db->root_fd, "etc/apk/repositories.d", O_RDONLY | O_CLOEXEC),
+			apk_dir_foreach_file(openat(db->root_fd, "etc/apk/repositories.d", O_DIRECTORY | O_RDONLY | O_CLOEXEC),
 					     add_repos_from_file, db);
 		} else {
 			add_repos_from_file(db, AT_FDCWD, ac->repositories_file);
@@ -1874,7 +1874,7 @@ static int apk_db_write_layers(struct apk_database *db)
 		struct layer_data *ld = &layers[i];
 		if (!(db->active_layers & BIT(i))) continue;
 
-		ld->fd = openat(db->root_fd, apk_db_layer_name(i), O_RDONLY | O_CLOEXEC);
+		ld->fd = openat(db->root_fd, apk_db_layer_name(i), O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 		if (ld->fd < 0) {
 			if (i == 0) return -errno;
 			continue;
@@ -2174,7 +2174,7 @@ int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb, int
 
 	if (static_cache) {
 		struct stat st1, st2;
-		int fd = openat(db->root_fd, apk_static_cache_dir, O_RDONLY | O_CLOEXEC);
+		int fd = openat(db->root_fd, apk_static_cache_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 		if (fd < 0) return fd;
 		/* Do not handle static cache as static cache if the explicit
 		 * cache is enabled at the static cache location */

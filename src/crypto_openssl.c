@@ -138,7 +138,7 @@ int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn, int priv)
 	BIO *bio;
 	int fd;
 
-	fd = openat(dirfd, fn, O_RDONLY|O_CLOEXEC);
+	fd = openat(dirfd, fn, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) return -errno;
 
 	bio = BIO_new_fp(fdopen(fd, "r"), BIO_CLOSE);

@@ -120,7 +120,7 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 		fctx->flags |= FETCH_LINK;
 		break;
 	case OPT_FETCH_output:
-		fctx->outdir_fd = openat(AT_FDCWD, optarg, O_RDONLY | O_CLOEXEC);
+		fctx->outdir_fd = openat(AT_FDCWD, optarg, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 		break;
 	case OPT_FETCH_url:
 		fctx->flags |= FETCH_URL;

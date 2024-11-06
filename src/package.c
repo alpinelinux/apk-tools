@@ -783,7 +783,7 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		db->script_dirs_checked = 1;
 	}
 	if (fd < 0) {
-		fd = openat(root_fd, fn, O_CREAT|O_RDWR|O_TRUNC, 0755);
+		fd = openat(root_fd, fn, O_CREAT | O_RDWR | O_TRUNC, 0755);
 		created = fd >= 0;
 	}
 	if (fd < 0) goto err_log;

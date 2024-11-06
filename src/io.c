@@ -820,7 +820,7 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		char val[1024], buf[1024];
 
 		r = 0;
-		fd = openat(atfd, filename, O_RDONLY|O_NONBLOCK);
+		fd = openat(atfd, filename, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 		if (fd >= 0) {
 			len = apk_flistxattr(fd, buf, sizeof(buf));
 			if (len > 0) {
@@ -1198,7 +1198,7 @@ static FILE *fopenat(int dirfd, const char *pathname)
 	FILE *f;
 	int fd;
 
-	fd = openat(dirfd, pathname, O_RDONLY|O_CLOEXEC);
+	fd = openat(dirfd, pathname, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) return NULL;
 
 	f = fdopen(fd, "r");
