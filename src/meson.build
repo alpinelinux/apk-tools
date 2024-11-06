@@ -127,9 +127,14 @@ endif
 
 apk_src += [ generated_help ]
 
-apk_arch_prefix = get_option('arch_prefix')
-if apk_arch_prefix != ''
-	apk_cargs += ['-DAPK_ARCH_PREFIX="@0@"'.format(apk_arch_prefix)]
+apk_arch = get_option('arch')
+if apk_arch != ''
+	apk_cargs += ['-DAPK_CONFIG_ARCH="@0@"'.format(apk_arch)]
+else
+	apk_arch_prefix = get_option('arch_prefix')
+	if apk_arch_prefix != ''
+		apk_cargs += ['-DAPK_CONFIG_ARCH_PREFIX="@0@"'.format(apk_arch_prefix)]
+	endif
 endif
 
 apk_uvol_db_target = get_option('uvol_db_target').strip('/')

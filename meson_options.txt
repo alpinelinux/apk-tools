@@ -1,3 +1,4 @@
+option('arch', description: 'Specify a custom arch', type: 'string')
 option('arch_prefix', description: 'Define a custom arch prefix for default arch', type: 'string')
 option('crypto_backend', description: 'Crypto backend', type: 'combo', choices: ['openssl', 'mbedtls'], value: 'openssl')
 option('compressed-help', description: 'Compress help database, needs lua-zlib', type: 'boolean', value: true)

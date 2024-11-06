@@ -3,9 +3,9 @@
 
 /* default architecture for APK packages. */
 #if defined(__x86_64__)
-#define APK_DEFAULT_BASE_ARCH        "x86_64"
+#define APK_DEFAULT_BASE_ARCH	"x86_64"
 #elif defined(__i386__)
-#define APK_DEFAULT_BASE_ARCH        "x86"
+#define APK_DEFAULT_BASE_ARCH	"x86"
 #elif defined(__powerpc__) && !defined(__powerpc64__)
 #define APK_DEFAULT_BASE_ARCH	"ppc"
 #elif defined(__powerpc64__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
@@ -47,20 +47,21 @@
 #elif defined(__ARC700__)
 #define APK_DEFAULT_BASE_ARCH	"arc700"
 #elif defined(__sh__) && defined(__SH2__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define APK_DEFAULT_ARCH	"sh2eb"
+#define APK_DEFAULT_BASE_ARCH	"sh2eb"
 #elif defined(__sh__) && defined(__SH3__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_ARCH	"sh3"
+#define APK_DEFAULT_BASE_ARCH	"sh3"
 #elif defined(__sh__) && defined(__SH4__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_ARCH	"sh4"
-
-#else
+#define APK_DEFAULT_BASE_ARCH	"sh4"
+#elif !defined(APK_CONFIG_ARCH)
 #error APK_DEFAULT_BASE_ARCH not detected for this architecture
 #endif
 
-#ifndef APK_ARCH_PREFIX
-#define APK_DEFAULT_ARCH	APK_DEFAULT_BASE_ARCH
+#if defined(APK_CONFIG_ARCH)
+#define APK_DEFAULT_ARCH APK_CONFIG_ARCH
+#elif defined(APK_CONFIG_ARCH_PREFIX)
+#define APK_DEFAULT_ARCH APK_CONFIG_ARCH_PREFIX "-" APK_DEFAULT_BASE_ARCH
 #else
-#define APK_DEFAULT_ARCH	APK_ARCH_PREFIX "-" APK_DEFAULT_BASE_ARCH
+#define APK_DEFAULT_ARCH APK_DEFAULT_BASE_ARCH
 #endif
 
 #endif
