@@ -60,6 +60,7 @@ int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg)
 #ifdef EVP_MD_CTX_FLAG_FINALISE
 	EVP_MD_CTX_set_flags(dctx->mdctx, EVP_MD_CTX_FLAG_FINALISE);
 #endif
+	if (dctx->alg == APK_DIGEST_NONE) return 0;
 	if (EVP_DigestInit_ex(dctx->mdctx, apk_digest_alg_to_evp(alg), 0) != 1)
 		return -APKE_CRYPTO_ERROR;
 	return 0;
