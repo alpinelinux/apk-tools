@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 
 #include "apk_defines.h"
+#include "apk_arch.h"
 #include "apk_adb.h"
 #include "apk_applet.h"
 #include "apk_database.h"

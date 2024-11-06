@@ -30,6 +30,7 @@
 #endif
 
 #include "apk_defines.h"
+#include "apk_arch.h"
 #include "apk_package.h"
 #include "apk_database.h"
 #include "apk_applet.h"
