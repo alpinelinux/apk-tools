@@ -175,6 +175,7 @@ struct apk_database {
 	unsigned int active_layers;
 	unsigned int num_dir_update_errors;
 
+	unsigned int root_dev_works : 1;
 	unsigned int performing_self_upgrade : 1;
 	unsigned int usermode : 1;
 	unsigned int permanent : 1;

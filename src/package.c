@@ -769,7 +769,7 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	argv[0] = fn;
 	apk_msg(out, "Executing %s", apk_last_path_segment(fn));
 
-	fd = memfd_create(fn, 0);
+	if (db->root_dev_works) fd = memfd_create(fn, 0);
 	if (!db->script_dirs_checked) {
 		if (fd < 0 && apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0) {
 			apk_err(out, "failed to prepare dirs for hook scripts: %s",
