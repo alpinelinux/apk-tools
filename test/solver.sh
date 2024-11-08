@@ -2,15 +2,18 @@
 
 update_repo() {
 	local repo="$1"
-	if [ ! -f "$repo.adb" -o "$repo.repo" -nt "$repo.adb" ]; then
-		tar czf "$repo.adb" --transform "flags=r;s|$repo|APKINDEX|" "$repo"
+	if [ ! -f "$repo.adb" -o "$repo" -nt "$repo.adb" ]; then
+		tar czf "$repo.adb" -P --transform "flags=r;s|$repo|APKINDEX|" "$repo"
 	fi
 }
 
 run_test() {
 	local test="$1"
+	local testdir="$(realpath "$(dirname "$test")")"
 
-	tmproot=$(mktemp -d -p /tmp apktest.$test.XXXXXXXX)
+	tmproot=$(mktemp -d -p /tmp apktest.$(basename $test).XXXXXXXX)
+	[ -d "$tmproot" ] || return 1
+
 	mkdir -p "$tmproot/etc/apk/cache" \
 		"$tmproot/lib/apk/db" \
 		"$tmproot/var/log" \
@@ -33,22 +36,22 @@ run_test() {
 			done > "$tmproot/etc/apk/world"
 			;;
 		"@INSTALLED "*)
-			ln -snf "$PWD/${ln#* }" "$tmproot/lib/apk/db/installed"
+			ln -snf "${testdir}/${ln#* }" "$tmproot/lib/apk/db/installed"
 			;;
 		"@REPO @"*)
 			tag="${ln#* }"
 			repo="${tag#* }"
 			tag="${tag% *}"
-			update_repo "$repo"
-			echo "$tag file://localhost/$PWD/$repo.adb" >> "$tmproot"/etc/apk/repositories
+			update_repo "$testdir/$repo"
+			echo "$tag file://localhost/${testdir}/$repo.adb" >> "$tmproot"/etc/apk/repositories
 			;;
 		"@REPO "*)
 			repo="${ln#* }"
-			update_repo "$repo"
-			echo "file://localhost/$PWD/$repo.adb" >> "$tmproot"/etc/apk/repositories
+			update_repo "$testdir/$repo"
+			echo "file://localhost/${testdir}/$repo.adb" >> "$tmproot"/etc/apk/repositories
 			;;
 		"@CACHE "*)
-			ln -snf "$PWD/${ln#* }" "$tmproot/etc/apk/cache/installed"
+			ln -snf "${testdir}/${ln#* }" "$tmproot/etc/apk/cache/installed"
 			;;
 		"@EXPECT")
 			exec 4> "$tmproot/data/expected"
@@ -65,6 +68,7 @@ run_test() {
 	done < "$test"
 	exec 4> /dev/null
 
+	retcode=1
 	if [ "$run_found" = "yes" ]; then
 		$APK_TEST --allow-untrusted --simulate --root "$tmproot" $args > "$tmproot/data/output" 2>&1
 
@@ -73,13 +77,12 @@ run_test() {
 			echo "FAIL: $test"
 			diff -ru "$tmproot/data/expected" "$tmproot/data/output"
 		else
-			pass=$((pass+1))
+			retcode=0
 		fi
-	else
-		fail=$((fail+1))
 	fi
 
 	rm -rf "$tmproot"
+	return $retcode
 }
 
 APK_TEST="$VALGRIND ../src/apk"
@@ -87,8 +90,12 @@ TEST_TO_RUN="$@"
 
 fail=0
 pass=0
-for test in ${TEST_TO_RUN:-*.test}; do
-	run_test "$test"
+for test in ${TEST_TO_RUN:-solver/*.test}; do
+	if run_test "$test"; then
+		pass=$((pass+1))
+	else
+		fail=$((fail+1))
+	fi
 done
 
 total=$((fail+pass))
