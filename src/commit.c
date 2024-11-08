@@ -523,27 +523,68 @@ static void print_conflicts(struct print_state *ps, struct apk_package *pkg)
 	label_end(ps);
 }
 
-static void print_dep(struct apk_package *pkg0, struct apk_dependency *d0, struct apk_package *pkg, void *ctx)
+struct matched_dep {
+	struct apk_package *pkg;
+	struct apk_dependency *dep;
+};
+APK_ARRAY(matched_dep_array, struct matched_dep);
+
+static void match_dep(struct apk_package *pkg0, struct apk_dependency *d0, struct apk_package *pkg, void *ctx)
 {
-	struct print_state *ps = (struct print_state *) ctx;
-	const char *label = (ps->match & APK_DEP_SATISFIES) ? "satisfies:" : "breaks:";
+	struct matched_dep_array **deps = ctx;
+	matched_dep_array_add(deps, (struct matched_dep) {
+		.pkg = pkg0,
+		.dep = d0,
+	});
+}
+
+static int matched_dep_sort(const void *p1, const void *p2)
+{
+	const struct matched_dep *m1 = p1, *m2 = p2;
+	int r;
+
+	if (m1->pkg && m2->pkg) {
+		r = apk_pkg_cmp_display(m1->pkg, m2->pkg);
+		if (r != 0) return r;
+	}
+	return m1->dep->op - m2->dep->op;
+}
+
+static void print_mdeps(struct print_state *ps, const char *label, struct matched_dep_array *deps)
+{
+	const struct matched_dep *dep;
+
+	if (apk_array_len(deps) == 0) return;
 
 	label_start(ps, label);
-	if (pkg0 == NULL)
-		apk_print_indented_fmt(&ps->i, "world[" DEP_FMT "]", DEP_PRINTF(d0));
-	else
-		apk_print_indented_fmt(&ps->i, PKG_VER_FMT "[" DEP_FMT "]",
-				       PKG_VER_PRINTF(pkg0),
-				       DEP_PRINTF(d0));
+	apk_array_qsort(deps, matched_dep_sort);
+	foreach_array_item(dep, deps) {
+		if (dep->pkg == NULL)
+			apk_print_indented_fmt(&ps->i, "world[" DEP_FMT "]", DEP_PRINTF(dep->dep));
+		else
+			apk_print_indented_fmt(&ps->i, PKG_VER_FMT "[" DEP_FMT "]",
+					       PKG_VER_PRINTF(dep->pkg),
+					       DEP_PRINTF(dep->dep));
+	}
+	apk_array_reset(deps);
 }
 
 static void print_deps(struct print_state *ps, struct apk_package *pkg, int match)
 {
+	const char *label = (match & APK_DEP_SATISFIES) ? "satisfies:" : "breaks:";
+	struct matched_dep_array *deps;
+
+	matched_dep_array_init(&deps);
+
 	ps->match = match;
 	match |= APK_FOREACH_MARKED | APK_FOREACH_DEP;
-	apk_pkg_foreach_matching_dependency(NULL, ps->world, match|apk_foreach_genid(), pkg, print_dep, ps);
-	apk_pkg_foreach_reverse_dependency(pkg, match|apk_foreach_genid(), print_dep, ps);
+	apk_pkg_foreach_matching_dependency(NULL, ps->world, match|apk_foreach_genid(), pkg, match_dep, &deps);
+	print_mdeps(ps, label, deps);
+	apk_pkg_foreach_reverse_dependency(pkg, match|apk_foreach_genid(), match_dep, &deps);
+	print_mdeps(ps, label, deps);
 	label_end(ps);
+
+	matched_dep_array_free(&deps);
 }
 
 static void print_broken_deps(struct print_state *ps, struct apk_dependency_array *deps, const char *label)
