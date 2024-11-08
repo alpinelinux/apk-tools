@@ -1958,7 +1958,7 @@ static int apk_db_write_arch(struct apk_database *db)
 	struct apk_ostream *os;
 	apk_blob_t **arch;
 
-	os = apk_ostream_to_file(db->root_fd, apk_arch_file, 0755);
+	os = apk_ostream_to_file(db->root_fd, apk_arch_file, 0644);
 	if (IS_ERR(os)) return PTR_ERR(os);
 
 	foreach_array_item(arch, db->arches) {
