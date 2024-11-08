@@ -12,7 +12,7 @@ variables:
   image:
     name: alpine
   script:
-    - apk add -u make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib zstd-dev
+    - apk add -u make tar gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib zstd-dev
     - make -j$(nproc) check
 
 test-legacy:alpine:x86_64:
@@ -35,7 +35,7 @@ test:alpine:
   image: alpine
   stage: test
   script:
-    - apk add -u make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib meson zlib-static zstd-static openssl-libs-static
+    - apk add -u make tar gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib meson zlib-static zstd-static openssl-libs-static
     - meson setup build
     - ninja -C build
     - meson setup build-static -Dc_link_args=-static -Ddefault_library=static -Dprefer_static=true
@@ -48,7 +48,7 @@ test:alpine-alt-config:
   image: alpine
   stage: test
   script:
-    - apk add -u make gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib meson
+    - apk add -u make tar gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib meson
     - meson setup build -Durl_backend=wget -Dzstd=false
     - ninja -C build
   tags:
@@ -60,7 +60,7 @@ test:alpine-muon:
   stage: test
   script:
     - echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories
-    - apk add -u gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib muon zlib-static zstd-static openssl-libs-static
+    - apk add -u tar gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib muon zlib-static zstd-static openssl-libs-static
     - muon setup build
     - ninja -C build
     - muon setup -Dc_link_args="-static" -Dprefer_static=true -Ddefault_library=static build-static
@@ -74,7 +74,7 @@ test:debian:
   stage: test
   script:
     - apt-get update
-    - apt-get install -y make gcc git libssl-dev zlib1g-dev libzstd-dev lua5.3-dev lua5.2 lua-zlib-dev sudo meson
+    - apt-get install -y tar make gcc git libssl-dev zlib1g-dev libzstd-dev lua5.3-dev lua5.2 lua-zlib-dev sudo meson
     - unlink /bin/sh
     - ln -s /bin/bash /bin/sh
     - meson setup build
@@ -87,7 +87,7 @@ build-static:
   stage: build
   image: alpinelinux/build-base:latest-$ARCH
   script:
-    - abuild-apk add -u make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib zlib-static zstd-static openssl-libs-static
+    - abuild-apk add -u tar make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib zlib-static zstd-static openssl-libs-static
     - make -j$(nproc) static
     - install -s -m0755 src/apk.static src/apk.static-$ARCH
   parallel:

@@ -1,9 +1,7 @@
-@ARGS
---test-repo basic.repo
---test-instdb basic.installed
---test-world a<2
---latest
-upgrade
+@ARGS upgrade --latest
+@REPO basic.repo
+@INSTALLED basic.installed
+@WORLD a<2
 @EXPECT
 ERROR: unable to select packages:
   a-2:

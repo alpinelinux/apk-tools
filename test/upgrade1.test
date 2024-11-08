@@ -1,8 +1,7 @@
-@ARGS
---test-repo upgrade.repo
---test-instdb upgrade.installed
---test-world app
-upgrade
+@ARGS upgrade
+@REPO upgrade.repo
+@INSTALLED upgrade.installed
+@WORLD app
 @EXPECT
 (1/3) Purging libold (1)
 (2/3) Installing libnew (1)

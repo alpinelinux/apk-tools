@@ -1,7 +1,5 @@
-@ARGS
---no-network
---test-repo !basic.repo
-add a
+@ARGS --no-network add a
+@CACHE basic.repo
 @EXPECT
 (1/2) Installing b (2)
 (2/2) Installing a (2)

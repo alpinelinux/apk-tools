@@ -1,10 +1,9 @@
-@ARGS
---test-repo pinning-basic.repo
---test-repo testing:pinning-overlay1.repo
---test-repo testing2:pinning-overlay1.repo
---test-instdb pinning.installed
---test-world "c@testing"
-add c@testing2
+@ARGS add c@testing2
+@REPO pinning-basic.repo
+@REPO @testing pinning-overlay1.repo
+@REPO @testing2 pinning-overlay1.repo
+@INSTALLED pinning.installed
+@WORLD c@testing
 @EXPECT
 (1/2) Updating pinning a@testing2 (3)
 (2/2) Updating pinning c@testing2 (3)

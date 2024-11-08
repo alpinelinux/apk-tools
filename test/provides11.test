@@ -1,7 +1,5 @@
-
-@ARGS
---test-repo provides.repo
-add conflicted-parent
+@ARGS add conflicted-parent
+@REPO provides.repo
 @EXPECT
 ERROR: unable to select packages:
   conflicted-provider (virtual):

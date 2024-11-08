@@ -1,8 +1,7 @@
-@ARGS
---test-repo upgrade.repo
---test-instdb upgrade3.installed
---test-world "app b"
-upgrade b
+@ARGS upgrade b
+@REPO upgrade.repo
+@INSTALLED upgrade3.installed
+@WORLD app b
 @EXPECT
 (1/1) Upgrading b (1 -> 2)
 OK: 0 MiB in 3 packages

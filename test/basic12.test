@@ -1,10 +1,7 @@
-@ARGS
---no-network
---test-repo basic.repo
---test-instdb basic.installed
---test-world a
---latest
-upgrade
+@ARGS --no-network upgrade --latest
+@REPO basic.repo
+@INSTALLED basic.installed
+@WORLD a
 @EXPECT
 ERROR: unable to select packages:
   b-2:

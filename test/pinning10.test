@@ -1,9 +1,8 @@
-@ARGS
---test-repo pinning-basic.repo
---test-repo testing:pinning-overlay1.repo
---test-instdb pinning.installed
---test-world "a@testing"
-add a
+@ARGS add a
+@REPO pinning-basic.repo
+@REPO @testing pinning-overlay1.repo
+@INSTALLED pinning.installed
+@WORLD a@testing
 @EXPECT
 (1/2) Purging c (3)
 (2/2) Downgrading a (3 -> 2)

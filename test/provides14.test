@@ -1,6 +1,5 @@
-@ARGS
---test-repo provides.repo
-add hplip-sane sane-backends
+@ARGS add hplip-sane sane-backends
+@REPO provides.repo
 @EXPECT
 ERROR: unable to select packages:
   hplip-sane (virtual):

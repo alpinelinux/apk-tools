@@ -1,9 +1,7 @@
-@ARGS
---test-repo selfupgrade.repo
---test-instdb selfupgrade1.installed
---test-world "apk-tools application"
---self-upgrade-only
-upgrade
+@ARGS upgrade --self-upgrade-only
+@REPO selfupgrade.repo
+@INSTALLED selfupgrade1.installed
+@WORLD apk-tools application
 @EXPECT
 Upgrading critical system libraries and apk-tools:
 (1/2) Upgrading libcrypto (1 -> 2)

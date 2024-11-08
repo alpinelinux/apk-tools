@@ -1,6 +1,5 @@
-@ARGS
---test-repo basic.repo
-add badarch
+@ARGS add badarch
+@REPO basic.repo
 @EXPECT
 ERROR: unable to select packages:
   badarch-1:

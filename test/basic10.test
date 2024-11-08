@@ -1,7 +1,5 @@
-@ARGS
---test-repo basic.repo
---force
-add a not-in-repo
+@ARGS --force add a not-in-repo
+@REPO basic.repo
 @EXPECT
 (1/2) Installing b (2)
 (2/2) Installing a (2)

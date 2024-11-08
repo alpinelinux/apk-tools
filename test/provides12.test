@@ -1,6 +1,5 @@
-@ARGS
---test-repo provides.repo
-add self-provide
+@ARGS add self-provide
+@REPO provides.repo
 @EXPECT
 ERROR: unable to select packages:
   self-provide-0.1:

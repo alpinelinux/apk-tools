@@ -2454,9 +2454,10 @@ int apk_db_add_repository(struct apk_database *db, apk_blob_t _repository)
 	error_action = "opening";
 	apk_digest_calc(&repo->hash, APK_DIGEST_SHA256, buf, strlen(buf));
 
+	if (!(db->ctx->flags & APK_NO_NETWORK))
+		db->available_repos |= BIT(repo_num);
+
 	if (is_remote) {
-		if (!(db->ctx->flags & APK_NO_NETWORK))
-			db->available_repos |= BIT(repo_num);
 		if (db->ctx->flags & APK_NO_CACHE) {
 			error_action = "fetching";
 			apk_notice(out, "fetch " URL_FMT, URL_PRINTF(urlp));
@@ -2477,7 +2478,7 @@ int apk_db_add_repository(struct apk_database *db, apk_blob_t _repository)
 			if (r != 0) goto err;
 			atfd = db->cache_fd;
 		}
-	} else {
+	} else if (strncmp(repo->url, "file://localhost/", 17) != 0) {
 		db->local_repos |= BIT(repo_num);
 		db->available_repos |= BIT(repo_num);
 	}

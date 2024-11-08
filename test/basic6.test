@@ -1,7 +1,6 @@
-@ARGS
---test-repo basic.repo
---test-instdb basic.installed2
---test-world a
-upgrade
+@ARGS upgrade
+@REPO basic.repo
+@INSTALLED basic5.installed
+@WORLD a
 @EXPECT
 OK: 0 MiB in 2 packages

@@ -1,6 +1,5 @@
-@ARGS
---test-repo provides.repo
-add selfconflicting
+@ARGS add selfconflicting
+@REPO provides.repo
 @EXPECT
 ERROR: unable to select packages:
   selfconflicting-1:

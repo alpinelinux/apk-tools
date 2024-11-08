@@ -1,6 +1,5 @@
-@ARGS
---test-repo installif6.repo
-add sway peruse
+@ARGS add sway peruse
+@REPO installif6.repo
 @EXPECT
 (1/5) Installing qt5-qtbase (1)
 (2/5) Installing peruse (1)

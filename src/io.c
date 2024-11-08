@@ -1131,8 +1131,11 @@ static struct cache_item *idcache_by_id(struct apk_id_hash *hash, unsigned long 
 
 const char *apk_url_local_file(const char *url)
 {
-	if (strncmp(url, "file:", 5) == 0)
+	if (strncmp(url, "file:", 5) == 0) {
+		if (strncmp(url, "file://localhost/", 17) == 0)
+			return &url[16];
 		return &url[5];
+	}
 
 	if (strncmp(url, "http:", 5) != 0 &&
 	    strncmp(url, "https:", 6) != 0 &&

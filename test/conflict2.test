@@ -1,6 +1,5 @@
-@ARGS
---test-repo conflict.repo
-add a b>1
+@ARGS add a b>1
+@REPO conflict.repo
 @EXPECT
 ERROR: unable to select packages:
   b-2:

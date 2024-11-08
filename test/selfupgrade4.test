@@ -1,7 +1,5 @@
-@ARGS
---test-repo selfupgrade.repo
---test-instdb selfupgrade3.installed
---test-world "apk-tools"
---self-upgrade-only
-upgrade
+@ARGS upgrade --self-upgrade-only
+@REPO selfupgrade.repo
+@INSTALLED selfupgrade3.installed
+@WORLD apk-tools
 @EXPECT

@@ -1,9 +1,7 @@
-@ARGS
---test-repo upgrade4.repo
---test-instdb upgrade3.installed
---test-world "app b"
---prune
-upgrade
+@ARGS upgrade --prune
+@REPO upgrade4.repo
+@INSTALLED upgrade3.installed
+@WORLD app b
 @EXPECT
 (1/4) Purging b (1)
 (2/4) Purging libold (1)

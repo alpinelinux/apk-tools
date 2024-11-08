@@ -1,8 +1,7 @@
-@ARGS
---test-repo complicated1.repo
---test-instdb complicated1.installed
---test-world d
-add a
+@ARGS add a
+@REPO complicated1.repo
+@INSTALLED complicated1.installed
+@WORLD d
 @EXPECT
 (1/4) Upgrading d (1.0 -> 1.5)
 (2/4) Installing c (1)

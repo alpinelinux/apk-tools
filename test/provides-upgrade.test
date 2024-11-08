@@ -1,8 +1,7 @@
-@ARGS
---test-repo provides-upgrade.repo
---test-instdb provides-upgrade.installed
---test-world a
-upgrade
+@ARGS upgrade
+@REPO provides-upgrade.repo
+@INSTALLED provides-upgrade.installed
+@WORLD a
 @EXPECT
 (1/2) Purging a (1)
 (2/2) Installing b (2)

@@ -1,6 +1,5 @@
-@ARGS
---test-repo complicated1.repo
-add a>2
+@ARGS add a>2
+@REPO complicated1.repo
 @EXPECT
 ERROR: unable to select packages:
   d-2.0:

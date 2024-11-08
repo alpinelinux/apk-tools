@@ -1,8 +1,7 @@
-@ARGS
---test-repo provides.repo
---test-instdb provides-swap.installed
---test-world mail-reader
-add mymailreader
+@ARGS add mymailreader
+@REPO provides.repo
+@INSTALLED provides-swap.installed
+@WORLD mail-reader
 @EXPECT
 (1/2) Purging mailreadplus (1)
 (2/2) Installing mymailreader (1)

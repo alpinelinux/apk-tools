@@ -1,6 +1,5 @@
-@ARGS
---test-repo complicated1.repo
-add a
+@ARGS add a
+@REPO complicated1.repo
 @EXPECT
 (1/4) Installing d (1.5)
 (2/4) Installing c (1)

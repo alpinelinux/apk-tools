@@ -1,6 +1,5 @@
-@ARGS
---test-repo provides.repo
-add mail-reader mailreadplus
+@ARGS add mail-reader mailreadplus
+@REPO provides.repo
 @EXPECT
 (1/1) Installing mailreadplus (1)
 OK: 0 MiB in 1 packages

@@ -1,6 +1,5 @@
-@ARGS
---test-repo provides.repo
-add app
+@ARGS add app
+@REPO provides.repo
 @EXPECT
 (1/2) Installing libfoo (1)
 (2/2) Installing app (2)

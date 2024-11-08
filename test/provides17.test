@@ -1,6 +1,5 @@
-@ARGS
---test-repo provides.repo
-add testp testr
+@ARGS add testp testr
+@REPO provides.repo
 @EXPECT
 (1/2) Installing testp (0.1-r0)
 (2/2) Installing testr (0.1-r0)

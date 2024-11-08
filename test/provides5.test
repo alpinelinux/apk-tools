@@ -1,6 +1,5 @@
-@ARGS
---test-repo provides.repo
-add server-a server-b
+@ARGS add server-a server-b
+@REPO provides.repo
 @EXPECT
 ERROR: unable to select packages:
   server-a-1:

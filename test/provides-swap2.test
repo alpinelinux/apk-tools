@@ -1,7 +1,6 @@
-@ARGS
---test-repo provides.repo
---test-instdb provides-swap.installed
---test-world mail-reader
-add mailreadplus
+@ARGS add mailreadplus
+@REPO provides.repo
+@INSTALLED provides-swap.installed
+@WORLD mail-reader
 @EXPECT
 OK: 0 MiB in 1 packages

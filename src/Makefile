@@ -68,13 +68,11 @@ apk-objs		:= \
 	app_stats.o app_verify.o app_version.o app_vertest.o applet.o
 
 LIBS_apk		:= -lapk
-LIBS_apk-test		:= -lapk
 LIBS_apk.so		:= -L$(obj) -lapk
 
 CFLAGS_ALL		+= -D_ATFILE_SOURCE -Iportability -Isrc
 CFLAGS_apk.o		:= -DAPK_VERSION=\"$(VERSION)\"
 CFLAGS_apk-static.o	:= -DAPK_VERSION=\"$(VERSION)\" -DOPENSSL_NO_ENGINE
-CFLAGS_apk-test.o	:= -DAPK_VERSION=\"$(VERSION)\" -DOPENSSL_NO_ENGINE -DTEST_MODE
 
 progs-$(STATIC)		+= apk.static
 apk.static-objs		:= $(filter-out apk.o,$(apk-objs)) apk-static.o
@@ -82,7 +80,6 @@ apk.static-libs		:= $(apk-static-libs)
 LDFLAGS_apk.static	:= -static
 LIBS_apk.static		:= -Wl,--as-needed -ldl -Wl,--no-as-needed
 LDFLAGS_apk		+= -L$(obj)
-LDFLAGS_apk-test	+= -L$(obj)
 
 CFLAGS_ALL		+= $(CRYPTO_CFLAGS) $(ZLIB_CFLAGS) $(ZSTD_CFLAGS)
 LIBS			:= -Wl,--as-needed \
@@ -104,15 +101,7 @@ CFLAGS_help.o		:= -I$(obj)
 
 generate-y		+= help.h
 
-# Test build
-ifeq ($(TEST),y)
-progs-y			+= apk-test
-apk-test-objs		:= apk-test.o $(filter-out apk.o, $(apk-objs))
-endif
-
 $(obj)/apk: $(libapk_so)
-
-$(obj)/apk-test: $(libapk_so)
 
 $(obj)/apk.so: $(libapk_so)
 

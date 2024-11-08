@@ -49,7 +49,7 @@ install:
 	$(INSTALL) README.md $(DESTDIR)$(DOCDIR)
 
 check test: FORCE
-	$(Q)$(MAKE) TEST=y compile
+	$(Q)$(MAKE) compile
 	$(Q)$(MAKE) -C test
 
 static:

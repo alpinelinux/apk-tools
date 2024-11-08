@@ -1,7 +1,6 @@
-@ARGS
---test-repo installif1.repo
---test-repo installif2.repo
-add foo app
+@ARGS add foo app
+@REPO installif1.repo
+@REPO installif2.repo
 @EXPECT
 (1/4) Installing lib (1)
 (2/4) Installing app (1)

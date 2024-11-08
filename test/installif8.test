@@ -1,6 +1,5 @@
-@ARGS
---test-repo installif8.repo
-add bar
+@ARGS add bar
+@REPO installif8.repo
 @EXPECT
 (1/2) Installing bar (1)
 (2/2) Installing foo (1)

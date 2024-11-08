@@ -1,8 +1,7 @@
-@ARGS
---test-repo basic.repo
---test-instdb basic.installed
---test-world "a b"
-del a
+@ARGS del a
+@REPO basic.repo
+@INSTALLED basic.installed
+@WORLD a b
 @EXPECT
 (1/1) Purging a (1)
 OK: 0 MiB in 1 packages

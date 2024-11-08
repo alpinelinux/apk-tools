@@ -1,9 +1,8 @@
-@ARGS
---test-repo pinning-basic.repo
---test-repo testing:pinning-overlay2.repo
---test-instdb pinning.installed
---test-world "c@testing"
-upgrade -a
+@ARGS upgrade -a
+@REPO pinning-basic.repo
+@REPO @testing pinning-overlay2.repo
+@INSTALLED pinning.installed
+@WORLD c@testing
 @EXPECT
 (1/3) Downgrading b (3 -> 2)
 (2/3) Upgrading a@testing (3 -> 3.1)

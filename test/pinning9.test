@@ -1,8 +1,7 @@
-@ARGS
---test-repo pinning-basic.repo
---test-repo testing:pinning-overlay1.repo
---test-instdb pinning.installed2
---test-world "c@testing"
-add
+@ARGS add
+@REPO pinning-basic.repo
+@REPO @testing pinning-overlay1.repo
+@INSTALLED pinning9.installed
+@WORLD c@testing
 @EXPECT
 OK: 0 MiB in 3 packages

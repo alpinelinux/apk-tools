@@ -1,8 +1,7 @@
-@ARGS
---test-repo installif1.repo
---test-instdb installif1.installed
---test-world app
-del app
+@ARGS del app
+@REPO installif1.repo
+@INSTALLED installif1.installed
+@WORLD app
 @EXPECT
 (1/4) Purging appiif1 (1)
 (2/4) Purging app (1)

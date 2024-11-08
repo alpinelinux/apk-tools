@@ -1,6 +1,5 @@
-@ARGS
---test-repo provides.repo
-add testr
+@ARGS add testr
+@REPO provides.repo
 @EXPECT
 ERROR: unable to select packages:
   foopkg (virtual):

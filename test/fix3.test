@@ -1,10 +1,7 @@
-@ARGS
---test-repo basic.repo
---test-instdb basic.installed
---test-world a
---upgrade
---depends
-fix a
+@ARGS fix --upgrade --depends a
+@REPO basic.repo
+@INSTALLED basic.installed
+@WORLD a
 @EXPECT
 (1/2) Upgrading b (1 -> 2)
 (2/2) Upgrading a (1 -> 2)

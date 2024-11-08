@@ -1,6 +1,5 @@
-@ARGS
---test-repo conflict.repo
-add a b
+@ARGS add a b
+@REPO conflict.repo
 @EXPECT
 (1/2) Installing b (1)
 (2/2) Installing a (1)

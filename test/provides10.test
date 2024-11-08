@@ -1,7 +1,5 @@
-
-@ARGS
---test-repo provides.repo
-add conflicted-dep
+@ARGS add conflicted-dep
+@REPO provides.repo
 @EXPECT
 ERROR: unable to select packages:
   conflicted-provider (virtual):

@@ -1,6 +1,5 @@
-@ARGS
---test-repo provides.repo
-add mailreadsolo mailreadplus
+@ARGS add mailreadsolo mailreadplus
+@REPO provides.repo
 @EXPECT
 ERROR: unable to select packages:
   mailreadplus-1:

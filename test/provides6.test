@@ -1,6 +1,5 @@
-@ARGS
---test-repo provides.repo
-add app app2
+@ARGS add app app2
+@REPO provides.repo
 @EXPECT
 ERROR: unable to select packages:
   libfoo-1:
