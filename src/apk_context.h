@@ -69,12 +69,12 @@ struct apk_ctx {
 	struct apk_progress progress;
 	struct adb_compression_spec compspec;
 	const char *root;
-	const char *arch;
 	const char *keys_dir;
 	const char *cache_dir;
 	const char *repositories_file;
 	const char *uvol;
 	struct apk_string_array *repository_list;
+	struct apk_string_array *arch_list;
 	struct apk_istream *protected_paths;
 
 	struct apk_digest_ctx dctx;

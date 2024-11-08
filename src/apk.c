@@ -213,7 +213,7 @@ static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const cha
 		apk_io_url_set_timeout(atoi(optarg));
 		break;
 	case OPT_GLOBAL_arch:
-		ac->arch = optarg;
+		apk_string_array_add(&ac->arch_list, (char*) optarg);
 		break;
 	case OPT_GLOBAL_print_arch:
 		puts(APK_DEFAULT_ARCH);

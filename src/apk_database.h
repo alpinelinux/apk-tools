@@ -167,8 +167,8 @@ struct apk_database {
 	unsigned num_repos, num_repo_tags;
 	const char *cache_dir;
 	char *cache_remount_dir, *root_proc_dir;
+	apk_blob_t *noarch;
 	unsigned long cache_remount_flags;
-	apk_blob_t *arch;
 	unsigned int local_repos, available_repos;
 	unsigned int pending_triggers;
 	unsigned int extract_flags;
@@ -191,6 +191,7 @@ struct apk_database {
 	struct apk_dependency_array *world;
 	struct apk_id_cache *id_cache;
 	struct apk_protected_path_array *protected_paths;
+	struct apk_blobptr_array *arches;
 	struct apk_repository repos[APK_MAX_REPOS];
 	struct apk_repository_tag repo_tags[APK_MAX_TAGS];
 	struct apk_atom_pool atoms;
@@ -252,6 +253,8 @@ int apk_db_run_script(struct apk_database *db, int fd, char **argv);
 static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
 	return apk_ctx_since(db->ctx, since);
 }
+
+bool apk_db_arch_compatible(struct apk_database *db, apk_blob_t *arch);
 
 struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_tmpl *tmpl);
 struct apk_package *apk_db_get_pkg(struct apk_database *db, struct apk_digest *id);

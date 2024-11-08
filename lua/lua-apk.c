@@ -155,7 +155,7 @@ static int get_boolean_field(lua_State *L, int index, const char *key)
 static int get_ctx(lua_State *L, int i, struct apk_ctx *o)
 {
 	struct flagmap *f;
-	o->arch = (char *)get_opt_string_field(L, i, "arch", NULL);
+	apk_string_array_add(&o->arch_list, (char *)get_opt_string_field(L, i, "arch", NULL));
 	o->root = (char *)get_opt_string_field(L, i, "root", NULL);
 	o->repositories_file = (char *)get_opt_string_field(L, i, "repositories_file", NULL);
 	o->keys_dir = (char *)get_opt_string_field(L, i, "keys_dir", NULL);

@@ -15,7 +15,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdbool.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -494,6 +493,7 @@ int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl,
 		break;
 	case 'A':
 		pkg->arch = apk_atomize_dup(&db->atoms, value);
+		if (!apk_db_arch_compatible(db, pkg->arch)) pkg->uninstallable = 1;
 		break;
 	case 'D':
 		if (apk_blob_pull_deps(&value, db, &pkg->depends)) {

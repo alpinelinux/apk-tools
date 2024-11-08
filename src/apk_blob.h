@@ -48,6 +48,8 @@ static inline apk_blob_t apk_blob_trim(apk_blob_t blob)
 	return b;
 }
 
+APK_ARRAY(apk_blobptr_array, apk_blob_t *);
+
 char *apk_blob_cstr(apk_blob_t str);
 apk_blob_t apk_blob_dup(apk_blob_t blob);
 int apk_blob_split(apk_blob_t blob, apk_blob_t split, apk_blob_t *l, apk_blob_t *r);

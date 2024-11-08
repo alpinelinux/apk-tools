@@ -194,9 +194,6 @@ static inline int apk_ostream_close_error(struct apk_ostream *os, int r)
 int apk_blob_from_istream(struct apk_istream *is, size_t size, apk_blob_t *b);
 int apk_blob_from_file(int atfd, const char *file, apk_blob_t *b);
 
-#define APK_BTF_ADD_EOL		0x00000001
-int apk_blob_to_file(int atfd, const char *file, apk_blob_t b, unsigned int flags);
-
 #define APK_FI_NOFOLLOW		0x80000000
 #define APK_FI_XATTR_DIGEST(x)	(((x) & 0xff) << 8)
 #define APK_FI_DIGEST(x)	(((x) & 0xff))

@@ -1,5 +1,5 @@
-#ifndef APK_DEFAULT_ARCH_H
-#define APK_DEFAULT_ARCH_H
+#ifndef APK_ARCH_H
+#define APK_ARCH_H
 
 /* default architecture for APK packages. */
 #if defined(__x86_64__)

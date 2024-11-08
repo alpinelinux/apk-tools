@@ -14,6 +14,7 @@
 #include <endian.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 #include <time.h>

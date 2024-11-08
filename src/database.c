@@ -563,6 +563,31 @@ static void apk_db_pkg_rdepends(struct apk_database *db, struct apk_package *pkg
 	}
 }
 
+static void apk_db_add_arch(struct apk_database *db, apk_blob_t arch)
+{
+	apk_blob_t **item, *atom = apk_atomize_dup(&db->atoms, apk_blob_trim(arch));
+	foreach_array_item(item, db->arches)
+		if (*item == atom) return;
+	apk_blobptr_array_add(&db->arches, atom);
+}
+
+static int apk_db_add_arch_from_istream(struct apk_database *db, struct apk_istream *is)
+{
+	apk_blob_t token = APK_BLOB_STRLIT("\n"), line;
+	if (IS_ERR(is)) return PTR_ERR(is);
+	while (apk_istream_get_delim(is, token, &line) == 0)
+		apk_db_add_arch(db, line);
+	return apk_istream_close(is);
+}
+
+bool apk_db_arch_compatible(struct apk_database *db, apk_blob_t *arch)
+{
+	apk_blob_t **item;
+	foreach_array_item(item, db->arches)
+		if (*item == arch) return true;
+	return db->noarch == arch;
+}
+
 struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_tmpl *tmpl)
 {
 	struct apk_package *pkg = &tmpl->pkg, *idb;
@@ -680,7 +705,7 @@ int apk_repo_format_item(struct apk_database *db, struct apk_repository *repo, s
 	}
 
 	*fd = AT_FDCWD;
-	return apk_repo_format_real_url(db->arch, repo, pkg, buf, len, 0);
+	return apk_repo_format_real_url(db->arches->item[0], repo, pkg, buf, len, 0);
 }
 
 int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
@@ -706,7 +731,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		r = apk_repo_format_cache_index(APK_BLOB_BUF(cacheitem), repo);
 	if (r < 0) return r;
 
-	r = apk_repo_format_real_url(db->arch, repo, pkg, url, sizeof(url), &urlp);
+	r = apk_repo_format_real_url(db->arches->item[0], repo, pkg, url, sizeof(url), &urlp);
 	if (r < 0) return r;
 
 	if (autoupdate && !(db->ctx->force & APK_FORCE_REFRESH)) {
@@ -1672,10 +1697,12 @@ void apk_db_init(struct apk_database *db)
 	list_init(&db->installed.triggers);
 	apk_protected_path_array_init(&db->protected_paths);
 	apk_string_array_init(&db->filename_array);
+	apk_blobptr_array_init(&db->arches);
 	apk_name_array_init(&db->available.sorted_names);
 	apk_package_array_init(&db->installed.sorted_packages);
 	db->permanent = 1;
 	db->root_fd = -1;
+	db->noarch = apk_atomize(&db->atoms, APK_BLOB_STRLIT("noarch"));
 }
 
 int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
@@ -1715,19 +1742,20 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 
 	setup_uvol_target(db);
 
-	if (ac->arch && (ac->root_set || (ac->open_flags & APK_OPENF_ALLOW_ARCH))) {
-		db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(ac->arch));
+	if (apk_array_len(ac->arch_list) && (ac->root_set || (ac->open_flags & APK_OPENF_ALLOW_ARCH))) {
+		char **arch;
+		foreach_array_item(arch, ac->arch_list)
+			apk_db_add_arch(db, APK_BLOB_STR(*arch));
 		db->write_arch = ac->root_set;
 	} else {
-		apk_blob_t arch;
-		if (!apk_blob_from_file(db->root_fd, apk_arch_file, &arch)) {
-			db->arch = apk_atomize_dup(&db->atoms, apk_blob_trim(arch));
-			free(arch.ptr);
-		} else {
-			db->arch = apk_atomize(&db->atoms, APK_BLOB_STR(APK_DEFAULT_ARCH));
-			db->write_arch = 1;
-		}
+		struct apk_istream *is = apk_istream_from_file(db->root_fd, apk_arch_file);
+		if (!IS_ERR(is)) apk_db_add_arch_from_istream(db, is);
 	}
+	if (apk_array_len(db->arches) == 0) {
+		apk_db_add_arch(db, APK_BLOB_STR(APK_DEFAULT_ARCH));
+		db->write_arch = 1;
+	}
+
 
 	db->id_cache = apk_ctx_get_id_cache(ac);
 
@@ -1747,10 +1775,9 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			db->lock_fd = openat(db->root_fd, apk_lock_file,
 					     O_CREAT | O_RDWR | O_CLOEXEC, 0600);
 		}
+		if (db->lock_fd < 0) goto ret_errno;
 
-		if (db->lock_fd < 0) {
-			goto ret_errno;
-		} else if (flock(db->lock_fd, LOCK_EX | LOCK_NB) < 0) {
+		if (flock(db->lock_fd, LOCK_EX | LOCK_NB) < 0) {
 			struct sigaction sa, old_sa;
 
 			if (!ac->lock_wait) goto ret_errno;
@@ -1945,6 +1972,21 @@ static int apk_db_write_layers(struct apk_database *db)
 	return rr;
 }
 
+static int apk_db_write_arch(struct apk_database *db)
+{
+	struct apk_ostream *os;
+	apk_blob_t **arch;
+
+	os = apk_ostream_to_file(db->root_fd, apk_arch_file, 0755);
+	if (IS_ERR(os)) return PTR_ERR(os);
+
+	foreach_array_item(arch, db->arches) {
+		apk_ostream_write(os, (*arch)->ptr, (*arch)->len);
+		apk_ostream_write(os, "\n", 1);
+	}
+	return apk_ostream_close(os);
+}
+
 int apk_db_write_config(struct apk_database *db)
 {
 	struct apk_out *out = &db->ctx->out;
@@ -1961,11 +2003,13 @@ int apk_db_write_config(struct apk_database *db)
 		return -1;
 	}
 
-	if (db->write_arch)
-		apk_blob_to_file(db->root_fd, apk_arch_file, *db->arch, APK_BTF_ADD_EOL);
+	if (db->write_arch) {
+		r = apk_db_write_arch(db);
+		if (!rr) rr = r;
+	}
 
 	r = apk_db_write_layers(db);
-	if (!rr ) rr = r;
+	if (!rr) rr = r;
 
 	r = apk_db_index_write_nr_cache(db);
 	if (r < 0 && !rr) rr = r;
@@ -2003,6 +2047,7 @@ void apk_db_close(struct apk_database *db)
 		free(ppath->relative_pattern);
 	apk_protected_path_array_free(&db->protected_paths);
 
+	apk_blobptr_array_free(&db->arches);
 	apk_string_array_free(&db->filename_array);
 	apk_pkgtmpl_free(&db->overlay_tmpl);
 	apk_dependency_array_free(&db->world);
@@ -2422,7 +2467,7 @@ int apk_db_add_repository(struct apk_database *db, apk_blob_t _repository)
 
 	int is_remote = (apk_url_local_file(repo->url) == NULL);
 
-	r = apk_repo_format_real_url(db->arch, repo, NULL, buf, sizeof(buf), &urlp);
+	r = apk_repo_format_real_url(db->arches->item[0], repo, NULL, buf, sizeof(buf), &urlp);
 	if (r != 0) goto err;
 
 	error_action = "opening";

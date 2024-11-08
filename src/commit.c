@@ -14,7 +14,6 @@
 #include "apk_database.h"
 #include "apk_package.h"
 #include "apk_solver.h"
-
 #include "apk_print.h"
 
 struct apk_stats {
@@ -569,6 +568,11 @@ static void analyze_package(struct print_state *ps, struct apk_package *pkg, uns
 		label_start(ps, "error:");
 		apk_print_indented_fmt(&ps->i, "uninstallable");
 		label_end(ps);
+		if (!apk_db_arch_compatible(ps->db, pkg->arch)) {
+			label_start(ps, "arch:");
+			apk_print_indented_fmt(&ps->i, BLOB_FMT, BLOB_PRINTF(*pkg->arch));
+			label_end(ps);
+		}
 		print_broken_deps(ps, pkg->depends, "depends:");
 		print_broken_deps(ps, pkg->provides, "provides:");
 		print_broken_deps(ps, pkg->install_if, "install_if:");
