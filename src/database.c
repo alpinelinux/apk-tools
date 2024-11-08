@@ -1371,16 +1371,11 @@ static void mark_in_cache(struct apk_database *db, int static_cache, int dirfd, 
 	pkg->repos |= BIT(APK_REPOSITORY_CACHED);
 }
 
-static int apk_db_add_repository_cb(void *pdb, apk_blob_t repository)
-{
-	return apk_db_add_repository((struct apk_database *)pdb, repository);
-}
-
 static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 {
 	struct apk_database *db = (struct apk_database *) ctx;
 	struct apk_out *out = &db->ctx->out;
-	apk_blob_t blob;
+	int r;
 
 	if (dirfd != AT_FDCWD && dirfd != db->root_fd) {
 		/* loading from repositories.d; check extension */
@@ -1388,16 +1383,12 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 			return 0;
 	}
 
-	if (apk_blob_from_file(dirfd, file, &blob)) {
+	r = apk_db_parse_istream(db, apk_istream_from_file(dirfd, file), apk_db_add_repository);
+	if (r != 0) {
 		if (dirfd != AT_FDCWD) return 0;
-		apk_err(out, "failed to read repositories: %s", file);
-		apk_notice(out, "NOTE: --repositories-file is relative to the startup directory since apk 2.12.0_rc2");
-		return -ENOENT;
+		apk_err(out, "failed to read repositories: %s: %s", file, apk_error_str(r));
+		return r;
 	}
-
-	apk_blob_for_each_segment(blob, "\n", apk_db_add_repository_cb, db);
-	free(blob.ptr);
-
 	return 0;
 }
 
