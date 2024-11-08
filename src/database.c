@@ -563,21 +563,29 @@ static void apk_db_pkg_rdepends(struct apk_database *db, struct apk_package *pkg
 	}
 }
 
-static void apk_db_add_arch(struct apk_database *db, apk_blob_t arch)
+static int apk_db_parse_istream(struct apk_database *db, struct apk_istream *is, int (*cb)(struct apk_database *, apk_blob_t))
+{
+	apk_blob_t token = APK_BLOB_STRLIT("\n"), line;
+	int r;
+
+	if (IS_ERR(is)) return PTR_ERR(is);
+	while (apk_istream_get_delim(is, token, &line) == 0) {
+		r = cb(db, line);
+		if (r < 0) {
+			apk_istream_error(is, r);
+			break;
+		}
+	}
+	return apk_istream_close(is);
+}
+
+static int apk_db_add_arch(struct apk_database *db, apk_blob_t arch)
 {
 	apk_blob_t **item, *atom = apk_atomize_dup(&db->atoms, apk_blob_trim(arch));
 	foreach_array_item(item, db->arches)
-		if (*item == atom) return;
+		if (*item == atom) return 0;
 	apk_blobptr_array_add(&db->arches, atom);
-}
-
-static int apk_db_add_arch_from_istream(struct apk_database *db, struct apk_istream *is)
-{
-	apk_blob_t token = APK_BLOB_STRLIT("\n"), line;
-	if (IS_ERR(is)) return PTR_ERR(is);
-	while (apk_istream_get_delim(is, token, &line) == 0)
-		apk_db_add_arch(db, line);
-	return apk_istream_close(is);
+	return 0;
 }
 
 bool apk_db_arch_compatible(struct apk_database *db, apk_blob_t *arch)
@@ -1200,31 +1208,23 @@ static int apk_db_triggers_write(struct apk_database *db, struct apk_installed_p
 	return 0;
 }
 
-static int apk_db_triggers_read(struct apk_database *db, struct apk_istream *is)
+static int apk_db_add_trigger(struct apk_database *db, apk_blob_t l)
 {
 	struct apk_digest digest;
 	struct apk_package *pkg;
-	struct apk_installed_package *ipkg;
-	apk_blob_t l;
 
-	if (IS_ERR(is)) return PTR_ERR(is);
-
-	while (apk_istream_get_delim(is, APK_BLOB_STR("\n"), &l) == 0) {
-		apk_blob_pull_digest(&l, &digest);
-		apk_blob_pull_char(&l, ' ');
-
-		pkg = apk_db_get_pkg(db, &digest);
-		if (pkg == NULL || pkg->ipkg == NULL)
-			continue;
-
-		ipkg = pkg->ipkg;
+	apk_blob_pull_digest(&l, &digest);
+	apk_blob_pull_char(&l, ' ');
+	pkg = apk_db_get_pkg(db, &digest);
+	if (pkg && pkg->ipkg) {
+		struct apk_installed_package *ipkg = pkg->ipkg;
 		apk_blob_for_each_segment(l, " ", parse_triggers, ipkg);
 		if (apk_array_len(ipkg->triggers) != 0 &&
 		    !list_hashed(&ipkg->trigger_pkgs_list))
 			list_add_tail(&ipkg->trigger_pkgs_list,
 				      &db->installed.triggers);
 	}
-	return apk_istream_close(is);
+	return 0;
 }
 
 static int apk_db_read_layer(struct apk_database *db, unsigned layer)
@@ -1260,7 +1260,7 @@ static int apk_db_read_layer(struct apk_database *db, unsigned layer)
 	if (!(flags & APK_OPENF_NO_INSTALLED)) {
 		r = apk_db_fdb_read(db, apk_istream_from_file(fd, "installed"), -1, layer);
 		if (!ret && r != -ENOENT) ret = r;
-		r = apk_db_triggers_read(db, apk_istream_from_file(fd, "triggers"));
+		r = apk_db_parse_istream(db, apk_istream_from_file(fd, "triggers"), apk_db_add_trigger);
 		if (!ret && r != -ENOENT) ret = r;
 	}
 
@@ -1298,9 +1298,8 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 	return apk_ostream_close(os);
 }
 
-static int add_protected_path(void *ctx, apk_blob_t blob)
+static int apk_db_add_protected_path(struct apk_database *db, apk_blob_t blob)
 {
-	struct apk_database *db = (struct apk_database *) ctx;
 	int protect_mode = APK_PROTECT_NONE;
 
 	/* skip empty lines and comments */
@@ -1351,21 +1350,12 @@ static int file_ends_with_dot_list(const char *file)
 	return TRUE;
 }
 
-static int add_protected_paths_from_istream(struct apk_database *db, struct apk_istream *is)
-{
-	apk_blob_t token = APK_BLOB_STRLIT("\n"), line;
-	if (IS_ERR(is)) return PTR_ERR(is);
-	while (apk_istream_get_delim(is, token, &line) == 0)
-		add_protected_path(db, line);
-	return apk_istream_close(is);
-}
-
 static int add_protected_paths_from_file(void *ctx, int dirfd, const char *file)
 {
 	struct apk_database *db = (struct apk_database *) ctx;
 
 	if (!file_ends_with_dot_list(file)) return 0;
-	add_protected_paths_from_istream(db, apk_istream_from_file(dirfd, file));
+	apk_db_parse_istream(db, apk_istream_from_file(dirfd, file), apk_db_add_protected_path);
 	return 0;
 }
 
@@ -1709,7 +1699,6 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 {
 	struct apk_out *out = &ac->out;
 	const char *msg = NULL;
-	apk_blob_t blob;
 	int r = -1, i;
 
 	apk_default_acl_dir = apk_db_acl_atomize(db, 0755, 0, 0);
@@ -1749,7 +1738,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		db->write_arch = ac->root_set;
 	} else {
 		struct apk_istream *is = apk_istream_from_file(db->root_fd, apk_arch_file);
-		if (!IS_ERR(is)) apk_db_add_arch_from_istream(db, is);
+		if (!IS_ERR(is)) apk_db_parse_istream(db, is, apk_db_add_arch);
 	}
 	if (apk_array_len(db->arches) == 0) {
 		apk_db_add_arch(db, APK_BLOB_STR(APK_DEFAULT_ARCH));
@@ -1801,11 +1790,12 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	}
 
 	if (ac->protected_paths) {
-		add_protected_paths_from_istream(db, ac->protected_paths);
+		apk_db_parse_istream(db, ac->protected_paths, apk_db_add_protected_path);
 		ac->protected_paths = NULL;
 	} else {
-		blob = APK_BLOB_STR("+etc\n" "@etc/init.d\n" "!etc/apk\n");
-		apk_blob_for_each_segment(blob, "\n", add_protected_path, db);
+		apk_db_add_protected_path(db, APK_BLOB_STR("+etc"));
+		apk_db_add_protected_path(db, APK_BLOB_STR("@etc/init.d"));
+		apk_db_add_protected_path(db, APK_BLOB_STR("!etc/apk"));
 
 		apk_dir_foreach_file(openat(db->root_fd, "etc/apk/protected_paths.d", O_DIRECTORY | O_RDONLY | O_CLOEXEC),
 				     add_protected_paths_from_file, db);
