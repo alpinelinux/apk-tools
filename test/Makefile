@@ -8,7 +8,7 @@ testroot = $(tmproot)/$(basename $@)
 SUDO	:= sudo
 APK	:= ../src/apk --keys-dir /etc/apk/keys
 
-SYSREPO ?= http://nl.alpinelinux.org/alpine/edge/main
+SYSREPO ?= https://nl.alpinelinux.org/alpine/edge/main
 
 # Absolute path to QEMU user-mode emulation binary to be copied into every
 # $testroot before running test. This is used when running root-tests in
@@ -26,7 +26,7 @@ $(repos):
 	@rm -f repos.out
 	@cd $@ &&\
 		for i in */APKBUILD; do \
-			( cd $${i%/*} && REPODEST="$$PWD/../.." abuild -R ) \
+			( cd $${i%/*} && REPODEST="$$PWD/../.." abuild -r ) \
 				>> ../repos.out 2>&1 || { cat ../repos.out >&2; exit 1; } \
 		done
 
