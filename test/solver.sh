@@ -70,7 +70,7 @@ run_test() {
 
 	retcode=1
 	if [ "$run_found" = "yes" ]; then
-		$APK_TEST --allow-untrusted --simulate --root "$tmproot" $args > "$tmproot/data/output" 2>&1
+		$APK --allow-untrusted --simulate --root "$tmproot" $args > "$tmproot/data/output" 2>&1
 
 		if ! cmp "$tmproot/data/output" "$tmproot/data/expected" > /dev/null 2>&1; then
 			fail=$((fail+1))
@@ -85,7 +85,6 @@ run_test() {
 	return $retcode
 }
 
-APK_TEST="$VALGRIND ../src/apk"
 TEST_TO_RUN="$@"
 
 fail=0

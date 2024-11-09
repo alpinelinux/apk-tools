@@ -43,4 +43,4 @@ subdir('src')
 if(lua_dep.found())
 	subdir('lua')
 endif
-subdir('tests')
+subdir('test')

@@ -6,23 +6,31 @@ stages:
 
 variables:
   PACKAGE_ENDPOINT: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/"
+  ALPINE_DEPS: "make tar gcc git musl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib"
 
-.test-legacy:alpine:
+.test:alpine:
   stage: test
   image:
     name: alpine
   script:
-    - apk add -u make tar gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib zstd-dev
-    - make -j$(nproc) check
+    - apk add -u meson $ALPINE_DEPS openssl-dev zstd-dev zlib-static zstd-static openssl-libs-static
+    - meson setup build
+    - ninja -C build
+    - meson setup build-static -Dc_link_args=-static -Ddefault_library=static -Dprefer_static=true
+    - ninja -C build-static src/apk
+    - meson test -C build
+  artifacts:
+    reports:
+      junit: build/meson-logs/testlog.junit.xml
 
-test-legacy:alpine:x86_64:
-  extends: .test-legacy:alpine
+test:alpine:x86_64:
+  extends: .test:alpine
   tags:
     - docker-alpine
     - x86_64
 
-test-legacy:alpine:x86:
-  extends: .test-legacy:alpine
+test:alpine:x86:
+  extends: .test:alpine
   image:
     entrypoint: ["linux32", "sh", "-c"]
     docker:
@@ -31,24 +39,11 @@ test-legacy:alpine:x86:
     - docker-alpine
     - x86
 
-test:alpine:
-  image: alpine
-  stage: test
-  script:
-    - apk add -u make tar gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib meson zlib-static zstd-static openssl-libs-static
-    - meson setup build
-    - ninja -C build
-    - meson setup build-static -Dc_link_args=-static -Ddefault_library=static -Dprefer_static=true
-    - ninja -C build-static src/apk
-  tags:
-    - docker-alpine
-    - x86_64
-
 test:alpine-alt-config:
   image: alpine
   stage: test
   script:
-    - apk add -u make tar gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib meson
+    - apk add -u meson $ALPINE_DEPS openssl-dev
     - meson setup build -Durl_backend=wget -Dzstd=false
     - ninja -C build
   tags:
@@ -60,11 +55,22 @@ test:alpine-muon:
   stage: test
   script:
     - echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories
-    - apk add -u tar gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib muon zlib-static zstd-static openssl-libs-static
+    - apk add -u muon $ALPINE_DEPS openssl-dev zstd-dev zlib-static zstd-static openssl-libs-static
     - muon setup build
     - ninja -C build
     - muon setup -Dc_link_args="-static" -Dprefer_static=true -Ddefault_library=static build-static
     - ninja -C build-static src/apk
+  tags:
+    - docker-alpine
+    - x86_64
+
+test:alpine-legacy:
+  stage: test
+  image:
+    name: alpine
+  script:
+    - apk add -u make tar gcc git musl-dev openssl-dev linux-headers zlib-dev lua5.3-dev lua5.3-lzlib zstd-dev
+    - make -j$(nproc) check
   tags:
     - docker-alpine
     - x86_64
@@ -87,7 +93,7 @@ build-static:
   stage: build
   image: alpinelinux/build-base:latest-$ARCH
   script:
-    - abuild-apk add -u tar make gcc git musl-dev openssl-dev linux-headers zlib-dev zstd-dev lua5.3-dev lua5.3-lzlib zlib-static zstd-static openssl-libs-static
+    - abuild-apk add -u $ALPINE_DEPS openssl-dev zstd-dev zlib-static zstd-static openssl-libs-static
     - make -j$(nproc) static
     - install -s -m0755 src/apk.static src/apk.static-$ARCH
   parallel:
