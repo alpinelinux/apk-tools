@@ -1710,7 +1710,6 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
 	db->permanent = !detect_tmpfs_root(db);
 	db->usermode = !!(ac->open_flags & APK_OPENF_USERMODE);
-	db->root_dev_works = (faccessat(db->root_fd, "dev/fd/0", R_OK, 0) == 0);
 
 	if (!(ac->open_flags & APK_OPENF_CREATE)) {
 		// Autodetect usermode from the installeddb owner
@@ -1737,6 +1736,8 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		db->write_arch = 1;
 	}
 
+	if (ac->flags & APK_NO_CHROOT) db->root_dev_works = access("/dev/fd/0", R_OK) == 0;
+	else db->root_dev_works = faccessat(db->root_fd, "dev/fd/0", R_OK, 0) == 0;
 
 	db->id_cache = apk_ctx_get_id_cache(ac);
 
