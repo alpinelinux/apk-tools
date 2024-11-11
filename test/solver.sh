@@ -99,10 +99,13 @@ for test in ${TEST_TO_RUN:-solver/*.test}; do
 	fi
 done
 
-total=$((fail+pass))
-if [ "$fail" != "0" ]; then
-	echo "FAIL: $fail of $total test cases failed"
-else
-	echo "OK: all $total solver test cases passed"
+if [ -z "$TEST_TO_RUN" ]; then
+	total=$((fail+pass))
+	if [ "$fail" != "0" ]; then
+		echo "FAIL: $fail of $total test cases failed"
+	else
+		echo "OK: all $total solver test cases passed"
+	fi
 fi
-exit $fail
+[ "$fail" == 0 ] || exit 1
+exit 0

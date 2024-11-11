@@ -65,7 +65,7 @@ apk-objs		:= \
 	app_convdb.o app_convndx.o app_del.o app_dot.o app_extract.o app_fetch.o \
 	app_fix.o app_index.o app_info.o app_list.o app_manifest.o app_mkndx.o \
 	app_mkpkg.o app_policy.o app_update.o app_upgrade.o app_search.o \
-	app_stats.o app_verify.o app_version.o app_vertest.o applet.o
+	app_stats.o app_verify.o app_version.o applet.o
 
 LIBS_apk		:= -lapk
 LIBS_apk.so		:= -L$(obj) -lapk

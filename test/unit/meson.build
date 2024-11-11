@@ -1,0 +1,31 @@
+cmocka_dep = dependency('cmocka', required: false)
+
+if cmocka_dep.found()
+
+unit_test_src = [
+	'version_test.c',
+	'main.c'
+]
+
+unit_test_exe = executable('unit_tests',
+	files(unit_test_src),
+	install: false,
+	dependencies: [
+		cmocka_dep,
+		libapk_dep,
+		libfetch_dep.partial_dependency(includes: true),
+		libportability_dep.partial_dependency(includes: true),
+	],
+	c_args: apk_cargs,
+)
+
+test('unit_tests', unit_test_exe,
+	env : [
+		'CMOCKA_MESSAGE_OUTPUT=XML',
+		'CMOCKA_XML_FILE=' + meson.current_build_dir() + '/%g.junit.xml'
+	],
+	suite: 'unit',
+	workdir: meson.current_source_dir(),
+	priority: 200)
+
+endif

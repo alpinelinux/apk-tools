@@ -91,7 +91,6 @@ apk_src = [
 	'app_stats.c',
 	'app_verify.c',
 	'app_version.c',
-	'app_vertest.c',
 	'applet.c',
 ]
 
