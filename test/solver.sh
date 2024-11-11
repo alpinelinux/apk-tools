@@ -3,7 +3,9 @@
 update_repo() {
 	local repo="$1"
 	if [ ! -f "$repo.adb" -o "$repo" -nt "$repo.adb" ]; then
-		tar czf "$repo.adb" -P --transform "flags=r;s|$repo|APKINDEX|" "$repo"
+		local tmpname="$repo.new.$$"
+		tar czf "$tmpname" -P --transform "flags=r;s|$repo|APKINDEX|" "$repo"
+		mv "$tmpname" "$repo.adb"
 	fi
 }
 
