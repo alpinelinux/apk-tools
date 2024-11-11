@@ -1177,15 +1177,6 @@ static int apk_read_script_archive_entry(void *ctx,
 	return 0;
 }
 
-static int parse_triggers(void *ctx, apk_blob_t blob)
-{
-	struct apk_installed_package *ipkg = ctx;
-
-	if (blob.len == 0) return 0;
-	apk_string_array_add(&ipkg->triggers, apk_blob_cstr(blob));
-	return 0;
-}
-
 static int apk_db_triggers_write(struct apk_database *db, struct apk_installed_package *ipkg, struct apk_ostream *os)
 {
 	char buf[APK_BLOB_DIGEST_BUF];
@@ -1208,6 +1199,17 @@ static int apk_db_triggers_write(struct apk_database *db, struct apk_installed_p
 	return 0;
 }
 
+static void apk_db_pkg_add_triggers(struct apk_database *db, struct apk_installed_package *ipkg, apk_blob_t triggers)
+{
+	apk_blob_foreach_word(word, triggers)
+		apk_string_array_add(&ipkg->triggers, apk_blob_cstr(word));
+
+	if (apk_array_len(ipkg->triggers) != 0 &&
+	    !list_hashed(&ipkg->trigger_pkgs_list))
+		list_add_tail(&ipkg->trigger_pkgs_list,
+			      &db->installed.triggers);
+}
+
 static int apk_db_add_trigger(struct apk_database *db, apk_blob_t l)
 {
 	struct apk_digest digest;
@@ -1216,14 +1218,7 @@ static int apk_db_add_trigger(struct apk_database *db, apk_blob_t l)
 	apk_blob_pull_digest(&l, &digest);
 	apk_blob_pull_char(&l, ' ');
 	pkg = apk_db_get_pkg(db, &digest);
-	if (pkg && pkg->ipkg) {
-		struct apk_installed_package *ipkg = pkg->ipkg;
-		apk_blob_for_each_segment(l, " ", parse_triggers, ipkg);
-		if (apk_array_len(ipkg->triggers) != 0 &&
-		    !list_hashed(&ipkg->trigger_pkgs_list))
-			list_add_tail(&ipkg->trigger_pkgs_list,
-				      &db->installed.triggers);
-	}
+	if (pkg && pkg->ipkg) apk_db_pkg_add_triggers(db, pkg->ipkg, l);
 	return 0;
 }
 
@@ -2544,12 +2539,7 @@ static int read_info_line(void *_ctx, apk_blob_t line)
 		ipkg->replaces_priority = apk_blob_pull_uint(&r, 10);
 	} else if (apk_blob_compare(APK_BLOB_STR("triggers"), l) == 0) {
 		apk_array_truncate(ipkg->triggers, 0);
-		apk_blob_for_each_segment(r, " ", parse_triggers, ctx->ipkg);
-
-		if (apk_array_len(ctx->ipkg->triggers) != 0 &&
-		    !list_hashed(&ipkg->trigger_pkgs_list))
-			list_add_tail(&ipkg->trigger_pkgs_list,
-				      &db->installed.triggers);
+		apk_db_pkg_add_triggers(db, ctx->ipkg, r);
 	} else {
 		apk_extract_v2_control(&ctx->ectx, l, r);
 	}

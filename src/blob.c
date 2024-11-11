@@ -170,23 +170,6 @@ int apk_blob_ends_with(apk_blob_t a, apk_blob_t b)
 	return memcmp(a.ptr+a.len-b.len, b.ptr, b.len) == 0;
 }
 
-int apk_blob_for_each_segment(apk_blob_t blob, const char *split,
-			      int (*cb)(void *ctx, apk_blob_t blob), void *ctx)
-{
-	apk_blob_t l, r, s = APK_BLOB_STR(split);
-	int rc;
-
-	r = blob;
-	while (apk_blob_split(r, s, &l, &r)) {
-		rc = cb(ctx, l);
-		if (rc != 0)
-			return rc;
-	}
-	if (r.len > 0)
-		return cb(ctx, r);
-	return 0;
-}
-
 apk_blob_t apk_blob_fmt(char *str, size_t sz, const char *fmt, ...)
 {
 	va_list va;
@@ -198,6 +181,19 @@ apk_blob_t apk_blob_fmt(char *str, size_t sz, const char *fmt, ...)
 
 	if (n >= sz) return APK_BLOB_NULL;
 	return APK_BLOB_PTR_LEN(str, n);
+}
+
+int apk_blob_word_iterate(apk_blob_t *b, apk_blob_t *iter)
+{
+	static const apk_blob_t space = APK_BLOB_STRLIT(" ");
+	do {
+		if (b->ptr == NULL) return 0;
+		if (!apk_blob_split(*b, space, iter, b)) {
+			*iter = *b;
+			*b = APK_BLOB_NULL;
+		}
+	} while (iter->len == 0);
+	return 1;
 }
 
 static unsigned char digitdecode[] = {

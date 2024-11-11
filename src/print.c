@@ -314,8 +314,8 @@ int apk_print_indented(struct apk_indent *i, apk_blob_t blob)
 
 void apk_print_indented_words(struct apk_indent *i, const char *text)
 {
-	apk_blob_for_each_segment(APK_BLOB_STR(text), " ",
-		(apk_blob_cb) apk_print_indented, i);
+	apk_blob_foreach_word(word, APK_BLOB_STR(text))
+		apk_print_indented(i, word);
 }
 
 void apk_print_indented_fmt(struct apk_indent *i, const char *fmt, ...)

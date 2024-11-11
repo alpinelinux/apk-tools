@@ -3,6 +3,7 @@ cmocka_dep = dependency('cmocka', required: false)
 if cmocka_dep.found()
 
 unit_test_src = [
+	'blob_test.c',
 	'version_test.c',
 	'main.c'
 ]
