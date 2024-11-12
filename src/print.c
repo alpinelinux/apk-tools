@@ -31,6 +31,7 @@
 	func(APKE_SIGNATURE_UNTRUSTED,	"UNTRUSTED signature") \
 	func(APKE_SIGNATURE_INVALID,	"BAD signature") \
 	func(APKE_FORMAT_INVALID,	"file format is invalid or inconsistent") \
+	func(APKE_FORMAT_OBSOLETE,	"file format is obsolete (e.g. missing embedded checksum)") \
 	func(APKE_FORMAT_NOT_SUPPORTED,	"file format not supported (in this applet)") \
 	func(APKE_PKGNAME_FORMAT,	"package name is invalid") \
 	func(APKE_PKGVERSION_FORMAT,	"package version is invalid") \

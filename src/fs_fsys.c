@@ -267,9 +267,25 @@ static const struct apk_fsdir_ops *apk_fsops_get(apk_blob_t dir)
 	return &fsdir_ops_fsys;
 }
 
+static int need_checksum(const struct apk_file_info *fi)
+{
+	switch (fi->mode & S_IFMT) {
+	case S_IFDIR:
+	case S_IFSOCK:
+	case S_IFBLK:
+	case S_IFCHR:
+	case S_IFIFO:
+		return FALSE;
+	default:
+		if (fi->link_target) return FALSE;
+		return TRUE;
+	}
+}
+
 int apk_fs_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct apk_istream *is,
 	apk_progress_cb cb, void *cb_ctx, unsigned int extract_flags, apk_blob_t pkgctx)
 {
+	if (fi->digest.alg == APK_DIGEST_NONE && need_checksum(fi)) return -APKE_FORMAT_OBSOLETE;
 	if (S_ISDIR(fi->mode)) {
 		struct apk_fsdir fsd;
 		apk_fsdir_get(&fsd, APK_BLOB_STR((char*)fi->name), extract_flags, ac, pkgctx);

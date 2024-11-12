@@ -153,14 +153,13 @@ static int audit_file(struct audit_ctx *actx,
 	if (apk_fileinfo_get(dirfd, name,
 				APK_FI_NOFOLLOW |
 				APK_FI_XATTR_DIGEST(xattr_type ?: APK_DIGEST_SHA1) |
-				APK_FI_DIGEST(digest_type),
+				APK_FI_DIGEST(digest_type ?: APK_DIGEST_SHA256),
 				fi, &db->atoms) != 0)
 		return 'e';
 
 	if (!dbf) return 'A';
 
-	if (dbf->digest_alg != APK_DIGEST_NONE &&
-	    apk_digest_cmp_blob(&fi->digest, dbf->digest_alg, apk_dbf_digest_blob(dbf)) != 0)
+	if (apk_digest_cmp_blob(&fi->digest, dbf->digest_alg, apk_dbf_digest_blob(dbf)) != 0)
 		rv = 'U';
 	else if (!S_ISLNK(fi->mode) && !dbf->diri->pkg->ipkg->broken_xattr &&
 		 apk_digest_cmp_blob(&fi->xattr_digest, xattr_type, apk_acl_digest_blob(dbf->acl)) != 0)

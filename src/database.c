@@ -63,7 +63,6 @@ struct install_ctx {
 	int script;
 	char **script_args;
 	unsigned int script_pending : 1;
-	unsigned int missing_checksum : 1;
 
 	struct apk_db_dir_instance *diri;
 	struct apk_extract_ctx ectx;
@@ -71,7 +70,6 @@ struct install_ctx {
 	apk_progress_cb cb;
 	void *cb_ctx;
 	size_t installed_size;
-	size_t current_file_size;
 
 	struct hlist_node **diri_node;
 	struct hlist_node **file_diri_node;
@@ -2574,19 +2572,6 @@ static int contains_control_character(const char *str)
 	return 0;
 }
 
-static int need_checksum(mode_t mode)
-{
-	switch (mode & S_IFMT) {
-	case S_IFSOCK:
-	case S_IFBLK:
-	case S_IFCHR:
-	case S_IFIFO:
-		return FALSE;
-	default:
-		return TRUE;
-	}
-}
-
 static int apk_db_install_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
 {
 	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
@@ -2680,7 +2665,6 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 	}
 
 	/* Installable entry */
-	ctx->current_file_size = apk_calc_installed_size(ae->size);
 	if (!S_ISDIR(ae->mode)) {
 		if (!apk_blob_rsplit(name, '/', &bdir, &bfile)) {
 			bdir = APK_BLOB_NULL;
@@ -2762,7 +2746,6 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 
 		apk_dbg2(out, "%s", ae->name);
 
-		/* Extract the file with temporary name */
 		file->acl = apk_db_acl_atomize_digest(db, ae->mode, ae->uid, ae->gid, &ae->xattr_digest);
 		r = apk_fs_extract(ac, ae, is, extract_cb, ctx, db->extract_flags, apk_pkg_ctx(pkg));
 		if (r > 0) {
@@ -2788,21 +2771,6 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 				apk_dbf_digest_set(file, d.alg, d.data);
 			} else if (file->digest_alg == APK_DIGEST_NONE && ae->digest.alg == APK_DIGEST_SHA256) {
 				apk_dbf_digest_set(file, APK_DIGEST_SHA256_160, ae->digest.data);
-			} else if (link_target_file == NULL && need_checksum(ae->mode) && !ctx->missing_checksum) {
-				if (ae->digest.alg == APK_DIGEST_NONE) {
-					apk_warn(out,
-						PKG_VER_FMT": support for packages without embedded "
-						"checksums will be dropped in apk-tools 3.",
-						PKG_VER_PRINTF(pkg));
-					ipkg->broken_files = 1;
-					ctx->missing_checksum = 1;
-				} else if (file->digest_alg == APK_DIGEST_NONE) {
-					apk_warn(out,
-						PKG_VER_FMT": unknown v3 checksum",
-						PKG_VER_PRINTF(pkg));
-					ipkg->broken_files = 1;
-					ctx->missing_checksum = 1;
-				}
 			}
 			break;
 		case -APKE_NOT_EXTRACTED:
@@ -2813,8 +2781,7 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 		case -APKE_UVOL_ROOT:
 		case -APKE_UVOL_NOT_AVAILABLE:
 		default:
-			ipkg->broken_files = 1;
-			file->broken = 1;
+			ipkg->broken_files = file->broken = 1;
 			apk_err(out, PKG_VER_FMT ": failed to extract %s: %s",
 				PKG_VER_PRINTF(pkg), ae->name, apk_error_str(r));
 			break;
@@ -2831,10 +2798,8 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 		expected_acl = diri->dir->owner ? diri->dir->owner->acl : NULL;
 		apk_db_dir_apply_diri_permissions(db, diri);
 		apk_db_dir_prepare(db, diri->dir, expected_acl, diri->dir->owner->acl);
-
 	}
-	ctx->installed_size += ctx->current_file_size;
-
+	ctx->installed_size += apk_calc_installed_size(ae->size);
 	return ret;
 }
 
