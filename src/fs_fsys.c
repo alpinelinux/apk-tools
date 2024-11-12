@@ -12,40 +12,23 @@
 
 #include "apk_fs.h"
 #include "apk_xattr.h"
+#include "apk_extract.h"
 #include "apk_database.h" // for db->atoms
 
 #define TMPNAME_MAX (PATH_MAX + 64)
 
-static int do_fchmodat(int dirfd, const char *pathname, mode_t mode, int flags, struct apk_out *out)
-{
-	if (fchmodat(dirfd, pathname, mode & 07777, flags) == 0) return 0;
-	apk_err(out, "Failed to set permissions on %s: %s", pathname, strerror(errno));
-	return -errno;
-}
-
-static int do_fchownat(int dirfd, const char *pathname, uid_t uid, gid_t gid, int flags, struct apk_out *out)
-{
-	if (fchownat(dirfd, pathname, uid, gid, flags) == 0) return 0;
-	apk_err(out, "Failed to set ownership on %s: %s", pathname, strerror(errno));
-	return -errno;
-}
-
 static int fsys_dir_create(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid)
 {
 	const char *dirname = apk_pathbuilder_cstr(&d->pb);
-	if (mkdirat(apk_ctx_fd_dest(d->ac), dirname, mode) < 0) {
-		if (errno != EEXIST) apk_err(&d->ac->out, "Failed to create %s: %s", dirname, strerror(errno));
-		return -errno;
-	}
+	if (mkdirat(apk_ctx_fd_dest(d->ac), dirname, mode) < 0) return -errno;
 	if (d->extract_flags & APK_FSEXTRACTF_NO_CHOWN) return 0;
-	if (do_fchownat(apk_ctx_fd_dest(d->ac), dirname, uid, gid, 0, &d->ac->out) < 0) return -errno;
+	if (fchownat(apk_ctx_fd_dest(d->ac), dirname, uid, gid, 0) < 0) return APK_EXTRACTW_OWNER;
 	return 0;
 }
 
 static int fsys_dir_delete(struct apk_fsdir *d)
 {
-	if (unlinkat(apk_ctx_fd_dest(d->ac), apk_pathbuilder_cstr(&d->pb), AT_REMOVEDIR) < 0)
-		return -errno;
+	if (unlinkat(apk_ctx_fd_dest(d->ac), apk_pathbuilder_cstr(&d->pb), AT_REMOVEDIR) < 0) return -errno;
 	return 0;
 }
 
@@ -55,24 +38,23 @@ static int fsys_dir_check(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid
 
 	if (fstatat(apk_ctx_fd_dest(d->ac), apk_pathbuilder_cstr(&d->pb), &st, AT_SYMLINK_NOFOLLOW) != 0)
 		return -errno;
-
 	if ((st.st_mode & 07777) != (mode & 07777) || st.st_uid != uid || st.st_gid != gid)
 		return APK_FS_DIR_MODIFIED;
-
 	return 0;
 }
 
 static int fsys_dir_update_perms(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid)
 {
-	int fd = apk_ctx_fd_dest(d->ac), rc = 0, r;
+	int fd = apk_ctx_fd_dest(d->ac), ret = 0;
 	const char *dirname = apk_pathbuilder_cstr(&d->pb);
 
-	r = do_fchmodat(fd, dirname, mode, 0, &d->ac->out);
-	if (r) rc = r;
-	if (d->extract_flags & APK_FSEXTRACTF_NO_CHOWN) return rc;
-	r = do_fchownat(fd, dirname, uid, gid, 0, &d->ac->out);
-	if (r) rc = r;
-	return rc;
+	if (fchmodat(fd, dirname, mode & 07777, 0) != 0) {
+		if (errno == ENOENT) return -ENOENT;
+		ret |= APK_EXTRACTW_PERMISSION;
+	}
+	if (d->extract_flags & APK_FSEXTRACTF_NO_CHOWN) return ret;
+	if (fchownat(fd, dirname, uid, gid, 0) != 0) ret |= APK_EXTRACTW_OWNER;
+	return ret;
 }
 
 static const char *format_tmpname(struct apk_digest_ctx *dctx, apk_blob_t pkgctx,
@@ -114,7 +96,6 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 	apk_progress_cb cb, void *cb_ctx, unsigned int extract_flags, apk_blob_t pkgctx)
 {
 	char tmpname_file[TMPNAME_MAX], tmpname_linktarget[TMPNAME_MAX];
-	struct apk_out *out = &ac->out;
 	struct apk_xattr *xattr;
 	int fd, r = -1, atflags = 0, ret = 0;
 	int atfd = apk_ctx_fd_dest(ac);
@@ -130,64 +111,47 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 
 	switch (fi->mode & S_IFMT) {
 	case S_IFDIR:
-		r = mkdirat(atfd, fn, fi->mode & 07777);
-		if (r < 0 && errno != EEXIST)
-			ret = -errno;
+		if (mkdirat(atfd, fn, fi->mode & 07777) < 0 && errno != EEXIST) return -errno;
 		break;
 	case S_IFREG:
 		if (!link_target) {
 			int flags = O_RDWR | O_CREAT | O_TRUNC | O_CLOEXEC | O_EXCL;
 			int fd = openat(atfd, fn, flags, fi->mode & 07777);
-			if (fd < 0) {
-				ret = -errno;
-				break;
-			}
+			if (fd < 0) return -errno;
+
 			struct apk_ostream *os = apk_ostream_to_fd(fd);
-			if (IS_ERR(os)) {
-				ret = PTR_ERR(os);
-				break;
-			}
+			if (IS_ERR(os)) return PTR_ERR(os);
 			apk_stream_copy(is, os, fi->size, cb, cb_ctx, 0);
 			r = apk_ostream_close(os);
 			if (r < 0) {
 				unlinkat(atfd, fn, 0);
-				ret = r;
+				return r;
 			}
 		} else {
 			// Hardlink needs to be done against the temporary name
 			if (pkgctx.ptr)
 				link_target = format_tmpname(&ac->dctx, pkgctx, get_dirname(link_target),
 					APK_BLOB_STR(link_target), tmpname_linktarget);
-			r = linkat(atfd, link_target, atfd, fn, 0);
-			if (r < 0) ret = -errno;
+			if (linkat(atfd, link_target, atfd, fn, 0) < 0) return -errno;
 		}
 		break;
 	case S_IFLNK:
-		r = symlinkat(link_target, atfd, fn);
-		if (r < 0) ret = -errno;
+		if (symlinkat(link_target, atfd, fn) < 0) return -errno;
 		atflags |= AT_SYMLINK_NOFOLLOW;
 		break;
 	case S_IFBLK:
 	case S_IFCHR:
 	case S_IFIFO:
-		r = mknodat(atfd, fn, fi->mode, fi->device);
-		if (r < 0) ret = -errno;
+		if (mknodat(atfd, fn, fi->mode, fi->device) < 0) return -errno;
 		break;
-	}
-	if (ret) {
-		apk_err(out, "Failed to create %s: %s", fi->name, strerror(-ret));
-		return ret;
 	}
 
 	if (!(extract_flags & APK_FSEXTRACTF_NO_CHOWN)) {
-		r = do_fchownat(atfd, fn, fi->uid, fi->gid, atflags, out);
-		if (!ret && r) ret = r;
-
+		if (fchownat(atfd, fn, fi->uid, fi->gid, atflags) != 0)
+			ret |= APK_EXTRACTW_OWNER;
 		/* chown resets suid bit so we need set it again */
-		if (fi->mode & 07000) {
-			r = do_fchmodat(atfd, fn, fi->mode, atflags, out);
-			if (!ret && r) ret = r;
-		}
+		if ((fi->mode & 07000) && fchmodat(atfd, fn, fi->mode, atflags) != 0)
+			ret |= APK_EXTRACTW_PERMISSION;
 	}
 
 	/* extract xattrs */
@@ -198,35 +162,21 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 			foreach_array_item(xattr, fi->xattrs) {
 				if ((extract_flags & APK_FSEXTRACTF_NO_SYS_XATTRS) && is_system_xattr(xattr->name))
 					continue;
-				if (apk_fsetxattr(fd, xattr->name, xattr->value.ptr, xattr->value.len) < 0) {
-					r = -errno;
-					if (r != -ENOTSUP) break;
-				}
+				if (apk_fsetxattr(fd, xattr->name, xattr->value.ptr, xattr->value.len) < 0)
+					ret |= APK_EXTRACTW_XATTR;
 			}
 			close(fd);
 		} else {
-			r = -errno;
-		}
-		if (r) {
-			if (r != -ENOTSUP)
-				apk_err(out, "Failed to set xattrs on %s: %s",
-					fn, strerror(-r));
-			if (!ret) ret = r;
+			ret |= APK_EXTRACTW_XATTR;
 		}
 	}
 
 	if (!S_ISLNK(fi->mode)) {
 		/* preserve modification time */
 		struct timespec times[2];
-
 		times[0].tv_sec  = times[1].tv_sec  = fi->mtime;
 		times[0].tv_nsec = times[1].tv_nsec = 0;
-		r = utimensat(atfd, fn, times, atflags);
-		if (r < 0) {
-			apk_err(out, "Failed to preserve modification time on %s: %s",
-				fn, strerror(errno));
-			if (!ret || ret == -ENOTSUP) ret = -errno;
-		}
+		if (utimensat(atfd, fn, times, atflags) != 0) ret |= APK_EXTRACTW_MTIME;
 	}
 
 	return ret;

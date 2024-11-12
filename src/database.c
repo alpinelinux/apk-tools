@@ -426,14 +426,19 @@ void apk_db_dir_update_permissions(struct apk_database *db, struct apk_db_dir_in
 	struct apk_db_dir *dir = diri->dir;
 	struct apk_db_acl *acl = diri->acl;
 	struct apk_fsdir d;
+	char buf[APK_EXTRACTW_BUFSZ];
+	int r;
 
 	if (!dir->permissions_ok) return;
 	if (db->ctx->flags & APK_SIMULATE) return;
 
 	dir->modified = 1;
 	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->extract_flags, db->ctx, APK_BLOB_NULL);
-	if (apk_fsdir_update_perms(&d, apk_db_dir_get_mode(db, acl->mode), acl->uid, acl->gid) != 0)
+	r = apk_fsdir_update_perms(&d, apk_db_dir_get_mode(db, acl->mode), acl->uid, acl->gid);
+	if (r != 0) {
+		apk_warn(&db->ctx->out, "failed to update directory %s: %s", dir->name, apk_extract_warning_str(r, buf, sizeof buf));
 		db->num_dir_update_errors++;
+	}
 }
 
 static void apk_db_dir_apply_diri_permissions(struct apk_database *db, struct apk_db_dir_instance *diri)
@@ -2760,6 +2765,14 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 		/* Extract the file with temporary name */
 		file->acl = apk_db_acl_atomize_digest(db, ae->mode, ae->uid, ae->gid, &ae->xattr_digest);
 		r = apk_fs_extract(ac, ae, is, extract_cb, ctx, db->extract_flags, apk_pkg_ctx(pkg));
+		if (r > 0) {
+			char buf[APK_EXTRACTW_BUFSZ];
+			if (r & APK_EXTRACTW_XATTR) ipkg->broken_xattr = 1;
+			else ipkg->broken_files = 1;
+			apk_warn(out, PKG_VER_FMT ": failed to preserve %s: %s",
+				PKG_VER_PRINTF(pkg), ae->name, apk_extract_warning_str(r, buf, sizeof buf));
+			r = 0;
+		}
 		switch (r) {
 		case 0:
 			// Hardlinks need special care for checksum
@@ -2792,15 +2805,15 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 				}
 			}
 			break;
-		case -ENOTSUP:
-			ipkg->broken_xattr = 1;
-			break;
 		case -ENOSPC:
 			ret = r;
 		case -APKE_UVOL_ROOT:
 		case -APKE_UVOL_NOT_AVAILABLE:
 		default:
 			ipkg->broken_files = 1;
+			file->broken = 1;
+			apk_err(out, PKG_VER_FMT ": failed to extract %s: %s",
+				PKG_VER_PRINTF(pkg), ae->name, apk_error_str(r));
 			break;
 		}
 	} else {
@@ -2929,45 +2942,47 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 			ofile = (struct apk_db_file *) apk_hash_get_hashed(
 				&db->installed.files, APK_BLOB_BUF(&key), hash);
 
-			ctrl = APK_FS_CTRL_COMMIT;
-			if (ofile && ofile->diri->pkg->name == NULL) {
-				// File was from overlay, delete the package's version
-				ctrl = APK_FS_CTRL_CANCEL;
-			} else if (!apk_protect_mode_none(diri->dir->protect_mode) &&
-				   apk_db_audit_file(&d, key.filename, ofile) != 0) {
-				// Protected directory, and a file without db entry
-				// or with local modifications. Keep the filesystem file.
-				// Determine if the package's file should be kept as .apk-new
-				if ((db->ctx->flags & APK_CLEAN_PROTECTED) ||
-				    apk_db_audit_file(&d, key.filename, file) == 0) {
-					// No .apk-new files allowed, or the file on disk has the same
-					// hash as the file from new package. Keep the on disk one.
+			if (!file->broken) {
+				ctrl = APK_FS_CTRL_COMMIT;
+				if (ofile && ofile->diri->pkg->name == NULL) {
+					// File was from overlay, delete the package's version
 					ctrl = APK_FS_CTRL_CANCEL;
-				} else {
-					// All files differ. Use the package's file as .apk-new.
-					ctrl = APK_FS_CTRL_APKNEW;
-					apk_msg(out, PKG_VER_FMT ": installing file to " DIR_FILE_FMT ".apk-new",
-					    PKG_VER_PRINTF(ipkg->pkg),
-					    DIR_FILE_PRINTF(diri->dir, file));
+				} else if (!apk_protect_mode_none(diri->dir->protect_mode) &&
+					   apk_db_audit_file(&d, key.filename, ofile) != 0) {
+					// Protected directory, and a file without db entry
+					// or with local modifications. Keep the filesystem file.
+					// Determine if the package's file should be kept as .apk-new
+					if ((db->ctx->flags & APK_CLEAN_PROTECTED) ||
+					    apk_db_audit_file(&d, key.filename, file) == 0) {
+						// No .apk-new files allowed, or the file on disk has the same
+						// hash as the file from new package. Keep the on disk one.
+						ctrl = APK_FS_CTRL_CANCEL;
+					} else {
+						// All files differ. Use the package's file as .apk-new.
+						ctrl = APK_FS_CTRL_APKNEW;
+						apk_msg(out, PKG_VER_FMT ": installing file to " DIR_FILE_FMT ".apk-new",
+						    PKG_VER_PRINTF(ipkg->pkg),
+						    DIR_FILE_PRINTF(diri->dir, file));
+					}
 				}
-			}
 
-			// Commit changes
-			r = apk_fsdir_file_control(&d, key.filename, ctrl);
-			if (r < 0) {
-				apk_err(out, PKG_VER_FMT": failed to commit " DIR_FILE_FMT ": %s",
-					PKG_VER_PRINTF(ipkg->pkg),
-					DIR_FILE_PRINTF(diri->dir, file),
-					apk_error_str(r));
-				ipkg->broken_files = 1;
-			} else if (inetc && ctrl == APK_FS_CTRL_COMMIT) {
-				// This is called when we successfully migrated the files
-				// in the filesystem; we explicitly do not care about apk-new
-				// or cancel cases, as that does not change the original file
-				if (!apk_blob_compare(key.filename, APK_BLOB_STRLIT("passwd")) ||
-				    !apk_blob_compare(key.filename, APK_BLOB_STRLIT("group"))) {
-					// Reset the idcache because we have a new passwd/group
-					apk_id_cache_reset(db->id_cache);
+				// Commit changes
+				r = apk_fsdir_file_control(&d, key.filename, ctrl);
+				if (r < 0) {
+					apk_err(out, PKG_VER_FMT": failed to commit " DIR_FILE_FMT ": %s",
+						PKG_VER_PRINTF(ipkg->pkg),
+						DIR_FILE_PRINTF(diri->dir, file),
+						apk_error_str(r));
+					ipkg->broken_files = 1;
+				} else if (inetc && ctrl == APK_FS_CTRL_COMMIT) {
+					// This is called when we successfully migrated the files
+					// in the filesystem; we explicitly do not care about apk-new
+					// or cancel cases, as that does not change the original file
+					if (!apk_blob_compare(key.filename, APK_BLOB_STRLIT("passwd")) ||
+					    !apk_blob_compare(key.filename, APK_BLOB_STRLIT("group"))) {
+						// Reset the idcache because we have a new passwd/group
+						apk_id_cache_reset(db->id_cache);
+					}
 				}
 			}
 

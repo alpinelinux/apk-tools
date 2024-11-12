@@ -63,10 +63,16 @@ static int extract_file(struct apk_extract_ctx *ectx, const struct apk_file_info
 {
 	struct extract_ctx *ctx = container_of(ectx, struct extract_ctx, ectx);
 	struct apk_out *out = &ctx->ac->out;
+	char buf[APK_EXTRACTW_BUFSZ];
 	int r;
 
 	apk_dbg2(out, "%s", fi->name);
 	r = apk_fs_extract(ctx->ac, fi, is, 0, 0, ctx->extract_flags, APK_BLOB_NULL);
+	if (r > 0) {
+		apk_warn(out, "failed to preserve %s: %s",
+			fi->name, apk_extract_warning_str(r, buf, sizeof buf));
+		r = 0;
+	}
 	if (r == -EEXIST && S_ISDIR(fi->mode)) r = 0;
 	return r;
 }

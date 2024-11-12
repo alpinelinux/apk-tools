@@ -39,6 +39,11 @@ struct apk_extract_ctx {
 	unsigned is_index : 1;
 };
 
+#define APK_EXTRACTW_OWNER		0x0001
+#define APK_EXTRACTW_PERMISSION		0x0002
+#define APK_EXTRACTW_MTIME		0x0004
+#define APK_EXTRACTW_XATTR		0x0008
+
 static inline void apk_extract_init(struct apk_extract_ctx *ectx, struct apk_ctx *ac, const struct apk_extract_ops *ops) {
 	*ectx = (struct apk_extract_ctx){.ac = ac, .ops = ops};
 }
@@ -54,6 +59,9 @@ static inline void apk_extract_verify_identity(struct apk_extract_ctx *ctx, uint
 	ctx->verify_digest = digest;
 }
 int apk_extract(struct apk_extract_ctx *, struct apk_istream *is);
+
+#define APK_EXTRACTW_BUFSZ 128
+const char *apk_extract_warning_str(int warnings, char *buf, size_t sz);
 
 int apk_extract_v2(struct apk_extract_ctx *, struct apk_istream *is);
 void apk_extract_v2_control(struct apk_extract_ctx *, apk_blob_t, apk_blob_t);

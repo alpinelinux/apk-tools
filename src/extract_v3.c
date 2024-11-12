@@ -301,3 +301,15 @@ int apk_extract(struct apk_extract_ctx *ectx, struct apk_istream *is)
 	if (memcmp(sig, "ADB", 3) == 0) return apk_extract_v3(ectx, is);
 	return apk_extract_v2(ectx, is);
 }
+
+const char *apk_extract_warning_str(int warnings, char *buf, size_t sz)
+{
+	if (!warnings) return NULL;
+	const char *str = apk_fmts(buf, sz, "%s%s%s%s",
+		warnings & APK_EXTRACTW_OWNER ? " owner" : "",
+		warnings & APK_EXTRACTW_PERMISSION ? " permission" : "",
+		warnings & APK_EXTRACTW_MTIME ? " mtime" : "",
+		warnings & APK_EXTRACTW_XATTR ? " xattrs" : "");
+	if (!str[0]) return "unknown";
+	return &str[1];
+}

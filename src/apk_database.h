@@ -44,7 +44,8 @@ struct apk_db_file {
 	struct apk_db_acl *acl;
 
 	unsigned char audited : 1;
-	unsigned char digest_alg : 7;
+	unsigned char broken : 1;
+	unsigned char digest_alg : 6;
 	unsigned char namelen;
 	uint8_t digest[20]; // sha1 length
 	char name[];
