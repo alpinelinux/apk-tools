@@ -114,8 +114,6 @@ APK_ARRAY(apk_package_array, struct apk_package *);
 #define PKG_VER_FMT		"%s-" BLOB_FMT
 #define PKG_VER_PRINTF(pkg)	(pkg)->name->name, BLOB_PRINTF(*(pkg)->version)
 #define PKG_VER_STRLEN(pkg)	(strlen(pkg->name->name) + 1 + pkg->version->len)
-#define PKG_FILE_FMT		PKG_VER_FMT ".apk"
-#define PKG_FILE_PRINTF(pkg)	PKG_VER_PRINTF(pkg)
 
 #define DEP_FMT			"%s%s%s" BLOB_FMT
 #define DEP_PRINTF(dep)		apk_dep_conflict(dep) ? "!" : "", (dep)->name->name, \
@@ -162,7 +160,8 @@ int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl,
 void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl, struct adb_obj *pkginfo);
 
 int apk_pkg_read(struct apk_database *db, const char *name, struct apk_package **pkg, int v3ok);
-int apk_pkg_parse_name(apk_blob_t apkname, apk_blob_t *name, apk_blob_t *version);
+int apk_pkg_subst(void *ctx, apk_blob_t key, apk_blob_t *to);
+int apk_pkg_subst_validate(apk_blob_t fmt);
 
 struct apk_package *apk_pkg_get_installed(struct apk_name *name);
 struct apk_installed_package *apk_pkg_install(struct apk_database *db, struct apk_package *pkg);

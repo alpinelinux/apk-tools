@@ -31,6 +31,7 @@ struct fetch_ctx {
 	unsigned int flags;
 	int outdir_fd, errors;
 	time_t built_after;
+	apk_blob_t pkgname_spec;
 	struct apk_database *db;
 	struct apk_progress prog;
 	size_t done, total;
@@ -74,6 +75,7 @@ static int cup(void)
 #define FETCH_OPTIONS(OPT) \
 	OPT(OPT_FETCH_built_after,	APK_OPT_ARG "built-after") \
 	OPT(OPT_FETCH_link,		APK_OPT_SH("l") "link") \
+	OPT(OPT_FETCH_pkgname_spec,	APK_OPT_ARG "pkgname-spec") \
 	OPT(OPT_FETCH_recursive,	APK_OPT_SH("R") "recursive") \
 	OPT(OPT_FETCH_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
 	OPT(OPT_FETCH_simulate,		"simulate") \
@@ -109,6 +111,9 @@ static int fetch_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char
 		break;
 	case OPT_FETCH_simulate:
 		ac->flags |= APK_SIMULATE;
+		break;
+	case OPT_FETCH_pkgname_spec:
+		fctx->pkgname_spec = APK_BLOB_STR(optarg);
 		break;
 	case OPT_FETCH_recursive:
 		fctx->flags |= FETCH_RECURSIVE;
@@ -150,8 +155,8 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 	struct apk_repository *repo;
 	struct apk_file_info fi;
 	struct apk_extract_ctx ectx;
-	char url[PATH_MAX], filename[256];
-	int r, urlfd;
+	char pkg_url[PATH_MAX], filename[PATH_MAX];
+	int r, pkg_fd;
 
 	if (!pkg->marked)
 		return 0;
@@ -162,7 +167,7 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 		goto err;
 	}
 
-	r = apk_fmt(filename, sizeof filename, PKG_FILE_FMT, PKG_FILE_PRINTF(pkg));
+	r = apk_blob_subst(filename, sizeof filename, ctx->pkgname_spec, apk_pkg_subst, pkg);
 	if (r < 0) goto err;
 
 	if (!(ctx->flags & FETCH_STDOUT)) {
@@ -171,24 +176,23 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 			return 0;
 	}
 
-	r = apk_repo_format_item(db, repo, pkg, &urlfd, url, sizeof(url));
+	r = apk_repo_package_url(db, repo, pkg, &pkg_fd, pkg_url, sizeof pkg_url, NULL);
 	if (r < 0) goto err;
 
 	if (ctx->flags & FETCH_URL)
-		apk_msg(out, "%s", url);
+		apk_msg(out, "%s", pkg_url);
 	else
 		apk_msg(out, "Downloading " PKG_VER_FMT, PKG_VER_PRINTF(pkg));
 
-	if (db->ctx->flags & APK_SIMULATE)
-		return 0;
+	if (db->ctx->flags & APK_SIMULATE) return 0;
 
 	if (ctx->flags & FETCH_STDOUT) {
 		os = apk_ostream_to_fd(STDOUT_FILENO);
 	} else {
-		if ((ctx->flags & FETCH_LINK) && urlfd >= 0) {
-			const char *urlfile = apk_url_local_file(url);
+		if ((ctx->flags & FETCH_LINK) && pkg_fd >= 0) {
+			const char *urlfile = apk_url_local_file(pkg_url);
 			if (urlfile &&
-			    linkat(urlfd, urlfile, ctx->outdir_fd, filename, AT_SYMLINK_FOLLOW) == 0)
+			    linkat(pkg_fd, pkg_url, ctx->outdir_fd, filename, AT_SYMLINK_FOLLOW) == 0)
 				goto done;
 		}
 		os = apk_ostream_to_file(ctx->outdir_fd, filename, 0644);
@@ -198,7 +202,7 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 		}
 	}
 
-	is = apk_istream_from_fd_url(urlfd, url, apk_db_url_since(db, 0));
+	is = apk_istream_from_fd_url(pkg_fd, pkg_url, apk_db_url_since(db, 0));
 	if (IS_ERR(is)) {
 		r = PTR_ERR(is);
 		goto err;
@@ -306,31 +310,18 @@ err:
 
 static int purge_package(void *pctx, int dirfd, const char *filename)
 {
-	char tmp[PATH_MAX];
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
 	struct apk_database *db = ctx->db;
 	struct apk_out *out = &db->ctx->out;
-	struct apk_provider *p0;
-	struct apk_name *name;
-	apk_blob_t b = APK_BLOB_STR(filename), bname, bver, pkgname;
+	struct apk_file_info fi;
 
-	if (apk_pkg_parse_name(b, &bname, &bver)) return 0;
-	name = apk_db_get_name(db, bname);
-	if (!name) return 0;
-
-	foreach_array_item(p0, name->providers) {
-		if (p0->pkg->name != name) continue;
-		pkgname = apk_blob_fmt(tmp, sizeof tmp, PKG_FILE_FMT, PKG_FILE_PRINTF(p0->pkg));
-		if (APK_BLOB_IS_NULL(pkgname)) continue;
-		if (apk_blob_compare(b, pkgname) != 0) continue;
-		if (p0->pkg->marked) return 0;
-		break;
+	if (apk_fileinfo_get(dirfd, filename, 0, &fi, NULL) == 0) {
+		struct apk_package *pkg = apk_db_get_pkg_by_name(db, APK_BLOB_STR(filename), fi.size, ctx->pkgname_spec);
+		if (pkg && pkg->marked) return 0;
 	}
 
 	apk_msg(out, "Purging %s", filename);
-	if (db->ctx->flags & APK_SIMULATE)
-		return 0;
-
+	if (db->ctx->flags & APK_SIMULATE) return 0;
 	unlinkat(dirfd, filename, 0);
 	return 0;
 }
@@ -344,6 +335,7 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 	ctx->db = db;
 	ctx->prog = db->ctx->progress;
+	if (APK_BLOB_IS_NULL(ctx->pkgname_spec)) ctx->pkgname_spec = ac->default_pkgname_spec;
 	if (ctx->flags & FETCH_STDOUT) {
 		db->ctx->progress.out = 0;
 		db->ctx->out.verbosity = 0;

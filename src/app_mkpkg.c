@@ -340,18 +340,6 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 	return r;
 }
 
-static char *pkgi_filename(struct adb_obj *pkgi, char *buf, size_t n)
-{
-	apk_blob_t to = APK_BLOB_PTR_LEN(buf, n);
-	apk_blob_push_blob(&to, adb_ro_blob(pkgi, ADBI_PI_NAME));
-	apk_blob_push_blob(&to, APK_BLOB_STR("-"));
-	apk_blob_push_blob(&to, adb_ro_blob(pkgi, ADBI_PI_VERSION));
-	apk_blob_push_blob(&to, APK_BLOB_STR(".apk"));
-	apk_blob_push_blob(&to, APK_BLOB_PTR_LEN("", 1));
-	if (APK_BLOB_IS_NULL(to)) return 0;
-	return buf;
-}
-
 static int check_required(struct apk_out *out, apk_blob_t *vals, int index, const struct adb_object_schema *schema)
 {
 	if (!APK_BLOB_IS_NULL(vals[index])) return 0;
@@ -406,7 +394,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	struct mkpkg_ctx *ctx = pctx;
 	struct apk_ostream *os;
 	struct apk_digest d = {};
-	char outbuf[PATH_MAX];
+	char outbuf[NAME_MAX];
 	const int uid_len = apk_digest_alg_len(APK_DIGEST_SHA1);
 	apk_blob_t uid = APK_BLOB_PTR_LEN((char*)d.data, uid_len);
 
@@ -496,7 +484,9 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	memcpy(uid.ptr, d.data, uid.len);
 
 	if (!ctx->output) {
-		ctx->output = pkgi_filename(&pkgi, outbuf, sizeof outbuf);
+		r = apk_blob_subst(outbuf, sizeof outbuf, ac->default_pkgname_spec, adb_s_field_subst, &pkgi);
+		if (r < 0) goto err;
+		ctx->output = outbuf;
 	}
 
 	// construct package with ADB as header, and the file data in

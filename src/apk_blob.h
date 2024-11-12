@@ -58,6 +58,7 @@ APK_ARRAY(apk_blobptr_array, apk_blob_t *);
 
 char *apk_blob_cstr(apk_blob_t str);
 apk_blob_t apk_blob_dup(apk_blob_t blob);
+int apk_blob_contains(apk_blob_t blob, apk_blob_t needle);
 int apk_blob_split(apk_blob_t blob, apk_blob_t split, apk_blob_t *l, apk_blob_t *r);
 int apk_blob_rsplit(apk_blob_t blob, char split, apk_blob_t *l, apk_blob_t *r);
 apk_blob_t apk_blob_pushed(apk_blob_t buffer, apk_blob_t left);
@@ -72,6 +73,8 @@ apk_blob_t apk_blob_fmt(char *str, size_t sz, const char *fmt, ...)
 
 #define apk_fmt(args...) ({ apk_blob_t b = apk_blob_fmt(args); b.ptr ? b.len : -ENOBUFS; })
 #define apk_fmts(args...) ({ apk_blob_fmt(args).ptr; })
+
+int apk_blob_subst(char *buf, size_t sz, apk_blob_t fmt, int (*res)(void *ctx, apk_blob_t var, apk_blob_t *to), void *ctx);
 
 int apk_blob_word_iterate(apk_blob_t *b, apk_blob_t *iter);
 #define apk_blob_foreach_word(iter, blob) \

@@ -164,7 +164,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	struct counts counts = { .unsatisfied=0 };
 	struct apk_ostream *os, *counter;
 	struct apk_file_info fi;
-	int total, r, found, newpkgs = 0, errors = 0;
+	int total, r, newpkgs = 0, errors = 0;
 	struct index_ctx *ictx = (struct index_ctx *) ctx;
 	struct apk_package *pkg;
 	char **parg;
@@ -192,55 +192,23 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 			continue;
 		}
 
-		found = FALSE;
-		do {
-			struct apk_provider *p;
-			struct apk_name *name;
-			char *fname, *fend;
-			apk_blob_t bname, bver;
-
-			/* Check if index is newer than package */
-			if (ictx->index == NULL || ictx->index_mtime < fi.mtime)
-				break;
-
-			/* Check that it looks like a package name */
-			fname = strrchr(*parg, '/');
-			if (fname == NULL)
-				fname = *parg;
-			else
-				fname++;
-			fend = strstr(fname, ".apk");
-			if (fend == NULL)
-				break;
-			if (apk_pkg_parse_name(APK_BLOB_PTR_PTR(fname, fend-1),
-					       &bname, &bver) < 0)
-				break;
-
-			/* If we have it in the old index already? */
-			name = apk_db_query_name(db, bname);
-			if (name == NULL)
-				break;
-
-			foreach_array_item(p, name->providers) {
-				pkg = p->pkg;
-				if (pkg->name != name) continue;
-				if (apk_blob_compare(bver, *pkg->version) != 0) continue;
-				if (pkg->size != fi.size) continue;
+		if (ictx->index && ictx->index_mtime >= fi.mtime) {
+			pkg = apk_db_get_pkg_by_name(db, APK_BLOB_STR(*parg), fi.size, APK_BLOB_NULL);
+			if (pkg) {
+				apk_dbg(out, "%s: indexed from old index", *parg);
 				index_mark_package(db, pkg, rewrite_arch);
-				found = TRUE;
-				break;
+				continue;
 			}
-		} while (0);
+		}
 
-		if (!found) {
-			r = apk_pkg_read(db, *parg, &pkg, FALSE);
-			if (r < 0) {
-				apk_err(out, "%s: %s", *parg, apk_error_str(r));
-				errors++;
-			} else {
-				index_mark_package(db, pkg, rewrite_arch);
-				newpkgs++;
-			}
+		r = apk_pkg_read(db, *parg, &pkg, FALSE);
+		if (r < 0) {
+			apk_err(out, "%s: %s", *parg, apk_error_str(r));
+			errors++;
+		} else {
+			apk_dbg(out, "%s: indexed new package", *parg);
+			index_mark_package(db, pkg, rewrite_arch);
+			newpkgs++;
 		}
 	}
 	if (errors)

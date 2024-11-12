@@ -139,7 +139,11 @@ struct apk_name {
 struct apk_repository {
 	const char *url;
 	struct apk_digest hash;
+	unsigned int url_is_file : 1;
+	unsigned int absolute_pkgname : 1;
 	apk_blob_t description;
+	apk_blob_t url_base;
+	apk_blob_t pkgname_spec;
 };
 
 #define APK_DB_LAYER_ROOT		0
@@ -251,6 +255,7 @@ int apk_db_permanent(struct apk_database *db);
 int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *world);
 int apk_db_fire_triggers(struct apk_database *db);
 int apk_db_run_script(struct apk_database *db, int fd, char **argv);
+int apk_db_cache_active(struct apk_database *db);
 static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
 	return apk_ctx_since(db->ctx, since);
 }
@@ -259,6 +264,7 @@ bool apk_db_arch_compatible(struct apk_database *db, apk_blob_t *arch);
 
 struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_tmpl *tmpl);
 struct apk_package *apk_db_get_pkg(struct apk_database *db, struct apk_digest *id);
+struct apk_package *apk_db_get_pkg_by_name(struct apk_database *db, apk_blob_t filename, ssize_t file_size, apk_blob_t pkgname_spec);
 struct apk_package *apk_db_get_file_owner(struct apk_database *db, apk_blob_t filename);
 
 int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo);
@@ -266,16 +272,14 @@ int apk_db_index_read_file(struct apk_database *db, const char *file, int repo);
 
 int apk_db_repository_check(struct apk_database *db);
 int apk_db_add_repository(struct apk_database *db, apk_blob_t repository);
+unsigned int apk_db_get_pinning_mask_repos(struct apk_database *db, unsigned short pinning_mask);
 struct apk_repository *apk_db_select_repo(struct apk_database *db,
 					  struct apk_package *pkg);
 
-int apk_repo_format_cache_index(apk_blob_t to, struct apk_repository *repo);
-int apk_repo_format_item(struct apk_database *db, struct apk_repository *repo, struct apk_package *pkg,
-			 int *fd, char *buf, size_t len);
+int apk_repo_index_url(struct apk_database *db, struct apk_repository *repo, int *fd, char *buf, size_t len, struct apk_url_print *urlp);
+int apk_repo_index_cache_url(struct apk_database *db, struct apk_repository *repo, int *fd, char *buf, size_t len);
+int apk_repo_package_url(struct apk_database *db, struct apk_repository *repo, struct apk_package *pkg, int *fd, char *buf, size_t len, struct apk_url_print *urlp);
 
-unsigned int apk_db_get_pinning_mask_repos(struct apk_database *db, unsigned short pinning_mask);
-
-int apk_db_cache_active(struct apk_database *db);
 int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		       struct apk_package *pkg, int autoupdate,
 		       apk_progress_cb cb, void *cb_ctx);

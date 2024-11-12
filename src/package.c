@@ -99,32 +99,46 @@ void apk_pkg_uninstall(struct apk_database *db, struct apk_package *pkg)
 	pkg->ipkg = NULL;
 }
 
-int apk_pkg_parse_name(apk_blob_t apkname,
-		       apk_blob_t *name,
-		       apk_blob_t *version)
+int apk_pkg_subst(void *ctx, apk_blob_t key, apk_blob_t *to)
 {
-	int i, dash = 0;
+	struct apk_package *pkg = ctx;
+	if (apk_blob_compare(key, APK_BLOB_STRLIT("name")) == 0)
+		apk_blob_push_blob(to, APK_BLOB_STR(pkg->name->name));
+	else if (apk_blob_compare(key, APK_BLOB_STRLIT("version")) == 0)
+		apk_blob_push_blob(to, *pkg->version);
+	else if (apk_blob_compare(key, APK_BLOB_STRLIT("arch")) == 0)
+		apk_blob_push_blob(to, *pkg->arch);
+	else if (apk_blob_compare(key, APK_BLOB_STRLIT("hash")) == 0)
+		apk_blob_push_hexdump(to, APK_BLOB_PTR_LEN((char *) pkg->digest, apk_digest_alg_len(pkg->digest_alg)));
+	else
+		return -APKE_PACKAGE_NAME_SPEC;
+	return 0;
+}
 
-	if (APK_BLOB_IS_NULL(apkname))
-		return -1;
+int apk_pkg_subst_validate(apk_blob_t fmt)
+{
+	char buf[1024];
+	struct apk_name *name = alloca(sizeof(struct apk_name) + 5);
+	struct apk_package *pkg = alloca(sizeof(struct apk_package));
+	int r;
 
-	for (i = apkname.len - 2; i >= 0; i--) {
-		if (apkname.ptr[i] != '-')
-			continue;
-		if (isdigit(apkname.ptr[i+1]))
-			break;
-		if (++dash >= 2)
-			return -1;
-	}
-	if (i < 0)
-		return -1;
+	// Validate that the syntax is valid
+	*name = (struct apk_name) {};
+	memcpy(name->name, "test", 5);
+	*pkg = (struct apk_package) {
+		.name = name,
+		.version = &APK_BLOB_STRLIT("1"),
+		.arch = &APK_BLOB_STRLIT("noarch"),
+		.digest_alg = APK_DIGEST_NONE,
+	};
+	r = apk_blob_subst(buf, sizeof buf, fmt, apk_pkg_subst, pkg);
+	if (r < 0) return r;
 
-	if (name != NULL)
-		*name = APK_BLOB_PTR_LEN(apkname.ptr, i);
-	if (version != NULL)
-		*version = APK_BLOB_PTR_PTR(&apkname.ptr[i+1],
-					    &apkname.ptr[apkname.len-1]);
-
+	// Validate that the final filename piece starts with ${name}[_-.]
+	// so the reverse mapping code from filename to package works.
+	apk_blob_rsplit(fmt, '/', NULL, &fmt);
+	if (!apk_blob_starts_with(fmt, APK_BLOB_STRLIT("${name}"))) return -APKE_PACKAGE_NAME_SPEC;
+	if (fmt.len < 8 || strchr("_-.", fmt.ptr[7]) == NULL) return -APKE_PACKAGE_NAME_SPEC;
 	return 0;
 }
 

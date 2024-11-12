@@ -11,6 +11,13 @@ glob_one() {
 	for a in $@; do echo "$a"; done
 }
 
+setup_tmp() {
+	TMPDIR=$(mktemp -d -p /tmp apktest.XXXXXXXX)
+	[ -d "$TMPDIR" ] || return 1
+	trap "rm -rf -- '$TMPDIR'" EXIT
+	cd "$TMPDIR"
+}
+
 setup_apkroot() {
 	TEST_USERMODE=""
 	[ "$(id -u)" = 0 ] || TEST_USERMODE="--usermode"

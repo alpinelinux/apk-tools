@@ -262,6 +262,7 @@ void adb_wa_sort_unique(struct adb_obj *);
 /* Schema helpers */
 int adb_s_field_by_name_blob(const struct adb_object_schema *schema, apk_blob_t blob);
 int adb_s_field_by_name(const struct adb_object_schema *, const char *);
+int adb_s_field_subst(void *ctx, apk_blob_t var, apk_blob_t *to);
 
 /* Creation */
 int adb_c_header(struct apk_ostream *os, struct adb *db);

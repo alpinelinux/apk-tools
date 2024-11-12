@@ -1156,6 +1156,39 @@ int adb_s_field_by_name(const struct adb_object_schema *schema, const char *name
 	return 0;
 }
 
+int adb_s_field_subst(void *ctx, apk_blob_t var, apk_blob_t *to)
+{
+	struct adb_obj *obj = ctx;
+	const struct adb_object_schema *schema = obj->schema;
+	const uint8_t *kind;
+	adb_val_t val;
+	apk_blob_t done;
+	int f;
+
+	f = adb_s_field_by_name_blob(schema, var);
+	if (!f) return -APKE_ADB_SCHEMA;
+
+	val = adb_ro_val(obj, f);
+	kind = schema->fields[f-1].kind;
+	switch (*kind) {
+	case ADB_KIND_BLOB:
+	case ADB_KIND_INT:;
+		struct adb_scalar_schema *scalar = container_of(kind, struct adb_scalar_schema, kind);
+		if (!scalar->tostring) return -APKE_ADB_SCHEMA;
+		done = scalar->tostring(obj->db, val, to->ptr, to->len);
+		break;
+	default:
+		return -APKE_ADB_SCHEMA;
+	}
+	if (done.ptr != to->ptr) {
+		if (done.len > to->len) return -ENOBUFS;
+		memcpy(to->ptr, done.ptr, done.len);
+	}
+	to->ptr += done.len;
+	to->len -= done.len;
+	return 0;
+}
+
 /* Container creation */
 int adb_c_header(struct apk_ostream *os, struct adb *db)
 {

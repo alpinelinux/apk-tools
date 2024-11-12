@@ -431,6 +431,7 @@ const struct adb_object_schema schema_index = {
 	.fields = ADB_OBJECT_FIELDS(ADBI_NDX_MAX) {
 		ADB_FIELD(ADBI_NDX_DESCRIPTION,	"description",	scalar_string),
 		ADB_FIELD(ADBI_NDX_PACKAGES,	"packages",	schema_pkginfo_array),
+		ADB_FIELD(ADBI_NDX_PKGNAME_SPEC,"pkgname-spec",	scalar_string),
 	},
 };
 

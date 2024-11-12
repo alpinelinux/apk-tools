@@ -24,6 +24,9 @@ void apk_ctx_init(struct apk_ctx *ac)
 	ac->out.err = stderr;
 	ac->out.verbosity = 1;
 	ac->apknew_suffix = ".apk-new";
+	ac->default_pkgname_spec = APK_BLOB_STRLIT("${name}-${version}.apk");
+	ac->default_reponame_spec = APK_BLOB_STRLIT("${arch}/${name}-${version}.apk");;
+	ac->default_cachename_spec = APK_BLOB_STRLIT("${name}-${version}.${hash:8}.apk");
 	apk_digest_ctx_init(&ac->dctx, APK_DIGEST_SHA256);
 }
 

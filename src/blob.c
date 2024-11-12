@@ -58,25 +58,21 @@ int apk_blob_rsplit(apk_blob_t blob, char split, apk_blob_t *l, apk_blob_t *r)
 	return 1;
 }
 
+int apk_blob_contains(apk_blob_t blob, apk_blob_t needle)
+{
+	void *ptr = memmem(blob.ptr, blob.len, needle.ptr, needle.len);
+	if (!ptr) return -1;
+	return (char*)ptr - blob.ptr;
+}
+
 int apk_blob_split(apk_blob_t blob, apk_blob_t split, apk_blob_t *l, apk_blob_t *r)
 {
-	char *pos = blob.ptr, *end = blob.ptr + blob.len - split.len + 1;
+	int offs = apk_blob_contains(blob, split);
+	if (offs < 0) return 0;
 
-	if (!pos || end < pos) return 0;
-
-	while (1) {
-		pos = memchr(pos, split.ptr[0], end - pos);
-		if (!pos) return 0;
-
-		if (split.len > 1 && memcmp(pos, split.ptr, split.len) != 0) {
-			pos++;
-			continue;
-		}
-
-		*l = APK_BLOB_PTR_PTR(blob.ptr, pos-1);
-		*r = APK_BLOB_PTR_PTR(pos+split.len, blob.ptr+blob.len-1);
-		return 1;
-	}
+	*l = APK_BLOB_PTR_LEN(blob.ptr, offs);
+	*r = APK_BLOB_PTR_PTR(blob.ptr+offs+split.len, blob.ptr+blob.len-1);
+	return 1;
 }
 
 apk_blob_t apk_blob_pushed(apk_blob_t buffer, apk_blob_t left)
@@ -183,9 +179,37 @@ apk_blob_t apk_blob_fmt(char *str, size_t sz, const char *fmt, ...)
 	return APK_BLOB_PTR_LEN(str, n);
 }
 
+int apk_blob_subst(char *buf, size_t sz, apk_blob_t fmt, int (*res)(void *ctx, apk_blob_t var, apk_blob_t *to), void *ctx)
+{
+	const apk_blob_t var_start = APK_BLOB_STRLIT("${"), var_end = APK_BLOB_STRLIT("}"), colon = APK_BLOB_STRLIT(":");
+	apk_blob_t prefix, key, to = APK_BLOB_PTR_LEN(buf, sz), len;
+	int ret;
+
+	while (apk_blob_split(fmt, var_start, &prefix, &key)) {
+		apk_blob_push_blob(&to, prefix);
+		if (APK_BLOB_IS_NULL(to)) return -ENOBUFS;
+		if (!apk_blob_split(key, var_end, &key, &fmt)) return -APKE_FORMAT_INVALID;
+		char *max_advance = to.ptr + to.len;
+		if (apk_blob_split(key, colon, &key, &len)) {
+			max_advance = to.ptr + apk_blob_pull_uint(&len, 10);
+			if (len.len) return -APKE_FORMAT_INVALID;
+		}
+		ret = res(ctx, key, &to);
+		if (ret < 0) return ret;
+		if (to.ptr > max_advance) {
+			to.len += to.ptr - max_advance;
+			to.ptr = max_advance;
+		}
+	}
+	apk_blob_push_blob(&to, fmt);
+	apk_blob_push_blob(&to, APK_BLOB_PTR_LEN("", 1));
+	if (APK_BLOB_IS_NULL(to)) return -ENOBUFS;
+	return to.ptr - buf - 1;
+}
+
 int apk_blob_word_iterate(apk_blob_t *b, apk_blob_t *iter)
 {
-	static const apk_blob_t space = APK_BLOB_STRLIT(" ");
+	const apk_blob_t space = APK_BLOB_STRLIT(" ");
 	do {
 		if (b->ptr == NULL) return 0;
 		if (!apk_blob_split(*b, space, iter, b)) {

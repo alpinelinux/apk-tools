@@ -150,7 +150,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 	foreach_array_item(parg, args) {
 		struct apk_dependency dep;
 
-		if (strstr(*parg, ".apk") != NULL) {
+		if (strchr(*parg, '.') && access(*parg, F_OK) == 0) {
 			struct apk_package *pkg = NULL;
 
 			if (non_repository_check(db))

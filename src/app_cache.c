@@ -142,8 +142,7 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db, struc
 static void cache_clean_item(struct apk_database *db, int static_cache, int dirfd, const char *name, struct apk_package *pkg)
 {
 	struct apk_out *out = &db->ctx->out;
-	char tmp[PATH_MAX];
-	apk_blob_t b;
+	char index_url[PATH_MAX];
 	int i;
 
 	if (!static_cache) {
@@ -158,11 +157,10 @@ static void cache_clean_item(struct apk_database *db, int static_cache, int dirf
 		}
 	}
 
-	b = APK_BLOB_STR(name);
-	for (i = 0; i < db->num_repos; i++) {
+	for (i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++) {
 		/* Check if this is a valid index */
-		apk_repo_format_cache_index(APK_BLOB_BUF(tmp), &db->repos[i]);
-		if (apk_blob_compare(b, APK_BLOB_STR(tmp)) == 0) return;
+		if (apk_repo_index_cache_url(db, &db->repos[i], NULL, index_url, sizeof index_url) == 0 &&
+		    strcmp(name, index_url) == 0) return;
 	}
 
 delete:
@@ -175,11 +173,9 @@ delete:
 
 static int cache_clean(struct apk_database *db)
 {
-	if (apk_db_cache_active(db)) {
-		int r = apk_db_cache_foreach_item(db, cache_clean_item, 0);
-		if (r) return r;
-	}
-	return apk_db_cache_foreach_item(db, cache_clean_item, 1);
+	if (apk_db_cache_active(db)) apk_db_cache_foreach_item(db, cache_clean_item, 0);
+	apk_db_cache_foreach_item(db, cache_clean_item, 1);
+	return 0;
 }
 
 static int cache_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)

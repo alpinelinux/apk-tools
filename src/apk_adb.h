@@ -82,7 +82,8 @@ struct adb_data_package {
 /* Index */
 #define ADBI_NDX_DESCRIPTION	0x01
 #define ADBI_NDX_PACKAGES	0x02
-#define ADBI_NDX_MAX		0x03
+#define ADBI_NDX_PKGNAME_SPEC	0x03
+#define ADBI_NDX_MAX		0x04
 
 /* Installed DB */
 #define ADBI_IDB_PACKAGES	0x01

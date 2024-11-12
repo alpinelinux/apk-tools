@@ -74,6 +74,9 @@ struct apk_ctx {
 	const char *repositories_file;
 	const char *uvol;
 	const char *apknew_suffix;
+	apk_blob_t default_pkgname_spec;
+	apk_blob_t default_reponame_spec;
+	apk_blob_t default_cachename_spec;
 	struct apk_string_array *repository_list;
 	struct apk_string_array *arch_list;
 	struct apk_istream *protected_paths;

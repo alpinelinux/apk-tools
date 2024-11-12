@@ -35,5 +35,33 @@ apk mkndx - create apkv3 repository index file from packages
 	Read an existing index from _INDEX_ to speed up the creation of the new
 	index by reusing data when possible.
 
+*--pkgname-spec* _PKGNAME_SPEC_
+	Specify package name specification for downloading the packages.
+	APK will construct the download URL relative to index file by expanding
+	this specification with package specific values.
+
+	If the specification contains :// it is considered an absolute URL instead
+	of relative. This is not recommended for public repositories as using
+	absolute package name specification would prevent mirroring. However, this
+	is useful in build environment to create a subset of an index and have it
+	refer to packages in another repository.
+
+	If not specified, the default will be determined by *apk* at runtime based
+	on how the repository is referenced:
+	- ${arch}/${name}-${version}.apk if referenced by repository base path URL
+	- ${name}-${version}.apk if referenced by repository index file URL
+
+	Currently supported substitution variables are:
+	- name
+	- version
+	- arch
+	- hash
+
+	Additionally a prefix of the variable can used with syntax: *${name:4}*. This
+	truncates the substition to maximum of 4 characters.
+
+	The specification writer should ensure that the repository does not contain
+	multiple packages that would expand to same package filename.
+
 *--rewrite-arch* _ARCH_
 	Set all package's architecture to _ARCH_.
