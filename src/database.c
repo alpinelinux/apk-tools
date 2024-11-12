@@ -2706,11 +2706,12 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 				struct apk_db_file *lfile;
 				struct apk_db_dir_instance *ldiri;
 				struct hlist_node *n;
-				apk_blob_t hldir, hlfile;
+				apk_blob_t hldir, hlfile, hltarget = APK_BLOB_STR(ae->link_target);
 
-				if (!apk_blob_rsplit(APK_BLOB_STR(ae->link_target),
-						     '/', &hldir, &hlfile))
-					break;
+				if (!apk_blob_rsplit(hltarget, '/', &hldir, &hlfile)) {
+					hldir = APK_BLOB_NULL;
+					hlfile = hltarget;
+				}
 
 				ldiri = find_diri(ipkg, hldir, diri, NULL);
 				if (ldiri == NULL)
@@ -2776,7 +2777,7 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 		switch (r) {
 		case 0:
 			// Hardlinks need special care for checksum
-			if (link_target_file)
+			if (!ipkg->sha256_160 && link_target_file)
 				apk_dbf_digest_set(file, link_target_file->digest_alg, link_target_file->digest);
 			else
 				apk_dbf_digest_set(file, ae->digest.alg, ae->digest.data);
