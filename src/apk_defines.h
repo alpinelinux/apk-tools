@@ -74,6 +74,7 @@ enum {
 	APKE_UVOL_ERROR,
 	APKE_UVOL_ROOT,
 	APKE_REMOTE_IO,
+	APKE_NOT_EXTRACTED,
 };
 
 static inline void *ERR_PTR(long error) { return (void*) error; }

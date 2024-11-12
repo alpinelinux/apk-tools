@@ -56,7 +56,8 @@
 	func(APKE_UVOL_NOT_AVAILABLE,	"uvol manager not available") \
 	func(APKE_UVOL_ERROR,		"uvol error") \
 	func(APKE_UVOL_ROOT,		"uvol not supported with --root") \
-	func(APKE_REMOTE_IO,		"remote server returned error (try 'apk update')")
+	func(APKE_REMOTE_IO,		"remote server returned error (try 'apk update')") \
+	func(APKE_NOT_EXTRACTED,	"file not extracted") \
 
 const char *apk_error_str(int error)
 {

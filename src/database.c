@@ -1718,7 +1718,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		    st.st_uid != 0)
 			db->usermode = 1;
 	}
-	if (db->usermode) db->extract_flags |= APK_FSEXTRACTF_NO_CHOWN | APK_FSEXTRACTF_NO_SYS_XATTRS;
+	if (db->usermode) db->extract_flags |= APK_FSEXTRACTF_NO_CHOWN | APK_FSEXTRACTF_NO_SYS_XATTRS | APK_FSEXTRACTF_NO_DEVICES;
 
 	setup_uvol_target(db);
 
@@ -2805,6 +2805,9 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 					ctx->missing_checksum = 1;
 				}
 			}
+			break;
+		case -APKE_NOT_EXTRACTED:
+			file->broken = 1;
 			break;
 		case -ENOSPC:
 			ret = r;

@@ -142,6 +142,7 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 	case S_IFBLK:
 	case S_IFCHR:
 	case S_IFIFO:
+		if (extract_flags & APK_FSEXTRACTF_NO_DEVICES) return -APKE_NOT_EXTRACTED;
 		if (mknodat(atfd, fn, fi->mode, fi->device) < 0) return -errno;
 		break;
 	}
