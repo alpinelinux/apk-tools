@@ -397,8 +397,7 @@ static int audit_directory_tree(struct audit_tree_ctx *atctx, int dirfd)
 	int r;
 
 	path = APK_BLOB_PTR_LEN(atctx->path, atctx->pathlen);
-	if (path.len && path.ptr[path.len-1] == '/')
-		path.len--;
+	path = apk_blob_trim_end(path, '/');
 
 	atctx->dir = apk_db_dir_get(atctx->db, path);
 	atctx->dir->modified = 1;

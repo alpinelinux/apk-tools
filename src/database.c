@@ -333,8 +333,7 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 	unsigned long hash = apk_hash_from_key(&db->installed.dirs, name);
 	char *relative_name;
 
-	if (name.len && name.ptr[name.len-1] == '/') name.len--;
-
+	name = apk_blob_trim_end(name, '/');
 	dir = (struct apk_db_dir *) apk_hash_get_hashed(&db->installed.dirs, name, hash);
 	if (dir != NULL && dir->refs) return apk_db_dir_ref(dir);
 	if (dir == NULL) {
@@ -479,14 +478,10 @@ struct apk_db_file *apk_db_file_query(struct apk_database *db,
 {
 	struct apk_db_file_hash_key key;
 
-	if (dir.len && dir.ptr[dir.len-1] == '/')
-		dir.len--;
-
 	key = (struct apk_db_file_hash_key) {
-		.dirname = dir,
+		.dirname = apk_blob_trim_end(dir, '/'),
 		.filename = name,
 	};
-
 	return (struct apk_db_file *) apk_hash_get(&db->installed.files,
 						   APK_BLOB_BUF(&key));
 }
@@ -1328,10 +1323,8 @@ static int apk_db_add_protected_path(struct apk_database *db, apk_blob_t blob)
 
 no_mode_char:
 	/* skip leading and trailing path separators */
-	while (blob.len && blob.ptr[0] == '/')
-		blob.ptr++, blob.len--;
-	while (blob.len && blob.ptr[blob.len-1] == '/')
-		blob.len--;
+	blob = apk_blob_trim_start(blob, '/');
+	blob = apk_blob_trim_end(blob, '/');
 
 	apk_protected_path_array_add(&db->protected_paths, (struct apk_protected_path) {
 		.relative_pattern = apk_blob_cstr(blob),
@@ -2272,19 +2265,13 @@ struct apk_package *apk_db_get_file_owner(struct apk_database *db,
 	struct apk_db_file *dbf;
 	struct apk_db_file_hash_key key;
 
-	if (filename.len && filename.ptr[0] == '/')
-		filename.len--, filename.ptr++;
-
+	filename = apk_blob_trim_start(filename, '/');
 	if (!apk_blob_rsplit(filename, '/', &key.dirname, &key.filename)) {
 		key.dirname = APK_BLOB_NULL;
 		key.filename = filename;
 	}
-
-	dbf = (struct apk_db_file *) apk_hash_get(&db->installed.files,
-						  APK_BLOB_BUF(&key));
-	if (dbf == NULL)
-		return NULL;
-
+	dbf = (struct apk_db_file *) apk_hash_get(&db->installed.files, APK_BLOB_BUF(&key));
+	if (dbf == NULL) return NULL;
 	return dbf->diri->pkg;
 }
 
@@ -2792,8 +2779,7 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 		struct apk_db_acl *expected_acl;
 
 		apk_dbg2(out, "%s (dir)", ae->name);
-		if (name.ptr[name.len-1] == '/') name.len--;
-
+		name = apk_blob_trim_end(name, '/');
 		diri = ctx->diri = find_diri(ipkg, name, NULL, &ctx->file_diri_node);
 		if (!diri) diri = apk_db_install_directory_entry(ctx, name);
 		diri->acl = apk_db_acl_atomize_digest(db, ae->mode, ae->uid, ae->gid, &ae->xattr_digest);

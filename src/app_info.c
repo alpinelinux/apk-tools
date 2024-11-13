@@ -86,7 +86,7 @@ static struct apk_package *get_owner(struct apk_database *db, apk_blob_t fn)
 	struct apk_db_dir *dir;
 
 	apk_blob_pull_blob_match(&fn, APK_BLOB_STRLIT("/"));
-	if (fn.len && fn.ptr[fn.len-1] == '/') fn.len--;
+	fn = apk_blob_trim_end(fn, '/');
 
 	dir = apk_db_dir_query(db, fn);
 	if (dir && dir->owner) return dir->owner->pkg;

@@ -259,11 +259,10 @@ static const struct apk_fsdir_ops fsdir_ops_fsys = {
 
 static const struct apk_fsdir_ops *apk_fsops_get(apk_blob_t dir)
 {
-	if (dir.len >= 4 && memcmp(dir.ptr, "uvol", 4) == 0 && (dir.len == 4 || dir.ptr[4] == '/')) {
+	if (apk_blob_starts_with(dir, APK_BLOB_STRLIT("uvol")) && (dir.len == 4 || dir.ptr[4] == '/')) {
 		extern const struct apk_fsdir_ops fsdir_ops_uvol;
 		return &fsdir_ops_uvol;
 	}
-
 	return &fsdir_ops_fsys;
 }
 

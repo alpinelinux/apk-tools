@@ -33,23 +33,24 @@ typedef int (*apk_blob_cb)(void *ctx, apk_blob_t blob);
 #define APK_BLOB_PTR_LEN(beg,len)	((apk_blob_t){(len), (beg)})
 #define APK_BLOB_PTR_PTR(beg,end)	APK_BLOB_PTR_LEN((beg),(end)-(beg)+1)
 
-static inline apk_blob_t APK_BLOB_STR(const char *str)
-{
-	if (str == NULL)
-		return APK_BLOB_NULL;
+static inline apk_blob_t APK_BLOB_STR(const char *str) {
+	if (str == NULL) return APK_BLOB_NULL;
 	return ((apk_blob_t){strlen(str), (void *)(str)});
 }
-
-static inline apk_blob_t apk_blob_trim(apk_blob_t blob)
-{
-	apk_blob_t b = blob;
-	while (b.len > 0 && isspace(b.ptr[b.len-1]))
-		b.len--;
+static inline apk_blob_t apk_blob_trim(apk_blob_t b) {
+	while (b.len > 0 && isspace(b.ptr[b.len-1])) b.len--;
 	return b;
 }
 
-static inline apk_blob_t apk_blob_truncate(apk_blob_t blob, int maxlen)
-{
+static inline apk_blob_t apk_blob_trim_start(apk_blob_t b, char ch) {
+	while (b.len > 0 && b.ptr[0] == ch) b.ptr++, b.len--;
+	return b;
+}
+static inline apk_blob_t apk_blob_trim_end(apk_blob_t b, char ch) {
+	while (b.len > 0 && b.ptr[b.len-1] == ch) b.len--;
+	return b;
+}
+static inline apk_blob_t apk_blob_truncate(apk_blob_t blob, int maxlen) {
 	return APK_BLOB_PTR_LEN(blob.ptr, min(blob.len, maxlen));
 }
 
