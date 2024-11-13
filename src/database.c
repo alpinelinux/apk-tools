@@ -2008,7 +2008,6 @@ void apk_db_close(struct apk_database *db)
 	struct apk_db_dir_instance *diri;
 	struct apk_protected_path *ppath;
 	struct hlist_node *dc, *dn;
-	int i;
 
 	/* Cleaning up the directory tree will cause mode, uid and gid
 	 * of all modified (package providing that directory got removed)
@@ -2020,10 +2019,8 @@ void apk_db_close(struct apk_database *db)
 		apk_pkg_uninstall(NULL, ipkg->pkg);
 	}
 
-	for (i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++) {
+	for (int i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++)
 		free((void*) db->repos[i].url);
-		free(db->repos[i].description.ptr);
-	}
 	foreach_array_item(ppath, db->protected_paths)
 		free(ppath->relative_pattern);
 	apk_protected_path_array_free(&db->protected_paths);
@@ -2332,8 +2329,7 @@ static int load_v2index(struct apk_extract_ctx *ectx, apk_blob_t *desc, struct a
 	struct apkindex_ctx *ctx = container_of(ectx, struct apkindex_ctx, ectx);
 	struct apk_repository *repo = &ctx->db->repos[ctx->repo];
 
-	repo->description = *desc;
-	*desc = APK_BLOB_NULL;
+	repo->description = *apk_atomize_dup(&ctx->db->atoms, *desc);
 	return apk_db_index_read(ctx->db, is, ctx->repo);
 }
 
@@ -2349,7 +2345,7 @@ static int load_v3index(struct apk_extract_ctx *ectx, struct adb_obj *ndx)
 
 	apk_pkgtmpl_init(&tmpl);
 
-	repo->description = apk_blob_dup(adb_ro_blob(ndx, ADBI_NDX_DESCRIPTION));
+	repo->description = *apk_atomize_dup(&db->atoms, adb_ro_blob(ndx, ADBI_NDX_DESCRIPTION));
 	adb_ro_obj(ndx, ADBI_NDX_PACKAGES, &pkgs);
 
 	for (i = ADBI_FIRST; i <= adb_ra_num(&pkgs); i++) {

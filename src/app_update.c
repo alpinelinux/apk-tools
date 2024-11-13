@@ -27,12 +27,8 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 	if (apk_out_verbosity(out) < 1)
 		return db->repositories.unavailable + db->repositories.stale;
 
-	for (i = 0; i < db->num_repos; i++) {
+	for (i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++) {
 		repo = &db->repos[i];
-
-		if (APK_BLOB_IS_NULL(repo->description))
-			continue;
-
 		apk_url_parse(&urlp, db->repos[i].url);
 		apk_msg(out, BLOB_FMT " [" URL_FMT "]",
 			BLOB_PRINTF(repo->description),

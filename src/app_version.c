@@ -27,12 +27,8 @@ static int ver_indexes(struct apk_database *db, struct apk_string_array *args)
 	struct apk_repository *repo;
 	int i;
 
-	for (i = 0; i < db->num_repos; i++) {
+	for (i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++) {
 		repo = &db->repos[i];
-
-		if (APK_BLOB_IS_NULL(repo->description))
-			continue;
-
 		apk_out(out, BLOB_FMT " [%s]",
 			BLOB_PRINTF(repo->description),
 			db->repos[i].url);
