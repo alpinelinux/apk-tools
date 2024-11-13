@@ -48,6 +48,11 @@ static inline apk_blob_t apk_blob_trim(apk_blob_t blob)
 	return b;
 }
 
+static inline apk_blob_t apk_blob_truncate(apk_blob_t blob, int maxlen)
+{
+	return APK_BLOB_PTR_LEN(blob.ptr, min(blob.len, maxlen));
+}
+
 APK_ARRAY(apk_blobptr_array, apk_blob_t *);
 
 char *apk_blob_cstr(apk_blob_t str);

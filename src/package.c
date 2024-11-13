@@ -577,7 +577,7 @@ void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl
 
 	pkg->name = apk_db_get_name(db, adb_ro_blob(pkginfo, ADBI_PI_NAME));
 	pkg->version = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_VERSION));
-	pkg->description = apk_atomize_dup0(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_DESCRIPTION));
+	pkg->description = apk_atomize_dup0(&db->atoms, apk_blob_truncate(adb_ro_blob(pkginfo, ADBI_PI_DESCRIPTION), 512));
 	pkg->url = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_URL));
 	pkg->license = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_LICENSE));
 	pkg->arch = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_ARCH));
