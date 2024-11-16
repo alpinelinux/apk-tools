@@ -34,6 +34,7 @@ void apk_ctx_free(struct apk_ctx *ac)
 	apk_trust_free(&ac->trust);
 	apk_string_array_free(&ac->repository_list);
 	apk_string_array_free(&ac->arch_list);
+	if (ac->root_fd) close(ac->root_fd);
 	if (ac->db_root_fd) close(ac->db_root_fd);
 	if (ac->out.log) fclose(ac->out.log);
 }
