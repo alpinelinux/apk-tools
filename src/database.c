@@ -2092,11 +2092,14 @@ static int fire_triggers(apk_hash_item item, void *ctx)
 	struct apk_db_dir *dbd = (struct apk_db_dir *) item;
 	struct apk_installed_package *ipkg;
 	char **triggerptr, *trigger;
+	int only_changed;
 
 	list_for_each_entry(ipkg, &db->installed.triggers, trigger_pkgs_list) {
 		if (!ipkg->run_all_triggers && !dbd->modified) continue;
 		foreach_array_item(triggerptr, ipkg->triggers) {
 			trigger = *triggerptr;
+			only_changed = trigger[0] == '+';
+			if (only_changed) ++trigger;
 			if (trigger[0] != '/') continue;
 			if (fnmatch(trigger, dbd->rooted_name, FNM_PATHNAME) != 0) continue;
 
@@ -2105,7 +2108,8 @@ static int fire_triggers(apk_hash_item item, void *ctx)
 				apk_string_array_add(&ipkg->pending_triggers, NULL);
 				db->pending_triggers++;
 			}
-			apk_string_array_add(&ipkg->pending_triggers, dbd->rooted_name);
+			if (!only_changed || dbd->modified)
+				apk_string_array_add(&ipkg->pending_triggers, dbd->rooted_name);
 			break;
 		}
 	}

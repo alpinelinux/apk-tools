@@ -273,6 +273,13 @@ Unfortunately it is not possible to deduce if a given string is of format
 	removal) has modified content of that directory. When package is
 	being fixed or installed it will get list of all matching directories.
 
+	Trigger globs may start with *+*, which means that the path should
+	only be passed to the trigger script when the directory was modified
+	during the transaction. It does not affect whether the trigger is
+	invoked or not. Without the prefix, the path will also be passed
+	when present in the system and the package providing the trigger
+	script is updated or reinstalled.
+
 *replaces-priority*
 	If two packages both contain the same file, and they both have replaces
 	directive allow them to overwrite packages. This priority determines
