@@ -15,15 +15,16 @@
 #include "apk_print.h"
 
 struct ver_ctx {
-	int (*action)(struct apk_database *db, struct apk_string_array *args);
+	int (*action)(struct apk_ctx *ac, struct apk_string_array *args);
 	const char *limchars;
 	unsigned int max_pkg_len;
 	unsigned short all_tags : 1;
 };
 
-static int ver_indexes(struct apk_database *db, struct apk_string_array *args)
+static int ver_indexes(struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
 	struct apk_repository *repo;
 	int i;
 
@@ -37,9 +38,9 @@ static int ver_indexes(struct apk_database *db, struct apk_string_array *args)
 	return 0;
 }
 
-static int ver_test(struct apk_database *db, struct apk_string_array *args)
+static int ver_test(struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
 	int r;
 
 	if (apk_array_len(args) != 2) return 1;
@@ -48,9 +49,9 @@ static int ver_test(struct apk_database *db, struct apk_string_array *args)
 	return 0;
 }
 
-static int ver_validate(struct apk_database *db, struct apk_string_array *args)
+static int ver_validate(struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ac->out;
 	char **parg;
 	int errors = 0;
 
@@ -81,17 +82,18 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 		break;
 	case OPT_VERSION_check:
 		ictx->action = ver_validate;
-		ac->open_flags |= APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
+		ac->open_flags = 0;
 		break;
 	case OPT_VERSION_indexes:
 		ictx->action = ver_indexes;
+		ac->open_flags = APK_OPENF_READ;
 		break;
 	case OPT_VERSION_limit:
 		ictx->limchars = optarg;
 		break;
 	case OPT_VERSION_test:
 		ictx->action = ver_test;
-		ac->open_flags |= APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS;
+		ac->open_flags = 0;
 		break;
 	default:
 		return -ENOTSUP;
@@ -214,9 +216,7 @@ static int ver_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 	} else if (apk_array_len(args) == 0 && apk_out_verbosity(out) == 1) {
 		ctx->limchars = "<";
 	}
-
-	if (ctx->action != NULL)
-		return ctx->action(db, args);
+	if (ctx->action) return ctx->action(ac, args);
 
 	apk_db_foreach_matching_name(db, args, ver_calculate_length, ctx);
 
