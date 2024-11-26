@@ -133,8 +133,8 @@ int apk_dep_analyze(const struct apk_package *deppkg, struct apk_dependency *dep
 
 void apk_blob_push_dep(apk_blob_t *to, struct apk_database *, struct apk_dependency *dep);
 void apk_blob_push_deps(apk_blob_t *to, struct apk_database *, struct apk_dependency_array *deps);
-void apk_blob_pull_dep(apk_blob_t *from, struct apk_database *, struct apk_dependency *);
-int apk_blob_pull_deps(apk_blob_t *from, struct apk_database *, struct apk_dependency_array **);
+void apk_blob_pull_dep(apk_blob_t *from, struct apk_database *, struct apk_dependency *, bool);
+int apk_blob_pull_deps(apk_blob_t *from, struct apk_database *, struct apk_dependency_array **, bool);
 
 int apk_deps_write_layer(struct apk_database *db, struct apk_dependency_array *deps,
 			 struct apk_ostream *os, apk_blob_t separator, unsigned layer);

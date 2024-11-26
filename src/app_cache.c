@@ -102,7 +102,7 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db, struc
 		apk_dependency_array_copy(&deps, db->world);
 	for (i = 1; i < apk_array_len(args); i++) {
 		apk_blob_t b = APK_BLOB_STR(args->item[i]);
-		apk_blob_pull_dep(&b, db, &dep);
+		apk_blob_pull_dep(&b, db, &dep, true);
 		if (APK_BLOB_IS_NULL(b)) {
 			apk_err(out, "bad dependency: %s", args->item[i]);
 			return -EINVAL;

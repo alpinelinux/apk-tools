@@ -126,7 +126,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 
 	if (actx->virtpkg) {
 		apk_blob_t b = APK_BLOB_STR(actx->virtpkg);
-		apk_blob_pull_dep(&b, db, &virtdep);
+		apk_blob_pull_dep(&b, db, &virtdep, true);
 
 		if (APK_BLOB_IS_NULL(b) || apk_dep_conflict(&virtdep) ||
 		    (virtdep.name->name[0] != '.' && non_repository_check(db)) ||
@@ -170,8 +170,8 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 		} else {
 			apk_blob_t b = APK_BLOB_STR(*parg);
 
-			apk_blob_pull_dep(&b, db, &dep);
-			if (APK_BLOB_IS_NULL(b) || b.len > 0 || dep.broken || (actx->virtpkg && dep.repository_tag)) {
+			apk_blob_pull_dep(&b, db, &dep, !actx->virtpkg);
+			if (APK_BLOB_IS_NULL(b) || b.len > 0 || dep.broken) {
 				apk_err(out, "'%s' is not a valid %s dependency, format is %s",
 					*parg,
 					actx->virtpkg ? "package" : "world",

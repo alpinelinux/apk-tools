@@ -209,7 +209,7 @@ void apk_deps_del(struct apk_dependency_array **pdeps, struct apk_name *name)
 	}
 }
 
-void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_dependency *dep)
+void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_dependency *dep, bool allow_tag)
 {
 	struct apk_name *name;
 	apk_blob_t bdep, bname, bver, btag;
@@ -223,8 +223,10 @@ void apk_blob_pull_dep(apk_blob_t *b, struct apk_database *db, struct apk_depend
 	if (apk_dep_parse(bdep, &bname, &op, &bver) != 0) goto fail;
 	if ((op & APK_DEPMASK_CHECKSUM) != APK_DEPMASK_CHECKSUM &&
 	    !apk_version_validate(bver)) broken = 1;
-	if (apk_blob_split(bname, APK_BLOB_STRLIT("@"), &bname, &btag))
+	if (apk_blob_split(bname, APK_BLOB_STRLIT("@"), &bname, &btag)) {
+		if (!allow_tag) goto fail;
 		tag = apk_db_get_tag_id(db, btag);
+	}
 
 	/* convert to apk_dependency */
 	name = apk_db_get_name(db, bname);
@@ -243,14 +245,14 @@ fail:
 	*b = APK_BLOB_NULL;
 }
 
-int apk_blob_pull_deps(apk_blob_t *b, struct apk_database *db, struct apk_dependency_array **deps)
+int apk_blob_pull_deps(apk_blob_t *b, struct apk_database *db, struct apk_dependency_array **deps, bool allow_tag)
 {
 	int rc = 0;
 
 	while (b->len > 0) {
 		struct apk_dependency dep;
 
-		apk_blob_pull_dep(b, db, &dep);
+		apk_blob_pull_dep(b, db, &dep, allow_tag);
 		if (APK_BLOB_IS_NULL(*b) || dep.name == NULL) {
 			rc = -APKE_DEPENDENCY_FORMAT;
 			continue;
@@ -496,7 +498,7 @@ int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl,
 		if (!apk_db_arch_compatible(db, pkg->arch)) pkg->uninstallable = 1;
 		break;
 	case 'D':
-		if (apk_blob_pull_deps(&value, db, &pkg->depends)) {
+		if (apk_blob_pull_deps(&value, db, &pkg->depends, false)) {
 			db->compat_depversions = 1;
 			db->compat_notinstallable = pkg->uninstallable = 1;
 			return 2;
@@ -512,13 +514,13 @@ int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl,
 		pkg->installed_size = apk_blob_pull_uint(&value, 10);
 		break;
 	case 'p':
-		if (apk_blob_pull_deps(&value, db, &pkg->provides)) {
+		if (apk_blob_pull_deps(&value, db, &pkg->provides, false)) {
 			db->compat_depversions = 1;
 			return 2;
 		}
 		break;
 	case 'i':
-		if (apk_blob_pull_deps(&value, db, &pkg->install_if)) {
+		if (apk_blob_pull_deps(&value, db, &pkg->install_if, false)) {
 			// Disable partial install_if rules
 			apk_array_truncate(pkg->install_if, 0);
 			db->compat_depversions = 1;

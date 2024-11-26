@@ -939,7 +939,7 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 			apk_dbf_digest_set(file, file_digest.alg, file_digest.data);
 			break;
 		case 'r':
-			apk_blob_pull_deps(&l, db, &ipkg->replaces);
+			apk_blob_pull_deps(&l, db, &ipkg->replaces, false);
 			break;
 		case 'q':
 			ipkg->replaces_priority = apk_blob_pull_uint(&l, 10);
@@ -1243,7 +1243,7 @@ static int apk_db_read_layer(struct apk_database *db, unsigned layer)
 
 		if (!ret) {
 			blob = apk_blob_trim(world);
-			ret = apk_blob_pull_deps(&blob, db, &db->world);
+			ret = apk_blob_pull_deps(&blob, db, &db->world, true);
 			free(world.ptr);
 		} else if (layer == APK_DB_LAYER_ROOT) {
 			ret = -ENOENT;
@@ -2526,7 +2526,7 @@ static int read_info_line(void *_ctx, apk_blob_t line)
 		return 0;
 
 	if (apk_blob_compare(APK_BLOB_STR("replaces"), l) == 0) {
-		apk_blob_pull_deps(&r, db, &ipkg->replaces);
+		apk_blob_pull_deps(&r, db, &ipkg->replaces, false);
 	} else if (apk_blob_compare(APK_BLOB_STR("replaces_priority"), l) == 0) {
 		ipkg->replaces_priority = apk_blob_pull_uint(&r, 10);
 	} else if (apk_blob_compare(APK_BLOB_STR("triggers"), l) == 0) {

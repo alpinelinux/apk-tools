@@ -62,7 +62,7 @@ static void info_exists(struct info_ctx *ctx, struct apk_database *db,
 	foreach_array_item(parg, args) {
 		apk_blob_t b = APK_BLOB_STR(*parg);
 
-		apk_blob_pull_dep(&b, db, &dep);
+		apk_blob_pull_dep(&b, db, &dep, true);
 		if (APK_BLOB_IS_NULL(b) || b.len > 0)
 			continue;
 
