@@ -552,6 +552,7 @@ static int matched_dep_sort(const void *p1, const void *p2)
 
 static void print_mdeps(struct print_state *ps, const char *label, struct matched_dep_array *deps)
 {
+	struct apk_database *db = ps->db;
 	const struct matched_dep *dep;
 
 	if (apk_array_len(deps) == 0) return;
@@ -560,7 +561,8 @@ static void print_mdeps(struct print_state *ps, const char *label, struct matche
 	apk_array_qsort(deps, matched_dep_sort);
 	foreach_array_item(dep, deps) {
 		if (dep->pkg == NULL)
-			apk_print_indented_fmt(&ps->i, "world[" DEP_FMT "]", DEP_PRINTF(dep->dep));
+			apk_print_indented_fmt(&ps->i, "world[" DEP_FMT BLOB_FMT "]", DEP_PRINTF(dep->dep),
+				BLOB_PRINTF(db->repo_tags[dep->dep->repository_tag].tag));
 		else
 			apk_print_indented_fmt(&ps->i, PKG_VER_FMT "[" DEP_FMT "]",
 					       PKG_VER_PRINTF(dep->pkg),
@@ -628,6 +630,7 @@ static void analyze_package(struct print_state *ps, struct apk_package *pkg, uns
 
 static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 {
+	struct apk_database *db = ps->db;
 	struct apk_name **pname0, *name0;
 	struct apk_provider *p0;
 	struct apk_dependency *d0;
@@ -667,8 +670,9 @@ static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 	foreach_array_item(d0, ps->world) {
 		if (d0->name != name || apk_dep_conflict(d0))
 			continue;
-		apk_print_indented_fmt(&ps->i, "world[" DEP_FMT "]",
-			DEP_PRINTF(d0));
+		apk_print_indented_fmt(&ps->i, "world[" DEP_FMT BLOB_FMT "]",
+			DEP_PRINTF(d0),
+			BLOB_PRINTF(db->repo_tags[d0->repository_tag].tag));
 	}
 	genid = apk_foreach_genid();
 	foreach_array_item(pname0, name->rdepends) {
