@@ -680,7 +680,6 @@ int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package *
 	if (r != 0) return r;
 
 	apk_pkgtmpl_init(&ctx.tmpl);
-	ctx.tmpl.pkg.size = fi.size;
 	apk_extract_init(&ctx.ectx, db->ctx, &extract_pkgmeta_ops);
 	apk_extract_generate_identity(&ctx.ectx, APK_DIGEST_SHA256, &ctx.tmpl.id);
 
@@ -694,6 +693,7 @@ int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package *
 	}
 
 	apk_string_array_add(&db->filename_array, (char*) file);
+	ctx.tmpl.pkg.size = fi.size;
 	ctx.tmpl.pkg.filename_ndx = apk_array_len(db->filename_array);
 
 	if (pkg) *pkg = apk_db_pkg_add(db, &ctx.tmpl);
