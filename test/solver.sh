@@ -1,5 +1,7 @@
 #!/bin/sh
 
+source $(dirname "$0")/testlib.sh
+
 update_repo() {
 	local repo="$1"
 	if [ ! -f "$repo.adb" -o "$repo" -nt "$repo.adb" ]; then
@@ -11,18 +13,11 @@ update_repo() {
 
 run_test() {
 	local test="$1"
-	local testdir="$(realpath "$(dirname "$test")")"
+	local testfile="$(realpath -e "$test")"
+	local testdir="$(dirname "$testfile")"
 
-	tmproot=$(mktemp -d -p /tmp apktest.$(basename $test).XXXXXXXX)
-	[ -d "$tmproot" ] || return 1
-
-	mkdir -p "$tmproot/etc/apk/cache" \
-		"$tmproot/usr/lib/apk/db" \
-		"$tmproot/var/log" \
-		"$tmproot/data/src"
-	touch "$tmproot/etc/apk/world"
-	touch "$tmproot/usr/lib/apk/db/installed"
-	ln -sf /dev/null "$tmproot/var/log/apk.log"
+	setup_apkroot
+	mkdir -p "$TEST_ROOT/data/src"
 
 	local args="" repo run_found
 	exec 4> /dev/null
@@ -35,28 +30,28 @@ run_test() {
 		"@WORLD "*)
 			for dep in ${ln#* }; do
 				echo "$dep"
-			done > "$tmproot/etc/apk/world"
+			done > "$TEST_ROOT/etc/apk/world"
 			;;
 		"@INSTALLED "*)
-			ln -snf "${testdir}/${ln#* }" "$tmproot/usr/lib/apk/db/installed"
+			ln -snf "$testdir/${ln#* }" "$TEST_ROOT/usr/lib/apk/db/installed"
 			;;
 		"@REPO @"*)
 			tag="${ln#* }"
 			repo="${tag#* }"
 			tag="${tag% *}"
 			update_repo "$testdir/$repo"
-			echo "$tag file://localhost/${testdir}/$repo.adb" >> "$tmproot"/etc/apk/repositories
+			echo "$tag file://localhost/$testdir/$repo.adb" >> "$TEST_ROOT"/etc/apk/repositories
 			;;
 		"@REPO "*)
 			repo="${ln#* }"
 			update_repo "$testdir/$repo"
-			echo "file://localhost/${testdir}/$repo.adb" >> "$tmproot"/etc/apk/repositories
+			echo "file://localhost/$testdir/$repo.adb" >> "$TEST_ROOT"/etc/apk/repositories
 			;;
 		"@CACHE "*)
-			ln -snf "${testdir}/${ln#* }" "$tmproot/etc/apk/cache/installed"
+			ln -snf "$testdir/${ln#* }" "$TEST_ROOT/etc/apk/cache/installed"
 			;;
 		"@EXPECT")
-			exec 4> "$tmproot/data/expected"
+			exec 4> "$TEST_ROOT/data/expected"
 			;;
 		"@"*)
 			echo "$test: invalid spec: $ln"
@@ -67,23 +62,23 @@ run_test() {
 			echo "$ln" >&4
 			;;
 		esac
-	done < "$test"
+	done < "$testfile"
 	exec 4> /dev/null
 
 	retcode=1
 	if [ "$run_found" = "yes" ]; then
-		$APK --allow-untrusted --simulate --root "$tmproot" $args > "$tmproot/data/output" 2>&1
+		$APK --allow-untrusted --simulate $args > "$TEST_ROOT/data/output" 2>&1
 
-		if ! cmp "$tmproot/data/output" "$tmproot/data/expected" > /dev/null 2>&1; then
+		if ! cmp "$TEST_ROOT/data/output" "$TEST_ROOT/data/expected" > /dev/null 2>&1; then
 			fail=$((fail+1))
 			echo "FAIL: $test"
-			diff -ru "$tmproot/data/expected" "$tmproot/data/output"
+			diff -ru "$TEST_ROOT/data/expected" "$TEST_ROOT/data/output"
 		else
 			retcode=0
 		fi
 	fi
 
-	rm -rf "$tmproot"
+	rm -rf "$TEST_ROOT"
 	return $retcode
 }
 
@@ -92,7 +87,7 @@ TEST_TO_RUN="$@"
 fail=0
 pass=0
 for test in ${TEST_TO_RUN:-solver/*.test}; do
-	if run_test "$test"; then
+	if (run_test "$test"); then
 		pass=$((pass+1))
 	else
 		fail=$((fail+1))
