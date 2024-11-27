@@ -9,5 +9,5 @@ void test_register(const char *, UnitTestFunction);
 
 #define APK_TEST(test_name) \
 	static void test_name(void **); \
-	__attribute__((constructor)) static void _test_register_##x(void) { test_register(#test_name, test_name); } \
+	__attribute__((constructor)) static void _test_register_##test_name(void) { test_register(#test_name, test_name); } \
 	static void test_name(void **)
