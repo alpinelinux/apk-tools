@@ -25,6 +25,7 @@
 #include "apk_print.h"
 #include "apk_xattr.h"
 
+#define SPECIAL_HARDLINK 0x8000000
 #define BLOCK_SIZE 4096
 
 struct mkpkg_hardlink_key {
@@ -35,8 +36,7 @@ struct mkpkg_hardlink_key {
 struct mkpkg_hardlink {
 	apk_hash_node hash_node;
 	struct mkpkg_hardlink_key key;
-	uint16_t name_len;
-	char name[];
+	adb_val_t val;
 };
 
 static apk_blob_t mkpkg_hardlink_get_key(apk_hash_item item)
@@ -66,6 +66,8 @@ struct mkpkg_ctx {
 	struct apk_pathbuilder pb;
 	struct apk_hash link_by_inode;
 	struct apk_balloc ba;
+	adb_val_t *hardlink_targets;
+	unsigned int hardlink_id;
 	unsigned has_scripts : 1;
 	unsigned rootnode : 1;
 };
@@ -282,21 +284,14 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 			.device = fi.data_device,
 			.inode = fi.data_inode,
 		};
-		if (fi.num_links > 1)
-			link = apk_hash_get(&ctx->link_by_inode, APK_BLOB_STRUCT(key));
-		if (link) {
-			ft.symlink.mode = htole16(fi.mode & S_IFMT);
-			if (link->name_len > sizeof ft.symlink.target) return -ENAMETOOLONG;
-			memcpy(ft.symlink.target, link->name, link->name_len);
-			target = APK_BLOB_PTR_LEN((void*)&ft.symlink, sizeof(ft.symlink.mode) + link->name_len);
-			break;
-		}
 		if (fi.num_links > 1) {
-			size_t len = strlen(entry);
-			link = apk_balloc_new_extra(&ctx->ba, struct mkpkg_hardlink, len);
-			link->key = key;
-			link->name_len = len;
-			memcpy(link->name, entry, len);
+			link = apk_hash_get(&ctx->link_by_inode, APK_BLOB_STRUCT(key));
+			if (link) break;
+			link = apk_balloc_new(&ctx->ba, struct mkpkg_hardlink);
+			*link = (struct mkpkg_hardlink) {
+				.key = key,
+				.val = ADB_VAL(ADB_TYPE_SPECIAL, SPECIAL_HARDLINK | ctx->hardlink_id++),
+			};
 			apk_hash_insert(&ctx->link_by_inode, link);
 		}
 		ctx->installed_size += (fi.size + BLOCK_SIZE - 1) & ~(BLOCK_SIZE-1);
@@ -334,6 +329,8 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 		adb_wo_blob(&fio, ADBI_FI_HASHES, APK_DIGEST_BLOB(fi.digest));
 	if (!APK_BLOB_IS_NULL(target))
 		adb_wo_blob(&fio, ADBI_FI_TARGET, target);
+	else if (link)
+		adb_wo_val(&fio, ADBI_FI_TARGET, link->val);
 	adb_wo_int(&fio, ADBI_FI_MTIME, fi.mtime);
 	adb_wo_int(&fio, ADBI_FI_SIZE, fi.size);
 
@@ -385,6 +382,24 @@ static int assign_fields(struct apk_out *out, apk_blob_t *vals, int num_vals, st
 		}
 	}
 	return 0;
+}
+
+static void fixup_hardlink_target(struct mkpkg_ctx *ctx, struct adb_obj *file)
+{
+	adb_val_t val = adb_ro_val(file, ADBI_FI_TARGET);
+	if (ADB_VAL_TYPE(val) != ADB_TYPE_SPECIAL) return;
+	if ((ADB_VAL_VALUE(val) & SPECIAL_HARDLINK) == 0) return;
+	unsigned int hardlink_id = ADB_VAL_VALUE(val) & ~SPECIAL_HARDLINK;
+	val = ctx->hardlink_targets[hardlink_id];
+	if (val == ADB_VAL_NULL) {
+		int n = apk_pathbuilder_pushb(&ctx->pb, adb_ro_blob(file, ADBI_FI_NAME));
+		uint16_t mode = S_IFREG;
+		apk_blob_t vec[] = { APK_BLOB_STRUCT(mode), apk_pathbuilder_get(&ctx->pb) };
+		ctx->hardlink_targets[hardlink_id] = adb_w_blob_vec(file->db, ARRAY_SIZE(vec), vec);
+		apk_pathbuilder_pop(&ctx->pb, n);
+	}
+	// patch the previous value
+	file->obj[ADBI_FI_TARGET] = val;
 }
 
 static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
@@ -463,6 +478,22 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	adb_r_rootobj(&ctx->db, &pkg, &schema_package);
 	adb_ro_obj(&pkg, ADBI_PKG_PKGINFO, &pkgi);
 	adb_ro_obj(&pkg, ADBI_PKG_PATHS, &ctx->paths);
+
+	// fixup hardlink targets
+	if (ctx->hardlink_id) {
+		ctx->hardlink_targets = apk_balloc_aligned0(&ctx->ba,
+			sizeof(adb_val_t[ctx->hardlink_id]), alignof(adb_val_t));
+		for (i = ADBI_FIRST; i <= adb_ra_num(&ctx->paths); i++) {
+			struct adb_obj path, files, file;
+			adb_ro_obj(&ctx->paths, i, &path);
+			adb_ro_obj(&path, ADBI_DI_FILES, &files);
+			apk_pathbuilder_setb(&ctx->pb, adb_ro_blob(&path, ADBI_DI_NAME));
+			for (j = ADBI_FIRST; j <= adb_ra_num(&files); j++) {
+				adb_ro_obj(&files, j, &file);
+				fixup_hardlink_target(ctx, &file);
+			}
+		}
+	}
 
 	// fill in unique id
 	apk_digest_calc(&d, APK_DIGEST_SHA256, ctx->db.adb.ptr, ctx->db.adb.len);
