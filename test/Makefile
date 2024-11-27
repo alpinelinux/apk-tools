@@ -2,8 +2,8 @@
 
 .PHONY:
 
-APK		?= ../src/apk
-LD_LIBRARY_PATH	?= ../src
+APK		?= $(realpath ../src/apk)
+LD_LIBRARY_PATH	?= $(realpath ../src)
 
 export APK LD_LIBRARY_PATH
 
@@ -12,7 +12,8 @@ all: tests
 test tests check:
 	@echo "== Testing `$(APK) --version` =="
 	@for i in $(wildcard user/*.sh solver.sh); do \
-		./$$i || { echo "FAIL: $$i"; exit 1; }; \
+		./$$i >& test.log || { echo "FAIL: $$i"; cat test.log; rm -f test.log; exit 1; }; \
 		echo "OK: $$i"; \
 	done
+	@rm -f test.log
 
