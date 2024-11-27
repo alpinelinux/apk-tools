@@ -6,7 +6,7 @@ stages:
 
 variables:
   PACKAGE_ENDPOINT: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/"
-  ALPINE_DEPS: "make tar gcc git musl-dev linux-headers openssl-dev zlib-dev lua5.3-dev lua5.3-lzlib cmocka-dev"
+  ALPINE_DEPS: "make gcc git musl-dev linux-headers openssl-dev zlib-dev lua5.3-dev lua5.3-lzlib cmocka-dev"
   ALPINE_STATIC_DEPS: "zlib-static openssl-libs-static"
 
 .test:alpine:
@@ -81,7 +81,7 @@ test:debian:
   stage: test
   script:
     - apt-get update
-    - apt-get install -y tar make gcc git libssl-dev zlib1g-dev libzstd-dev lua5.3-dev lua5.2 lua-zlib-dev sudo meson
+    - apt-get install -y make gcc git libssl-dev zlib1g-dev libzstd-dev lua5.3-dev lua5.2 lua-zlib-dev sudo meson
     - unlink /bin/sh
     - ln -s /bin/bash /bin/sh
     - meson setup build

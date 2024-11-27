@@ -5,8 +5,10 @@ source $(dirname "$0")/testlib.sh
 update_repo() {
 	local repo="$1"
 	if [ ! -f "$repo.adb" -o "$repo" -nt "$repo.adb" ]; then
-		local tmpname="$repo.new.$$"
-		tar czf "$tmpname" -P --transform "flags=r;s|$repo|APKINDEX|" "$repo"
+		local tmpname="$repo.adb.$$"
+		ln -snf "$repo" APKINDEX
+		tar chzf "$tmpname" APKINDEX
+		rm APKINDEX
 		mv "$tmpname" "$repo.adb"
 	fi
 }
