@@ -367,6 +367,7 @@ struct apk_istream *apk_istream_tee(struct apk_istream *from, int atfd, const ch
 {
 	int fd;
 
+	if (IS_ERR(from)) return ERR_CAST(from);
 	if (atfd_error(atfd)) {
 		apk_istream_close(from);
 		return ERR_PTR(atfd);
