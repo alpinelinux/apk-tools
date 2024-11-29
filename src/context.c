@@ -35,22 +35,7 @@ void apk_ctx_free(struct apk_ctx *ac)
 	apk_string_array_free(&ac->repository_list);
 	apk_string_array_free(&ac->arch_list);
 	if (ac->root_fd) close(ac->root_fd);
-	if (ac->db_root_fd) close(ac->db_root_fd);
 	if (ac->out.log) fclose(ac->out.log);
-}
-
-static int apk_ctx_get_db_root(struct apk_ctx *ac, const char *path)
-{
-	char db_path[NAME_MAX];
-	int fd;
-	if (faccessat(ac->root_fd, apk_fmts(db_path, sizeof db_path, "%s/db", path), F_OK, 0) == 0) {
-		fd = openat(ac->root_fd, path,
-			    O_DIRECTORY | O_RDONLY | O_CLOEXEC);
-		if (fd < 0)
-			return -errno;
-		return fd;
-	}
-	return -errno;
 }
 
 int apk_ctx_prepare(struct apk_ctx *ac)
@@ -90,18 +75,6 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		return -errno;
 	}
 	ac->dest_fd = ac->root_fd;
-	ac->db_root_fd = apk_ctx_get_db_root(ac, "usr/lib/apk");
-	if (ac->db_root_fd < 0)
-		ac->db_root_fd = apk_ctx_get_db_root(ac, "lib/apk");
-	if ((ac->db_root_fd < 0) && (ac->open_flags & APK_OPENF_CREATE)) {
-		apk_make_dirs(ac->root_fd, "usr/lib/apk/db", 0755, 0755);
-		ac->db_root_fd =
-			openat(ac->root_fd, "usr/lib/apk", O_DIRECTORY | O_RDONLY | O_CLOEXEC);
-	}
-	if (ac->db_root_fd < 0) {
-		apk_err(&ac->out, "Unable to open db root: %s", apk_error_str(ac->db_root_fd));
-		return -errno;
-	}
 
 	if (ac->open_flags & APK_OPENF_CREATE) {
 		uid_t uid = getuid();

@@ -81,7 +81,7 @@ struct apk_ctx {
 	struct apk_trust trust;
 	struct apk_id_cache id_cache;
 	struct apk_database *db;
-	int root_fd, dest_fd, db_root_fd;
+	int root_fd, dest_fd;
 	unsigned int root_set : 1;
 	unsigned int cache_dir_set : 1;
 };
@@ -95,7 +95,6 @@ struct apk_id_cache *apk_ctx_get_id_cache(struct apk_ctx *ac);
 
 static inline int apk_ctx_fd_root(struct apk_ctx *ac) { return ac->root_fd; }
 static inline int apk_ctx_fd_dest(struct apk_ctx *ac) { return ac->dest_fd; }
-static inline int apk_ctx_fd_db_root(struct apk_ctx *ac) { return ac->db_root_fd; }
 static inline time_t apk_ctx_since(struct apk_ctx *ac, time_t since) {
 	return (ac->force & APK_FORCE_REFRESH) ? APK_ISTREAM_FORCE_REFRESH : since;
 }

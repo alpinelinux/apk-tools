@@ -22,12 +22,12 @@ setup_apkroot() {
 	APK="$APK --root $TEST_ROOT"
 
 	mkdir -p "$TEST_ROOT/etc/apk/cache" \
-		"$TEST_ROOT/usr/lib/apk/db" \
+		"$TEST_ROOT/lib/apk/db" \
 		"$TEST_ROOT/tmp" \
 		"$TEST_ROOT/var/log"
 
 	touch "$TEST_ROOT/etc/apk/world"
-	touch "$TEST_ROOT/usr/lib/apk/db/installed"
+	touch "$TEST_ROOT/lib/apk/db/installed"
 	ln -sf /dev/null "$TEST_ROOT/var/log/apk.log"
 	cd "$TEST_ROOT/tmp"
 }

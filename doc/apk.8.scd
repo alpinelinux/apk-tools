@@ -402,23 +402,23 @@ The following options are available for all commands which generate APKv3 files.
 	A lock file used to allow only one concurrent write transaction on
 	the system.
 
-*/usr/libexec/apk*
-	Temporary directory for extraction and execution of package scripts
-	and triggers. Only used when memfd_create is not available
-
-*/usr/lib/apk/db/installed*
+*/lib/apk/db/installed*
 	Database of installed packages and their contents.
 
-*/usr/lib/apk/db/scripts.tar*
+*/lib/apk/db/scripts.tar*
 	Collection of all package scripts from currently installed packages.
 
-*/usr/lib/apk/db/triggers*
+*/lib/apk/db/triggers*
 	List of triggers rules for currently installed packages.
 
-*/usr/lib/apk/db-uvol*
-	Database symlink or a directory with similar structure as */usr/lib/apk/db/*,
+*/lib/apk/db-uvol*
+	Database symlink or a directory with similar structure as */lib/apk/db/*,
 	but which used for package content when managed using OpenWRT *uvol*
 	volume manager.
+
+*/lib/apk/exec*
+	Temporary directory for extraction and execution of package scripts
+	and triggers.
 
 */var/log/apk.log*
 	Log file for changes done to the system.

@@ -35,7 +35,7 @@ run_test() {
 			done > "$TEST_ROOT/etc/apk/world"
 			;;
 		"@INSTALLED "*)
-			ln -snf "$testdir/${ln#* }" "$TEST_ROOT/usr/lib/apk/db/installed"
+			ln -snf "$testdir/${ln#* }" "$TEST_ROOT/lib/apk/db/installed"
 			;;
 		"@REPO @"*)
 			tag="${ln#* }"

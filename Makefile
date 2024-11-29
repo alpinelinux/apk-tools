@@ -14,14 +14,13 @@ export PACKAGE VERSION
 DESTDIR		:=
 SBINDIR		:= /sbin
 LIBDIR		:= /lib
-LIBEXECDIR	:= /usr/libexec
 CONFDIR		:= /etc/apk
 MANDIR		:= /usr/share/man
 DOCDIR		:= /usr/share/doc/apk
 INCLUDEDIR	:= /usr/include
 PKGCONFIGDIR	:= /usr/lib/pkgconfig
 
-export DESTDIR SBINDIR LIBDIR LIBEXECDIR CONFDIR MANDIR DOCDIR INCLUDEDIR PKGCONFIGDIR
+export DESTDIR SBINDIR LIBDIR CONFDIR MANDIR DOCDIR INCLUDEDIR PKGCONFIGDIR
 
 ##
 # Top-level subdirs
@@ -41,7 +40,6 @@ CRYPTO		?= openssl
 export URL_BACKEND CRYPTO
 
 CFLAGS_ALL	+= -DCRYPTO_USE_$(shell echo $(CRYPTO) | tr '[:lower:]' '[:upper:]')
-CFLAGS_ALL	+= -DRELATIVE_LIBEXECDIR=\"$(LIBEXECDIR:/%=%)\"
 
 ##
 # Top-level targets

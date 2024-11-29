@@ -201,7 +201,7 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 	struct conv_ctx *ctx = pctx;
 	struct adb_obj idb;
 	int r;
-	int db_root_fd = apk_ctx_fd_db_root(ac);
+	int root_fd = apk_ctx_fd_root(ac);
 
 	ctx->ac = ac;
 	list_init(&ctx->script_head);
@@ -213,18 +213,18 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 	adb_wo_alloca(&ctx->pkgs, &schema_package_adb_array, &ctx->dbi);
 
 	apk_tar_parse(
-		apk_istream_from_file(db_root_fd, "db/scripts.tar"),
+		apk_istream_from_file(root_fd, "lib/apk/db/scripts.tar"),
 		read_script, ctx, apk_ctx_get_id_cache(ac));
 
-	read_triggers(ctx, apk_istream_from_file(db_root_fd, "db/triggers"));
+	read_triggers(ctx, apk_istream_from_file(root_fd, "lib/apk/db/triggers"));
 
-	convert_idb(ctx, apk_istream_from_file(db_root_fd, "db/installed"));
+	convert_idb(ctx, apk_istream_from_file(root_fd, "lib/apk/db/installed"));
 
 	adb_wo_obj(&idb, ADBI_IDB_PACKAGES, &ctx->pkgs);
 	adb_w_rootobj(&idb);
 
 	r = adb_c_create(
-		//apk_ostream_to_file(db_root_fd, "db/installed.adb", 0644),
+		//apk_ostream_to_file(db->root_fd, "lib/apk/db/installed.adb", 0644),
 		adb_compress(apk_ostream_to_file(AT_FDCWD, "installed.adb", 0644), &ac->compspec),
 		&ctx->dbi, apk_ctx_get_trust(ac));
 	if (r == 0) {
