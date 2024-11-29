@@ -152,7 +152,7 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 	struct apk_repository *repo;
 	struct apk_file_info fi;
 	char url[PATH_MAX], filename[256];
-	int r, fd, urlfd, copy_meta = 1;
+	int r, fd, urlfd, copy_meta = APK_ISTREAM_TEE_COPY_META;
 
 	if (!pkg->marked)
 		return 0;

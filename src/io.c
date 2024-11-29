@@ -316,7 +316,7 @@ static const struct apk_istream_ops tee_istream_ops = {
 	.close = tee_close,
 };
 
-struct apk_istream *apk_istream_tee_fd(struct apk_istream *from, int fd, int copy_meta, apk_progress_cb cb, void *cb_ctx)
+struct apk_istream *apk_istream_tee_fd(struct apk_istream *from, int fd, int flags, apk_progress_cb cb, void *cb_ctx)
 {
 	struct apk_tee_istream *tee;
 	int r;
@@ -344,7 +344,7 @@ struct apk_istream *apk_istream_tee_fd(struct apk_istream *from, int fd, int cop
 		.is.end = from->end,
 		.inner_is = from,
 		.fd = fd,
-		.copy_meta = copy_meta,
+		.copy_meta = flags & APK_ISTREAM_TEE_COPY_META,
 		.cb = cb,
 		.cb_ctx = cb_ctx,
 	};
@@ -359,25 +359,31 @@ err_free:
 	free(tee);
 err:
 	if (fd > STDERR_FILENO) close(fd);
-	if (!IS_ERR_OR_NULL(from)) apk_istream_close(from);
+	if (IS_ERR(from)) return ERR_CAST(from);
+	if (flags & APK_ISTREAM_TEE_OPTIONAL) return from;
+	apk_istream_close(from);
 	return ERR_PTR(r);
 }
 
-struct apk_istream *apk_istream_tee(struct apk_istream *from, int atfd, const char *to, int copy_meta, apk_progress_cb cb, void *cb_ctx)
+struct apk_istream *apk_istream_tee(struct apk_istream *from, int atfd, const char *to, int flags, apk_progress_cb cb, void *cb_ctx)
 {
-	int fd;
+	int fd, r;
 
 	if (IS_ERR(from)) return ERR_CAST(from);
 	if (atfd_error(atfd)) {
-		apk_istream_close(from);
-		return ERR_PTR(atfd);
+		r = atfd;
+		goto err;
 	}
 	fd = openat(atfd, to, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (fd < 0) {
-		apk_istream_close(from);
-		return ERR_PTR(-errno);
+		r = -errno;
+		goto err;
 	}
-	return apk_istream_tee_fd(from, fd, copy_meta, cb, cb_ctx);
+	return apk_istream_tee_fd(from, fd, flags, cb, cb_ctx);
+err:
+	if (flags & APK_ISTREAM_TEE_OPTIONAL) return from;
+	apk_istream_close(from);
+	return ERR_PTR(r);
 }
 
 struct apk_mmap_istream {

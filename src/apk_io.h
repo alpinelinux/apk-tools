@@ -131,9 +131,13 @@ struct apk_segment_istream {
 	time_t mtime;
 };
 struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, size_t len, time_t mtime);
-struct apk_istream *apk_istream_tee(struct apk_istream *from, int atfd, const char *to, int copy_meta,
+
+#define APK_ISTREAM_TEE_COPY_META 1
+#define APK_ISTREAM_TEE_OPTIONAL  2
+
+struct apk_istream *apk_istream_tee(struct apk_istream *from, int atfd, const char *to, int flags,
 				    apk_progress_cb cb, void *cb_ctx);
-struct apk_istream *apk_istream_tee_fd(struct apk_istream *from, int fd, int copy_meta,
+struct apk_istream *apk_istream_tee_fd(struct apk_istream *from, int fd, int flags,
 				       apk_progress_cb cb, void *cb_ctx);
 
 struct apk_ostream_ops {
