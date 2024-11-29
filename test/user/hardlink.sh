@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source $(dirname "$0")/../testlib.sh
+. "$(dirname "$0")"/../testlib.sh
 
 dev_inode() {
 	stat -c "%D:%i" "$@"
@@ -25,7 +25,7 @@ cd $TEST_ROOT
 A_INODE="$(dev_inode a/aaa)"
 B_INODE="$(dev_inode b/aaa)"
 [ "$A_INODE" != "$B_INODE" ] || assert "a != b"
-[ "$(dev_inode a/bbb)" == $A_INODE ] || assert "a/bbb"
-[ "$(dev_inode a/zzz)" == $A_INODE ] || assert "a/zzz"
-[ "$(dev_inode b/bbb)" == $B_INODE ] || assert "b/bbb"
-[ "$(dev_inode b/zzz)" == $B_INODE ] || assert "b/zzz"
+[ "$(dev_inode a/bbb)" = $A_INODE ] || assert "a/bbb"
+[ "$(dev_inode a/zzz)" = $A_INODE ] || assert "a/zzz"
+[ "$(dev_inode b/bbb)" = $B_INODE ] || assert "b/bbb"
+[ "$(dev_inode b/zzz)" = $B_INODE ] || assert "b/zzz"

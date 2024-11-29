@@ -1,10 +1,10 @@
 #!/bin/sh
 
-source $(dirname "$0")/testlib.sh
+. "$(dirname "$0")"/testlib.sh
 
 update_repo() {
 	local repo="$1"
-	if [ ! -f "$repo.adb" -o "$repo" -nt "$repo.adb" ]; then
+	if [ ! -f "$repo.adb" ] || [ "$repo" -nt "$repo.adb" ]; then
 		local tmpname="$repo.adb.$$"
 		ln -snf "$repo" APKINDEX
 		tar chzf "$tmpname" APKINDEX
@@ -84,7 +84,7 @@ run_test() {
 	return $retcode
 }
 
-TEST_TO_RUN="$@"
+TEST_TO_RUN="$*"
 
 fail=0
 pass=0
@@ -104,5 +104,5 @@ if [ -z "$TEST_TO_RUN" ]; then
 		echo "OK: all $total solver test cases passed"
 	fi
 fi
-[ "$fail" == 0 ] || exit 1
+[ "$fail" = 0 ] || exit 1
 exit 0

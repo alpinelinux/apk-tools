@@ -13,7 +13,7 @@ glob_one() {
 
 setup_apkroot() {
 	TEST_USERMODE=""
-	[ "$(id -u)" == 0 ] || TEST_USERMODE="--usermode"
+	[ "$(id -u)" = 0 ] || TEST_USERMODE="--usermode"
 
 	TEST_ROOT=$(mktemp -d -p /tmp apktest.XXXXXXXX)
 	[ -d "$TEST_ROOT" ] || return 1
