@@ -393,7 +393,7 @@ static void fixup_hardlink_target(struct mkpkg_ctx *ctx, struct adb_obj *file)
 	val = ctx->hardlink_targets[hardlink_id];
 	if (val == ADB_VAL_NULL) {
 		int n = apk_pathbuilder_pushb(&ctx->pb, adb_ro_blob(file, ADBI_FI_NAME));
-		uint16_t mode = S_IFREG;
+		uint16_t mode = htole16(S_IFREG);
 		apk_blob_t vec[] = { APK_BLOB_STRUCT(mode), apk_pathbuilder_get(&ctx->pb) };
 		ctx->hardlink_targets[hardlink_id] = adb_w_blob_vec(file->db, ARRAY_SIZE(vec), vec);
 		apk_pathbuilder_pop(&ctx->pb, n);
