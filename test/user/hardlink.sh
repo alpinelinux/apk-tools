@@ -2,9 +2,15 @@
 
 . "$(dirname "$0")"/../testlib.sh
 
-dev_inode() {
-	stat -c "%D:%i" "$@"
-}
+if ! stat -c "%D:%i" /dev/null > /dev/null 2>&1; then
+	dev_inode() {
+		stat -f "%Xd:%i" "$@"
+	}
+else
+	dev_inode() {
+		stat -c "%D:%i" "$@"
+	}
+fi
 
 setup_apkroot
 APK="$APK --allow-untrusted --no-interactive"
