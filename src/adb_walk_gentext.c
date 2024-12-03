@@ -97,6 +97,20 @@ static int adb_walk_gentext_key(struct adb_walk *d, apk_blob_t key)
 	return 0;
 }
 
+static int need_quoting(apk_blob_t b)
+{
+	if (!b.len) return 0;
+	// must not start with indicator character
+	if (strchr("-?:,[]{}#&*!|>'\"%@`", b.ptr[0])) return 1;
+	// must not contain ": " or " #"
+	for (int i = 1; i < b.len-1; i++) {
+		if (b.ptr[i] == '#') return 1;
+		if (b.ptr[i] != ' ') continue;
+		if (b.ptr[i-1] == ':') return 1;
+	}
+	return 0;
+}
+
 static int adb_walk_gentext_scalar(struct adb_walk *d, apk_blob_t scalar, int multiline)
 {
 	struct adb_walk_gentext *dt = container_of(d, struct adb_walk_gentext, d);
@@ -105,7 +119,7 @@ static int adb_walk_gentext_scalar(struct adb_walk *d, apk_blob_t scalar, int mu
 
 	adb_walk_gentext_indent(dt);
 
-	if (scalar.len >= 60 || multiline) {
+	if (scalar.len >= 60 || multiline || need_quoting(scalar)) {
 		/* long or multiline */
 		apk_blob_t l;
 
