@@ -128,9 +128,13 @@ static int convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 		}
 		val = APK_BLOB_PTR_LEN(l.ptr+2, l.len-2);
 		i = adb_pkg_field_index(l.ptr[0]);
-		if (i > 0) adb_wo_pkginfo(&pkginfo, i, val);
+		if (i > 0 && i != ADBI_PI_NAME) adb_wo_pkginfo(&pkginfo, i, val);
 
 		switch (l.ptr[0]) {
+		case 'P': // pkg name
+			// write unchecked package name to allow leading dot
+			adb_wo_blob(&pkginfo, i, val);
+			break;
 		case 'C': // pkg checksum
 			list_for_each_entry(s, &ctx->script_head, script_node) {
 				if (apk_blob_compare(APK_BLOB_PTR_LEN(s->csum, s->csum_len), val) != 0)

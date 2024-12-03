@@ -159,7 +159,7 @@ const struct adb_object_schema schema_xattr_array = {
 static adb_val_t name_fromstring(struct adb *db, apk_blob_t val)
 {
 	// Check invalid first character
-	if (val.len == 0 || !isascii(val.ptr[0]) || !isalnum(val.ptr[0])) goto fail;
+	if (val.len == 0 || !isalnum(val.ptr[0])) goto fail;
 	// Shall consist of characters
 	if (apk_blob_spn(val, APK_CTYPE_PACKAGE_NAME, NULL, NULL)) goto fail;
 	return adb_w_blob(db, val);
