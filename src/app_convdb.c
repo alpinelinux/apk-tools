@@ -62,10 +62,6 @@ static int read_script(void *pctx, const struct apk_file_info *ae, struct apk_is
 	s->type = type;
 	s->size = ae->size;
 	apk_istream_read(is, s->script, s->size);
-	if (s->script[s->size-1] == '\n') {
-		while (s->size > 1 && s->script[s->size-2] == '\n')
-			s->size--;
-	}
 	list_add_tail(&s->script_node, &ctx->script_head);
 
 	return 0;
