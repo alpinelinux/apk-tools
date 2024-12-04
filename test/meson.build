@@ -1,9 +1,13 @@
+enum_sh = find_program('enum.sh', required: get_option('tests'))
+solver_sh = find_program('solver.sh', required: get_option('tests'))
+
+if not enum_sh.found() or not solver_sh.found()
+	subdir_done()
+endif
+
 cur_dir = meson.current_source_dir()
 env = environment()
 env.set('APK', apk_exe.full_path())
-
-enum_sh = files('enum.sh')
-solver_sh = files('solver.sh')
 
 subdir('unit')
 

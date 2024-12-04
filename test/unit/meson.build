@@ -1,4 +1,4 @@
-cmocka_dep = dependency('cmocka', required: false)
+cmocka_dep = dependency('cmocka', required: get_option('tests'))
 
 if cmocka_dep.found()
 
