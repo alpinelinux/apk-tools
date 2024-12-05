@@ -353,10 +353,11 @@ The following options are available for all commands which generate APKv3 files.
 	This is expected to be a symlink to directory what apk will use
 	as package cache. See also *apk-cache*(5) and *apk-cache*(8).
 
-*/etc/apk/commit_hooks.d/\*.pre-commit*++
-*/etc/apk/commit_hooks.d/\*.post-commit*
+*/etc/apk/commit_hooks.d/\**
 	Hook scripts which are executed before or after changes to database are
-	committed. If a pre-commit script returns failure, the commit is aborted.
+	committed. The script executed gets as an argument the stage name
+	(*pre-commit* or *post-commit*). If the script returns failure during
+	*pre-commit* stage, the commit is aborted.
 
 	If *--no-scripts* or *--no-commit-hooks* option is specified, these
 	hook scripts are not executed.
