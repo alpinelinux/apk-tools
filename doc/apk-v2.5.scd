@@ -84,4 +84,4 @@ by *abuild*(1).
 
 # SEE ALSO
 
-*abuild*(1), *apk*(1), *apk-package*(5), *apk-v3*(5)
+*abuild*(1), *apk*(8), *apk-package*(5), *apk-v3*(5)

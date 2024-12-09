@@ -14,7 +14,7 @@ apk adbdump - dump v3 files in textual representation
 indexes, installeddb) to its textual representation.
 
 The output is YAML "like" (see BUGS) output which can be used to inspect
-the metadata. *apk adbgen*(8) can convert the textual representation back
+the metadata. *apk-adbgen*(8) can convert the textual representation back
 to the binary format.
 
 # OPTIONS

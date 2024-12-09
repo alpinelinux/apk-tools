@@ -10,7 +10,7 @@ apk adbgen - generate v3 files from text representation
 
 # DESCRIPTION
 
-*apk adbgen* takes in *apk adbdump*(8) output and convert it back to the
+*apk adbgen* takes in *apk-adbdump*(8) output and convert it back to the
 corresponding binary format.
 
 # SEE ALSO

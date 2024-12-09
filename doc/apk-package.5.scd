@@ -287,4 +287,4 @@ Unfortunately it is not possible to deduce if a given string is of format
 
 # SEE ALSO
 
-*abuild*(1), *apk*(1), *apk-v2*(5), *apk-v3*(5)
+*abuild*(1), *apk*(8), *apk-v2*(5), *apk-v3*(5)

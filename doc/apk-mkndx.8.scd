@@ -11,7 +11,7 @@ apk mkndx - create apkv3 repository index file from packages
 # DESCRIPTION
 
 *apk mkndx* creates a repository index from a list of package files. See
-*apk-repositories*(8) for more information on repository indicies.
+*apk-repositories*(5) for more information on repository indicies.
 
 # OPTIONS
 
