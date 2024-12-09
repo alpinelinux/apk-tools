@@ -26,10 +26,10 @@ struct apk_solver_name_state {
 			struct apk_package *installed_pkg;
 		};
 	};
+	int order_id;
 	unsigned short requirers;
 	unsigned short merge_depends;
 	unsigned short merge_provides;
-	unsigned short max_dep_chain;
 	unsigned seen : 1;
 	unsigned locked : 1;
 	unsigned in_changeset : 1;
@@ -44,7 +44,6 @@ struct apk_solver_name_state {
 
 struct apk_solver_package_state {
 	unsigned int conflicts;
-	unsigned short max_dep_chain;
 	unsigned short pinning_allowed;
 	unsigned short pinning_preferred;
 	unsigned short solver_flags;

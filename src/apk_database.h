@@ -106,7 +106,6 @@ struct apk_name {
 	struct apk_name_array *rinstall_if;
 	unsigned is_dependency : 1;
 	unsigned auto_select_virtual: 1;
-	unsigned priority : 2;
 	unsigned solver_flags_set : 1;
 	unsigned providers_sorted : 1;
 	unsigned int foreach_genid;

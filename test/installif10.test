@@ -1,0 +1,9 @@
+@ARGS
+--test-repo installif10.repo
+add postmarketos-base-ui-gnome openrc
+@EXPECT
+(1/4) Installing openrc (1)
+(2/4) Installing polkit-elogind (1)
+(3/4) Installing postmarketos-base-ui-gnome (1)
+(4/4) Installing postmarketos-base-ui-gnome-openrc (1)
+OK: 0 MiB in 4 packages
