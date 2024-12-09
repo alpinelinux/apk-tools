@@ -207,6 +207,7 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 				(BIT(pkg->layer) & db->active_layers) &&
 				((pkg->repos & db->available_repos) ||
 				  pkg->cached_non_repository ||
+				  pkg->installed_size == 0 ||
 				  pkg->ipkg);
 
 			/* Prune install_if packages that are no longer available,
