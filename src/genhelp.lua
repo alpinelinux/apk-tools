@@ -53,7 +53,7 @@ local function upperfirst(s)
 end
 
 scdoc = {
-	usage_prefix = "usage: ",
+	usage_prefix = "Usage: ",
 }
 scdoc.__index = scdoc
 
