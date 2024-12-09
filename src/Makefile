@@ -18,7 +18,7 @@ ZLIB_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags zlib)
 ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 
 # Dynamic library
-libapk_soname		:= 2.99.0
+libapk_soname		:= $(SO_VERSION)
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
 	adb.o adb_comp.o adb_walk_adb.o adb_walk_genadb.o adb_walk_gentext.o adb_walk_text.o apk_adb.o \

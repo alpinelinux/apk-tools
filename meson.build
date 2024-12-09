@@ -5,6 +5,8 @@ project(
 	version: run_command('./get-version.sh', check: true).stdout().strip(),
 	meson_version: '>=0.55'
 )
+so_version = run_command('cat', 'VERSION', check: true).stdout().strip()
+
 pkgc = import('pkgconfig')
 
 apk_confdir = get_option('sysconfdir') / 'apk'

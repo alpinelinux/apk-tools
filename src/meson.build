@@ -1,7 +1,7 @@
 crypto_backend = get_option('crypto_backend')
 url_backend = get_option('url_backend')
 
-libapk_so_version = '2.99.0'
+libapk_so_version = so_version
 libapk_src = [
 	'adb.c',
 	'adb_comp.c',
@@ -149,7 +149,7 @@ endif
 libapk_lib = library(
 	'apk',
 	libapk_src,
-	version: libapk_so_version,
+	soversion: libapk_so_version,
 	install: not subproject,
 	dependencies: [
 		libfetch_dep,
