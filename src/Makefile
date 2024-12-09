@@ -16,7 +16,7 @@ ZLIB_CFLAGS		:= $(shell $(PKG_CONFIG) --cflags zlib)
 ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 
 # Dynamic library
-libapk_soname		:= 2.14.0
+libapk_soname		:= $(SO_VERSION)
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
 	common.o database.o package.o commit.o solver.o \
@@ -67,9 +67,9 @@ apk-objs		:= apk.o help.o \
 			   app_index.o app_fetch.o app_verify.o app_dot.o \
 			   app_audit.o
 
-LIBS_apk		:= -lapk
-LIBS_apk-test		:= -lapk
-LIBS_apk.so		:= -L$(obj) -lapk
+LIBS_apk		:= $(libapk_so)
+LIBS_apk-test		:= $(libapk_so)
+LIBS_apk.so		:= $(libapk_so)
 
 CFLAGS_ALL		+= -D_ATFILE_SOURCE -Ilibfetch
 CFLAGS_apk.o		:= -DAPK_VERSION=\"$(FULL_VERSION)\"

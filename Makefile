@@ -5,8 +5,9 @@
 
 PACKAGE := apk-tools
 VERSION := 2.14.6
+SO_VERSION := $(VERSION)
 
-export VERSION
+export VERSION SO_VERSION
 
 ##
 # Default directories
