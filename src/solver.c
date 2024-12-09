@@ -37,6 +37,7 @@ struct apk_solver_state {
 	unsigned int solver_flags_inherit;
 	unsigned int pinning_inherit;
 	unsigned int default_repos;
+	unsigned int order_id;
 	unsigned ignore_conflict : 1;
 };
 
@@ -225,32 +226,19 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 				pkg->cached_non_repository ||
 				pkg->ipkg;
 
-			foreach_array_item(dep, pkg->depends) {
+			foreach_array_item(dep, pkg->depends)
 				discover_name(ss, dep->name);
-				pkg->ss.max_dep_chain = max(pkg->ss.max_dep_chain,
-							    dep->name->ss.max_dep_chain+1);
-			}
 
-			dbg_printf("discover " PKG_VER_FMT ": tag_ok=%d, tag_pref=%d max_dep_chain=%d selectable=%d\n",
+			dbg_printf("discover " PKG_VER_FMT ": tag_ok=%d, tag_pref=%d selectable=%d\n",
 				PKG_VER_PRINTF(pkg),
 				pkg->ss.tag_ok,
 				pkg->ss.tag_preferred,
-				pkg->ss.max_dep_chain,
 				pkg->ss.pkg_selectable);
 		}
 
 		name->ss.no_iif &= pkg->ss.iif_failed;
-		name->ss.max_dep_chain = max(name->ss.max_dep_chain, pkg->ss.max_dep_chain);
 		num_virtual += (p->pkg->name != name);
 	}
-	dbg_printf("discover %s: max_dep_chain=%d no_iif=%d num_virtual=%d\n",
-		name->name, name->ss.max_dep_chain, name->ss.no_iif, num_virtual);
-	if (num_virtual == 0)
-		name->priority = 0;
-	else if (num_virtual != apk_array_len(name->providers))
-		name->priority = 1;
-	else
-		name->priority = 2;
 
 	foreach_array_item(p, name->providers) {
 		struct apk_package *pkg = p->pkg;
@@ -258,10 +246,16 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 			discover_name(ss, *pname0);
 		foreach_array_item(dep, pkg->provides) {
 			if (dep->name->ss.seen) continue;
+			discover_name(ss, dep->name);
 			foreach_array_item(pname0, dep->name->rinstall_if)
 				discover_name(ss, *pname0);
 		}
 	}
+
+	name->ss.order_id = ++ss->order_id;
+
+	dbg_printf("discover %s: no_iif=%d num_virtual=%d, order_id=%d\n",
+		name->name, name->ss.no_iif, num_virtual, name->ss.order_id);
 }
 
 static void name_requirers_changed(struct apk_solver_state *ss, struct apk_name *name)
@@ -1062,24 +1056,10 @@ static int cmp_pkgname(const void *p1, const void *p2)
 
 static int compare_name_dequeue(const struct apk_name *a, const struct apk_name *b)
 {
-	int r;
-
-	r = !!a->ss.requirers - !!b->ss.requirers;
+	int r = !!a->solver_flags_set - !!b->solver_flags_set;
 	if (r) return -r;
 
-	r = !!a->solver_flags_set - !!b->solver_flags_set;
-	if (r) return -r;
-
-	r = (int)a->priority - (int)b->priority;
-	if (r) return r;
-
-	if (a->ss.requirers == 0) {
-		r = !!a->ss.has_iif - !!b->ss.has_iif;
-		if (r) return -r;
-	}
-
-	r = (int)a->ss.max_dep_chain - (int)b->ss.max_dep_chain;
-	return -r;
+	return b->ss.order_id - a->ss.order_id;
 }
 
 int apk_solver_solve(struct apk_database *db,
