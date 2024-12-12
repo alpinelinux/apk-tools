@@ -277,7 +277,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	}
 
 	apk_tar_write_entry(os, &fi, NULL);
-	index_write(ictx, db, os);
+	total = index_write(ictx, db, os);
 	apk_tar_write_padding(os, fi.size);
 	apk_tar_write_entry(os, NULL, NULL);
 
@@ -287,7 +287,6 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		return r;
 	}
 
-	total = r;
 	if (!(ictx->index_flags & APK_INDEXF_NO_WARNINGS)) {
 		apk_print_indented_init(&counts.indent, out, 1);
 		apk_db_foreach_sorted_name(db, NULL, warn_if_no_providers, &counts);
