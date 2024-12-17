@@ -1847,6 +1847,9 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 			}
 			db->active_layers |= BIT(i);
 		}
+	} else {
+		// Allow applets that use solver without state (fetch) to work correctly
+		db->active_layers = ~0;
 	}
 
 	if (!(ac->open_flags & APK_OPENF_NO_INSTALLED_REPO)) {
