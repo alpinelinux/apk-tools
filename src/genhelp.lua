@@ -67,6 +67,7 @@ function scdoc:SYNOPSIS_text(ln)
 end
 
 function scdoc:COMMANDS_text(ln)
+	ln = ln:gsub("apk%-(%S+)%(%d%)", "%1")
 	local ch = ln:sub(1,1)
 	local a, b = ln:match("^([[|:<]*)%s+(.+)")
 	if ch == '|' then
@@ -135,7 +136,6 @@ function scdoc:parse_default(ln)
 	end
 
 	-- Handle formatting
-	ln = ln:gsub("apk%-(%S+)%(%d%)", "%1")
 	ln = ln:gsub("([^\\])%*(.-[^\\])%*", "%1%2")
 	ln = ln:gsub("^%*(.-[^\\])%*", "%1")
 	ln = ln:gsub("([^\\])_(.-[^\\])_", function(a,s) return a..s:upper() end)
