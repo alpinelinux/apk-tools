@@ -589,6 +589,7 @@ static int apk_db_add_arch(struct apk_database *db, apk_blob_t arch)
 bool apk_db_arch_compatible(struct apk_database *db, apk_blob_t *arch)
 {
 	apk_blob_t **item;
+	if (arch == &apk_atom_null) return true;
 	foreach_array_item(item, db->arches)
 		if (*item == arch) return true;
 	return db->noarch == arch;
@@ -603,6 +604,7 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 
 	// Set as "cached" if installing from specified file
 	if (pkg->filename_ndx) pkg->repos |= BIT(APK_REPOSITORY_CACHED);
+	if (!apk_db_arch_compatible(db, tmpl->pkg.arch)) tmpl->pkg.uninstallable = 1;
 
 	idb = apk_hash_get(&db->available.packages, APK_BLOB_PTR_LEN((char*)tmpl->id.data, APK_DIGEST_LENGTH_SHA1));
 	if (idb == NULL) {
