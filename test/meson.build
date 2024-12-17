@@ -1,3 +1,5 @@
+subdir('unit')
+
 enum_sh = find_program('enum.sh', required: get_option('tests'))
 solver_sh = find_program('solver.sh', required: get_option('tests'))
 
@@ -8,8 +10,6 @@ endif
 cur_dir = meson.current_source_dir()
 env = environment()
 env.set('APK', apk_exe.full_path())
-
-subdir('unit')
 
 foreach t : run_command(enum_sh, 'shell', check: true).stdout().strip().split(' ')
 	test(t, files(cur_dir / t), suite: 'shell', depends: apk_exe, env: env, priority: 100)
