@@ -129,6 +129,7 @@ struct audit_tree_ctx {
 	struct audit_ctx *actx;
 	struct apk_database *db;
 	struct apk_db_dir *dir;
+	apk_blob_t apknew_suffix;
 	size_t pathlen;
 	char path[PATH_MAX];
 };
@@ -359,7 +360,7 @@ recurse_check:
 				break;
 			}
 			if ((!dbf || reason == 'A') &&
-			    apk_blob_ends_with(bent, APK_BLOB_STR(".apk-new")))
+			    apk_blob_ends_with(bent, atctx->apknew_suffix))
 				goto done;
 			break;
 		case MODE_SYSTEM:
@@ -440,6 +441,7 @@ static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	}
 
 	actx->verbosity = apk_out_verbosity(&db->ctx->out);
+	atctx.apknew_suffix = APK_BLOB_STR(ac->apknew_suffix);
 	atctx.db = db;
 	atctx.actx = actx;
 	atctx.pathlen = 0;

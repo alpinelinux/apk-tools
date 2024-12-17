@@ -203,7 +203,7 @@ static int fsys_file_control(struct apk_fsdir *d, apk_blob_t filename, int ctrl)
 		break;
 	case APK_FS_CTRL_APKNEW:
 		// rename tmpname -> realname.apk-new
-		rc = apk_fmt(apknewname, sizeof apknewname, "%s%s", fn, ".apk-new");
+		rc = apk_fmt(apknewname, sizeof apknewname, "%s%s", fn, ac->apknew_suffix);
 		if (rc < 0) break;
 		if (renameat(atfd, format_tmpname(&ac->dctx, d->pkgctx, dirname, apk_pathbuilder_get(&d->pb), tmpname),
 			     atfd, apknewname) < 0)
@@ -221,7 +221,7 @@ static int fsys_file_control(struct apk_fsdir *d, apk_blob_t filename, int ctrl)
 		break;
 	case APK_FS_CTRL_DELETE_APKNEW:
 		// remove apknew (which may or may not exist)
-		rc = apk_fmt(apknewname, sizeof apknewname, "%s%s", fn, ".apk-new");
+		rc = apk_fmt(apknewname, sizeof apknewname, "%s%s", fn, ac->apknew_suffix);
 		if (rc < 0) break;
 		unlinkat(atfd, apknewname, 0);
 		break;
