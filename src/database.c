@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 
 #ifdef __linux__
+# include <stdarg.h>
 # include <mntent.h>
 # include <sys/vfs.h>
 # include <sys/mount.h>
@@ -1455,6 +1456,35 @@ static int apk_db_name_rdepends(apk_hash_item item, void *pctx)
 }
 
 #ifdef __linux__
+static int write_file(const char *fn, const char *fmt, ...)
+{
+	char buf[256];
+	int n, fd, ret = -1;
+	va_list va;
+
+	fd  = open(fn, O_WRONLY);
+	if (fd >= 0) {
+		va_start(va, fmt);
+		n = vsnprintf(buf, sizeof buf, fmt, va);
+		va_end(va);
+		if (write(fd, buf, n) == n) ret = 0;
+		close(fd);
+	}
+	return ret;
+}
+
+static int unshare_mount_namepsace(void)
+{
+	uid_t uid = getuid();
+	gid_t gid = getgid();
+	if (unshare(CLONE_NEWNS|CLONE_NEWUSER) != 0) return 0;
+	if (write_file("/proc/self/uid_map", "0 %d 1", uid) != 0) return -1;
+	if (write_file("/proc/self/setgroups", "deny") != 0) return -1;
+	if (write_file("/proc/self/gid_map", "0 %d 1", gid) != 0) return -1;
+	if (mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL) != 0) return -1;
+	return 0;
+}
+
 static int detect_tmpfs_root(struct apk_database *db)
 {
 	struct statfs stfs;
@@ -1573,6 +1603,11 @@ static void unmount_proc(struct apk_database *db)
 	}
 }
 #else
+static int unshare_mount_namepsace(void)
+{
+	return 0;
+}
+
 static int detect_tmpfs_root(struct apk_database *db)
 {
 	(void) db;
@@ -2139,10 +2174,15 @@ int apk_db_run_script(struct apk_database *db, int fd, char **argv)
 			apk_err(out, "%s: fchdir: %s", apk_last_path_segment(argv[0]), strerror(errno));
 			exit(127);
 		}
-
-		if (!(db->ctx->flags & APK_NO_CHROOT) && chroot(".") != 0) {
-			apk_err(out, "%s: chroot: %s", apk_last_path_segment(argv[0]), strerror(errno));
-			exit(127);
+		if (!(db->ctx->flags & APK_NO_CHROOT)) {
+			if (db->usermode && unshare_mount_namepsace() < 0) {
+				apk_err(out, "%s: unshare: %s", apk_last_path_segment(argv[0]), strerror(errno));
+				exit(127);
+			}
+			if (chroot(".") != 0) {
+				apk_err(out, "%s: chroot: %s", apk_last_path_segment(argv[0]), strerror(errno));
+				exit(127);
+			}
 		}
 
 		if (fd >= 0) fexecve(fd, argv, env);
