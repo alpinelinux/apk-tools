@@ -28,9 +28,9 @@ struct add_ctx {
 	OPT(OPT_ADD_usermode,	"usermode") \
 	OPT(OPT_ADD_virtual,	APK_OPT_ARG APK_OPT_SH("t") "virtual")
 
-APK_OPT_APPLET(option_desc, ADD_OPTIONS);
+APK_OPTIONS(add_options_desc, ADD_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int add_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct add_ctx *actx = (struct add_ctx *) ctx;
 
@@ -56,11 +56,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 static int non_repository_check(struct apk_database *db)
 {
@@ -207,10 +202,12 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 
 static struct apk_applet apk_add = {
 	.name = "add",
+	.options_desc = add_options_desc,
+	.optgroup_commit = 1,
 	.open_flags = APK_OPENF_WRITE,
 	.remove_empty_arguments = 1,
 	.context_size = sizeof(struct add_ctx),
-	.optgroups = { &optgroup_global, &optgroup_commit, &optgroup_applet },
+	.parse = add_parse_option,
 	.main = add_main,
 };
 

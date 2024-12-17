@@ -47,9 +47,9 @@ struct mkndx_ctx {
 	OPT(OPT_MKNDX_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
 	OPT(OPT_MKNDX_rewrite_arch,	APK_OPT_ARG "rewrite-arch")
 
-APK_OPT_APPLET(option_desc, MKNDX_OPTIONS);
+APK_OPTIONS(mkndx_options_desc, MKNDX_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
+static int mkndx_parse_option(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
 {
 	struct mkndx_ctx *ictx = ctx;
 	struct apk_out *out = &ac->out;
@@ -82,11 +82,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 struct field {
 	apk_blob_t str;
@@ -336,8 +331,10 @@ done:
 
 static struct apk_applet apk_mkndx = {
 	.name = "mkndx",
+	.options_desc = mkndx_options_desc,
+	.optgroup_generation = 1,
 	.context_size = sizeof(struct mkndx_ctx),
-	.optgroups = { &optgroup_global, &optgroup_generation, &optgroup_applet },
+	.parse = mkndx_parse_option,
 	.main = mkndx_main,
 };
 

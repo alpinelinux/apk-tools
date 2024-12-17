@@ -71,9 +71,9 @@ static int ver_validate(struct apk_ctx *ac, struct apk_string_array *args)
 	OPT(OPT_VERSION_limit,		APK_OPT_ARG APK_OPT_SH("l") "limit") \
 	OPT(OPT_VERSION_test,		APK_OPT_SH("t") "test")
 
-APK_OPT_APPLET(option_desc, VERSION_OPTIONS);
+APK_OPTIONS(ver_options_desc, VERSION_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int ver_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct ver_ctx *ictx = (struct ver_ctx *) ctx;
 	switch (opt) {
@@ -100,11 +100,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 struct ver_name_state {
 	struct apk_package *installed, *latest;
@@ -227,9 +222,10 @@ static int ver_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 
 static struct apk_applet apk_ver = {
 	.name = "version",
+	.options_desc = ver_options_desc,
 	.open_flags = APK_OPENF_READ,
 	.context_size = sizeof(struct ver_ctx),
-	.optgroups = { &optgroup_global, &optgroup_applet },
+	.parse = ver_parse_option,
 	.main = ver_main,
 };
 

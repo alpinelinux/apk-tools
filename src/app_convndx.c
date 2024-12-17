@@ -81,8 +81,8 @@ err:
 
 static struct apk_applet apk_convndx = {
 	.name = "convndx",
+	.optgroup_generation = 1,
 	.context_size = sizeof(struct conv_ctx),
-	.optgroups = { &optgroup_global, &optgroup_generation },
 	.main = conv_main,
 };
 APK_DEFINE_APPLET(apk_convndx);

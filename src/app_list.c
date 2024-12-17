@@ -184,9 +184,9 @@ static int print_result(struct apk_database *db, const char *match, struct apk_n
 	OPT(OPT_LIST_upgradable,	APK_OPT_SH("u") "upgradable") \
 	OPT(OPT_LIST_upgradeable,	"upgradeable")
 
-APK_OPT_APPLET(option_desc, LIST_OPTIONS);
+APK_OPTIONS(list_options_desc, LIST_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int list_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct list_ctx *ctx = pctx;
 
@@ -230,11 +230,6 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 	return 0;
 }
 
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
-
 static int list_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
@@ -254,8 +249,10 @@ static int list_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 static struct apk_applet apk_list = {
 	.name = "list",
 	.open_flags = APK_OPENF_READ | APK_OPENF_ALLOW_ARCH,
+	.options_desc = list_options_desc,
+	.optgroup_source = 1,
 	.context_size = sizeof(struct list_ctx),
-	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
+	.parse = list_parse_option,
 	.main = list_main,
 };
 

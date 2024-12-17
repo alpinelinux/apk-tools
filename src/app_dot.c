@@ -26,9 +26,9 @@ struct dot_ctx {
 	OPT(OPT_DOT_errors,	"errors") \
 	OPT(OPT_DOT_installed,	"installed")
 
-APK_OPT_APPLET(option_desc, DOT_OPTIONS);
+APK_OPTIONS(dot_options_desc, DOT_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int dot_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct dot_ctx *ctx = (struct dot_ctx *) pctx;
 
@@ -46,11 +46,6 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 static void start_graph(struct dot_ctx *ctx)
 {
@@ -177,9 +172,11 @@ static int dot_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 static struct apk_applet apk_dot = {
 	.name = "dot",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_ALLOW_ARCH,
+	.options_desc = dot_options_desc,
+	.optgroup_source = 1,
 	.remove_empty_arguments = 1,
 	.context_size = sizeof(struct dot_ctx),
-	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
+	.parse = dot_parse_option,
 	.main = dot_main,
 };
 

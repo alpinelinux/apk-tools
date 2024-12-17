@@ -47,7 +47,7 @@ struct audit_ctx {
 	OPT(OPT_AUDIT_recursive,		APK_OPT_SH("r") "recursive") \
 	OPT(OPT_AUDIT_system,			"system")
 
-APK_OPT_APPLET(option_desc, AUDIT_OPTIONS);
+APK_OPTIONS(audit_options_desc, AUDIT_OPTIONS);
 
 static int protected_paths_istream(struct apk_ctx *ac, struct apk_istream *is)
 {
@@ -60,7 +60,7 @@ static int protected_paths_istream(struct apk_ctx *ac, struct apk_istream *is)
 	return 0;
 }
 
-static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int audit_option_parse(void *applet_ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct audit_ctx *actx = (struct audit_ctx *) applet_ctx;
 	struct apk_out *out = &ac->out;
@@ -119,11 +119,6 @@ static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, co
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 struct audit_tree_ctx {
 	struct audit_ctx *actx;
@@ -473,9 +468,10 @@ static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 
 static struct apk_applet apk_audit = {
 	.name = "audit",
+	.options_desc = audit_options_desc,
 	.open_flags = APK_OPENF_READ|APK_OPENF_NO_SCRIPTS|APK_OPENF_NO_REPOS,
 	.context_size = sizeof(struct audit_ctx),
-	.optgroups = { &optgroup_global, &optgroup_applet },
+	.parse = audit_option_parse,
 	.main = audit_main,
 };
 

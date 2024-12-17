@@ -37,9 +37,9 @@ struct cache_ctx {
 	OPT(OPT_CACHE_upgrade,		APK_OPT_SH("u") "upgrade") \
 	OPT(OPT_CACHE_simulate,		APK_OPT_SH("s") "simulate") \
 
-APK_OPT_APPLET(option_desc, CACHE_OPTIONS);
+APK_OPTIONS(cache_options_desc, CACHE_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int cache_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct cache_ctx *cctx = (struct cache_ctx *) ctx;
 
@@ -67,11 +67,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 struct progress {
 	struct apk_progress prog;
@@ -225,9 +220,10 @@ static int cache_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 
 static struct apk_applet apk_cache = {
 	.name = "cache",
+	.options_desc = cache_options_desc,
 	.open_flags = APK_OPENF_READ|APK_OPENF_NO_SCRIPTS|APK_OPENF_CACHE_WRITE,
 	.context_size = sizeof(struct cache_ctx),
-	.optgroups = { &optgroup_global, &optgroup_applet },
+	.parse = cache_parse_option,
 	.main = cache_main,
 };
 

@@ -31,9 +31,9 @@ struct fix_ctx {
 	OPT(OPT_FIX_upgrade,			APK_OPT_SH("u") "upgrade") \
 	OPT(OPT_FIX_xattr,			APK_OPT_SH("x") "xattr")
 
-APK_OPT_APPLET(option_desc, FIX_OPTIONS);
+APK_OPTIONS(fix_options_desc, FIX_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int fix_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct fix_ctx *ctx = (struct fix_ctx *) pctx;
 	switch (opt) {
@@ -57,11 +57,6 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 static int fix_directory_permissions(apk_hash_item item, void *pctx)
 {
@@ -135,12 +130,13 @@ static int fix_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 
 static struct apk_applet apk_fix = {
 	.name = "fix",
+	.options_desc = fix_options_desc,
+	.optgroup_commit = 1,
 	.open_flags = APK_OPENF_WRITE,
 	.remove_empty_arguments = 1,
 	.context_size = sizeof(struct fix_ctx),
-	.optgroups = { &optgroup_global, &optgroup_commit, &optgroup_applet },
+	.parse = fix_parse_option,
 	.main = fix_main,
 };
 
 APK_DEFINE_APPLET(apk_fix);
-

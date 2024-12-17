@@ -35,9 +35,9 @@ struct upgrade_ctx {
 	OPT(OPT_UPGRADE_prune,			"prune") \
 	OPT(OPT_UPGRADE_self_upgrade_only,	"self-upgrade-only")
 
-APK_OPT_APPLET(option_desc, UPGRADE_OPTIONS);
+APK_OPTIONS(upgrade_options_desc, UPGRADE_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int upgrade_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) ctx;
 
@@ -65,11 +65,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, unsigned int self_upgrade_only)
 {
@@ -225,11 +220,12 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 
 static struct apk_applet apk_upgrade = {
 	.name = "upgrade",
+	.options_desc = upgrade_options_desc,
+	.optgroup_commit = 1,
 	.open_flags = APK_OPENF_WRITE,
 	.context_size = sizeof(struct upgrade_ctx),
-	.optgroups = { &optgroup_global, &optgroup_commit, &optgroup_applet },
+	.parse = upgrade_parse_option,
 	.main = upgrade_main,
 };
 
 APK_DEFINE_APPLET(apk_upgrade);
-

@@ -81,7 +81,7 @@ static int cup(void)
 	OPT(OPT_FETCH_url,		"url") \
 	OPT(OPT_FETCH_world,		APK_OPT_SH("w") "world") \
 
-APK_OPT_APPLET(option_desc, FETCH_OPTIONS);
+APK_OPTIONS(fetch_options_desc, FETCH_OPTIONS);
 
 static time_t parse_time(const char *timestr)
 {
@@ -98,7 +98,7 @@ static time_t parse_time(const char *timestr)
 	return 0;
 }
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int fetch_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct fetch_ctx *fctx = (struct fetch_ctx *) ctx;
 
@@ -134,11 +134,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 static void progress_cb(void *pctx, size_t bytes_done)
 {
@@ -389,9 +384,11 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 static struct apk_applet apk_fetch = {
 	.name = "fetch",
+	.options_desc = fetch_options_desc,
+	.optgroup_source = 1,
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_ALLOW_ARCH,
 	.context_size = sizeof(struct fetch_ctx),
-	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
+	.parse = fetch_parse_option,
 	.main = fetch_main,
 };
 

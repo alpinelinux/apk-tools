@@ -73,9 +73,9 @@ static void print_rdepends(struct search_ctx *ctx, struct apk_package *pkg)
 	OPT(OPT_SEARCH_origin,		APK_OPT_SH("o") "origin") \
 	OPT(OPT_SEARCH_rdepends,	APK_OPT_SH("r") "rdepends") \
 
-APK_OPT_APPLET(option_desc, SEARCH_OPTIONS);
+APK_OPTIONS(search_options_desc, SEARCH_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int search_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct search_ctx *ictx = (struct search_ctx *) ctx;
 
@@ -106,11 +106,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 static void print_result_pkg(struct search_ctx *ctx, struct apk_package *pkg)
 {
@@ -195,9 +190,11 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 
 static struct apk_applet apk_search = {
 	.name = "search",
+	.options_desc = search_options_desc,
+	.optgroup_source = 1,
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_ALLOW_ARCH,
 	.context_size = sizeof(struct search_ctx),
-	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
+	.parse = search_parse_option,
 	.main = search_main,
 };
 

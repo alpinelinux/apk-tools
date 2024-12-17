@@ -21,9 +21,9 @@ struct sign_ctx {
 #define ADBSIGN_OPTIONS(OPT) \
 	OPT(OPT_ADBSIGN_reset_signatures,	"reset-signatures")
 
-APK_OPT_APPLET(option_desc, ADBSIGN_OPTIONS);
+APK_OPTIONS(adbsign_options_desc, ADBSIGN_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_ctx *ac, int optch, const char *optarg)
+static int adbsign_parse_option(void *pctx, struct apk_ctx *ac, int optch, const char *optarg)
 {
 	struct sign_ctx *ctx = (struct sign_ctx *) pctx;
 
@@ -36,11 +36,6 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int optch, const 
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 static int process_signatures(struct sign_ctx *ctx)
 {
@@ -113,7 +108,9 @@ static int adbsign_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 static struct apk_applet apk_adbsign = {
 	.name = "adbsign",
 	.context_size = sizeof(struct sign_ctx),
-	.optgroups = { &optgroup_global, &optgroup_generation, &optgroup_applet },
+	.options_desc = adbsign_options_desc,
+	.optgroup_generation = 1,
+	.parse = adbsign_parse_option,
 	.main = adbsign_main,
 };
 

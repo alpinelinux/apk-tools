@@ -74,9 +74,9 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_wait,			APK_OPT_ARG "wait") \
 
 
-APK_OPT_GROUP(optiondesc_global, "Global", GLOBAL_OPTIONS);
+APK_OPTIONS(optgroup_global_desc, GLOBAL_OPTIONS);
 
-static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int optgroup_global_parse(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct apk_out *out = &ac->out;
 	switch (opt) {
@@ -197,11 +197,6 @@ static int option_parse_global(void *ctx, struct apk_ctx *ac, int opt, const cha
 	return 0;
 }
 
-const struct apk_option_group optgroup_global = {
-	.desc = optiondesc_global,
-	.parse = option_parse_global,
-};
-
 #define COMMIT_OPTIONS(OPT) \
 	OPT(OPT_COMMIT_clean_protected,		"clean-protected") \
 	OPT(OPT_COMMIT_initramfs_diskless_boot,	"initramfs-diskless-boot") \
@@ -210,9 +205,9 @@ const struct apk_option_group optgroup_global = {
 	OPT(OPT_COMMIT_overlay_from_stdin,	"overlay-from-stdin") \
 	OPT(OPT_COMMIT_simulate,		APK_OPT_SH("s") "simulate")
 
-APK_OPT_GROUP(optiondesc_commit, "Commit", COMMIT_OPTIONS);
+APK_OPTIONS(optgroup_commit_desc, COMMIT_OPTIONS);
 
-static int option_parse_commit(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int optgroup_commit_parse(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	switch (opt) {
 	case OPT_COMMIT_simulate:
@@ -242,17 +237,12 @@ static int option_parse_commit(void *ctx, struct apk_ctx *ac, int opt, const cha
 	return 0;
 }
 
-const struct apk_option_group optgroup_commit = {
-	.desc = optiondesc_commit,
-	.parse = option_parse_commit,
-};
-
 #define SOURCE_OPTIONS(OPT) \
 	OPT(OPT_SOURCE_from,		APK_OPT_ARG "from")
 
-APK_OPT_GROUP(optiondesc_source, "Source", SOURCE_OPTIONS);
+APK_OPTIONS(optgroup_source_desc, SOURCE_OPTIONS);
 
-static int option_parse_source(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int optgroup_source_parse(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	const unsigned long all_flags = APK_OPENF_NO_SYS_REPOS | APK_OPENF_NO_INSTALLED_REPO | APK_OPENF_NO_INSTALLED;
 	unsigned long flags;
@@ -279,10 +269,40 @@ static int option_parse_source(void *ctx, struct apk_ctx *ac, int opt, const cha
 	return 0;
 }
 
-const struct apk_option_group optgroup_source = {
-	.desc = optiondesc_source,
-	.parse = option_parse_source,
-};
+
+#define GENERATION_OPTIONS(OPT) \
+	OPT(OPT_GENERATION_compression,	APK_OPT_ARG APK_OPT_SH("c") "compression") \
+	OPT(OPT_GENERATION_sign_key,	APK_OPT_ARG "sign-key")
+
+APK_OPTIONS(optgroup_generation_desc, GENERATION_OPTIONS);
+
+int optgroup_generation_parse(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
+{
+	struct apk_trust *trust = &ac->trust;
+	struct apk_out *out = &ac->out;
+	struct apk_trust_key *key;
+
+	switch (optch) {
+	case OPT_GENERATION_compression:
+		if (adb_parse_compression(optarg, &ac->compspec) != 0) {
+			apk_err(out, "invalid compression type: %s", optarg);
+			return -EINVAL;
+		}
+		break;
+	case OPT_GENERATION_sign_key:
+		key = apk_trust_load_key(AT_FDCWD, optarg, 1);
+		if (IS_ERR(key)) {
+			apk_err(out, "Failed to load signing key: %s: %s",
+				optarg, apk_error_str(PTR_ERR(key)));
+			return PTR_ERR(key);
+		}
+		list_add_tail(&key->key_node, &trust->private_key_list);
+		break;
+	default:
+		return -ENOTSUP;
+	}
+	return 0;
+}
 
 static int usage(struct apk_out *out, struct apk_applet *applet)
 {
@@ -315,59 +335,73 @@ static struct apk_applet *deduce_applet(int argc, char **argv)
 	return NULL;
 }
 
+struct apk_options {
+	struct option options[80];
+	unsigned short short_option_val[64];
+	char short_options[256];
+	int num_opts, num_sopts;
+};
+
+static void add_options(struct apk_options *opts, const char *desc, int group_id)
+{
+	unsigned short option_id = group_id << 10;
+	int num_short;
+
+	for (const char *d = desc; *d; d += strlen(d) + 1, option_id++) {
+		struct option *opt = &opts->options[opts->num_opts++];
+		assert(opts->num_opts < ARRAY_SIZE(opts->options));
+
+		opt->val = option_id;
+		opt->flag = 0;
+		opt->has_arg = no_argument;
+		if ((unsigned char)*d == 0xaf) {
+			opt->has_arg = required_argument;
+			d++;
+		}
+		num_short = 0;
+		if ((unsigned char)*d >= 0xf0)
+			num_short = *d++ & 0x0f;
+		for (; num_short > 0; num_short--) {
+			unsigned char ch = *(unsigned char *)d;
+			assert(ch >= 64 && ch < 128);
+			opts->short_option_val[ch-64] = option_id;
+			opts->short_options[opts->num_sopts++] = *d++;
+			if (opt->has_arg != no_argument)
+				opts->short_options[opts->num_sopts++] = ':';
+			assert(opts->num_sopts < ARRAY_SIZE(opts->short_options));
+		}
+		opt->name = d;
+	}
+}
+
 static int parse_options(int argc, char **argv, struct apk_applet *applet, void *ctx, struct apk_ctx *ac)
 {
 	struct apk_out *out = &ac->out;
-	const struct apk_option_group *default_optgroups[] = { &optgroup_global, NULL };
-	const struct apk_option_group *og, **optgroups = default_optgroups;
-	struct option all_options[80], *opt;
-	char short_options[256], *sopt;
-	unsigned short short_option_val[64];
-	int r, p, num_short;
+	struct apk_options opts;
+	int r, p;
 
-	memset(short_option_val, 0, sizeof short_option_val);
+	memset(&opts, 0, sizeof opts);
 
-	if (applet && applet->optgroups[0]) optgroups = applet->optgroups;
-
-	for (p = 0, opt = &all_options[0], sopt = short_options; (og = optgroups[p]) != 0; p++) {
-		assert(opt < &all_options[ARRAY_SIZE(all_options)]);
-		assert(sopt < &short_options[sizeof short_options]);
-		const char *d = og->desc + strlen(og->desc) + 1;
-		for (r = 0; *d; r++) {
-			opt->val = (p << 10) + r;
-			opt->flag = 0;
-			opt->has_arg = no_argument;
-			if ((unsigned char)*d == 0xaf) {
-				opt->has_arg = required_argument;
-				d++;
-			}
-			num_short = 0;
-			if ((unsigned char)*d >= 0xf0)
-				num_short = *d++ & 0x0f;
-			for (; num_short > 0; num_short--) {
-				unsigned char ch = *(unsigned char *)d;
-				assert(ch >= 64 && ch < 128);
-				short_option_val[ch-64] = opt->val;
-				*sopt++ = *d++;
-				if (opt->has_arg != no_argument)
-					*sopt++ = ':';
-			}
-			opt->name = d;
-			opt++;
-			d += strlen(d) + 1;
-		}
+	add_options(&opts, optgroup_global_desc, 1);
+	if (applet) {
+		if (applet->optgroup_commit) add_options(&opts, optgroup_commit_desc, 2);
+		if (applet->optgroup_source) add_options(&opts, optgroup_source_desc, 3);
+		if (applet->optgroup_generation) add_options(&opts, optgroup_generation_desc, 4);
+		if (applet->options_desc) add_options(&opts, applet->options_desc, 15);
 	}
-	opt->name = 0;
-	*sopt = 0;
 
-	while ((p = getopt_long(argc, argv, short_options, all_options, NULL)) != -1) {
-		if (p >= 64 && p < 128) p = short_option_val[p - 64];
-		og = optgroups[p >> 10];
-		r = og->parse(ctx, ac, p & 0x3ff, optarg);
-		if (r == 0) continue;
-		if (r == -EINVAL || r == -ENOTSUP)
-			return usage(out, applet);
-		return r;
+	while ((p = getopt_long(argc, argv, opts.short_options, opts.options, NULL)) != -1) {
+		if (p >= 64 && p < 128) p = opts.short_option_val[p - 64];
+		switch (p >> 10) {
+		case 1: r = optgroup_global_parse(ctx, ac, p&0x3ff, optarg); break;
+		case 2: r = optgroup_commit_parse(ctx, ac, p&0x3ff, optarg); break;
+		case 3: r = optgroup_source_parse(ctx, ac, p&0x3ff, optarg); break;
+		case 4: r = optgroup_generation_parse(ctx, ac, p&0x3ff, optarg); break;
+		case 15: r = applet->parse(ctx, ac, p&0x3ff, optarg); break;
+		default: r = -EINVAL;
+		}
+		if (r == -EINVAL || r == -ENOTSUP) return usage(out, applet);
+		if (r != 0) return r;
 	}
 
 	return 0;
@@ -459,8 +493,7 @@ int main(int argc, char **argv)
 			applet_ctx = calloc(1, applet->context_size);
 		ctx.open_flags = applet->open_flags;
 		ctx.force |= applet->forced_force;
-		for (int i = 0; applet->optgroups[i]; i++)
-			applet->optgroups[i]->parse(applet_ctx, &ctx, APK_OPTIONS_INIT, NULL);
+		if (applet->parse) applet->parse(applet_ctx, &ctx, APK_OPTIONS_INIT, NULL);
 	}
 
 	apk_crypto_init();

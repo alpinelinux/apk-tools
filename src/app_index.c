@@ -47,9 +47,9 @@ struct index_ctx {
 	OPT(OPT_INDEX_prune_origin,	"prune-origin") \
 	OPT(OPT_INDEX_rewrite_arch,	APK_OPT_ARG "rewrite-arch")
 
-APK_OPT_APPLET(option_desc, INDEX_OPTIONS);
+APK_OPTIONS(index_options_desc, INDEX_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int index_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct index_ctx *ictx = (struct index_ctx *) ctx;
 
@@ -80,11 +80,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 struct index_writer {
 	struct apk_ostream *os;
@@ -305,11 +300,11 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 
 static struct apk_applet apk_index = {
 	.name = "index",
+	.options_desc = index_options_desc,
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_NO_REPOS,
 	.context_size = sizeof(struct index_ctx),
-	.optgroups = { &optgroup_global, &optgroup_applet },
+	.parse = index_parse_option,
 	.main = index_main,
 };
 
 APK_DEFINE_APPLET(apk_index);
-

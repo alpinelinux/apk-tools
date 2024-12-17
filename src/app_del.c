@@ -23,9 +23,9 @@ struct del_ctx {
 #define DEL_OPTIONS(OPT) \
 	OPT(OPT_DEL_redepends,	APK_OPT_SH("r") "rdepends")
 
-APK_OPT_APPLET(option_desc, DEL_OPTIONS);
+APK_OPTIONS(del_options_desc, DEL_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int del_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct del_ctx *ctx = (struct del_ctx *) pctx;
 
@@ -38,11 +38,6 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 struct not_deleted_ctx {
 	struct apk_out *out;
@@ -191,10 +186,12 @@ static int del_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 
 static struct apk_applet apk_del = {
 	.name = "del",
+	.options_desc = del_options_desc,
+	.optgroup_commit = 1,
 	.open_flags = APK_OPENF_WRITE | APK_OPENF_NO_AUTOUPDATE,
 	.remove_empty_arguments = 1,
 	.context_size = sizeof(struct del_ctx),
-	.optgroups = { &optgroup_global, &optgroup_commit, &optgroup_applet },
+	.parse = del_parse_option,
 	.main = del_main,
 };
 

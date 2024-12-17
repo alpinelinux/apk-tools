@@ -81,7 +81,7 @@ struct mkpkg_ctx {
 	OPT(OPT_MKPKG_script,		APK_OPT_ARG APK_OPT_SH("s") "script") \
 	OPT(OPT_MKPKG_trigger,		APK_OPT_ARG APK_OPT_SH("t") "trigger") \
 
-APK_OPT_APPLET(option_desc, MKPKG_OPTIONS);
+APK_OPTIONS(mkpkg_options_desc, MKPKG_OPTIONS);
 
 static int parse_info(struct mkpkg_ctx *ictx, struct apk_out *out, const char *optarg)
 {
@@ -117,7 +117,7 @@ inval:
 	return -EINVAL;
 }
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
+static int mkpkg_parse_option(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
 {
 	struct apk_out *out = &ac->out;
 	struct mkpkg_ctx *ictx = ctx;
@@ -168,11 +168,6 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 static adb_val_t create_xattrs(struct adb *db, int fd)
 {
@@ -556,8 +551,10 @@ err:
 
 static struct apk_applet apk_mkpkg = {
 	.name = "mkpkg",
+	.options_desc = mkpkg_options_desc,
+	.optgroup_generation = 1,
 	.context_size = sizeof(struct mkpkg_ctx),
-	.optgroups = { &optgroup_global, &optgroup_generation, &optgroup_applet },
+	.parse = mkpkg_parse_option,
 	.main = mkpkg_main,
 };
 

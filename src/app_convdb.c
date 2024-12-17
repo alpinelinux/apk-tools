@@ -240,8 +240,8 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 
 static struct apk_applet apk_convdb = {
 	.name = "convdb",
+	.optgroup_generation = 1,
 	.context_size = sizeof(struct conv_ctx),
-	.optgroups = { &optgroup_global, &optgroup_generation },
 	.main = conv_main,
 };
 APK_DEFINE_APPLET(apk_convdb);

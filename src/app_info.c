@@ -384,9 +384,9 @@ static int print_name_info(struct apk_database *db, const char *match, struct ap
 	OPT(OPT_INFO_webpage,		APK_OPT_SH("w") "webpage") \
 	OPT(OPT_INFO_who_owns,		APK_OPT_SH("W") "who-owns")
 
-APK_OPT_APPLET(option_desc, INFO_OPTIONS);
+APK_OPTIONS(info_options_desc, INFO_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int info_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct info_ctx *ctx = (struct info_ctx *) pctx;
 
@@ -471,18 +471,14 @@ static int info_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *arg
 	return ictx->errors;
 }
 
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
-
 static struct apk_applet apk_info = {
 	.name = "info",
+	.options_desc = info_options_desc,
+	.optgroup_source = 1,
 	.open_flags = APK_OPENF_READ | APK_OPENF_ALLOW_ARCH,
 	.context_size = sizeof(struct info_ctx),
-	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
+	.parse = info_parse_option,
 	.main = info_main,
 };
 
 APK_DEFINE_APPLET(apk_info);
-

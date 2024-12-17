@@ -25,14 +25,13 @@ struct extract_ctx {
 	struct apk_ctx *ac;
 };
 
-
 #define EXTRACT_OPTIONS(OPT) \
 	OPT(OPT_EXTRACT_destination,	APK_OPT_ARG "destination") \
 	OPT(OPT_EXTRACT_no_chown,	"no-chown")
 
-APK_OPT_APPLET(option_desc, EXTRACT_OPTIONS);
+APK_OPTIONS(extract_options_desc, EXTRACT_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int extract_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct extract_ctx *ctx = (struct extract_ctx *) pctx;
 
@@ -48,11 +47,6 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 	}
 	return 0;
 }
-
-static const struct apk_option_group optgroup_applet = {
-	.desc = option_desc,
-	.parse = option_parse_applet,
-};
 
 static int extract_v3_meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 {
@@ -118,8 +112,9 @@ static int extract_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 
 static struct apk_applet app_extract = {
 	.name = "extract",
+	.options_desc = extract_options_desc,
 	.context_size = sizeof(struct extract_ctx),
-	.optgroups = { &optgroup_global, &optgroup_applet },
+	.parse = extract_parse_option,
 	.main = extract_main,
 };
 
