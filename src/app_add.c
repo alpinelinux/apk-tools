@@ -162,6 +162,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 				return -1;
 
 			r = apk_pkg_read(db, *parg, &pkg, TRUE);
+			if (r == 0 && pkg->uninstallable) r = -APKE_FORMAT_NOT_SUPPORTED;
 			if (r != 0) {
 				apk_err(out, "%s: %s", *parg, apk_error_str(r));
 				return -1;

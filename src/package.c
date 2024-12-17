@@ -495,7 +495,6 @@ int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl,
 		break;
 	case 'A':
 		pkg->arch = apk_atomize_dup(&db->atoms, value);
-		if (!apk_db_arch_compatible(db, pkg->arch)) pkg->uninstallable = 1;
 		break;
 	case 'D':
 		if (apk_blob_pull_deps(&value, db, &pkg->depends, false)) {
@@ -697,6 +696,7 @@ int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package *
 	apk_string_array_add(&db->filename_array, (char*) file);
 	ctx.tmpl.pkg.size = fi.size;
 	ctx.tmpl.pkg.filename_ndx = apk_array_len(db->filename_array);
+	if (!apk_db_arch_compatible(db, ctx.tmpl.pkg.arch)) ctx.tmpl.pkg.uninstallable = 1;
 
 	if (pkg) *pkg = apk_db_pkg_add(db, &ctx.tmpl);
 	else apk_db_pkg_add(db, &ctx.tmpl);
