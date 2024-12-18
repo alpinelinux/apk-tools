@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source $(dirname "$0")/../testlib.sh
+. $(dirname "$0")/../testlib.sh
 
 setup_apkroot
 APK="$APK --allow-untrusted --no-interactive"
@@ -16,7 +16,7 @@ CACHED_A=$(glob_one "$TEST_ROOT/etc/apk/cache/test-a-1.0.*.apk")
 CACHED_B=$(glob_one "$TEST_ROOT/etc/apk/cache/test-b-1.0.*.apk")
 
 CACHED_B2="$TEST_ROOT/etc/apk/cache/test-b-1.0.xeeb78f1.apk"
-CACHED_C=${CACHED_B//test-b/test-c}
+CACHED_C=$(echo "$CACHED_B" | sed 's,test-b,test-c,')
 
 [ -f "$CACHED_A" ] || assert "cached test-a not preset"
 [ -f "$CACHED_B" ] || assert "cached test-b not preset"
@@ -24,7 +24,7 @@ CACHED_C=${CACHED_B//test-b/test-c}
 [ -f "$CACHED_C" ] && assert "cached test-c preset"
 
 touch $CACHED_C $CACHED_B2
-dd if=/dev/zero of=$CACHED_B bs=1024 count=1 >& /dev/null
+dd if=/dev/zero of=$CACHED_B bs=1024 count=1 > /dev/null 2>&1
 
 $APK cache clean -vv
 
