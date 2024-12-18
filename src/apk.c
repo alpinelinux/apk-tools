@@ -143,13 +143,13 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 		ac->flags |= APK_PRESERVE_ENV;
 		break;
 	case OPT_GLOBAL_progress:
-		ac->progress.out = &ac->out;
+		ac->out.progress_disable = 0;
 		break;
 	case OPT_GLOBAL_no_progress:
-		ac->progress.out = NULL;
+		ac->out.progress_disable = 1;
 		break;
 	case OPT_GLOBAL_progress_fd:
-		ac->progress.fd = atoi(optarg);
+		ac->out.progress_fd = atoi(optarg);
 		break;
 	case OPT_GLOBAL_allow_untrusted:
 		ac->flags |= APK_ALLOW_UNTRUSTED;
@@ -383,22 +383,21 @@ static void setup_automatic_flags(struct apk_ctx *ac)
 	const char *tmp;
 
 	if ((tmp = getenv("APK_PROGRESS_CHAR")) != NULL)
-		ac->progress.progress_char = tmp;
+		ac->out.progress_char = tmp;
 	else if ((tmp = getenv("LANG")) != NULL && strstr(tmp, "UTF-8") != NULL)
-		ac->progress.progress_char = "\u2588";
+		ac->out.progress_char = "\u2588";
 	else
-		ac->progress.progress_char = "#";
+		ac->out.progress_char = "#";
 
-	if (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO) ||
-	    !isatty(STDIN_FILENO))
+	if (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO) || !isatty(STDIN_FILENO)) {
+		ac->out.progress_disable = 1;
 		return;
+	}
 
-	/* Enable progress bar by default, except on dumb terminals. */
-	if (!(tmp = getenv("TERM")) || strcmp(tmp, "dumb") != 0)
-		ac->progress.out = &ac->out;
+	if ((tmp = getenv("TERM")) != NULL && strcmp(tmp, "dumb") == 0)
+		ac->out.progress_disable = 1;
 
-	if (!(ac->flags & APK_SIMULATE) &&
-	    access("/etc/apk/interactive", F_OK) == 0)
+	if (!(ac->flags & APK_SIMULATE) && access("/etc/apk/interactive", F_OK) == 0)
 		ac->flags |= APK_INTERACTIVE;
 }
 

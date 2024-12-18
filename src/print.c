@@ -220,32 +220,41 @@ void apk_out_log_argv(struct apk_out *out, char **argv)
 	fprintf(out->log, "` at %s\n", when);
 }
 
-void apk_print_progress(struct apk_progress *p, size_t done, size_t total)
+void apk_progress_start(struct apk_progress *p, struct apk_out *out, const char *stage, size_t max_progress)
+{
+	*p = (struct apk_progress) {
+		.out = out,
+		.stage = stage,
+		.max_progress = max_progress,
+	};
+}
+
+void apk_progress_update(struct apk_progress *p, size_t cur_progress)
 {
 	int bar_width;
 	int bar = 0;
 	char buf[64]; /* enough for petabytes... */
-	int i, percent = 0;
+	int i, percent = 0, progress_fd = p->out->progress_fd;
 	FILE *out;
 
-	if (p->last_done == done && (!p->out || p->last_out_change == p->out->last_change)) return;
-	if (p->fd != 0) {
-		i = apk_fmt(buf, sizeof buf, "%zu/%zu\n", done, total);
-		if (i < 0 || apk_write_fully(p->fd, buf, i) != i) {
-			close(p->fd);
-			p->fd = 0;
+	if (p->cur_progress == cur_progress && (!p->out || p->last_out_change == p->out->last_change)) return;
+	if (progress_fd != 0) {
+		i = apk_fmt(buf, sizeof buf, "%zu/%zu %s\n", cur_progress, p->max_progress, p->stage);
+		if (i < 0 || apk_write_fully(progress_fd, buf, i) != i) {
+			close(progress_fd);
+			p->out->progress_fd = 0;
 		}
 	}
-	p->last_done = done;
+	p->cur_progress = cur_progress;
+	if (p->out->progress_disable) return;
 
-	if (!p->out) return;
 	out = p->out->out;
 	if (!out) return;
 
 	bar_width = apk_out_get_width(p->out) - 6;
-	if (total > 0) {
-		bar = muldiv(bar_width, done, total);
-		percent = muldiv(100, done, total);
+	if (p->max_progress > 0) {
+		bar = muldiv(bar_width, cur_progress, p->max_progress);
+		percent = muldiv(100, cur_progress, p->max_progress);
 	}
 
 	if (bar == p->last_bar && percent == p->last_percent && p->last_out_change == p->out->last_change)
@@ -258,12 +267,17 @@ void apk_print_progress(struct apk_progress *p, size_t done, size_t total)
 	fprintf(out, "\e7%3i%% ", percent);
 
 	for (i = 0; i < bar; i++)
-		fputs(p->progress_char, out);
+		fputs(p->out->progress_char, out);
 	for (; i < bar_width; i++)
 		fputc(' ', out);
 
 	fflush(out);
 	fputs("\e8\e[0K", out);
+}
+
+void apk_progress_end(struct apk_progress *p)
+{
+	apk_progress_update(p, p->max_progress);
 }
 
 void apk_print_indented_init(struct apk_indent *i, struct apk_out *out, int err)

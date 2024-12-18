@@ -34,8 +34,9 @@ void apk_url_parse(struct apk_url_print *, const char *);
 #define URL_PRINTF(u)		(int)u.len_before_pw, u.url, u.pwmask, u.url_or_host
 
 struct apk_out {
-	int verbosity;
+	int verbosity, progress_disable, progress_fd;
 	unsigned int width, last_change;
+	const char *progress_char;
 	FILE *out, *err, *log;
 };
 
@@ -60,13 +61,15 @@ void apk_out_log_argv(struct apk_out *, char **argv);
 
 struct apk_progress {
 	struct apk_out *out;
-	int fd, last_bar, last_percent;
+	const char *stage;
+	int last_bar, last_percent;
 	unsigned int last_out_change;
-	size_t last_done;
-	const char *progress_char;
+	size_t cur_progress, max_progress;
 };
 
-void apk_print_progress(struct apk_progress *p, size_t done, size_t total);
+void apk_progress_start(struct apk_progress *p, struct apk_out *out, const char *stage, size_t max_progress);
+void apk_progress_update(struct apk_progress *p, size_t cur_progress);
+void apk_progress_end(struct apk_progress *p);
 
 struct apk_indent {
 	FILE *f;

@@ -123,9 +123,7 @@ static void count_change(struct apk_change *change, struct apk_stats *stats)
 static void progress_cb(void *ctx, size_t installed_bytes)
 {
 	struct progress *prog = (struct progress *) ctx;
-	apk_print_progress(&prog->prog,
-			   prog->done.bytes + prog->done.packages + installed_bytes,
-			   prog->total.bytes + prog->total.packages);
+	apk_progress_update(&prog->prog, prog->done.bytes + prog->done.packages + installed_bytes);
 }
 
 static int dump_packages(struct apk_database *db, struct apk_change_array *changes,
@@ -298,7 +296,7 @@ static int calc_precision(unsigned int num)
 int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset *changeset, bool changes_only)
 {
 	struct apk_out *out = &db->ctx->out;
-	struct progress prog = { .prog = db->ctx->progress };
+	struct progress prog = { 0 };
 	struct apk_change *change;
 	struct apk_package *pkg;
 	struct apk_repository *repo;
@@ -318,6 +316,7 @@ int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset 
 	prog.total_changes_digits = calc_precision(prog.total.packages);
 	apk_msg(out, "Downloading %d packages...", prog.total.packages);
 
+	apk_progress_start(&prog.prog, out, "download", prog.total.bytes + prog.total.packages);
 	foreach_array_item(change, changeset->changes) {
 		pkg = change->new_pkg;
 		if (changes_only && pkg == change->old_pkg) continue;
@@ -339,8 +338,7 @@ int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset 
 		prog.done.packages++;
 		prog.done.changes++;
 	}
-	apk_print_progress(&prog.prog, prog.total.bytes + prog.total.packages,
-			   prog.total.bytes + prog.total.packages);
+	apk_progress_end(&prog.prog);
 
 	if (errors) return -errors;
 	return prog.done.packages;
@@ -351,7 +349,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 				struct apk_dependency_array *world)
 {
 	struct apk_out *out = &db->ctx->out;
-	struct progress prog = { .prog = db->ctx->progress };
+	struct progress prog = { 0 };
 	struct apk_change *change;
 	const char *size_unit;
 	off_t humanized, size_diff = 0, download_size = 0;
@@ -437,6 +435,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		return -1;
 
 	/* Go through changes */
+	apk_progress_start(&prog.prog, out, "install", prog.total.bytes + prog.total.packages);
 	foreach_array_item(change, changeset->changes) {
 		r = change->old_pkg &&
 			(change->old_pkg->ipkg->broken_files ||
@@ -457,8 +456,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		errors += r;
 		count_change(change, &prog.done);
 	}
-	apk_print_progress(&prog.prog, prog.total.bytes + prog.total.packages,
-			   prog.total.bytes + prog.total.packages);
+	apk_progress_end(&prog.prog);
 
 	errors += db->num_dir_update_errors;
 	errors += run_triggers(db, changeset);

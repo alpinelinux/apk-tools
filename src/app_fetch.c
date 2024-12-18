@@ -143,7 +143,7 @@ static int fetch_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char
 static void progress_cb(void *pctx, size_t bytes_done)
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	apk_print_progress(&ctx->prog, ctx->done + bytes_done, ctx->total);
+	apk_progress_update(&ctx->prog, ctx->done + bytes_done);
 }
 
 static int fetch_package(struct apk_database *db, const char *match, struct apk_package *pkg, void *pctx)
@@ -336,10 +336,10 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	struct apk_dependency *dep;
 
 	ctx->db = db;
-	ctx->prog = db->ctx->progress;
+
 	if (APK_BLOB_IS_NULL(ctx->pkgname_spec)) ctx->pkgname_spec = ac->default_pkgname_spec;
 	if (ctx->flags & FETCH_STDOUT) {
-		db->ctx->progress.out = 0;
+		db->ctx->out.progress_disable = 1;
 		db->ctx->out.verbosity = 0;
 	}
 
@@ -365,8 +365,11 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		if (apk_array_len(args) != 0)
 			apk_db_foreach_matching_name(db, args, mark_name, ctx);
 	}
-	if (!ctx->errors)
+	if (!ctx->errors) {
+		apk_progress_start(&ctx->prog, &ac->out, "fetch", ctx->total);
 		apk_db_foreach_sorted_package(db, NULL, fetch_package, ctx);
+		apk_progress_end(&ctx->prog);
+	}
 
 	/* Remove packages not matching download spec from the output directory */
 	if (!ctx->errors && (db->ctx->flags & APK_PURGE) &&

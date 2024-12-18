@@ -66,7 +66,6 @@ struct apk_ctx {
 	unsigned int flags, force, open_flags;
 	unsigned int lock_wait, cache_max_age;
 	struct apk_out out;
-	struct apk_progress progress;
 	struct adb_compression_spec compspec;
 	const char *root;
 	const char *keys_dir;
