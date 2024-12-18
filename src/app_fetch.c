@@ -186,6 +186,8 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 
 	if (db->ctx->flags & APK_SIMULATE) return 0;
 
+	progress_cb(ctx, 0);
+
 	if (ctx->flags & FETCH_STDOUT) {
 		os = apk_ostream_to_fd(STDOUT_FILENO);
 	} else {
