@@ -345,6 +345,17 @@ The following options are available for all commands which generate APKv3 files.
 
 ## Configuration files
 
+*/etc/apk/config*
+	Default global options. The file contains one long option per line.
+		no-cache++
+timeout 120
+
+*/etc/apk/interactive*
+	If this file exists and apk is running on a tty, *--interactive*
+	mode is enabled by default.
+
+## Configuration files (relative to --root)
+
 */etc/apk/arch*
 	The CPU architecture for this database. See *apk-package*(5) section
 	on package metadata field *arch* for the list.
@@ -361,10 +372,6 @@ The following options are available for all commands which generate APKv3 files.
 
 	If *--no-scripts* or *--no-commit-hooks* option is specified, these
 	hook scripts are not executed.
-
-*/etc/apk/interactive*
-	If this file exists and apk is running on a tty, *--interactive*
-	mode is enabled by default.
 
 */etc/apk/keys*
 	A directory containing trusted signing keys for apk.

@@ -76,7 +76,7 @@ static void version(struct apk_out *out, const char *prefix)
 
 APK_OPTIONS(optgroup_global_desc, GLOBAL_OPTIONS);
 
-static int optgroup_global_parse(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct apk_out *out = &ac->out;
 	switch (opt) {
@@ -207,7 +207,7 @@ static int optgroup_global_parse(void *ctx, struct apk_ctx *ac, int opt, const c
 
 APK_OPTIONS(optgroup_commit_desc, COMMIT_OPTIONS);
 
-static int optgroup_commit_parse(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int optgroup_commit_parse(struct apk_ctx *ac, int opt, const char *optarg)
 {
 	switch (opt) {
 	case OPT_COMMIT_simulate:
@@ -242,7 +242,7 @@ static int optgroup_commit_parse(void *ctx, struct apk_ctx *ac, int opt, const c
 
 APK_OPTIONS(optgroup_source_desc, SOURCE_OPTIONS);
 
-static int optgroup_source_parse(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int optgroup_source_parse(struct apk_ctx *ac, int opt, const char *optarg)
 {
 	const unsigned long all_flags = APK_OPENF_NO_SYS_REPOS | APK_OPENF_NO_INSTALLED_REPO | APK_OPENF_NO_INSTALLED;
 	unsigned long flags;
@@ -276,7 +276,7 @@ static int optgroup_source_parse(void *ctx, struct apk_ctx *ac, int opt, const c
 
 APK_OPTIONS(optgroup_generation_desc, GENERATION_OPTIONS);
 
-int optgroup_generation_parse(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
+int optgroup_generation_parse(struct apk_ctx *ac, int optch, const char *optarg)
 {
 	struct apk_trust *trust = &ac->trust;
 	struct apk_out *out = &ac->out;
@@ -374,39 +374,6 @@ static void add_options(struct apk_options *opts, const char *desc, int group_id
 	}
 }
 
-static int parse_options(int argc, char **argv, struct apk_applet *applet, void *ctx, struct apk_ctx *ac)
-{
-	struct apk_out *out = &ac->out;
-	struct apk_options opts;
-	int r, p;
-
-	memset(&opts, 0, sizeof opts);
-
-	add_options(&opts, optgroup_global_desc, 1);
-	if (applet) {
-		if (applet->optgroup_commit) add_options(&opts, optgroup_commit_desc, 2);
-		if (applet->optgroup_source) add_options(&opts, optgroup_source_desc, 3);
-		if (applet->optgroup_generation) add_options(&opts, optgroup_generation_desc, 4);
-		if (applet->options_desc) add_options(&opts, applet->options_desc, 15);
-	}
-
-	while ((p = getopt_long(argc, argv, opts.short_options, opts.options, NULL)) != -1) {
-		if (p >= 64 && p < 128) p = opts.short_option_val[p - 64];
-		switch (p >> 10) {
-		case 1: r = optgroup_global_parse(ctx, ac, p&0x3ff, optarg); break;
-		case 2: r = optgroup_commit_parse(ctx, ac, p&0x3ff, optarg); break;
-		case 3: r = optgroup_source_parse(ctx, ac, p&0x3ff, optarg); break;
-		case 4: r = optgroup_generation_parse(ctx, ac, p&0x3ff, optarg); break;
-		case 15: r = applet->parse(ctx, ac, p&0x3ff, optarg); break;
-		default: r = -EINVAL;
-		}
-		if (r == -EINVAL || r == -ENOTSUP) return usage(out, applet);
-		if (r != 0) return r;
-	}
-
-	return 0;
-}
-
 static void setup_automatic_flags(struct apk_ctx *ac)
 {
 	const char *tmp;
@@ -429,6 +396,99 @@ static void setup_automatic_flags(struct apk_ctx *ac)
 	if (!(ac->flags & APK_SIMULATE) &&
 	    access("/etc/apk/interactive", F_OK) == 0)
 		ac->flags |= APK_INTERACTIVE;
+}
+
+static int load_config(struct apk_ctx *ac, struct apk_options *opts)
+{
+	struct apk_out *out = &ac->out;
+	struct apk_istream *is;
+	apk_blob_t newline = APK_BLOB_STRLIT("\n"), comment = APK_BLOB_STRLIT("#");
+	apk_blob_t space = APK_BLOB_STRLIT(" "), line, key, value;
+	int r;
+
+	is = apk_istream_from_file(AT_FDCWD, "/etc/apk/config");
+	if (IS_ERR(is)) return PTR_ERR(is);
+
+	while (apk_istream_get_delim(is, newline, &line) == 0) {
+		apk_blob_split(line, comment, &line, &value);
+		if (!apk_blob_split(line, space, &key, &value)) {
+			key = line;
+			value = APK_BLOB_NULL;
+		}
+		key = apk_blob_trim_end(key, ' ');
+		value = apk_blob_trim_end(value, ' ');
+		if (key.len == 0) continue;
+
+		r = -1;
+		for (int i = 0; i < opts->num_opts; i++) {
+			struct option *opt = &opts->options[i];
+			if (strncmp(opt->name, key.ptr, key.len) != 0 || opt->name[key.len] != 0) continue;
+			switch (opt->has_arg) {
+			case no_argument:
+				if (!APK_BLOB_IS_NULL(value)) r = -2;
+				break;
+			case required_argument:
+				if (APK_BLOB_IS_NULL(value)) r = -3;
+				value.ptr[value.len] = 0;
+				break;
+			}
+			assert((opt->val >> 10) == 1);
+			if (r == -1) r = optgroup_global_parse(ac, opt->val&0x3ff, value.ptr);
+			break;
+		}
+		switch (r) {
+		case 0: break;
+		case -1:
+			apk_warn(out, "config: option '" BLOB_FMT "' unknown", BLOB_PRINTF(key));
+			break;
+		case -2:
+			apk_warn(out, "config: option '" BLOB_FMT "' does not expect argument (got '" BLOB_FMT "')",
+				BLOB_PRINTF(key), BLOB_PRINTF(value));
+			break;
+		case -3:
+			apk_warn(out, "config: option '" BLOB_FMT "' expects an argument",
+				BLOB_PRINTF(key));
+			break;
+		default: apk_warn(out, "config: setting option '" BLOB_FMT "' failed", BLOB_PRINTF(key)); break;
+		}
+	}
+	return apk_istream_close(is);
+}
+
+static int parse_options(int argc, char **argv, struct apk_applet *applet, void *ctx, struct apk_ctx *ac)
+{
+	struct apk_out *out = &ac->out;
+	struct apk_options opts;
+	int r, p;
+
+	memset(&opts, 0, sizeof opts);
+
+	add_options(&opts, optgroup_global_desc, 1);
+	setup_automatic_flags(ac);
+	load_config(ac, &opts);
+
+	if (applet) {
+		if (applet->optgroup_commit) add_options(&opts, optgroup_commit_desc, 2);
+		if (applet->optgroup_source) add_options(&opts, optgroup_source_desc, 3);
+		if (applet->optgroup_generation) add_options(&opts, optgroup_generation_desc, 4);
+		if (applet->options_desc) add_options(&opts, applet->options_desc, 15);
+	}
+
+	while ((p = getopt_long(argc, argv, opts.short_options, opts.options, NULL)) != -1) {
+		if (p >= 64 && p < 128) p = opts.short_option_val[p - 64];
+		switch (p >> 10) {
+		case 1: r = optgroup_global_parse(ac, p&0x3ff, optarg); break;
+		case 2: r = optgroup_commit_parse(ac, p&0x3ff, optarg); break;
+		case 3: r = optgroup_source_parse(ac, p&0x3ff, optarg); break;
+		case 4: r = optgroup_generation_parse(ac, p&0x3ff, optarg); break;
+		case 15: r = applet->parse(ctx, ac, p&0x3ff, optarg); break;
+		default: r = -EINVAL;
+		}
+		if (r == -EINVAL || r == -ENOTSUP) return usage(out, applet);
+		if (r != 0) return r;
+	}
+
+	return 0;
 }
 
 static struct apk_ctx ctx;
@@ -497,7 +557,6 @@ int main(int argc, char **argv)
 	}
 
 	apk_crypto_init();
-	setup_automatic_flags(&ctx);
 	apk_io_url_init();
 	apk_io_url_set_timeout(60);
 	apk_io_url_set_redirect_callback(redirect_callback);
