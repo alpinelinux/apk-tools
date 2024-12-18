@@ -5,7 +5,7 @@
 
 PACKAGE := apk-tools
 VERSION := $(shell ./get-version.sh "$(FULL_VERSION)" "$(VERSION)")
-SO_VERSION := $(shell cat VERSION)
+SO_VERSION := $(shell cat VERSION | cut -d' ' -f1)
 
 export PACKAGE VERSION SO_VERSION
 
