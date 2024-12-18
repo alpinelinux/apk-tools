@@ -2507,7 +2507,7 @@ int apk_db_add_repository(struct apk_database *db, apk_blob_t _repository)
 	*repo = (struct apk_repository) {
 		.url = url,
 		.url_is_file = url_is_file,
-		.url_base = url_base,
+		.url_base = *apk_atomize_dup(&db->atoms, url_base),
 		.pkgname_spec = pkgname_spec,
 	};
 

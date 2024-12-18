@@ -30,7 +30,7 @@ specified.
 *--pkgname-spec* _PKGNAME_SPEC_
 	Generate downloaded package names with _PKGNAME_SPEC_ specification.
 	Does not work with *--prune* unless the specification starts with
-	*${name}[-_.]*.
+	*${name}[-\_.]*.
 
 *-R, --recursive*
 	Fetch packages and all of their dependencies.
