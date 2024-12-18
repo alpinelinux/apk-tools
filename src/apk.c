@@ -40,6 +40,7 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_arch,			APK_OPT_ARG "arch") \
 	OPT(OPT_GLOBAL_cache_dir,		APK_OPT_ARG "cache-dir") \
 	OPT(OPT_GLOBAL_cache_max_age,		APK_OPT_ARG "cache-max-age") \
+	OPT(OPT_GLOBAL_cache_predownload,	"cache-predownload") \
 	OPT(OPT_GLOBAL_force,			APK_OPT_SH("f") "force") \
 	OPT(OPT_GLOBAL_force_binary_stdout,	"force-binary-stdout") \
 	OPT(OPT_GLOBAL_force_broken_world,	"force-broken-world") \
@@ -181,6 +182,9 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 		break;
 	case OPT_GLOBAL_cache_max_age:
 		ac->cache_max_age = atoi(optarg) * 60;
+		break;
+	case OPT_GLOBAL_cache_predownload:
+		ac->cache_predownload = 1;
 		break;
 	case OPT_GLOBAL_timeout:
 		apk_io_url_set_timeout(atoi(optarg));

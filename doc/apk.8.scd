@@ -145,6 +145,10 @@ The following options are available for all commands.
 *--cache-max-age* _AGE_
 	Maximum AGE (in minutes) for index in cache before it's refreshed.
 
+*--cache-predownload*
+	Download needed packages to cache before starting to commit a transtaction.
+	Requires cache to be configured to be functional.
+
 *--force-binary-stdout*
 	Continue even if binary data will be printed to the terminal.
 

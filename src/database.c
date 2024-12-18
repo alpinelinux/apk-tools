@@ -752,8 +752,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		    now - st.st_mtime <= db->ctx->cache_max_age)
 			return -EALREADY;
 	}
-	apk_notice(out, "fetch " URL_FMT, URL_PRINTF(urlp));
-
+	if (!cb) apk_notice(out, "fetch " URL_FMT, URL_PRINTF(urlp));
 	if (db->ctx->flags & APK_SIMULATE) return 0;
 
 	os = apk_ostream_to_file(cache_fd, cache_url, 0644);
@@ -770,6 +769,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		if (autoupdate) utimensat(cache_fd, cache_url, NULL, 0);
 		return r;
 	}
+	if (pkg) pkg->repos |= BIT(APK_REPOSITORY_CACHED);
 	return r;
 }
 

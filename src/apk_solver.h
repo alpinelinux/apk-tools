@@ -44,6 +44,8 @@ int apk_solver_solve(struct apk_database *db,
 		     struct apk_dependency_array *world,
 		     struct apk_changeset *changeset);
 
+int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset *changeset, bool changes_only);
+
 int apk_solver_commit_changeset(struct apk_database *db,
 				struct apk_changeset *changeset,
 				struct apk_dependency_array *world);

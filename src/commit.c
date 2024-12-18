@@ -279,6 +279,57 @@ static int calc_precision(unsigned int num)
 	return precision;
 }
 
+int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset *changeset, bool changes_only)
+{
+	struct apk_out *out = &db->ctx->out;
+	struct progress prog = { .prog = db->ctx->progress };
+	struct apk_change *change;
+	struct apk_package *pkg;
+	struct apk_repository *repo;
+	int r, errors = 0;
+
+	foreach_array_item(change, changeset->changes) {
+		pkg = change->new_pkg;
+		if (changes_only && pkg == change->old_pkg) continue;
+		if (!pkg || (pkg->repos & db->local_repos) || !pkg->installed_size) continue;
+		if (!apk_db_select_repo(db, pkg)) continue;
+		prog.total.bytes += pkg->size;
+		prog.total.packages++;
+		prog.total.changes++;
+	}
+	if (!prog.total.packages) return 0;
+
+	prog.total_changes_digits = calc_precision(prog.total.packages);
+	apk_msg(out, "Downloading %d packages...", prog.total.packages);
+
+	foreach_array_item(change, changeset->changes) {
+		pkg = change->new_pkg;
+		if (changes_only && pkg == change->old_pkg) continue;
+		if (!pkg || (pkg->repos & db->local_repos) || !pkg->installed_size) continue;
+		if (!(repo = apk_db_select_repo(db, pkg))) continue;
+
+		apk_msg(out, "(%*i/%i) Downloading " PKG_VER_FMT,
+			prog.total_changes_digits, prog.done.packages+1,
+			prog.total.packages,
+			PKG_VER_PRINTF(pkg));
+
+		progress_cb(&prog, 0);
+		r = apk_cache_download(db, repo, pkg, 0, progress_cb, &prog);
+		if (r && r != -EALREADY) {
+			apk_err(out, PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
+			errors++;
+		}
+		prog.done.bytes += pkg->size;
+		prog.done.packages++;
+		prog.done.changes++;
+	}
+	apk_print_progress(&prog.prog, prog.total.bytes + prog.total.packages,
+			   prog.total.bytes + prog.total.packages);
+
+	if (errors) return -errors;
+	return prog.done.packages;
+}
+
 int apk_solver_commit_changeset(struct apk_database *db,
 				struct apk_changeset *changeset,
 				struct apk_dependency_array *world)
@@ -358,6 +409,12 @@ int apk_solver_commit_changeset(struct apk_database *db,
 			if (r != 'y' && r != 'Y' && r != '\n' && r != EOF)
 				return -1;
 		}
+	}
+
+	if (db->ctx->cache_predownload && apk_db_cache_active(db)) {
+		r = apk_solver_precache_changeset(db, changeset, true);
+		if (r < 0) return -1;
+		if (r > 0) apk_msg(out, "Proceeding with ugprade...");
 	}
 
 	if (run_commit_hooks(db, PRE_COMMIT_HOOK) == -2)

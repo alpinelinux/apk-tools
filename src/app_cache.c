@@ -68,28 +68,13 @@ static int cache_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char
 	return 0;
 }
 
-struct progress {
-	struct apk_progress prog;
-	size_t done, total;
-};
-
-static void progress_cb(void *ctx, size_t bytes_done)
-{
-	struct progress *prog = (struct progress *) ctx;
-	apk_print_progress(&prog->prog, prog->done + bytes_done, prog->total);
-}
-
 static int cache_download(struct cache_ctx *cctx, struct apk_database *db, struct apk_string_array *args)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_changeset changeset = {};
-	struct apk_change *change;
-	struct apk_package *pkg;
-	struct apk_repository *repo;
 	struct apk_dependency_array *deps;
 	struct apk_dependency dep;
-	struct progress prog = { .prog = db->ctx->progress };
-	int i, r, ret = 0;
+	int i, r;
 
 	apk_change_array_init(&changeset.changes);
 	apk_dependency_array_init(&deps);
@@ -111,32 +96,10 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db, struc
 		return r;
 	}
 
-	foreach_array_item(change, changeset.changes) {
-		pkg = change->new_pkg;
-		if (!pkg || (pkg->repos & db->local_repos) || !pkg->installed_size)
-			continue;
-		if (!apk_db_select_repo(db, pkg)) continue;
-		prog.total += pkg->size;
-	}
-
-	foreach_array_item(change, changeset.changes) {
-		pkg = change->new_pkg;
-		if (!pkg || (pkg->repos & db->local_repos) || !pkg->installed_size)
-			continue;
-
-		repo = apk_db_select_repo(db, pkg);
-		if (repo == NULL)
-			continue;
-
-		r = apk_cache_download(db, repo, pkg, 0, progress_cb, &prog);
-		if (r && r != -EALREADY) {
-			apk_err(out, PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
-			ret++;
-		}
-		prog.done += pkg->size;
-	}
-
-	return ret;
+	r = apk_solver_precache_changeset(db, &changeset, false);
+	apk_change_array_free(&changeset.changes);
+	if (r < 0) return -APKE_REMOTE_IO;
+	return 0;
 }
 
 static void cache_clean_item(struct apk_database *db, int static_cache, int dirfd, const char *name, struct apk_package *pkg)
