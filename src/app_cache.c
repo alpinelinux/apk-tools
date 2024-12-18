@@ -159,7 +159,7 @@ static void cache_clean_item(struct apk_database *db, int static_cache, int dirf
 
 	for (i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++) {
 		/* Check if this is a valid index */
-		if (apk_repo_index_cache_url(db, &db->repos[i], NULL, index_url, sizeof index_url) == 0 &&
+		if (apk_repo_index_cache_url(db, &db->repos[i], NULL, index_url, sizeof index_url) >= 0 &&
 		    strcmp(name, index_url) == 0) return;
 	}
 
