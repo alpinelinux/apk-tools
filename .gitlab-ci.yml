@@ -6,7 +6,7 @@ stages:
 
 variables:
   PACKAGE_ENDPOINT: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/"
-  ALPINE_DEPS: "make gcc git musl-dev linux-headers openssl-dev zlib-dev lua5.3-dev lua5.3-lzlib cmocka-dev"
+  ALPINE_DEPS: "make gcc git scdoc musl-dev linux-headers openssl-dev zlib-dev lua5.3-dev lua5.3-lzlib cmocka-dev"
   ALPINE_STATIC_DEPS: "zlib-static openssl-libs-static"
 
 .test:alpine:
@@ -15,7 +15,7 @@ variables:
     name: alpine
   script:
     - apk add -u meson $ALPINE_DEPS $ALPINE_STATIC_DEPS zstd-dev zstd-static
-    - meson setup build
+    - meson setup --auto-features=enabled build
     - ninja -C build
     - meson setup build-static -Dc_link_args=-static -Ddefault_library=static -Dprefer_static=true
     - ninja -C build-static src/apk
