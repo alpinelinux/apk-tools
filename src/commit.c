@@ -128,10 +128,11 @@ static void progress_cb(void *ctx, size_t installed_bytes)
 			   prog->total.bytes + prog->total.packages);
 }
 
-static int dump_packages(struct apk_out *out, struct apk_change_array *changes,
+static int dump_packages(struct apk_database *db, struct apk_change_array *changes,
 			 int (*cmp)(struct apk_change *change),
 			 const char *msg)
 {
+	struct apk_out *out = &db->ctx->out;
 	struct apk_change *change;
 	struct apk_name *name;
 	struct apk_indent indent;
@@ -146,7 +147,22 @@ static int dump_packages(struct apk_out *out, struct apk_change_array *changes,
 		else
 			name = change->old_pkg->name;
 
-		apk_print_indented(&indent, APK_BLOB_STR(name->name));
+		if (apk_out_verbosity(out) >= 2) {
+			if (!change->reinstall && change->new_pkg && change->old_pkg) {
+				apk_out(out, "  %s" BLOB_FMT " (" BLOB_FMT " -> " BLOB_FMT ")",
+					name->name,
+					BLOB_PRINTF(db->repo_tags[change->new_repository_tag].tag),
+					BLOB_PRINTF(*change->old_pkg->version),
+					BLOB_PRINTF(*change->new_pkg->version));
+			} else {
+				apk_out(out, "  %s" BLOB_FMT " (" BLOB_FMT ")",
+					name->name,
+					BLOB_PRINTF(db->repo_tags[change->new_repository_tag].tag),
+					BLOB_PRINTF(change->old_pkg ? *change->old_pkg->version : *change->new_pkg->version));
+			}
+		} else {
+			apk_print_indented(&indent, APK_BLOB_STR(name->name));
+		}
 		match++;
 	}
 	apk_print_indented_end(&indent);
@@ -376,16 +392,16 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		apk_change_array_copy(&sorted, changeset->changes);
 		apk_array_qsort(sorted, sort_change);
 
-		r = dump_packages(out, sorted, cmp_remove,
+		r = dump_packages(db, sorted, cmp_remove,
 				  "The following packages will be REMOVED");
-		r += dump_packages(out, sorted, cmp_downgrade,
+		r += dump_packages(db, sorted, cmp_downgrade,
 				   "The following packages will be DOWNGRADED");
 		if (r || (db->ctx->flags & APK_INTERACTIVE) || apk_out_verbosity(out) > 2) {
-			r += dump_packages(out, sorted, cmp_new,
+			r += dump_packages(db, sorted, cmp_new,
 					   "The following NEW packages will be installed");
-			r += dump_packages(out, sorted, cmp_upgrade,
+			r += dump_packages(db, sorted, cmp_upgrade,
 					   "The following packages will be upgraded");
-			r += dump_packages(out, sorted, cmp_reinstall,
+			r += dump_packages(db, sorted, cmp_reinstall,
 					   "The following packages will be reinstalled");
 			if (download_size) {
 				size_unit = apk_get_human_size(download_size, &humanized);
