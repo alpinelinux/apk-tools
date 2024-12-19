@@ -31,6 +31,7 @@ libapk_src = [
 	'package.c',
 	'pathbuilder.c',
 	'print.c',
+	'process.c',
 	'solver.c',
 	'tar.c',
 	'trust.c',

@@ -1,3 +1,4 @@
+#include <signal.h>
 #include "apk_test.h"
 
 static int num_tests;
@@ -13,5 +14,6 @@ void test_register(const char *name, UnitTestFunction f)
 
 int main(void)
 {
+	signal(SIGPIPE, SIG_IGN);
 	return _cmocka_run_group_tests("unit_tests", all_tests, num_tests, NULL, NULL);
 }

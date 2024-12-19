@@ -5,6 +5,7 @@ if cmocka_dep.found()
 unit_test_src = [
 	'blob_test.c',
 	'package_test.c',
+	'process_test.c',
 	'version_test.c',
 	'main.c'
 ]
