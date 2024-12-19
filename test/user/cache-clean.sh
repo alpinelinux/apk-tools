@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. $(dirname "$0")/../testlib.sh
+. "$(dirname "$0")"/../testlib.sh
 
 setup_apkroot
 APK="$APK --allow-untrusted --no-interactive"
@@ -23,8 +23,8 @@ CACHED_C=$(echo "$CACHED_B" | sed 's,test-b,test-c,')
 [ -f "$CACHED_B2" ] && assert "cached test-b not preset"
 [ -f "$CACHED_C" ] && assert "cached test-c preset"
 
-touch $CACHED_C $CACHED_B2
-dd if=/dev/zero of=$CACHED_B bs=1024 count=1 > /dev/null 2>&1
+touch "$CACHED_C" "$CACHED_B2"
+dd if=/dev/zero of="$CACHED_B" bs=1024 count=1 > /dev/null 2>&1
 
 $APK cache clean -vv
 

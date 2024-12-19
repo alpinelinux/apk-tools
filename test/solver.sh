@@ -15,15 +15,17 @@ update_repo() {
 
 run_test() {
 	local test="$1"
-	local testfile="$(realpath -e "$test")"
-	local testdir="$(dirname "$testfile")"
+	local testfile testdir
+
+	testfile="$(realpath -e "$test")"
+	testdir="$(dirname "$testfile")"
 
 	setup_apkroot
 	mkdir -p "$TEST_ROOT/data/src"
 
 	local args="" repo run_found
 	exec 4> /dev/null
-	while IFS="" read ln; do
+	while IFS="" read -r ln; do
 		case "$ln" in
 		"@ARGS "*)
 			args="$args ${ln#* }"
@@ -69,6 +71,7 @@ run_test() {
 
 	retcode=1
 	if [ "$run_found" = "yes" ]; then
+		# shellcheck disable=SC2086 # $args needs to be word splitted
 		$APK --allow-untrusted --simulate $args > "$TEST_ROOT/data/output" 2>&1
 
 		if ! cmp "$TEST_ROOT/data/output" "$TEST_ROOT/data/expected" > /dev/null 2>&1; then

@@ -36,6 +36,7 @@ assert_downloaded meta-1.0.apk
 $APK fetch --recursive meta
 assert_downloaded meta-1.0.apk hello-1.0.apk
 
+# shellcheck disable=SC2016 # no expansion for pkgname-spec
 $APK fetch --pkgname-spec '${name}_${version}_${arch}.pkg' --recursive meta
 assert_downloaded meta_1.0_noarch.pkg hello_1.0_noarch.pkg
 

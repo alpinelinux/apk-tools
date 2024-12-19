@@ -14,7 +14,7 @@ variables:
   image:
     name: alpine
   script:
-    - apk add -u meson $ALPINE_DEPS $ALPINE_STATIC_DEPS zstd-dev zstd-static
+    - apk add -u meson $ALPINE_DEPS $ALPINE_JOB_DEPS $ALPINE_STATIC_DEPS zstd-dev zstd-static
     - meson setup --auto-features=enabled build
     - ninja -C build
     - meson setup build-static -Dc_link_args=-static -Ddefault_library=static -Dprefer_static=true
@@ -26,6 +26,8 @@ variables:
 
 test:alpine:x86_64:
   extends: .test:alpine
+  variables:
+    ALPINE_JOB_DEPS: "shellcheck"
   tags:
     - docker-alpine
     - x86_64

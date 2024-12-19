@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# shellcheck disable=SC2034 # various variables are not used always
+
 set -e
 
 assert() {
@@ -8,12 +10,14 @@ assert() {
 }
 
 glob_one() {
-	for a in $@; do echo "$a"; done
+	# shellcheck disable=SC2048 # argument is wildcard needing expansion
+	for a in $*; do echo "$a"; done
 }
 
 setup_tmp() {
 	TMPDIR=$(mktemp -d -p /tmp apktest.XXXXXXXX)
 	[ -d "$TMPDIR" ] || return 1
+	# shellcheck disable=SC2064 # expand TMPDIR here
 	trap "rm -rf -- '$TMPDIR'" EXIT
 	cd "$TMPDIR"
 }
@@ -25,6 +29,7 @@ setup_apkroot() {
 	TEST_ROOT=$(mktemp -d -p /tmp apktest.XXXXXXXX)
 	[ -d "$TEST_ROOT" ] || return 1
 
+	# shellcheck disable=SC2064 # expand TMPDIR here
 	trap "rm -rf -- '$TEST_ROOT'" EXIT
 	APK="$APK --root $TEST_ROOT"
 
