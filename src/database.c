@@ -18,7 +18,6 @@
 #include <signal.h>
 #include <fnmatch.h>
 #include <sys/file.h>
-#include <sys/wait.h>
 #include <sys/stat.h>
 
 #ifdef __linux__
@@ -37,6 +36,7 @@
 #include "apk_applet.h"
 #include "apk_ctype.h"
 #include "apk_extract.h"
+#include "apk_process.h"
 #include "apk_print.h"
 #include "apk_tar.h"
 #include "apk_adb.h"
@@ -2143,56 +2143,47 @@ int apk_db_fire_triggers(struct apk_database *db)
 	return db->pending_triggers;
 }
 
+static void script_panic(const char *reason)
+{
+	// The parent will prepend argv0 to the logged string
+	char buf[256];
+	int n = apk_fmt(buf, sizeof buf, "%s: %s\n", reason, strerror(errno));
+	apk_write_fully(STDERR_FILENO, buf, n);
+	exit(127);
+}
+
 int apk_db_run_script(struct apk_database *db, int fd, char **argv)
 {
-	char buf[APK_EXIT_STATUS_MAX_SIZE];
 	struct apk_out *out = &db->ctx->out;
-	int status;
-	pid_t pid;
 	static char * const clean_environment[] = {
 		"PATH=/usr/sbin:/usr/bin:/sbin:/bin",
 		NULL
 	};
+	const char *argv0 = apk_last_path_segment(argv[0]);
+	struct apk_process p;
+	int r;
 
-	// Clear the potential progress bar
-	fflush(NULL);
-	pid = fork();
+	r = apk_process_init(&p, argv0, out, NULL);
+	if (r != 0) return r;
+
+	pid_t pid = apk_process_fork(&p);
 	if (pid == -1) {
-		apk_err(out, "%s: fork: %s", apk_last_path_segment(argv[0]), strerror(errno));
+		apk_err(out, "%s: fork: %s", argv0, strerror(errno));
 		return -2;
 	}
 	if (pid == 0) {
 		char *const *env = (db->ctx->flags & APK_PRESERVE_ENV) ? environ : clean_environment;
-
 		umask(0022);
-		if (fchdir(db->root_fd) != 0) {
-			apk_err(out, "%s: fchdir: %s", apk_last_path_segment(argv[0]), strerror(errno));
-			exit(127);
-		}
+		if (fchdir(db->root_fd) != 0) script_panic("fchdir");
 		if (!(db->ctx->flags & APK_NO_CHROOT)) {
-			if (db->usermode && unshare_mount_namepsace() < 0) {
-				apk_err(out, "%s: unshare: %s", apk_last_path_segment(argv[0]), strerror(errno));
-				exit(127);
-			}
-			if (chroot(".") != 0) {
-				apk_err(out, "%s: chroot: %s", apk_last_path_segment(argv[0]), strerror(errno));
-				exit(127);
-			}
+			if (db->usermode && unshare_mount_namepsace() < 0) script_panic("unshare");
+			if (chroot(".") != 0) script_panic("chroot");
 		}
-
 		if (fd >= 0) fexecve(fd, argv, env);
 		execve(argv[0], argv, env);
-
-		apk_err(out, "%s: execve: %s", argv[0], strerror(errno));
-		exit(127); /* should not get here */
+		script_panic("execve");
 	}
-	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
-
-	if (apk_exit_status_str(status, buf, sizeof buf)) {
-		apk_err(out, "%s: script %s", apk_last_path_segment(argv[0]), buf);
-		return -1;
-	}
-	return 0;
+	return apk_process_run(&p);
 }
 
 int apk_db_cache_active(struct apk_database *db)

@@ -433,7 +433,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		if (r) goto err;
 		if (!ctx->installed_size) ctx->installed_size = BLOCK_SIZE;
 	}
-
+	if (ctx->has_scripts && ctx->installed_size == 0) ctx->installed_size = 1;
 	adb_wo_int(&pkgi, ADBI_PI_INSTALLED_SIZE, ctx->installed_size);
 	adb_wo_blob(&pkgi, ADBI_PI_HASHES, uid);
 
