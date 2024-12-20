@@ -7,10 +7,11 @@ shellcheck = find_program('shellcheck', required: false)
 
 cur_dir = meson.current_source_dir()
 env = environment()
-env.set('SRCDIR', cur_dir)
 env.set('APK', apk_exe.full_path())
+env.set('TESTDIR', cur_dir)
 
 if shellcheck_sh.found() and shellcheck.found()
+	env.set('SHELLCHECK', shellcheck.full_path())
 	foreach shell : [ 'bash', 'dash', 'busybox' ]
 		test(shell, shellcheck_sh, suite: 'shellcheck', args: [ shell ], env: env, priority: 1000)
 	endforeach

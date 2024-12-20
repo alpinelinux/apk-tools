@@ -1,6 +1,7 @@
 #!/bin/sh
 
-. "$(dirname "$0")"/testlib.sh
+TESTDIR=$(realpath "${TESTDIR:-"$(dirname "$0")"}")
+. "$TESTDIR"/testlib.sh
 
 update_repo() {
 	local repo="$1"

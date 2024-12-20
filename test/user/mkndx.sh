@@ -2,7 +2,8 @@
 
 # shellcheck disable=SC2016 # no expansion for pkgname-spec
 
-. "$(dirname "$0")"/../testlib.sh
+TESTDIR=$(realpath "${TESTDIR:-"$(dirname "$0")"/..}")
+. "$TESTDIR"/testlib.sh
 
 setup_apkroot
 APK="$APK --allow-untrusted --no-interactive"

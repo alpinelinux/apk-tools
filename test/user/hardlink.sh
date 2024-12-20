@@ -1,6 +1,7 @@
 #!/bin/sh
 
-. "$(dirname "$0")"/../testlib.sh
+TESTDIR=$(realpath "${TESTDIR:-"$(dirname "$0")"/..}")
+. "$TESTDIR"/testlib.sh
 
 if ! stat -c "%D:%i" /dev/null > /dev/null 2>&1; then
 	dev_inode() {
