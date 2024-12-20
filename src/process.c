@@ -9,6 +9,7 @@
 #include <poll.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <spawn.h>
 #include <unistd.h>
 #include <sys/wait.h>
 
@@ -95,6 +96,24 @@ pid_t apk_process_fork(struct apk_process *p)
 	close_fd(&p->pipe_stdout[1]);
 	close_fd(&p->pipe_stderr[1]);
 	return pid;
+}
+
+int apk_process_spawn(struct apk_process *p, const char *path, char * const* argv, char * const* env)
+{
+	posix_spawn_file_actions_t act;
+	int r;
+
+	posix_spawn_file_actions_init(&act);
+	posix_spawn_file_actions_adddup2(&act, p->pipe_stdin[0], STDIN_FILENO);
+	posix_spawn_file_actions_adddup2(&act, p->pipe_stdout[1], STDOUT_FILENO);
+	posix_spawn_file_actions_adddup2(&act, p->pipe_stderr[1], STDERR_FILENO);
+	r = posix_spawn(&p->pid, path, &act, 0, argv, env ?: environ);
+	posix_spawn_file_actions_destroy(&act);
+
+	close_fd(&p->pipe_stdin[0]);
+	close_fd(&p->pipe_stdout[1]);
+	close_fd(&p->pipe_stderr[1]);
+	return -r;
 }
 
 int apk_process_run(struct apk_process *p)

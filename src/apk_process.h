@@ -32,6 +32,7 @@ struct apk_process {
 
 int apk_process_init(struct apk_process *p, const char *argv0, struct apk_out *out, struct apk_istream *is);
 pid_t apk_process_fork(struct apk_process *p);
+int apk_process_spawn(struct apk_process *p, const char *path, char * const* argv, char * const* env);
 int apk_process_run(struct apk_process *p);
 int apk_process_cleanup(struct apk_process *p);
 

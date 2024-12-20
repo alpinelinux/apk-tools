@@ -61,13 +61,13 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		ac->flags |= APK_NO_CHROOT;
 
 		// Check uvol availability
-		ac->uvol = "/usr/sbin/uvol";
-		if (access(ac->uvol, X_OK) != 0)
-			ac->uvol = ERR_PTR(-APKE_UVOL_NOT_AVAILABLE);
+		if (!ac->uvol) ac->uvol = "/usr/sbin/uvol";
 	} else {
 		ac->root_set = 1;
-		ac->uvol = ERR_PTR(-APKE_UVOL_ROOT);
+		if (!ac->uvol) ac->uvol = ERR_PTR(-APKE_UVOL_ROOT);
 	}
+	if (!IS_ERR(ac->uvol) && access(ac->uvol, X_OK) != 0)
+		ac->uvol = ERR_PTR(-APKE_UVOL_NOT_AVAILABLE);
 
 	ac->root_fd = openat(AT_FDCWD, ac->root, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 	if (ac->root_fd < 0 && (ac->open_flags & APK_OPENF_CREATE)) {
