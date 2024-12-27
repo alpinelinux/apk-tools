@@ -22,7 +22,7 @@ mkdir -p "$TEST_ROOT"/etc/apk/cache
 $APK add --initdb $TEST_USERMODE --repository "file://localhost/$PWD/repo/index.adb" meta
 
 # reinstall from cache
-rm -rf "$TEST_ROOT"/lib/apk
+$APK del meta
 $APK add --initdb $TEST_USERMODE --no-network --repository "file://localhost/$PWD/repo/index.adb" meta
 
 # make sure fetch still works

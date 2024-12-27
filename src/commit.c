@@ -441,7 +441,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 			if (!(db->ctx->flags & APK_SIMULATE) &&
 			    ((change->old_pkg != change->new_pkg) ||
 			     (change->reinstall && pkg_available(db, change->new_pkg)))) {
-				apk_progress_item_start(&prog.prog, apk_progress_weight(prog.done.bytes, prog.done.packages), prog.pkg->size);
+				apk_progress_item_start(&prog.prog, apk_progress_weight(prog.done.bytes, prog.done.packages), prog.pkg ? prog.pkg->size : 0);
 				r = apk_db_install_pkg(db, change->old_pkg, change->new_pkg, &prog.prog) != 0;
 				apk_progress_item_end(&prog.prog);
 			}
