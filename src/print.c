@@ -203,9 +203,9 @@ static void apk_out_render_progress(struct apk_out *out, bool force)
 
 static void log_internal(FILE *dest, const char *prefix, const char *format, va_list va)
 {
-	if (prefix != NULL && prefix != APK_OUT_LOG_ONLY && prefix[0] != 0) fprintf(dest, "%s", prefix);
+	if (prefix != NULL && prefix != APK_OUT_LOG_ONLY && prefix[0] != 0) fputs(prefix, dest);
 	vfprintf(dest, format, va);
-	fprintf(dest, "\n");
+	fputc('\n', dest);
 	fflush(dest);
 }
 
@@ -235,9 +235,7 @@ void apk_out_log_argv(struct apk_out *out, char **argv)
 
 	if (!out->log) return;
 	fprintf(out->log, "\nRunning `");
-	for (int i = 0; argv[i]; ++i) {
-		fprintf(out->log, "%s%s", argv[i], argv[i+1] ? " " : "");
-	}
+	for (int i = 0; argv[i]; ++i) fprintf(out->log, "%s%s", argv[i], argv[i+1] ? " " : "");
 
 	gmtime_r(&now, &tm);
 	strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", &tm);
