@@ -16,6 +16,9 @@
 
 #define APK_EXIT_STATUS_MAX_SIZE	128
 
+struct apk_out;
+struct apk_progress;
+
 const char *apk_error_str(int error);
 int apk_exit_status_str(int status, char *buf, size_t sz);
 int apk_get_human_size_unit(apk_blob_t b);
@@ -36,9 +39,10 @@ void apk_url_parse(struct apk_url_print *, const char *);
 
 struct apk_out {
 	int verbosity, progress_disable, progress_fd;
-	unsigned int width, last_change;
+	unsigned int width;
 	const char *progress_char;
 	FILE *out, *err, *log;
+	struct apk_progress *prog;
 };
 
 static inline int apk_out_verbosity(struct apk_out *out) { return out->verbosity; }
@@ -64,7 +68,6 @@ struct apk_progress {
 	struct apk_out *out;
 	const char *stage;
 	int last_bar, last_percent;
-	unsigned int last_out_change;
 	size_t cur_progress, max_progress;
 	size_t item_base_progress, item_max_progress;
 };

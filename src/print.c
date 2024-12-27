@@ -160,7 +160,6 @@ void apk_url_parse(struct apk_url_print *urlp, const char *url)
 void apk_out_reset(struct apk_out *out)
 {
 	out->width = 0;
-	out->last_change++;
 }
 
 static int apk_out_get_width(struct apk_out *out)
@@ -177,9 +176,33 @@ static int apk_out_get_width(struct apk_out *out)
 	return out->width;
 }
 
+static void apk_out_render_progress(struct apk_out *out, bool force)
+{
+	struct apk_progress *p = out->prog;
+	int i, bar_width, bar = 0, percent = 0;
+
+	if (!p || out->progress_disable) return;
+	if (out->width == 0) force = true;
+
+	bar_width = apk_out_get_width(out) - 6;
+	if (p->max_progress > 0) {
+		bar = muldiv(bar_width, p->cur_progress, p->max_progress);
+		percent = muldiv(100, p->cur_progress, p->max_progress);
+	}
+	if (force || bar != p->last_bar || percent != p->last_percent) {
+		FILE *f = out->out;
+		p->last_bar = bar;
+		p->last_percent = percent;
+		fprintf(f, "\e7%3i%% ", percent);
+		for (i = 0; i < bar;  i++) fputs(p->out->progress_char, f);
+		for (; i < bar_width; i++) fputc(' ', f);
+		fflush(f);
+		fputs("\e8\e[0K", f);
+	}
+}
+
 static void log_internal(FILE *dest, const char *prefix, const char *format, va_list va)
 {
-	if (dest != stdout) fflush(stdout);
 	if (prefix != NULL && prefix != APK_OUT_LOG_ONLY && prefix[0] != 0) fprintf(dest, "%s", prefix);
 	vfprintf(dest, format, va);
 	fprintf(dest, "\n");
@@ -191,9 +214,10 @@ void apk_out_fmt(struct apk_out *out, const char *prefix, const char *format, ..
 	va_list va;
 	if (prefix != APK_OUT_LOG_ONLY) {
 		va_start(va, format);
+		if (prefix && out->prog) fflush(out->out);
 		log_internal(prefix ? out->err : out->out, prefix, format, va);
-		out->last_change++;
 		va_end(va);
+		apk_out_render_progress(out, true);
 	}
 
 	if (out->log) {
@@ -234,60 +258,33 @@ void apk_progress_start(struct apk_progress *p, struct apk_out *out, const char 
 		.item_base_progress = 0,
 		.item_max_progress = max_progress,
 	};
+	out->prog = p;
 }
 
 void apk_progress_update(struct apk_progress *p, size_t cur_progress)
 {
-	int bar_width;
-	int bar = 0;
-	char buf[64]; /* enough for petabytes... */
-	int i, percent = 0, progress_fd = p->out->progress_fd;
-	FILE *out;
-
 	if (cur_progress >= p->item_max_progress) cur_progress = p->item_max_progress;
 	cur_progress += p->item_base_progress;
 
-	if (p->cur_progress == cur_progress && (!p->out || p->last_out_change == p->out->last_change)) return;
+	if (cur_progress == p->cur_progress) return;
+
+	int progress_fd = p->out->progress_fd;
 	if (progress_fd != 0) {
-		i = apk_fmt(buf, sizeof buf, "%zu/%zu %s\n", cur_progress, p->max_progress, p->stage);
+		char buf[64]; /* enough for petabytes... */
+		int i = apk_fmt(buf, sizeof buf, "%zu/%zu %s\n", cur_progress, p->max_progress, p->stage);
 		if (i < 0 || apk_write_fully(progress_fd, buf, i) != i) {
 			close(progress_fd);
 			p->out->progress_fd = 0;
 		}
 	}
 	p->cur_progress = cur_progress;
-	if (p->out->progress_disable) return;
-
-	out = p->out->out;
-	if (!out) return;
-
-	bar_width = apk_out_get_width(p->out) - 6;
-	if (p->max_progress > 0) {
-		bar = muldiv(bar_width, cur_progress, p->max_progress);
-		percent = muldiv(100, cur_progress, p->max_progress);
-	}
-
-	if (bar == p->last_bar && percent == p->last_percent && p->last_out_change == p->out->last_change)
-		return;
-
-	p->last_bar = bar;
-	p->last_percent = percent;
-	p->last_out_change = p->out->last_change;
-
-	fprintf(out, "\e7%3i%% ", percent);
-
-	for (i = 0; i < bar; i++)
-		fputs(p->out->progress_char, out);
-	for (; i < bar_width; i++)
-		fputc(' ', out);
-
-	fflush(out);
-	fputs("\e8\e[0K", out);
+	apk_out_render_progress(p->out, false);
 }
 
 void apk_progress_end(struct apk_progress *p)
 {
 	apk_progress_update(p, p->max_progress);
+	p->out->prog = NULL;
 }
 
 void apk_progress_item_start(struct apk_progress *p, size_t base_progress, size_t max_item_progress)
@@ -356,7 +353,6 @@ void apk_print_indented_init(struct apk_indent *i, struct apk_out *out, int err)
 		.f = err ? out->err : out->out,
 		.width = apk_out_get_width(out),
 	};
-	out->last_change++;
 }
 
 void apk_print_indented_line(struct apk_indent *i, const char *fmt, ...)

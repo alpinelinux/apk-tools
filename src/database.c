@@ -2154,6 +2154,8 @@ int apk_db_run_script(struct apk_database *db, int fd, char **argv)
 		NULL
 	};
 
+	// Clear the potential progress bar
+	fflush(NULL);
 	pid = fork();
 	if (pid == -1) {
 		apk_err(out, "%s: fork: %s", apk_last_path_segment(argv[0]), strerror(errno));
