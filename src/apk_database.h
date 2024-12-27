@@ -271,7 +271,6 @@ int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 int apk_db_index_read_file(struct apk_database *db, const char *file, int repo);
 
 int apk_db_repository_check(struct apk_database *db);
-int apk_db_add_repository(struct apk_database *db, apk_blob_t repository);
 unsigned int apk_db_get_pinning_mask_repos(struct apk_database *db, unsigned short pinning_mask);
 struct apk_repository *apk_db_select_repo(struct apk_database *db,
 					  struct apk_package *pkg);
