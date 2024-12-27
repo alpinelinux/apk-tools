@@ -220,12 +220,19 @@ void apk_out_log_argv(struct apk_out *out, char **argv)
 	fprintf(out->log, "` at %s\n", when);
 }
 
+size_t apk_progress_weight(size_t bytes, size_t packages)
+{
+	return bytes + packages * 1024 * 64;
+}
+
 void apk_progress_start(struct apk_progress *p, struct apk_out *out, const char *stage, size_t max_progress)
 {
 	*p = (struct apk_progress) {
 		.out = out,
 		.stage = stage,
 		.max_progress = max_progress,
+		.item_base_progress = 0,
+		.item_max_progress = max_progress,
 	};
 }
 
@@ -236,6 +243,9 @@ void apk_progress_update(struct apk_progress *p, size_t cur_progress)
 	char buf[64]; /* enough for petabytes... */
 	int i, percent = 0, progress_fd = p->out->progress_fd;
 	FILE *out;
+
+	if (cur_progress >= p->item_max_progress) cur_progress = p->item_max_progress;
+	cur_progress += p->item_base_progress;
 
 	if (p->cur_progress == cur_progress && (!p->out || p->last_out_change == p->out->last_change)) return;
 	if (progress_fd != 0) {
@@ -278,6 +288,66 @@ void apk_progress_update(struct apk_progress *p, size_t cur_progress)
 void apk_progress_end(struct apk_progress *p)
 {
 	apk_progress_update(p, p->max_progress);
+}
+
+void apk_progress_item_start(struct apk_progress *p, size_t base_progress, size_t max_item_progress)
+{
+	p->item_base_progress = p->cur_progress;
+	p->item_max_progress = max_item_progress;
+	apk_progress_update(p, 0);
+}
+
+void apk_progress_item_end(struct apk_progress *p)
+{
+	apk_progress_update(p, p->item_max_progress);
+	p->item_max_progress = p->max_progress;
+	p->item_base_progress = 0;
+}
+
+static void progress_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
+{
+	struct apk_progress_istream *pis = container_of(is, struct apk_progress_istream, is);
+	return apk_istream_get_meta(pis->pis, meta);
+}
+
+static ssize_t progress_read(struct apk_istream *is, void *ptr, size_t size)
+{
+	struct apk_progress_istream *pis = container_of(is, struct apk_progress_istream, is);
+	ssize_t max_read = 1024*1024;
+	ssize_t r;
+
+	apk_progress_update(pis->p, pis->done);
+	r = pis->pis->ops->read(pis->pis, ptr, (size > max_read) ? max_read : size);
+	if (r > 0) pis->done += r;
+	return r;
+}
+
+static int progress_close(struct apk_istream *is)
+{
+	struct apk_progress_istream *pis = container_of(is, struct apk_progress_istream, is);
+	return apk_istream_close(pis->pis);
+}
+
+static const struct apk_istream_ops progress_istream_ops = {
+	.get_meta = progress_get_meta,
+	.read = progress_read,
+	.close = progress_close,
+};
+
+struct apk_istream *apk_progress_istream(struct apk_progress_istream *pis, struct apk_istream *is, struct apk_progress *p)
+{
+	if (IS_ERR(is) || !p) return is;
+	*pis = (struct apk_progress_istream) {
+		.is.ops = &progress_istream_ops,
+		.is.buf = is->buf,
+		.is.buf_size = is->buf_size,
+		.is.ptr = is->ptr,
+		.is.end = is->end,
+		.pis = is,
+		.p = p,
+	};
+	pis->done += (pis->is.end - pis->is.ptr);
+	return &pis->is;
 }
 
 void apk_print_indented_init(struct apk_indent *i, struct apk_out *out, int err)

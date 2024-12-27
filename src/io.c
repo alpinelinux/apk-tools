@@ -389,8 +389,6 @@ struct apk_tee_istream {
 	struct apk_ostream *to;
 	int flags;
 	size_t size;
-	apk_progress_cb cb;
-	void *cb_ctx;
 };
 
 static void tee_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
@@ -404,7 +402,6 @@ static int __tee_write(struct apk_tee_istream *tee, void *ptr, size_t size)
 	int r = apk_ostream_write(tee->to, ptr, size);
 	if (r < 0) return r;
 	tee->size += size;
-	if (tee->cb) tee->cb(tee->cb_ctx, tee->size);
 	return size;
 }
 
@@ -440,7 +437,7 @@ static const struct apk_istream_ops tee_istream_ops = {
 	.close = tee_close,
 };
 
-struct apk_istream *apk_istream_tee(struct apk_istream *from, struct apk_ostream *to, int flags, apk_progress_cb cb, void *cb_ctx)
+struct apk_istream *apk_istream_tee(struct apk_istream *from, struct apk_ostream *to, int flags)
 {
 	struct apk_tee_istream *tee;
 	int r;
@@ -469,8 +466,6 @@ struct apk_istream *apk_istream_tee(struct apk_istream *from, struct apk_ostream
 		.inner_is = from,
 		.to = to,
 		.flags = flags,
-		.cb = cb,
-		.cb_ctx = cb_ctx,
 	};
 
 	if (from->ptr != from->end) {
@@ -636,8 +631,7 @@ struct apk_istream *__apk_istream_from_file(int atfd, const char *file, int try_
 	return apk_istream_from_fd(fd);
 }
 
-ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size,
-			apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx)
+ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size, struct apk_digest_ctx *dctx)
 {
 	size_t done = 0;
 	apk_blob_t d;
@@ -647,8 +641,6 @@ ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t s
 	if (IS_ERR(os)) return PTR_ERR(os);
 
 	while (done < size) {
-		if (cb != NULL) cb(cb_ctx, done);
-
 		r = apk_istream_get_max(is, size - done, &d);
 		if (r < 0) {
 			if (r == -APKE_EOF && size == APK_IO_ALL) break;

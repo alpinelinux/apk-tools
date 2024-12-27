@@ -61,7 +61,7 @@ static int extract_file(struct apk_extract_ctx *ectx, const struct apk_file_info
 	int r;
 
 	apk_dbg2(out, "%s", fi->name);
-	r = apk_fs_extract(ctx->ac, fi, is, 0, 0, ctx->extract_flags, APK_BLOB_NULL);
+	r = apk_fs_extract(ctx->ac, fi, is, ctx->extract_flags, APK_BLOB_NULL);
 	if (r > 0) {
 		apk_warn(out, "failed to preserve %s: %s",
 			fi->name, apk_extract_warning_str(r, buf, sizeof buf));

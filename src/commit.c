@@ -108,7 +108,7 @@ static void count_change(struct apk_change *change, struct apk_stats *stats)
 {
 	if (change->new_pkg != change->old_pkg || change->reinstall) {
 		if (change->new_pkg != NULL) {
-			stats->bytes += change->new_pkg->installed_size;
+			stats->bytes += change->new_pkg->size;
 			stats->packages++;
 		}
 		if (change->old_pkg != NULL)
@@ -118,12 +118,6 @@ static void count_change(struct apk_change *change, struct apk_stats *stats)
 		stats->packages++;
 		stats->changes++;
 	}
-}
-
-static void progress_cb(void *ctx, size_t installed_bytes)
-{
-	struct progress *prog = (struct progress *) ctx;
-	apk_progress_update(&prog->prog, prog->done.bytes + prog->done.packages + installed_bytes);
 }
 
 static int dump_packages(struct apk_database *db, struct apk_change_array *changes,
@@ -295,8 +289,8 @@ static int calc_precision(unsigned int num)
 
 int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset *changeset, bool changes_only)
 {
-	struct apk_out *out = &db->ctx->out;
 	struct progress prog = { 0 };
+	struct apk_out *out = &db->ctx->out;
 	struct apk_change *change;
 	struct apk_package *pkg;
 	struct apk_repository *repo;
@@ -316,7 +310,7 @@ int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset 
 	prog.total_changes_digits = calc_precision(prog.total.packages);
 	apk_msg(out, "Downloading %d packages...", prog.total.packages);
 
-	apk_progress_start(&prog.prog, out, "download", prog.total.bytes + prog.total.packages);
+	apk_progress_start(&prog.prog, out, "download", apk_progress_weight(prog.total.bytes, prog.total.packages));
 	foreach_array_item(change, changeset->changes) {
 		pkg = change->new_pkg;
 		if (changes_only && pkg == change->old_pkg) continue;
@@ -328,12 +322,13 @@ int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset 
 			prog.total.packages,
 			PKG_VER_PRINTF(pkg));
 
-		progress_cb(&prog, 0);
-		r = apk_cache_download(db, repo, pkg, 0, progress_cb, &prog);
+		apk_progress_item_start(&prog.prog, apk_progress_weight(prog.done.bytes, prog.done.packages), pkg->size);
+		r = apk_cache_download(db, repo, pkg, 0, &prog.prog);
 		if (r && r != -EALREADY) {
 			apk_err(out, PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
 			errors++;
 		}
+		apk_progress_item_end(&prog.prog);
 		prog.done.bytes += pkg->size;
 		prog.done.packages++;
 		prog.done.changes++;
@@ -435,20 +430,20 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		return -1;
 
 	/* Go through changes */
-	apk_progress_start(&prog.prog, out, "install", prog.total.bytes + prog.total.packages);
+	apk_progress_start(&prog.prog, out, "install", apk_progress_weight(prog.total.bytes, prog.total.packages));
 	foreach_array_item(change, changeset->changes) {
 		r = change->old_pkg &&
 			(change->old_pkg->ipkg->broken_files ||
 			 change->old_pkg->ipkg->broken_script);
 		if (print_change(db, change, &prog)) {
 			prog.pkg = change->new_pkg;
-			progress_cb(&prog, 0);
 
 			if (!(db->ctx->flags & APK_SIMULATE) &&
 			    ((change->old_pkg != change->new_pkg) ||
 			     (change->reinstall && pkg_available(db, change->new_pkg)))) {
-				r = apk_db_install_pkg(db, change->old_pkg, change->new_pkg,
-						       progress_cb, &prog) != 0;
+				apk_progress_item_start(&prog.prog, apk_progress_weight(prog.done.bytes, prog.done.packages), prog.pkg->size);
+				r = apk_db_install_pkg(db, change->old_pkg, change->new_pkg, &prog.prog) != 0;
+				apk_progress_item_end(&prog.prog);
 			}
 			if (r == 0 && change->new_pkg && change->new_pkg->ipkg)
 				change->new_pkg->ipkg->repository_tag = change->new_repository_tag;

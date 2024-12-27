@@ -41,8 +41,7 @@ static int uvol_run(struct apk_ctx *ac, char *action, const char *volname, char 
 	return 0;
 }
 
-static int uvol_extract(struct apk_ctx *ac, const char *volname, char *arg1, off_t sz,
-	struct apk_istream *is, apk_progress_cb cb, void *cb_ctx)
+static int uvol_extract(struct apk_ctx *ac, const char *volname, char *arg1, off_t sz, struct apk_istream *is)
 {
 	char buf[APK_EXIT_STATUS_MAX_SIZE];
 	struct apk_out *out = &ac->out;
@@ -64,7 +63,7 @@ static int uvol_extract(struct apk_ctx *ac, const char *volname, char *arg1, off
 	}
 	close(pipefds[0]);
 	os = apk_ostream_to_fd(pipefds[1]);
-	apk_stream_copy(is, os, sz, cb, cb_ctx, 0);
+	apk_stream_copy(is, os, sz, 0);
 	r = apk_ostream_close(os);
 	if (r != 0) {
 		if (r >= 0) r = -APKE_UVOL_ERROR;
@@ -101,8 +100,7 @@ static int uvol_dir_update_perms(struct apk_fsdir *d, mode_t mode, uid_t uid, gi
 	return 0;
 }
 
-static int uvol_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct apk_istream *is,
-	apk_progress_cb cb, void *cb_ctx, unsigned int extract_flags, apk_blob_t pkgctx)
+static int uvol_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct apk_istream *is, unsigned int extract_flags, apk_blob_t pkgctx)
 {
 	char size[64];
 	const char *uvol_name;
@@ -119,7 +117,7 @@ static int uvol_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 	r = uvol_run(ac, "create", uvol_name, size, "ro");
 	if (r != 0) return r;
 
-	r = uvol_extract(ac, uvol_name, size, fi->size, is, cb, cb_ctx);
+	r = uvol_extract(ac, uvol_name, size, fi->size, is);
 	if (r == 0 && !pkgctx.ptr)
 		r = uvol_run(ac, "up", uvol_name, 0, 0);
 

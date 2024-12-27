@@ -1234,7 +1234,7 @@ int adb_c_block_data(struct apk_ostream *os, apk_blob_t hdr, uint64_t size, stru
 	r = apk_ostream_write(os, hdr.ptr, hdr.len);
 	if (r < 0) return r;
 
-	r = apk_stream_copy(is, os, size, 0, 0, 0);
+	r = apk_stream_copy(is, os, size, 0);
 	if (r < 0) return r;
 
 	if (padding) {
@@ -1259,12 +1259,12 @@ int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_ist
 		const uint8_t alg = APK_DIGEST_SHA512;
 
 		apk_digest_ctx_init(&dctx, alg);
-		r = apk_stream_copy(is, os, blk_sz, 0, 0, &dctx);
+		r = apk_stream_copy(is, os, blk_sz, &dctx);
 		apk_digest_ctx_final(&dctx, &vfy->sha512);
 		vfy->calc |= (1 << alg);
 		apk_digest_ctx_free(&dctx);
 	} else {
-		r = apk_stream_copy(is, os, blk_sz, 0, 0, 0);
+		r = apk_stream_copy(is, os, blk_sz, 0);
 	}
 	if (r < 0) return r;
 	r = 0;

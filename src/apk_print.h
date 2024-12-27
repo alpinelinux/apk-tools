@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include "apk_blob.h"
+#include "apk_io.h"
 
 #define APK_EXIT_STATUS_MAX_SIZE	128
 
@@ -65,11 +66,23 @@ struct apk_progress {
 	int last_bar, last_percent;
 	unsigned int last_out_change;
 	size_t cur_progress, max_progress;
+	size_t item_base_progress, item_max_progress;
 };
 
+size_t apk_progress_weight(size_t bytes, size_t packages);
 void apk_progress_start(struct apk_progress *p, struct apk_out *out, const char *stage, size_t max_progress);
 void apk_progress_update(struct apk_progress *p, size_t cur_progress);
 void apk_progress_end(struct apk_progress *p);
+void apk_progress_item_start(struct apk_progress *p, size_t base_progress, size_t max_item_progress);
+void apk_progress_item_end(struct apk_progress *p);
+
+struct apk_progress_istream {
+	struct apk_istream is;
+	struct apk_istream *pis;
+	struct apk_progress *p;
+	size_t done;
+};
+struct apk_istream *apk_progress_istream(struct apk_progress_istream *pis, struct apk_istream *is, struct apk_progress *p);
 
 struct apk_indent {
 	FILE *f;

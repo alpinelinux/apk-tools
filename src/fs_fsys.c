@@ -92,8 +92,7 @@ static int is_system_xattr(const char *name)
 	return strncmp(name, "user.", 5) != 0;
 }
 
-static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct apk_istream *is,
-	apk_progress_cb cb, void *cb_ctx, unsigned int extract_flags, apk_blob_t pkgctx)
+static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct apk_istream *is, unsigned int extract_flags, apk_blob_t pkgctx)
 {
 	char tmpname_file[TMPNAME_MAX], tmpname_linktarget[TMPNAME_MAX];
 	struct apk_xattr *xattr;
@@ -121,7 +120,7 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 
 			struct apk_ostream *os = apk_ostream_to_fd(fd);
 			if (IS_ERR(os)) return PTR_ERR(os);
-			apk_stream_copy(is, os, fi->size, cb, cb_ctx, 0);
+			apk_stream_copy(is, os, fi->size, 0);
 			r = apk_ostream_close(os);
 			if (r < 0) {
 				unlinkat(atfd, fn, 0);
@@ -281,8 +280,7 @@ static int need_checksum(const struct apk_file_info *fi)
 	}
 }
 
-int apk_fs_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct apk_istream *is,
-	apk_progress_cb cb, void *cb_ctx, unsigned int extract_flags, apk_blob_t pkgctx)
+int apk_fs_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct apk_istream *is, unsigned int extract_flags, apk_blob_t pkgctx)
 {
 	if (fi->digest.alg == APK_DIGEST_NONE && need_checksum(fi)) return -APKE_FORMAT_OBSOLETE;
 	if (S_ISDIR(fi->mode)) {
@@ -291,7 +289,7 @@ int apk_fs_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct ap
 		return apk_fsdir_create(&fsd, fi->mode, fi->uid, fi->gid);
 	} else {
 		const struct apk_fsdir_ops *ops = apk_fsops_get(APK_BLOB_PTR_LEN((char*)fi->name, strnlen(fi->name, 5)));
-		return ops->file_extract(ac, fi, is, cb, cb_ctx, extract_flags, pkgctx);
+		return ops->file_extract(ac, fi, is, extract_flags, pkgctx);
 	}
 }
 

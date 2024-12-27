@@ -43,7 +43,7 @@ struct apk_fsdir_ops {
 	int (*dir_check)(struct apk_fsdir *, mode_t, uid_t, gid_t);
 	int (*dir_update_perms)(struct apk_fsdir *, mode_t, uid_t, gid_t);
 
-	int (*file_extract)(struct apk_ctx *, const struct apk_file_info *, struct apk_istream *, apk_progress_cb, void *, unsigned int, apk_blob_t);
+	int (*file_extract)(struct apk_ctx *, const struct apk_file_info *, struct apk_istream *, unsigned int, apk_blob_t);
 	int (*file_control)(struct apk_fsdir *, apk_blob_t, int);
 	int (*file_info)(struct apk_fsdir *, apk_blob_t, unsigned int, struct apk_file_info *);
 };
@@ -53,7 +53,7 @@ struct apk_fsdir_ops {
 #define APK_FSEXTRACTF_NO_SYS_XATTRS	0x0004
 #define APK_FSEXTRACTF_NO_DEVICES	0x0008
 
-int apk_fs_extract(struct apk_ctx *, const struct apk_file_info *, struct apk_istream *, apk_progress_cb, void *, unsigned int, apk_blob_t);
+int apk_fs_extract(struct apk_ctx *, const struct apk_file_info *, struct apk_istream *, unsigned int, apk_blob_t);
 
 void apk_fsdir_get(struct apk_fsdir *, apk_blob_t dir, unsigned int extract_flags, struct apk_ctx *ac, apk_blob_t pkgctx);
 

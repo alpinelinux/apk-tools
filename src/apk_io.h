@@ -63,6 +63,7 @@ struct apk_file_info {
 
 extern size_t apk_io_bufsize;
 
+struct apk_progress;
 struct apk_istream;
 struct apk_ostream;
 
@@ -79,6 +80,7 @@ struct apk_istream {
 	size_t buf_size;
 	int err;
 	unsigned int flags;
+	struct apk_progress *prog;
 	const struct apk_istream_ops *ops;
 };
 
@@ -97,6 +99,7 @@ static inline struct apk_istream *apk_istream_from_file_mmap(int atfd, const cha
 struct apk_istream *apk_istream_from_fd(int fd);
 struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *url, time_t since);
 static inline int apk_istream_error(struct apk_istream *is, int err) { if (is->err >= 0 && err) is->err = err; return is->err < 0 ? is->err : 0; }
+void apk_istream_set_progress(struct apk_istream *is, struct apk_progress *p);
 apk_blob_t apk_istream_mmap(struct apk_istream *is);
 ssize_t apk_istream_read_max(struct apk_istream *is, void *ptr, size_t size);
 int apk_istream_read(struct apk_istream *is, void *ptr, size_t size);
@@ -105,8 +108,7 @@ void *apk_istream_get(struct apk_istream *is, size_t len);
 int apk_istream_get_max(struct apk_istream *is, size_t size, apk_blob_t *data);
 int apk_istream_get_delim(struct apk_istream *is, apk_blob_t token, apk_blob_t *data);
 static inline int apk_istream_get_all(struct apk_istream *is, apk_blob_t *data) { return apk_istream_get_max(is, APK_IO_ALL, data); }
-ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size,
-			apk_progress_cb cb, void *cb_ctx, struct apk_digest_ctx *dctx);
+ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size, struct apk_digest_ctx *dctx);
 
 static inline struct apk_istream *apk_istream_from_url(const char *url, time_t since)
 {
@@ -156,8 +158,7 @@ struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct ap
 #define APK_ISTREAM_TEE_COPY_META 1
 #define APK_ISTREAM_TEE_OPTIONAL  2
 
-struct apk_istream *apk_istream_tee(struct apk_istream *from, struct apk_ostream *to, int copy_meta,
-				    apk_progress_cb cb, void *cb_ctx);
+struct apk_istream *apk_istream_tee(struct apk_istream *from, struct apk_ostream *to, int copy_meta);
 
 struct apk_ostream_ops {
 	void (*set_meta)(struct apk_ostream *os, struct apk_file_meta *meta);

@@ -150,8 +150,6 @@ static inline uint32_t get_unaligned32(const void *ptr)
 #endif
 }
 
-typedef void (*apk_progress_cb)(void *cb_ctx, size_t);
-
 time_t apk_get_build_time(void);
 
 struct apk_array {

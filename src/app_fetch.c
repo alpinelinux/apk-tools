@@ -34,7 +34,7 @@ struct fetch_ctx {
 	apk_blob_t pkgname_spec;
 	struct apk_database *db;
 	struct apk_progress prog;
-	size_t done, total;
+	size_t done_bytes, done_packages, total_bytes, total_packages;
 	struct apk_dependency_array *world;
 };
 
@@ -140,12 +140,6 @@ static int fetch_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char
 	return 0;
 }
 
-static void progress_cb(void *pctx, size_t bytes_done)
-{
-	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	apk_progress_update(&ctx->prog, ctx->done + bytes_done);
-}
-
 static int fetch_package(struct apk_database *db, const char *match, struct apk_package *pkg, void *pctx)
 {
 	struct fetch_ctx *ctx = pctx;
@@ -155,11 +149,14 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 	struct apk_repository *repo;
 	struct apk_file_info fi;
 	struct apk_extract_ctx ectx;
+	struct apk_progress_istream pis;
 	char pkg_url[PATH_MAX], filename[PATH_MAX];
 	int r, pkg_fd;
 
 	if (!pkg->marked)
 		return 0;
+
+	apk_progress_item_start(&ctx->prog, apk_progress_weight(ctx->done_bytes, ctx->done_packages), pkg->size);
 
 	repo = apk_db_select_repo(db, pkg);
 	if (repo == NULL) {
@@ -186,8 +183,6 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 
 	if (db->ctx->flags & APK_SIMULATE) return 0;
 
-	progress_cb(ctx, 0);
-
 	if (ctx->flags & FETCH_STDOUT) {
 		os = apk_ostream_to_fd(STDOUT_FILENO);
 	} else {
@@ -209,8 +204,8 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 		r = PTR_ERR(is);
 		goto err;
 	}
-
-	is = apk_istream_tee(is, os, APK_ISTREAM_TEE_COPY_META, progress_cb, ctx);
+	is = apk_progress_istream(&pis, is, &ctx->prog);
+	is = apk_istream_tee(is, os, APK_ISTREAM_TEE_COPY_META);
 	apk_extract_init(&ectx, db->ctx, NULL);
 	apk_extract_verify_identity(&ectx, pkg->digest_alg, apk_pkg_digest_blob(pkg));
 	r = apk_extract(&ectx, is);
@@ -219,7 +214,9 @@ err:
 	apk_err(out, PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
 	ctx->errors++;
 done:
-	ctx->done += pkg->size;
+	ctx->done_bytes += pkg->size;
+	ctx->done_packages++;
+	apk_progress_item_end(&ctx->prog);
 	return 0;
 }
 
@@ -229,7 +226,8 @@ static void mark_package(struct fetch_ctx *ctx, struct apk_package *pkg)
 		return;
 	if (ctx->built_after && pkg->build_time && ctx->built_after >= pkg->build_time)
 		return;
-	ctx->total += pkg->size;
+	ctx->total_bytes += pkg->size;
+	ctx->total_packages++;
 	pkg->marked = 1;
 }
 
@@ -366,7 +364,7 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			apk_db_foreach_matching_name(db, args, mark_name, ctx);
 	}
 	if (!ctx->errors) {
-		apk_progress_start(&ctx->prog, &ac->out, "fetch", ctx->total);
+		apk_progress_start(&ctx->prog, &ac->out, "fetch", apk_progress_weight(ctx->total_bytes, ctx->total_packages));
 		apk_db_foreach_sorted_package(db, NULL, fetch_package, ctx);
 		apk_progress_end(&ctx->prog);
 	}
