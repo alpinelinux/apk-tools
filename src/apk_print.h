@@ -60,6 +60,8 @@ static inline int apk_out_verbosity(struct apk_out *out) { return out->verbosity
 #define apk_dbg2(out, args...)	do { if (apk_out_verbosity(out) >= 3) { apk_out_fmt(out, NULL, args); } } while (0)
 
 void apk_out_reset(struct apk_out *);
+void apk_out_progress_note(struct apk_out *out, const char *format, ...)
+	__attribute__ ((format (printf, 2, 3)));
 void apk_out_fmt(struct apk_out *, const char *prefix, const char *format, ...)
 	__attribute__ ((format (printf, 3, 4)));
 void apk_out_log_argv(struct apk_out *, char **argv);

@@ -209,6 +209,24 @@ static void log_internal(FILE *dest, const char *prefix, const char *format, va_
 	fflush(dest);
 }
 
+void apk_out_progress_note(struct apk_out *out, const char *format, ...)
+{
+	char buf[512];
+	va_list va;
+	int n, width = apk_out_get_width(out);
+	FILE *f = out->out;
+
+	if (out->progress_disable) return;
+
+	va_start(va, format);
+	n = vsnprintf(buf, sizeof buf, format, va);
+	va_end(va);
+	if (n >= width-4) strcpy(&buf[width-7], "...");
+	fprintf(f, "\e7[%s]", buf);
+	fflush(f);
+	fputs("\e8\e[0K", f);
+}
+
 void apk_out_fmt(struct apk_out *out, const char *prefix, const char *format, ...)
 {
 	va_list va;

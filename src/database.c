@@ -745,7 +745,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo, str
 		mtime = repo->mtime;
 	}
 
-	if (!prog) apk_notice(out, "fetch " URL_FMT, URL_PRINTF(urlp));
+	if (!prog) apk_out_progress_note(out, "fetch " URL_FMT, URL_PRINTF(urlp));
 	if (db->ctx->flags & APK_SIMULATE) return 0;
 
 	os = apk_ostream_to_file(cache_fd, cache_url, 0644);
@@ -1526,7 +1526,7 @@ static void open_repository(struct apk_database *db, int repo_num)
 	if (repo->is_remote) {
 		if (db->ctx->flags & APK_NO_CACHE) {
 			error_action = "fetching";
-			apk_notice(out, "fetch " URL_FMT, URL_PRINTF(urlp));
+			apk_out_progress_note(out, "fetch " URL_FMT, URL_PRINTF(urlp));
 		} else {
 			error_action = "opening from cache";
 			if (repo->stale) {
