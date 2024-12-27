@@ -545,16 +545,18 @@ static void add_name_to_array(struct apk_name *name, struct apk_name_array **a)
 static void apk_db_pkg_rdepends(struct apk_database *db, struct apk_package *pkg)
 {
 	struct apk_name *rname;
-	struct apk_dependency *d;
+	struct apk_dependency *d, *p;
 
 	foreach_array_item(d, pkg->depends) {
 		rname = d->name;
 		rname->is_dependency |= !apk_dep_conflict(d);
 		add_name_to_array(pkg->name, &rname->rdepends);
+		foreach_array_item(p, pkg->provides) add_name_to_array(p->name, &rname->rdepends);
 	}
 	foreach_array_item(d, pkg->install_if) {
 		rname = d->name;
 		add_name_to_array(pkg->name, &rname->rinstall_if);
+		foreach_array_item(p, pkg->provides) add_name_to_array(p->name, &rname->rinstall_if);
 	}
 }
 
