@@ -66,7 +66,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		ac->root_set = 1;
 		if (!ac->uvol) ac->uvol = ERR_PTR(-APKE_UVOL_ROOT);
 	}
-	if (!IS_ERR(ac->uvol) && access(ac->uvol, X_OK) != 0)
+	if (!IS_ERR(ac->uvol) && (ac->uvol[0] != '/' || access(ac->uvol, X_OK) != 0))
 		ac->uvol = ERR_PTR(-APKE_UVOL_NOT_AVAILABLE);
 
 	ac->root_fd = openat(AT_FDCWD, ac->root, O_DIRECTORY | O_RDONLY | O_CLOEXEC);

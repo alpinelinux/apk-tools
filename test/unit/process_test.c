@@ -127,4 +127,33 @@ APK_TEST(pid_input_full) {
 		"test3: success\n");
 }
 
-// FIXME: add test for subprocess _istream
+static void test_process_istream(int rc, char *arg, const char *expect_err, const char *expect_out)
+{
+	struct cached_out co;
+	char out[256], *argv[] = { "../process-istream.sh", arg, NULL };
+
+	open_out(&co);
+	struct apk_istream *is = apk_process_istream(argv, &co.out, "process-istream");
+	assert_ptr_ok(is);
+
+	int n = apk_istream_read_max(is, out, sizeof out);
+	assert_int_equal(rc, apk_istream_close(is));
+
+	assert_output_equal(&co, expect_err, "");
+	assert_int_equal(strlen(expect_out), n);
+	assert_memory_equal(expect_out, out, n);
+}
+
+APK_TEST(pid_istream_ok) {
+	test_process_istream(0, "ok",
+		"process-istream: stderr text\n"
+		"process-istream: stderr again\n",
+		"hello\nhello again\n");
+}
+
+APK_TEST(pid_istream_fail) {
+	test_process_istream(-APKE_REMOTE_IO, "fail",
+		"process-istream: stderr text\n"
+		"ERROR: process-istream: exited with error 10\n",
+		"hello\n");
+}

@@ -18,6 +18,8 @@
 #include "apk_atom.h"
 #include "apk_crypto.h"
 
+struct apk_out;
+
 int apk_make_dirs(int root_fd, const char *dirname, mode_t dirmode, mode_t parentmode);
 ssize_t apk_write_fully(int fd, const void *ptr, size_t size);
 
@@ -132,7 +134,7 @@ static inline int apk_istream_close_error(struct apk_istream *is, int r)
 	return apk_istream_close(is);
 }
 
-void apk_io_url_init(void);
+void apk_io_url_init(struct apk_out *out);
 void apk_io_url_set_timeout(int timeout);
 void apk_io_url_set_redirect_callback(void (*cb)(int, const char *));
 void apk_io_url_no_check_certificate(void);

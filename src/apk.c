@@ -564,7 +564,7 @@ int main(int argc, char **argv)
 	}
 
 	apk_crypto_init();
-	apk_io_url_init();
+	apk_io_url_init(&ctx.out);
 	apk_io_url_set_timeout(60);
 	apk_io_url_set_redirect_callback(redirect_callback);
 

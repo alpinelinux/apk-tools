@@ -107,7 +107,7 @@ int apk_process_spawn(struct apk_process *p, const char *path, char * const* arg
 	posix_spawn_file_actions_adddup2(&act, p->pipe_stdin[0], STDIN_FILENO);
 	posix_spawn_file_actions_adddup2(&act, p->pipe_stdout[1], STDOUT_FILENO);
 	posix_spawn_file_actions_adddup2(&act, p->pipe_stderr[1], STDERR_FILENO);
-	r = posix_spawn(&p->pid, path, &act, 0, argv, env ?: environ);
+	r = posix_spawnp(&p->pid, path, &act, 0, argv, env ?: environ);
 	posix_spawn_file_actions_destroy(&act);
 
 	close_fd(&p->pipe_stdin[0]);
@@ -116,7 +116,7 @@ int apk_process_spawn(struct apk_process *p, const char *path, char * const* arg
 	return -r;
 }
 
-int apk_process_run(struct apk_process *p)
+static int apk_process_handle(struct apk_process *p, bool break_on_stdout)
 {
 	struct pollfd fds[3] = {
 		{ .fd = p->pipe_stdout[0], .events = POLLIN },
@@ -126,7 +126,7 @@ int apk_process_run(struct apk_process *p)
 
 	while (fds[0].fd >= 0 || fds[1].fd >= 0 || fds[2].fd >= 0) {
 		if (poll(fds, ARRAY_SIZE(fds), -1) <= 0) continue;
-		if (fds[0].revents) {
+		if (fds[0].revents && !break_on_stdout) {
 			if (!buf_process(&p->buf_stdout, p->pipe_stdout[0], p->out, NULL, p->argv0)) {
 				fds[0].fd = -1;
 				close_fd(&p->pipe_stdout[0]);
@@ -163,26 +163,112 @@ int apk_process_run(struct apk_process *p)
 			close_fd(&p->pipe_stdin[1]);
 			fds[2].fd = -1;
 		}
+		if (fds[0].revents && break_on_stdout) return 1;
 	}
 	return apk_process_cleanup(p);
 }
 
+int apk_process_run(struct apk_process *p)
+{
+	return apk_process_handle(p, false);
+}
+
 int apk_process_cleanup(struct apk_process *p)
 {
-	char buf[APK_EXIT_STATUS_MAX_SIZE];
-	int status = 0;
+	if (p->pid != 0) {
+		char buf[APK_EXIT_STATUS_MAX_SIZE];
+		if (p->is) apk_istream_close(p->is);
+		close_fd(&p->pipe_stdin[1]);
+		close_fd(&p->pipe_stdout[0]);
+		close_fd(&p->pipe_stderr[0]);
 
-	if (p->is) apk_istream_close(p->is);
-	close_fd(&p->pipe_stdin[1]);
-	close_fd(&p->pipe_stdout[0]);
-	close_fd(&p->pipe_stderr[0]);
+		while (waitpid(p->pid, &p->status, 0) < 0 && errno == EINTR);
+		p->pid = 0;
 
-	while (waitpid(p->pid, &status, 0) < 0 && errno == EINTR);
-
-	if (apk_exit_status_str(status, buf, sizeof buf)) {
-		apk_err(p->out, "%s: %s", p->argv0, buf);
-		return -1;
+		if (apk_exit_status_str(p->status, buf, sizeof buf))
+			apk_err(p->out, "%s: %s", p->argv0, buf);
 	}
+	if (!WIFEXITED(p->status) || WEXITSTATUS(p->status) != 0) return -1;
 	if (p->is && !p->is_eof) return -2;
 	return 0;
+}
+
+static int process_translate_status(int status)
+{
+	if (!WIFEXITED(status)) return -EFAULT;
+	// Assume wget like return code
+	switch (WEXITSTATUS(status)) {
+	case 0: return 0;
+	case 3: return -EIO;
+	case 4: return -ENETUNREACH;
+	case 5: return -EACCES;
+	case 6: return -EACCES;
+	case 7: return -EPROTO;
+	default: return -APKE_REMOTE_IO;
+	}
+}
+
+struct apk_process_istream {
+	struct apk_istream is;
+	struct apk_process proc;
+};
+
+static void process_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
+{
+}
+
+static ssize_t process_read(struct apk_istream *is, void *ptr, size_t size)
+{
+	struct apk_process_istream *pis = container_of(is, struct apk_process_istream, is);
+	ssize_t r;
+
+	r = apk_process_handle(&pis->proc, true);
+	if (r <= 0) return process_translate_status(pis->proc.status);
+
+	r = read(pis->proc.pipe_stdout[0], ptr, size);
+	if (r < 0) return -errno;
+	return r;
+}
+
+static int process_close(struct apk_istream *is)
+{
+	int r = is->err;
+	struct apk_process_istream *pis = container_of(is, struct apk_process_istream, is);
+
+	if (apk_process_cleanup(&pis->proc) < 0 && r >= 0)
+		r = process_translate_status(pis->proc.status);
+	free(pis);
+
+	return r < 0 ? r : 0;
+}
+
+static const struct apk_istream_ops process_istream_ops = {
+	.get_meta = process_get_meta,
+	.read = process_read,
+	.close = process_close,
+};
+
+struct apk_istream *apk_process_istream(char * const* argv, struct apk_out *out, const char *argv0)
+{
+	struct apk_process_istream *pis;
+	int r;
+
+	pis = malloc(sizeof(*pis) + apk_io_bufsize);
+	if (pis == NULL) return ERR_PTR(-ENOMEM);
+
+	*pis = (struct apk_process_istream) {
+		.is.ops = &process_istream_ops,
+		.is.buf = (uint8_t *)(pis + 1),
+		.is.buf_size = apk_io_bufsize,
+	};
+	r = apk_process_init(&pis->proc, argv0, out, NULL);
+	if (r != 0) goto err;
+
+	r = apk_process_spawn(&pis->proc, argv[0], argv, NULL);
+	if (r != 0) goto err;
+
+	return &pis->is;
+err:
+	free(pis);
+	return ERR_PTR(r);
 }

@@ -23,6 +23,7 @@ struct apk_process {
 	struct apk_out *out;
 	struct apk_istream *is;
 	apk_blob_t is_blob;
+	int status;
 	unsigned int is_eof : 1;
 	struct buf {
 		uint16_t len;
@@ -35,5 +36,6 @@ pid_t apk_process_fork(struct apk_process *p);
 int apk_process_spawn(struct apk_process *p, const char *path, char * const* argv, char * const* env);
 int apk_process_run(struct apk_process *p);
 int apk_process_cleanup(struct apk_process *p);
+struct apk_istream *apk_process_istream(char * const* argv, struct apk_out *out, const char *argv0);
 
 #endif

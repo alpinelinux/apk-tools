@@ -172,7 +172,7 @@ static void apk_io_url_fini(void)
 	fetchConnectionCacheClose();
 }
 
-void apk_io_url_init(void)
+void apk_io_url_init(struct apk_out *out)
 {
 	fetchConnectionCacheInit(32, 4);
 	atexit(apk_io_url_fini);
