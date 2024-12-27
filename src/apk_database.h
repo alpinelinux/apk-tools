@@ -139,8 +139,13 @@ struct apk_name {
 struct apk_repository {
 	const char *url;
 	struct apk_digest hash;
-	unsigned int url_is_file : 1;
-	unsigned int absolute_pkgname : 1;
+	time_t mtime;
+	unsigned short tag_mask;
+	unsigned short url_is_file : 1;
+	unsigned short absolute_pkgname : 1;
+	unsigned short is_remote : 1;
+	unsigned short stale : 1;
+
 	apk_blob_t description;
 	apk_blob_t url_base;
 	apk_blob_t pkgname_spec;
@@ -272,16 +277,13 @@ int apk_db_index_read_file(struct apk_database *db, const char *file, int repo);
 
 int apk_db_repository_check(struct apk_database *db);
 unsigned int apk_db_get_pinning_mask_repos(struct apk_database *db, unsigned short pinning_mask);
-struct apk_repository *apk_db_select_repo(struct apk_database *db,
-					  struct apk_package *pkg);
+struct apk_repository *apk_db_select_repo(struct apk_database *db, struct apk_package *pkg);
 
 int apk_repo_index_url(struct apk_database *db, struct apk_repository *repo, int *fd, char *buf, size_t len, struct apk_url_print *urlp);
 int apk_repo_index_cache_url(struct apk_database *db, struct apk_repository *repo, int *fd, char *buf, size_t len);
 int apk_repo_package_url(struct apk_database *db, struct apk_repository *repo, struct apk_package *pkg, int *fd, char *buf, size_t len, struct apk_url_print *urlp);
 
-int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
-		       struct apk_package *pkg, int autoupdate,
-		       struct apk_progress *prog);
+int apk_cache_download(struct apk_database *db, struct apk_repository *repo, struct apk_package *pkg, struct apk_progress *prog);
 
 typedef void (*apk_cache_item_cb)(struct apk_database *db, int static_cache,
 				  int dirfd, const char *name,

@@ -719,51 +719,46 @@ int apk_repo_package_url(struct apk_database *db, struct apk_repository *repo, s
 	return 0;
 }
 
-int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
-		       struct apk_package *pkg, int autoupdate, struct apk_progress *prog)
+int apk_cache_download(struct apk_database *db, struct apk_repository *repo, struct apk_package *pkg, struct apk_progress *prog)
 {
 	struct apk_out *out = &db->ctx->out;
-	struct stat st = {0};
 	struct apk_url_print urlp;
 	struct apk_progress_istream pis;
 	struct apk_istream *is;
 	struct apk_ostream *os;
 	struct apk_extract_ctx ectx;
 	char download_url[PATH_MAX], cache_url[NAME_MAX];
-	int r, download_fd, cache_fd;
-	time_t now = time(NULL);
+	int r, download_fd, cache_fd, tee_flags = 0;
+	time_t mtime = 0;
 
 	if (pkg != NULL) {
 		r = apk_repo_package_url(db, &db->repos[APK_REPOSITORY_CACHED], pkg, &cache_fd, cache_url, sizeof cache_url, NULL);
 		if (r < 0) return r;
 		r = apk_repo_package_url(db, repo, pkg, &download_fd, download_url, sizeof download_url, &urlp);
 		if (r < 0) return r;
+		tee_flags = APK_ISTREAM_TEE_COPY_META;
 	} else {
 		r = apk_repo_index_cache_url(db, repo, &cache_fd, cache_url, sizeof cache_url);
 		if (r < 0) return r;
 		r = apk_repo_index_url(db, repo, &download_fd, download_url, sizeof download_url, &urlp);
 		if (r < 0) return r;
+		mtime = repo->mtime;
 	}
 
-	if (autoupdate && !(db->ctx->force & APK_FORCE_REFRESH)) {
-		if (fstatat(cache_fd, cache_url, &st, 0) == 0 &&
-		    now - st.st_mtime <= db->ctx->cache_max_age)
-			return -EALREADY;
-	}
 	if (!prog) apk_notice(out, "fetch " URL_FMT, URL_PRINTF(urlp));
 	if (db->ctx->flags & APK_SIMULATE) return 0;
 
 	os = apk_ostream_to_file(cache_fd, cache_url, 0644);
 	if (IS_ERR(os)) return PTR_ERR(os);
 
-	is = apk_istream_from_fd_url_if_modified(download_fd, download_url, apk_db_url_since(db, st.st_mtime));
+	is = apk_istream_from_fd_url_if_modified(download_fd, download_url, apk_db_url_since(db, mtime));
 	is = apk_progress_istream(&pis, is, prog);
-	is = apk_istream_tee(is, os, autoupdate ? 0 : APK_ISTREAM_TEE_COPY_META);
+	is = apk_istream_tee(is, os, tee_flags);
 	apk_extract_init(&ectx, db->ctx, NULL);
 	if (pkg) apk_extract_verify_identity(&ectx, pkg->digest_alg, apk_pkg_digest_blob(pkg));
 	r = apk_extract(&ectx, is);
 	if (r == -EALREADY) {
-		if (autoupdate) utimensat(cache_fd, cache_url, NULL, 0);
+		if (!tee_flags) utimensat(cache_fd, cache_url, NULL, 0);
 		return r;
 	}
 	if (pkg) pkg->repos |= BIT(APK_REPOSITORY_CACHED);
@@ -1439,15 +1434,27 @@ static int load_index(struct apk_database *db, struct apk_istream *is, int repo)
 	return apk_extract(&ctx.ectx, is);
 }
 
+static bool is_index_stale(struct apk_database *db, struct apk_repository *repo)
+{
+	struct stat st;
+	char cache_url[NAME_MAX];
+	int cache_fd;
+
+	if (!db->autoupdate) return false;
+	if (!repo->is_remote) return false;
+	if (db->ctx->force & APK_FORCE_REFRESH) return true;
+	if (apk_repo_index_cache_url(db, repo, &cache_fd, cache_url, sizeof cache_url) < 0) return true;
+	if (fstatat(cache_fd, cache_url, &st, 0) != 0) return true;
+	repo->mtime = st.st_mtime;
+	return (time(NULL) - st.st_mtime) > db->ctx->cache_max_age;
+}
+
 static int add_repository(struct apk_database *db, apk_blob_t _repository)
 {
-	struct apk_out *out = &db->ctx->out;
 	struct apk_repository *repo;
-	struct apk_url_print urlp;
 	apk_blob_t brepo, btag, url_base, pkgname_spec;
-	int repo_num, r, tag_id = 0, update_error = 0, url_is_file = 0, index_fd = AT_FDCWD;
+	int repo_num, r, tag_id = 0, url_is_file = 0, index_fd;
 	char index_url[PATH_MAX], *url;
-	const char *error_action = "constructing url";
 
 	brepo = _repository;
 	btag = APK_BLOB_NULL;
@@ -1464,8 +1471,7 @@ static int add_repository(struct apk_database *db, apk_blob_t _repository)
 	for (repo_num = 0; repo_num < db->num_repos; repo_num++) {
 		repo = &db->repos[repo_num];
 		if (strcmp(url, repo->url) == 0) {
-			db->repo_tags[tag_id].allowed_repos |=
-				BIT(repo_num) & db->available_repos;
+			repo->tag_mask |= BIT(tag_id);
 			free(url);
 			return 0;
 		}
@@ -1491,33 +1497,47 @@ static int add_repository(struct apk_database *db, apk_blob_t _repository)
 		.url_is_file = url_is_file,
 		.url_base = *apk_atomize_dup(&db->atoms, url_base),
 		.pkgname_spec = pkgname_spec,
+		.is_remote = apk_url_local_file(url) == NULL,
+		.tag_mask = BIT(tag_id),
 	};
+	r = apk_repo_index_url(db, repo, &index_fd, index_url, sizeof index_url, NULL);
+	if (r < 0) return r;
+	apk_digest_calc(&repo->hash, APK_DIGEST_SHA256, index_url, strlen(index_url));
+	if (is_index_stale(db, repo)) repo->stale = 1;
+	return 0;
+}
 
-	int is_remote = (apk_url_local_file(repo->url) == NULL);
+static void open_repository(struct apk_database *db, int repo_num)
+{
+	struct apk_out *out = &db->ctx->out;
+	struct apk_repository *repo = &db->repos[repo_num];
+	struct apk_url_print urlp;
+	const char *error_action = "constructing url";
+	unsigned int repo_mask = BIT(repo_num);
+	unsigned int available_repos = 0;
+	char index_url[PATH_MAX];
+	int r, update_error = 0, index_fd = AT_FDCWD;
 
 	r = apk_repo_index_url(db, repo, &index_fd, index_url, sizeof index_url, &urlp);
 	if (r < 0) goto err;
 
 	error_action = "opening";
-	apk_digest_calc(&repo->hash, APK_DIGEST_SHA256, index_url, strlen(index_url));
-
-	if (!(db->ctx->flags & APK_NO_NETWORK))
-		db->available_repos |= BIT(repo_num);
-
-	if (is_remote) {
+	if (!(db->ctx->flags & APK_NO_NETWORK)) available_repos = repo_mask;
+	if (repo->is_remote) {
 		if (db->ctx->flags & APK_NO_CACHE) {
 			error_action = "fetching";
 			apk_notice(out, "fetch " URL_FMT, URL_PRINTF(urlp));
 		} else {
 			error_action = "opening from cache";
-			if (db->autoupdate) {
-				update_error = apk_cache_download(db, repo, NULL, 1, NULL);
+			if (repo->stale) {
+				update_error = apk_cache_download(db, repo, NULL, NULL);
 				switch (update_error) {
 				case 0:
 					db->repositories.updated++;
-					break;
+					// Fallthrough
 				case -EALREADY:
 					update_error = 0;
+					repo->stale = 0;
 					break;
 				}
 			}
@@ -1525,13 +1545,13 @@ static int add_repository(struct apk_database *db, apk_blob_t _repository)
 			if (r < 0) goto err;
 		}
 	} else if (strncmp(repo->url, "file://localhost/", 17) != 0) {
-		db->local_repos |= BIT(repo_num);
-		db->available_repos |= BIT(repo_num);
+		available_repos = repo_mask;
+		db->local_repos |= repo_mask;
 	}
 	r = load_index(db, apk_istream_from_fd_url(index_fd, index_url, apk_db_url_since(db, 0)), repo_num);
 err:
 	if (r || update_error) {
-		if (is_remote) {
+		if (repo->is_remote) {
 			if (r) db->repositories.unavailable++;
 			else db->repositories.stale++;
 		}
@@ -1543,14 +1563,11 @@ err:
 		apk_warn(out, "%s " URL_FMT ": %s", error_action, URL_PRINTF(urlp),
 			apk_error_str(update_error));
 	}
-
-	if (r != 0) {
-		db->available_repos &= ~BIT(repo_num);
-	} else {
-		db->repo_tags[tag_id].allowed_repos |= BIT(repo_num);
+	if (r == 0) {
+		db->available_repos |= available_repos;
+		for (unsigned int tag_id = 0, mask = repo->tag_mask; mask; mask >>= 1, tag_id++)
+			if (mask & 1) db->repo_tags[tag_id].allowed_repos |= repo_mask;
 	}
-
-	return 0;
 }
 
 static int add_repos_from_file(void *ctx, int dirfd, const char *file)
@@ -2049,10 +2066,11 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 		} else {
 			add_repos_from_file(db, AT_FDCWD, ac->repositories_file);
 		}
-
-		if (db->repositories.updated > 0)
-			apk_db_index_write_nr_cache(db);
 	}
+	for (i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++) open_repository(db, i);
+
+	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS) && db->repositories.updated > 0)
+		apk_db_index_write_nr_cache(db);
 
 	apk_hash_foreach(&db->available.names, apk_db_name_rdepends, db);
 
@@ -2429,15 +2447,12 @@ int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *wor
 	struct apk_dependency *dep;
 	int bad = 0, tag;
 
-	if (db->ctx->force & APK_FORCE_BROKEN_WORLD)
-		return 0;
+	if (db->ctx->force & APK_FORCE_BROKEN_WORLD) return 0;
 
 	foreach_array_item(dep, world) {
 		tag = dep->repository_tag;
-		if (tag == 0 || db->repo_tags[tag].allowed_repos != 0)
-			continue;
-		if (tag < 0)
-			tag = 0;
+		if (tag == 0 || db->repo_tags[tag].allowed_repos != 0) continue;
+		if (tag < 0) tag = 0;
 		apk_warn(out, "The repository tag for world dependency '%s" BLOB_FMT "' does not exist",
 			dep->name->name, BLOB_PRINTF(db->repo_tags[tag].tag));
 		bad++;

@@ -323,7 +323,7 @@ int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset 
 			PKG_VER_PRINTF(pkg));
 
 		apk_progress_item_start(&prog.prog, apk_progress_weight(prog.done.bytes, prog.done.packages), pkg->size);
-		r = apk_cache_download(db, repo, pkg, 0, &prog.prog);
+		r = apk_cache_download(db, repo, pkg, &prog.prog);
 		if (r && r != -EALREADY) {
 			apk_err(out, PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
 			errors++;

@@ -44,4 +44,4 @@ setup_apkroot() {
 	cd "$TEST_ROOT/tmp"
 }
 
-[ -x "$APK" ] || assert "APK environment variable not set"
+[ "$APK" ] || assert "APK environment variable not set"
