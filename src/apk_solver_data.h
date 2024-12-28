@@ -40,6 +40,7 @@ struct apk_solver_name_state {
 	unsigned has_options : 1;
 	unsigned reverse_deps_done : 1;
 	unsigned has_virtual_provides : 1;
+	unsigned has_auto_selectable : 1;
 };
 
 struct apk_solver_package_state {

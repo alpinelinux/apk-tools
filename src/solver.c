@@ -365,6 +365,17 @@ static inline int merge_index_complete(unsigned short *index, int num_options)
 	return ret;
 }
 
+static bool is_provider_auto_selectable(struct apk_provider *p)
+{
+	/* Virtual packages without provider_priority cannot be autoselected,
+	 * without provider_priority or auto_select_virtual override */
+	if (p->version != &apk_atom_null) return true;
+	if (p->pkg->provider_priority) return true;
+	if (p->pkg->name->auto_select_virtual) return true;
+	if (p->pkg->name->ss.requirers) return true;
+	return false;
+}
+
 static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 {
 	struct apk_name *name0, **pname0;
@@ -380,6 +391,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 	reevaluate_iif = name->ss.reevaluate_iif;
 	name->ss.reevaluate_deps = 0;
 	name->ss.reevaluate_iif = 0;
+	name->ss.has_auto_selectable = 0;
 
 	/* propagate down by merging common dependencies and
 	 * applying new constraints */
@@ -427,6 +439,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 		dbg_printf("  "PKG_VER_FMT": iif_triggered=%d iif_failed=%d, no_iif=%d\n",
 			PKG_VER_PRINTF(pkg), pkg->ss.iif_triggered, pkg->ss.iif_failed,
 			no_iif);
+		name->ss.has_auto_selectable |= pkg->ss.iif_triggered;
 
 		if (name->ss.requirers == 0)
 			continue;
@@ -449,6 +462,8 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 
 		num_tag_not_ok += !pkg->ss.tag_ok;
 		num_options++;
+		if (!name->ss.has_auto_selectable && is_provider_auto_selectable(p))
+			name->ss.has_auto_selectable = 1;
 	}
 	name->ss.has_options = (num_options > 1 || num_tag_not_ok > 0);
 	name->ss.has_iif = has_iif;
@@ -504,8 +519,8 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 		}
 	}
 
-	dbg_printf("reconsider_name: %s [finished], has_options=%d, reverse_deps_done=%d\n",
-		name->name, name->ss.has_options, name->ss.reverse_deps_done);
+	dbg_printf("reconsider_name: %s [finished], has_options=%d, has_autoselectable=%d, reverse_deps_done=%d\n",
+		name->name, name->ss.has_options, name->ss.has_auto_selectable, name->ss.reverse_deps_done);
 }
 
 static int compare_providers(struct apk_solver_state *ss,
@@ -724,7 +739,7 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 	struct apk_package *pkg = NULL;
 	struct apk_dependency *d;
 
-	dbg_printf("select_package: %s (requirers=%d, iif=%d)\n", name->name, name->ss.requirers, name->ss.has_iif);
+	dbg_printf("select_package: %s (requirers=%d, autosel=%d, iif=%d)\n", name->name, name->ss.requirers, name->ss.has_auto_selectable, name->ss.has_iif);
 
 	if (name->ss.requirers || name->ss.has_iif) {
 		foreach_array_item(p, name->providers) {
@@ -742,12 +757,7 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 				dbg_printf("    ignore: invalid install-if trigger or invalid pinning\n");
 				continue;
 			}
-			/* Virtual packages without provider_priority cannot be autoselected,
-			 * unless there is only one provider */
-			if (p->version == &apk_atom_null &&
-			    p->pkg->name->auto_select_virtual == 0 &&
-			    p->pkg->name->ss.requirers == 0 &&
-			    p->pkg->provider_priority == 0) {
+			if (!is_provider_auto_selectable(p)) {
 				dbg_printf("    ignore: virtual package without provider_priority\n");
 				continue;
 			}
@@ -1057,7 +1067,10 @@ static int cmp_pkgname(const void *p1, const void *p2)
 
 static int compare_name_dequeue(const struct apk_name *a, const struct apk_name *b)
 {
-	int r = !!a->solver_flags_set - !!b->solver_flags_set;
+	int r = (int)b->ss.has_auto_selectable - (int)a->ss.has_auto_selectable;
+	if (r) return r;
+
+	r = !!a->solver_flags_set - !!b->solver_flags_set;
 	if (r) return -r;
 
 	return b->ss.order_id - a->ss.order_id;
@@ -1109,8 +1122,10 @@ restart:
 
 		name = NULL;
 		list_for_each_entry(name0, &ss->unresolved_head, ss.unresolved_list) {
-			if (name0->ss.reverse_deps_done && name0->ss.requirers && !name0->ss.has_options) {
+			if (name0->ss.reverse_deps_done && name0->ss.requirers &&
+			    name0->ss.has_auto_selectable && !name0->ss.has_options) {
 				name = name0;
+				dbg_printf("name <%s> fast selected\n", name->name);
 				break;
 			}
 			if (!name || compare_name_dequeue(name0, name) < 0)
