@@ -1,0 +1,7 @@
+@ARGS
+--test-repo provides22.repo
+add openjdk8-jdk java-jre-headless
+@EXPECT
+(1/2) Installing openjdk8-jre-base (1.0)
+(2/2) Installing openjdk8-jdk (1.0)
+OK: 0 MiB in 2 packages
