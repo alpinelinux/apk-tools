@@ -808,7 +808,7 @@ set_if_modified_since(conn_t *conn, time_t last_modified)
  * XXX This function is way too long, the do..while loop should be split
  * XXX off into a separate function.
  */
-fetchIO *
+static fetchIO *
 http_request(struct url *URL, const char *op, struct url_stat *us,
     struct url *purl, const char *flags)
 {
