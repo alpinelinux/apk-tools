@@ -38,8 +38,10 @@ void apk_url_parse(struct apk_url_print *, const char *);
 #define URL_PRINTF(u)		(int)u.len_before_pw, u.url, u.pwmask, u.url_or_host
 
 struct apk_out {
-	int verbosity, progress_disable, progress_fd;
+	int verbosity, progress_fd;
 	unsigned int width;
+	unsigned int progress_disable : 1;
+	unsigned int need_flush : 1;
 	const char *progress_char;
 	FILE *out, *err, *log;
 	struct apk_progress *prog;

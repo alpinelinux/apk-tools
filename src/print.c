@@ -198,6 +198,7 @@ static void apk_out_render_progress(struct apk_out *out, bool force)
 		for (; i < bar_width; i++) fputc(' ', f);
 		fflush(f);
 		fputs("\e8\e[0K", f);
+		out->need_flush = 1;
 	}
 }
 
@@ -225,6 +226,7 @@ void apk_out_progress_note(struct apk_out *out, const char *format, ...)
 	fprintf(f, "\e7[%s]", buf);
 	fflush(f);
 	fputs("\e8\e[0K", f);
+	out->need_flush = 1;
 }
 
 void apk_out_fmt(struct apk_out *out, const char *prefix, const char *format, ...)
@@ -232,8 +234,9 @@ void apk_out_fmt(struct apk_out *out, const char *prefix, const char *format, ..
 	va_list va;
 	if (prefix != APK_OUT_LOG_ONLY) {
 		va_start(va, format);
-		if (prefix && out->prog) fflush(out->out);
+		if (prefix && out->need_flush) fflush(out->out);
 		log_internal(prefix ? out->err : out->out, prefix, format, va);
+		out->need_flush = 0;
 		va_end(va);
 		apk_out_render_progress(out, true);
 	}
