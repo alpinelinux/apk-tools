@@ -173,7 +173,7 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 			return 0;
 	}
 
-	r = apk_repo_package_url(db, repo, pkg, &pkg_fd, pkg_url, sizeof pkg_url, NULL);
+	r = apk_repo_package_url(db, repo, pkg, &pkg_fd, pkg_url, sizeof pkg_url);
 	if (r < 0) goto err;
 
 	if (ctx->flags & FETCH_URL)

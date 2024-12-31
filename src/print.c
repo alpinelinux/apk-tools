@@ -133,28 +133,30 @@ const char *apk_last_path_segment(const char *path)
 	return last == NULL ? path : last + 1;
 }
 
-void apk_url_parse(struct apk_url_print *urlp, const char *url)
+apk_blob_t apk_url_sanitize(apk_blob_t url, struct apk_atom_pool *atoms)
 {
-	const char *authority, *path_or_host, *pw;
+	char buf[PATH_MAX];
+	int password_start = 0;
+	int authority = apk_blob_contains(url, APK_BLOB_STRLIT("://"));
+	if (authority < 0) return url;
 
-	*urlp = (struct apk_url_print) {
-		.url = "",
-		.pwmask = "",
-		.url_or_host = url,
-	};
-
-	if (!(authority = strstr(url, "://"))) return;
-	authority += 3;
-	path_or_host = strpbrk(authority, "/@");
-	if (!path_or_host || *path_or_host == '/') return;
-	pw = strpbrk(authority, "@:");
-	if (!pw || *pw == '@') return;
-	*urlp = (struct apk_url_print) {
-		.url = url,
-		.pwmask = "*",
-		.url_or_host = path_or_host,
-		.len_before_pw = pw - url + 1,
-	};
+	for (int i = authority + 3; i < url.len; i++) {
+		switch (url.ptr[i]) {
+		case '/':
+			return url;
+		case '@':
+			if (!password_start) return url;
+			// password_start ... i-1 is the password
+			return *apk_atomize_dup(atoms,
+				apk_blob_fmt(buf, sizeof buf, "%.*s*%.*s",
+					password_start, url.ptr,
+					(int)(url.len - i), &url.ptr[i]));
+		case ':':
+			if (!password_start) password_start = i + 1;
+			break;
+		}
+	}
+	return url;
 }
 
 void apk_out_reset(struct apk_out *out)

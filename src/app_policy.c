@@ -49,10 +49,10 @@ zlib1g policy:
 				continue;
 			for (j = 0; j < db->num_repo_tags; j++) {
 				if (db->repo_tags[j].allowed_repos & p->pkg->repos)
-					apk_out(out, "    "BLOB_FMT"%s%s",
+					apk_out(out, "    " BLOB_FMT "%s" BLOB_FMT,
 						BLOB_PRINTF(db->repo_tags[j].tag),
 						j == 0 ? "" : " ",
-						repo->url);
+						BLOB_PRINTF(repo->url_base_printable));
 			}
 		}
 	}

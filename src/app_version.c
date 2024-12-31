@@ -30,9 +30,9 @@ static int ver_indexes(struct apk_ctx *ac, struct apk_string_array *args)
 
 	for (i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++) {
 		repo = &db->repos[i];
-		apk_out(out, BLOB_FMT " [%s]",
+		apk_out(out, BLOB_FMT " [" BLOB_FMT "]",
 			BLOB_PRINTF(repo->description),
-			db->repos[i].url);
+			BLOB_PRINTF(repo->url_base_printable));
 	}
 
 	return 0;

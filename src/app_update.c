@@ -19,7 +19,6 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 	struct apk_out *out = &ac->out;
 	struct apk_database *db = ac->db;
 	struct apk_repository *repo;
-	struct apk_url_print urlp;
 	int i;
 	const char *msg = "OK:";
 	char buf[64];
@@ -29,10 +28,9 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 
 	for (i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++) {
 		repo = &db->repos[i];
-		apk_url_parse(&urlp, db->repos[i].url);
-		apk_msg(out, BLOB_FMT " [" URL_FMT "]",
+		apk_msg(out, BLOB_FMT " [" BLOB_FMT "]",
 			BLOB_PRINTF(repo->description),
-			URL_PRINTF(urlp));
+			BLOB_PRINTF(repo->url_base_printable));
 	}
 
 	if (db->repositories.unavailable || db->repositories.stale)

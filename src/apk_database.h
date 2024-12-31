@@ -136,18 +136,30 @@ struct apk_name {
 	char name[];
 };
 
+enum {
+	APK_REPOTYPE_INVALID = 0,
+	APK_REPOTYPE_NDX,
+	APK_REPOTYPE_V2,
+};
+
+struct apk_repoline {
+	apk_blob_t tag, url;
+	unsigned int type;
+};
+
 struct apk_repository {
-	const char *url;
 	struct apk_digest hash;
 	time_t mtime;
 	unsigned short tag_mask;
-	unsigned short url_is_file : 1;
 	unsigned short absolute_pkgname : 1;
 	unsigned short is_remote : 1;
 	unsigned short stale : 1;
 
 	apk_blob_t description;
 	apk_blob_t url_base;
+	apk_blob_t url_base_printable;
+	apk_blob_t url_index;
+	apk_blob_t url_index_printable;
 	apk_blob_t pkgname_spec;
 };
 
@@ -279,9 +291,9 @@ int apk_db_repository_check(struct apk_database *db);
 unsigned int apk_db_get_pinning_mask_repos(struct apk_database *db, unsigned short pinning_mask);
 struct apk_repository *apk_db_select_repo(struct apk_database *db, struct apk_package *pkg);
 
-int apk_repo_index_url(struct apk_database *db, struct apk_repository *repo, int *fd, char *buf, size_t len, struct apk_url_print *urlp);
+bool apk_repo_parse_line(apk_blob_t line, struct apk_repoline *rl);
 int apk_repo_index_cache_url(struct apk_database *db, struct apk_repository *repo, int *fd, char *buf, size_t len);
-int apk_repo_package_url(struct apk_database *db, struct apk_repository *repo, struct apk_package *pkg, int *fd, char *buf, size_t len, struct apk_url_print *urlp);
+int apk_repo_package_url(struct apk_database *db, struct apk_repository *repo, struct apk_package *pkg, int *fd, char *buf, size_t len);
 
 int apk_cache_download(struct apk_database *db, struct apk_repository *repo, struct apk_package *pkg, struct apk_progress *prog);
 

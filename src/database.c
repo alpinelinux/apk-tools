@@ -674,22 +674,6 @@ static int apk_repo_subst(void *ctx, apk_blob_t key, apk_blob_t *to)
 	return 0;
 }
 
-int apk_repo_index_url(struct apk_database *db, struct apk_repository *repo,
-		       int *fd, char *buf, size_t len, struct apk_url_print *urlp)
-{
-	apk_blob_t uri = APK_BLOB_STR(repo->url);
-	int r;
-
-	r = apk_repo_fd(db, repo, fd);
-	if (r < 0) return r;
-
-	if (repo->url_is_file) r = apk_fmt(buf, len, BLOB_FMT, BLOB_PRINTF(uri));
-	else r = apk_fmt(buf, len, BLOB_FMT "/" BLOB_FMT "/APKINDEX.tar.gz", BLOB_PRINTF(uri), BLOB_PRINTF(*db->arches->item[0]));
-	if (r < 0) return r;
-	if (urlp) apk_url_parse(urlp, buf);
-	return 0;
-}
-
 int apk_repo_index_cache_url(struct apk_database *db, struct apk_repository *repo, int *fd, char *buf, size_t len)
 {
 	int r = apk_repo_fd(db, &db->repos[APK_REPOSITORY_CACHED], fd);
@@ -698,7 +682,7 @@ int apk_repo_index_cache_url(struct apk_database *db, struct apk_repository *rep
 }
 
 int apk_repo_package_url(struct apk_database *db, struct apk_repository *repo, struct apk_package *pkg,
-			 int *fd, char *buf, size_t len, struct apk_url_print *urlp)
+			 int *fd, char *buf, size_t len)
 {
 	struct apk_ctx *ac = db->ctx;
 	int r;
@@ -717,43 +701,43 @@ int apk_repo_package_url(struct apk_database *db, struct apk_repository *repo, s
 		r = apk_blob_subst(&buf[r], len - r, repo->pkgname_spec, apk_pkg_subst, pkg);
 	}
 	if (r < 0) return r;
-	if (urlp) apk_url_parse(urlp, buf);
 	return 0;
 }
 
 int apk_cache_download(struct apk_database *db, struct apk_repository *repo, struct apk_package *pkg, struct apk_progress *prog)
 {
 	struct apk_out *out = &db->ctx->out;
-	struct apk_url_print urlp;
 	struct apk_progress_istream pis;
 	struct apk_istream *is;
 	struct apk_ostream *os;
 	struct apk_extract_ctx ectx;
-	char download_url[PATH_MAX], cache_url[NAME_MAX];
+	const char *download_url;
+	char cache_url[NAME_MAX], package_url[PATH_MAX];
 	int r, download_fd, cache_fd, tee_flags = 0;
-	time_t mtime = 0;
+	time_t download_mtime = 0;
 
 	if (pkg != NULL) {
-		r = apk_repo_package_url(db, &db->repos[APK_REPOSITORY_CACHED], pkg, &cache_fd, cache_url, sizeof cache_url, NULL);
+		r = apk_repo_package_url(db, &db->repos[APK_REPOSITORY_CACHED], pkg, &cache_fd, cache_url, sizeof cache_url);
 		if (r < 0) return r;
-		r = apk_repo_package_url(db, repo, pkg, &download_fd, download_url, sizeof download_url, &urlp);
+		r = apk_repo_package_url(db, repo, pkg, &download_fd, package_url, sizeof package_url);
 		if (r < 0) return r;
 		tee_flags = APK_ISTREAM_TEE_COPY_META;
+		download_url = package_url;
 	} else {
 		r = apk_repo_index_cache_url(db, repo, &cache_fd, cache_url, sizeof cache_url);
 		if (r < 0) return r;
-		r = apk_repo_index_url(db, repo, &download_fd, download_url, sizeof download_url, &urlp);
-		if (r < 0) return r;
-		mtime = repo->mtime;
+		download_mtime = repo->mtime;
+		download_fd = AT_FDCWD;
+		download_url = repo->url_index.ptr;
 	}
 
-	if (!prog) apk_out_progress_note(out, "fetch " URL_FMT, URL_PRINTF(urlp));
+	if (!pkg && !prog) apk_out_progress_note(out, "fetch " BLOB_FMT, BLOB_PRINTF(repo->url_index_printable));
 	if (db->ctx->flags & APK_SIMULATE) return 0;
 
 	os = apk_ostream_to_file(cache_fd, cache_url, 0644);
 	if (IS_ERR(os)) return PTR_ERR(os);
 
-	is = apk_istream_from_fd_url_if_modified(download_fd, download_url, apk_db_url_since(db, mtime));
+	is = apk_istream_from_fd_url_if_modified(download_fd, download_url, apk_db_url_since(db, download_mtime));
 	is = apk_progress_istream(&pis, is, prog);
 	is = apk_istream_tee(is, os, tee_flags);
 	apk_extract_init(&ectx, db->ctx, NULL);
@@ -1416,7 +1400,8 @@ static int load_v3index(struct apk_extract_ctx *ectx, struct adb_obj *ndx)
 	}
 
 	apk_pkgtmpl_free(&tmpl);
-	if (num_broken) apk_warn(out, "Repository %s has %d packages without hash", repo->url, num_broken);
+	if (num_broken) apk_warn(out, "Repository " BLOB_FMT " has %d packages without hash",
+		BLOB_PRINTF(repo->url_index_printable), num_broken);
 	return r;
 }
 
@@ -1451,60 +1436,88 @@ static bool is_index_stale(struct apk_database *db, struct apk_repository *repo)
 	return (time(NULL) - st.st_mtime) > db->ctx->cache_max_age;
 }
 
-static int add_repository(struct apk_database *db, apk_blob_t _repository)
+static bool get_word(apk_blob_t *line, apk_blob_t *word)
 {
+	apk_blob_cspn(*line, APK_CTYPE_REPOSITORY_SEPARATOR, word, line);
+	apk_blob_spn(*line, APK_CTYPE_REPOSITORY_SEPARATOR, NULL, line);
+	return word->len > 0;
+}
+
+bool apk_repo_parse_line(apk_blob_t line, struct apk_repoline *rl)
+{
+	apk_blob_t word;
+
+	memset(rl, 0, sizeof *rl);
+	rl->type = APK_REPOTYPE_V2;
+
+	if (!get_word(&line, &word)) return false;
+	if (word.ptr[0] == '@') {
+		rl->tag = word;
+		if (!get_word(&line, &word)) return false;
+	}
+	if (apk_blob_ends_with(word, APK_BLOB_STRLIT(".adb"))) rl->type = APK_REPOTYPE_NDX;
+	rl->url = word;
+	return line.len == 0;
+}
+
+static int add_repository(struct apk_database *db, apk_blob_t line)
+{
+	struct apk_out *out = &db->ctx->out;
 	struct apk_repository *repo;
-	apk_blob_t brepo, btag, url_base, pkgname_spec;
-	int repo_num, r, tag_id = 0, url_is_file = 0, index_fd;
-	char index_url[PATH_MAX], *url;
+	struct apk_repoline rl;
+	apk_blob_t url_base, url_index, pkgname_spec, dot = APK_BLOB_STRLIT(".");
+	char buf[PATH_MAX];
+	int tag_id = 0;
 
-	brepo = _repository;
-	btag = APK_BLOB_NULL;
-	if (brepo.ptr == NULL || brepo.len == 0 || *brepo.ptr == '#')
+	if (!line.ptr || line.len == 0 || line.ptr[0] == '#') return 0;
+	if (!apk_repo_parse_line(line, &rl)) {
+		apk_warn(out, "Unable to parse repository: " BLOB_FMT, BLOB_PRINTF(line));
 		return 0;
-
-	if (brepo.ptr[0] == '@') {
-		apk_blob_cspn(brepo, APK_CTYPE_REPOSITORY_SEPARATOR, &btag, &brepo);
-		apk_blob_spn(brepo, APK_CTYPE_REPOSITORY_SEPARATOR, NULL, &brepo);
-		tag_id = apk_db_get_tag_id(db, btag);
 	}
-
-	url = apk_blob_cstr(brepo);
-	for (repo_num = 0; repo_num < db->num_repos; repo_num++) {
-		repo = &db->repos[repo_num];
-		if (strcmp(url, repo->url) == 0) {
-			repo->tag_mask |= BIT(tag_id);
-			free(url);
-			return 0;
-		}
+	if (rl.type == APK_REPOTYPE_INVALID) {
+		apk_warn(out, "Unsupported repository: " BLOB_FMT, BLOB_PRINTF(line));
+		return 0;
 	}
-	if (db->num_repos >= APK_MAX_REPOS) {
-		free(url);
-		return -1;
-	}
+	if (rl.tag.ptr) tag_id = apk_db_get_tag_id(db, rl.tag);
 
-	if (apk_blob_ends_with(brepo, APK_BLOB_STRLIT(".adb"))) {
-		if (!apk_blob_rsplit(brepo, '/', &url_base, NULL)) url_base = APK_BLOB_STRLIT(".");
-		pkgname_spec = db->ctx->default_pkgname_spec;
-		url_is_file = 1;
-	} else {
-		url_base = apk_blob_trim_end(brepo, '/');
+	const char *index_file = NULL;
+	switch (rl.type) {
+	case APK_REPOTYPE_V2:
+		index_file = "APKINDEX.tar.gz";
+		break;
+	}
+	if (index_file) {
+		url_base = apk_blob_trim_end(rl.url, '/');
+		url_index = apk_blob_fmt(buf, sizeof buf, BLOB_FMT "/" BLOB_FMT "/%s", BLOB_PRINTF(url_base), BLOB_PRINTF(*db->arches->item[0]), index_file);
 		pkgname_spec = db->ctx->default_reponame_spec;
+	} else {
+		if (!apk_blob_rsplit(rl.url, '/', &url_base, NULL)) url_base = dot;
+		url_index = rl.url;
+		pkgname_spec = db->ctx->default_pkgname_spec;
 	}
 
-	repo_num = db->num_repos++;
-	repo = &db->repos[repo_num];
+	for (repo = &db->repos[APK_REPOSITORY_FIRST_CONFIGURED]; repo < &db->repos[db->num_repos]; repo++) {
+		if (apk_blob_compare(url_base, repo->url_base) != 0) continue;
+		if (apk_blob_compare(url_index, repo->url_index) != 0) continue;
+		repo->tag_mask |= BIT(tag_id);
+		return 0;
+	}
+	url_index = *apk_atomize_dup0(&db->atoms, url_index);
+	// url base is a prefix of url_index or '.'
+	if (url_base.ptr != dot.ptr) url_base = APK_BLOB_PTR_LEN(url_index.ptr, url_base.len);
+
+	if (db->num_repos >= APK_MAX_REPOS) return -1;
+	repo = &db->repos[db->num_repos++];
 	*repo = (struct apk_repository) {
-		.url = url,
-		.url_is_file = url_is_file,
-		.url_base = *apk_atomize_dup(&db->atoms, url_base),
+		.url_base = url_base,
+		.url_base_printable = apk_url_sanitize(url_base, &db->atoms),
+		.url_index = url_index,
+		.url_index_printable = apk_url_sanitize(url_index, &db->atoms),
 		.pkgname_spec = pkgname_spec,
-		.is_remote = apk_url_local_file(url) == NULL,
+		.is_remote = apk_url_local_file(url_index.ptr) == NULL,
 		.tag_mask = BIT(tag_id),
 	};
-	r = apk_repo_index_url(db, repo, &index_fd, index_url, sizeof index_url, NULL);
-	if (r < 0) return r;
-	apk_digest_calc(&repo->hash, APK_DIGEST_SHA256, index_url, strlen(index_url));
+	apk_digest_calc(&repo->hash, APK_DIGEST_SHA256, url_index.ptr, url_index.len);
 	if (is_index_stale(db, repo)) repo->stale = 1;
 	return 0;
 }
@@ -1513,22 +1526,18 @@ static void open_repository(struct apk_database *db, int repo_num)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_repository *repo = &db->repos[repo_num];
-	struct apk_url_print urlp;
 	const char *error_action = "constructing url";
 	unsigned int repo_mask = BIT(repo_num);
 	unsigned int available_repos = 0;
-	char index_url[PATH_MAX];
-	int r, update_error = 0, index_fd = AT_FDCWD;
-
-	r = apk_repo_index_url(db, repo, &index_fd, index_url, sizeof index_url, &urlp);
-	if (r < 0) goto err;
+	char cache_url[NAME_MAX], *open_url = repo->url_index.ptr;
+	int r, update_error = 0, open_fd = AT_FDCWD;
 
 	error_action = "opening";
 	if (!(db->ctx->flags & APK_NO_NETWORK)) available_repos = repo_mask;
 	if (repo->is_remote) {
 		if (db->ctx->flags & APK_NO_CACHE) {
 			error_action = "fetching";
-			apk_out_progress_note(out, "fetch " URL_FMT, URL_PRINTF(urlp));
+			apk_out_progress_note(out, "fetch " BLOB_FMT, BLOB_PRINTF(repo->url_index_printable));
 		} else {
 			error_action = "opening from cache";
 			if (repo->stale) {
@@ -1543,27 +1552,27 @@ static void open_repository(struct apk_database *db, int repo_num)
 					break;
 				}
 			}
-			r = apk_repo_index_cache_url(db, repo, &index_fd, index_url, sizeof index_url);
+			open_url = cache_url;
+			r = apk_repo_index_cache_url(db, repo, &open_fd, cache_url, sizeof cache_url);
 			if (r < 0) goto err;
 		}
-	} else if (strncmp(repo->url, "file://localhost/", 17) != 0) {
+	} else if (!apk_blob_starts_with(repo->url_base, APK_BLOB_STRLIT("file://localhost/"))) {
 		available_repos = repo_mask;
 		db->local_repos |= repo_mask;
 	}
-	r = load_index(db, apk_istream_from_fd_url(index_fd, index_url, apk_db_url_since(db, 0)), repo_num);
+	r = load_index(db, apk_istream_from_fd_url(open_fd, open_url, apk_db_url_since(db, 0)), repo_num);
 err:
 	if (r || update_error) {
 		if (repo->is_remote) {
 			if (r) db->repositories.unavailable++;
 			else db->repositories.stale++;
 		}
-		apk_url_parse(&urlp, repo->url);
 		if (update_error)
 			error_action = r ? "updating and opening" : "updating";
 		else
 			update_error = r;
-		apk_warn(out, "%s " URL_FMT ": %s", error_action, URL_PRINTF(urlp),
-			apk_error_str(update_error));
+		apk_warn(out, "%s " BLOB_FMT ": %s",
+			error_action, BLOB_PRINTF(repo->url_index_printable), apk_error_str(update_error));
 	}
 	if (r == 0) {
 		db->available_repos |= available_repos;
@@ -1593,18 +1602,11 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 	return 0;
 }
 
-static void apk_db_setup_repositories(struct apk_database *db, const char *cache_dir)
+static void apk_db_setup_repositories(struct apk_database *db, apk_blob_t cache_dir)
 {
-	/* This is the SHA-1 of the string 'cache'. Repo hashes like this
-	 * are truncated to APK_CACHE_CSUM_BYTES and always use SHA-1. */
 	db->repos[APK_REPOSITORY_CACHED] = (struct apk_repository) {
-		.hash.data = {
-			0xb0,0x35,0x92,0x80,0x6e,0xfa,0xbf,0xee,0xb7,0x09,
-			0xf5,0xa7,0x0a,0x7c,0x17,0x26,0x69,0xb0,0x05,0x38 },
-		.hash.len = APK_DIGEST_LENGTH_SHA1,
-		.hash.alg = APK_DIGEST_SHA1,
-		.url = cache_dir,
-		.url_base = APK_BLOB_STR(cache_dir),
+		.url_base = cache_dir,
+		.url_base_printable = cache_dir,
 		.pkgname_spec = db->ctx->default_cachename_spec,
 	};
 	db->num_repos = APK_REPOSITORY_FIRST_CONFIGURED;
@@ -1940,7 +1942,7 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	    !(ac->flags & APK_NO_NETWORK))
 		db->autoupdate = 1;
 
-	apk_db_setup_repositories(db, ac->cache_dir);
+	apk_db_setup_repositories(db, APK_BLOB_STR(ac->cache_dir));
 	db->root_fd = apk_ctx_fd_root(ac);
 	db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
 	db->permanent = !detect_tmpfs_root(db);
@@ -2249,8 +2251,6 @@ void apk_db_close(struct apk_database *db)
 		apk_pkg_uninstall(NULL, ipkg->pkg);
 	}
 
-	for (int i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++)
-		free((void*) db->repos[i].url);
 	foreach_array_item(ppath, db->protected_paths)
 		free(ppath->relative_pattern);
 	apk_protected_path_array_free(&db->protected_paths);
@@ -3060,7 +3060,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 			r = -APKE_PACKAGE_NOT_FOUND;
 			goto err_msg;
 		}
-		r = apk_repo_package_url(db, repo, pkg, &file_fd, file_url, sizeof file_url, NULL);
+		r = apk_repo_package_url(db, repo, pkg, &file_fd, file_url, sizeof file_url);
 		if (r < 0) goto err_msg;
 		if (!(pkg->repos & db->local_repos)) need_copy = TRUE;
 	} else {
@@ -3082,7 +3082,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	is = apk_progress_istream(&pis, is, prog);
 	if (need_copy) {
 		struct apk_istream *origis = is;
-		r = apk_repo_package_url(db, &db->repos[APK_REPOSITORY_CACHED], pkg, &cache_fd, cache_url, sizeof cache_url, NULL);
+		r = apk_repo_package_url(db, &db->repos[APK_REPOSITORY_CACHED], pkg, &cache_fd, cache_url, sizeof cache_url);
 		if (r == 0)
 			is = apk_istream_tee(is, apk_ostream_to_file(cache_fd, cache_url, 0644),
 				APK_ISTREAM_TEE_COPY_META|APK_ISTREAM_TEE_OPTIONAL);

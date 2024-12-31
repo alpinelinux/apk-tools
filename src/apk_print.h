@@ -21,18 +21,7 @@ const char *apk_error_str(int error);
 int apk_get_human_size_unit(apk_blob_t b);
 const char *apk_get_human_size(off_t size, off_t *dest);
 const char *apk_last_path_segment(const char *);
-
-struct apk_url_print {
-	const char *url;
-	const char *pwmask;
-	const char *url_or_host;
-	size_t len_before_pw;
-};
-
-void apk_url_parse(struct apk_url_print *, const char *);
-
-#define URL_FMT			"%.*s%s%s"
-#define URL_PRINTF(u)		(int)u.len_before_pw, u.url, u.pwmask, u.url_or_host
+apk_blob_t apk_url_sanitize(apk_blob_t url, struct apk_atom_pool *atoms);
 
 struct apk_out {
 	int verbosity, progress_fd;

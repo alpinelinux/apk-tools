@@ -26,7 +26,7 @@ static uint8_t apk_ctype[128] = {
 	[','] = DEPNAME,
 	['-'] = PKGNAME,
 	['.'] = PKGNAME,
-	[':'] = REPOSEP|DEPNAME,
+	[':'] = DEPNAME,
 	['<'] = DEPCOMP,
 	['='] = DEPCOMP,
 	['>'] = DEPCOMP,

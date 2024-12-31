@@ -5,6 +5,20 @@
 
 #define assert_ptr_ok(c) _assert_true(!IS_ERR(c), #c, __FILE__, __LINE__)
 
+#define _assert_blob_equal(a, b, file, line) do { \
+		_assert_int_equal(a.len, b.len, file, line); \
+		_assert_memory_equal(a.ptr, b.ptr, a.len, file, line); \
+	} while (0)
+#define assert_blob_equal(a, b) _assert_blob_equal(a, b, __FILE__, __LINE__)
+
+#define _assert_blob_identical(a, b, file, line) do { \
+		_assert_int_equal(a.len, b.len, file, line); \
+		_assert_int_equal(cast_ptr_to_largest_integral_type(a.ptr), \
+				  cast_ptr_to_largest_integral_type(b.ptr), \
+				  file, line); \
+	} while (0)
+#define assert_blob_identical(a, b) _assert_blob_identical(a, b, __FILE__, __LINE__)
+
 void test_register(const char *, UnitTestFunction);
 
 #define APK_TEST(test_name) \
