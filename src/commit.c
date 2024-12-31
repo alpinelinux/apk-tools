@@ -122,7 +122,7 @@ static void count_change(struct apk_change *change, struct apk_stats *stats)
 
 static int dump_packages(struct apk_database *db, struct apk_change_array *changes,
 			 int (*cmp)(struct apk_change *change),
-			 const char *msg)
+			 bool details, const char *msg)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_change *change;
@@ -139,7 +139,7 @@ static int dump_packages(struct apk_database *db, struct apk_change_array *chang
 		else
 			name = change->old_pkg->name;
 
-		if (apk_out_verbosity(out) >= 2) {
+		if (details) {
 			if (!change->reinstall && change->new_pkg && change->old_pkg) {
 				apk_out(out, "  %s" BLOB_FMT " (" BLOB_FMT " -> " BLOB_FMT ")",
 					name->name,
@@ -183,6 +183,13 @@ static int cmp_new(struct apk_change *change)
 static int cmp_reinstall(struct apk_change *change)
 {
 	return change->reinstall;
+}
+
+static int cmp_non_repository(struct apk_change *change)
+{
+	if (!change->new_pkg) return 0;
+	if (change->new_pkg->repos & ~APK_REPOSITORY_CACHED) return 0;
+	return 1;
 }
 
 static int cmp_downgrade(struct apk_change *change)
@@ -377,24 +384,27 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	}
 	prog.total_changes_digits = calc_precision(prog.total.changes);
 
-	if ((apk_out_verbosity(out) > 1 || (db->ctx->flags & APK_INTERACTIVE)) &&
-	    !(db->ctx->flags & APK_SIMULATE)) {
+	if (apk_out_verbosity(out) > 1 || ((db->ctx->flags & APK_INTERACTIVE) && !(db->ctx->flags & APK_SIMULATE))) {
 		struct apk_change_array *sorted;
+		bool details = apk_out_verbosity(out) >= 2;
 
 		apk_change_array_init(&sorted);
 		apk_change_array_copy(&sorted, changeset->changes);
 		apk_array_qsort(sorted, sort_change);
 
-		r = dump_packages(db, sorted, cmp_remove,
+		r = dump_packages(db, sorted, cmp_non_repository, false,
+				   "NOTE: Consider running apk upgrade with --prune and/or --available.\n"
+				   "The following packages are no longer available from a repository");
+		r += dump_packages(db, sorted, cmp_remove, details,
 				  "The following packages will be REMOVED");
-		r += dump_packages(db, sorted, cmp_downgrade,
+		r += dump_packages(db, sorted, cmp_downgrade, details,
 				   "The following packages will be DOWNGRADED");
 		if (r || (db->ctx->flags & APK_INTERACTIVE) || apk_out_verbosity(out) > 2) {
-			r += dump_packages(db, sorted, cmp_new,
+			r += dump_packages(db, sorted, cmp_new, details,
 					   "The following NEW packages will be installed");
-			r += dump_packages(db, sorted, cmp_upgrade,
+			r += dump_packages(db, sorted, cmp_upgrade, details,
 					   "The following packages will be upgraded");
-			r += dump_packages(db, sorted, cmp_reinstall,
+			r += dump_packages(db, sorted, cmp_reinstall, details,
 					   "The following packages will be reinstalled");
 			if (download_size) {
 				size_unit = apk_get_human_size(download_size, &humanized);
