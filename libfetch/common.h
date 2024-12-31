@@ -84,15 +84,6 @@ struct fetchconn {
 	conn_t		*next_cached;
 };
 
-/* Structure used for error message lists */
-struct fetcherr {
-	const int	 num;
-	const int	 cat;
-	const char	*string;
-};
-
-void		 fetch_seterr(struct fetcherr *, int);
-void		 fetch_syserr(void);
 void		 fetch_info(const char *, ...)  LIBFETCH_PRINTFLIKE(1, 2);
 uintmax_t	 fetch_parseuint(const char *p, const char **endptr, int radix, uintmax_t max);
 int		 fetch_default_port(const char *);
@@ -112,9 +103,18 @@ int		 fetch_netrc_auth(struct url *url);
 int		 fetch_no_proxy_match(const char *);
 int		 fetch_urlpath_safe(char);
 
-#define http_seterr(n)	 fetch_seterr(http_errlist, n)
-#define netdb_seterr(n)	 fetch_seterr(netdb_errlist, n)
-#define url_seterr(n)	 fetch_seterr(url_errlist, n)
+static inline void _fetch_seterr(unsigned char category, int code) {
+	fetchLastErrCode = fetch_err_make(category, code);
+}
+static inline void fetch_syserr(void) {
+	_fetch_seterr(FETCH_ERRCAT_ERRNO, errno);
+}
+
+#define fetch_seterr(n)	_fetch_seterr(FETCH_ERRCAT_FETCH, n)
+#define url_seterr(n)	_fetch_seterr(FETCH_ERRCAT_URL, FETCH_ERR_##n)
+#define http_seterr(n)	_fetch_seterr(FETCH_ERRCAT_HTTP, n)
+#define netdb_seterr(n)	_fetch_seterr(FETCH_ERRCAT_NETDB, n)
+#define tls_seterr(n)	_fetch_seterr(FETCH_ERRCAT_TLS, n)
 
 fetchIO		*fetchIO_unopen(void *, ssize_t (*)(void *, void *, size_t),
     ssize_t (*)(void *, const void *, size_t), void (*)(void *));

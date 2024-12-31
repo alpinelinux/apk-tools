@@ -15,6 +15,7 @@
 #include <sys/wait.h>
 
 #include <fetch.h>
+#include <netdb.h>
 
 #include "apk_io.h"
 
@@ -24,32 +25,71 @@ struct apk_fetch_istream {
 	struct url_stat urlstat;
 };
 
-static int fetch_maperror(int ec)
+struct maperr {
+	int fetch;
+	unsigned int apk;
+};
+
+static int fetch_maperr(const struct maperr *map, size_t mapsz, int ec, int default_apkerr)
 {
-	static const signed short map[] = {
-		[FETCH_ABORT] = -ECONNABORTED,
-		[FETCH_AUTH] = -EACCES,
-		[FETCH_DOWN] = -ECONNREFUSED,
-		[FETCH_EXISTS] = -EEXIST,
-		[FETCH_FULL] = -ENOSPC,
-		/* [FETCH_INFO] = , */
-		[FETCH_MEMORY] = -ENOMEM,
-		[FETCH_MOVED] = -ENOENT,
-		[FETCH_NETWORK] = -ENETUNREACH,
-		/* [FETCH_OK] = , */
-		[FETCH_PROTO] = -EPROTO,
-		[FETCH_RESOLV] = -APKE_DNS,
-		[FETCH_SERVER] = -APKE_REMOTE_IO,
-		[FETCH_TEMP] = -EAGAIN,
-		[FETCH_TIMEOUT] = -ETIMEDOUT,
-		[FETCH_UNAVAIL] = -ENOENT,
-		[FETCH_UNKNOWN] = -EIO,
-		[FETCH_URL] = -APKE_URL_FORMAT,
-		[FETCH_UNCHANGED] = -EALREADY,
+	for (; mapsz; mapsz--, map++) if (map->fetch == ec) return map->apk;
+	return default_apkerr;
+}
+
+static int fetch_maperror(long ec)
+{
+	static const struct maperr fetch_err[] = {
+		{ FETCH_OK,			0, },
+		{ FETCH_ERR_UNKNOWN,		EIO },
+		{ FETCH_ERR_UNCHANGED,		APKE_FILE_UNCHANGED },
+	};
+	static const struct maperr tls_err[] = {
+		{ FETCH_ERR_TLS,			APKE_TLS_ERROR },
+		{ FETCH_ERR_TLS_SERVER_CERT_HOSTNAME,	APKE_TLS_SERVER_CERT_HOSTNAME },
+		{ FETCH_ERR_TLS_SERVER_CERT_UNTRUSTED,	APKE_TLS_SERVER_CERT_UNTRUSTED },
+		{ FETCH_ERR_TLS_CLIENT_CERT_UNTRUSTED,	APKE_TLS_CLIENT_CERT_UNTRUSTED },
+		{ FETCH_ERR_TLS_HANDSHAKE,		APKE_TLS_HANDSHAKE },
+	};
+	static const struct maperr netdb_err[] = {
+		{ EAI_ADDRFAMILY, 	APKE_DNS_ADDRESS_FAMILY },
+		{ EAI_NODATA,		APKE_DNS_NO_DATA },
+		{ EAI_AGAIN,		APKE_DNS_AGAIN },
+		{ EAI_FAIL,		APKE_DNS_FAIL },
+		{ EAI_NONAME,		APKE_DNS_NO_NAME },
+	};
+	static const struct maperr http_err[] = {
+		{ 304, APKE_FILE_UNCHANGED },
+		{ 400, APKE_HTTP_400_BAD_REQUEST },
+		{ 401, APKE_HTTP_401_UNAUTHORIZED },
+		{ 403, APKE_HTTP_403_FORBIDDEN },
+		{ 404, APKE_HTTP_404_NOT_FOUND },
+		{ 405, APKE_HTTP_405_METHOD_NOT_ALLOWED },
+		{ 406, APKE_HTTP_406_NOT_ACCEPTABLE },
+		{ 407, APKE_HTTP_407_PROXY_AUTH_REQUIRED },
+		{ 408, APKE_HTTP_408_TIMEOUT },
+		{ 500, APKE_HTTP_500_INTERNAL_SERVER_ERROR },
+		{ 501, APKE_HTTP_501_NOT_IMPLEMENTED },
+		{ 502, APKE_HTTP_502_BAD_GATEWAY },
+		{ 503, APKE_HTTP_503_SERVICE_UNAVAILABLE, },
+		{ 504, APKE_HTTP_504_GATEWAY_TIMEOUT },
 	};
 
-	if (ec < 0 || ec >= ARRAY_SIZE(map) || !map[ec]) return -EIO;
-	return map[ec];
+	switch (fetch_err_category(ec)) {
+	case FETCH_ERRCAT_FETCH:
+		return fetch_maperr(fetch_err, ARRAY_SIZE(fetch_err), fetch_err_code(ec), EIO);
+	case FETCH_ERRCAT_URL:
+		return APKE_URL_FORMAT;
+	case FETCH_ERRCAT_ERRNO:
+		return fetch_err_code(ec);
+	case FETCH_ERRCAT_NETDB:
+		return fetch_maperr(netdb_err, ARRAY_SIZE(netdb_err), fetch_err_code(ec), APKE_DNS_FAIL);
+	case FETCH_ERRCAT_HTTP:
+		return fetch_maperr(http_err, ARRAY_SIZE(http_err), fetch_err_code(ec), APKE_HTTP_UNKNOWN);
+	case FETCH_ERRCAT_TLS:
+		return fetch_maperr(tls_err, ARRAY_SIZE(tls_err), fetch_err_code(ec), APKE_TLS_ERROR);
+	default:
+		return EIO;
+	}
 }
 
 static void fetch_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
@@ -114,7 +154,7 @@ struct apk_istream *apk_io_url_istream(const char *url, time_t since)
 
 	io = fetchXGet(u, &fis->urlstat, flags);
 	if (!io) {
-		rc = fetch_maperror(fetchLastErrCode);
+		rc = -fetch_maperror(fetchLastErrCode);
 		goto err;
 	}
 

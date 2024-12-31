@@ -74,27 +74,44 @@ struct url_list {
 #define SCHEME_HTTPS	"https"
 #define SCHEME_FILE	"file"
 
-/* Error codes */
-#define	FETCH_ABORT	 1
-#define	FETCH_AUTH	 2
-#define	FETCH_DOWN	 3
-#define	FETCH_EXISTS	 4
-#define	FETCH_FULL	 5
-#define	FETCH_INFO	 6
-#define	FETCH_MEMORY	 7
-#define	FETCH_MOVED	 8
-#define	FETCH_NETWORK	 9
-#define	FETCH_OK	10
-#define	FETCH_PROTO	11
-#define	FETCH_RESOLV	12
-#define	FETCH_SERVER	13
-#define	FETCH_TEMP	14
-#define	FETCH_TIMEOUT	15
-#define	FETCH_UNAVAIL	16
-#define	FETCH_UNKNOWN	17
-#define	FETCH_URL	18
-#define	FETCH_VERBOSE	19
-#define	FETCH_UNCHANGED	20
+enum {
+	/* Error categories */
+	FETCH_ERRCAT_FETCH = 0,
+	FETCH_ERRCAT_ERRNO,
+	FETCH_ERRCAT_NETDB,
+	FETCH_ERRCAT_HTTP,
+	FETCH_ERRCAT_URL,
+	FETCH_ERRCAT_TLS,
+
+	/* Error FETCH category codes */
+	FETCH_OK = 0,
+	FETCH_ERR_UNKNOWN,
+	FETCH_ERR_UNCHANGED,
+
+	/* Error URL category codes */
+	FETCH_ERR_URL_MALFORMED = 1,
+	FETCH_ERR_URL_BAD_SCHEME,
+	FETCH_ERR_URL_BAD_PORT,
+	FETCH_ERR_URL_BAD_HOST,
+	FETCH_ERR_URL_BAD_AUTH,
+
+	/* Error TLS category codes */
+	FETCH_ERR_TLS = 1,
+	FETCH_ERR_TLS_SERVER_CERT_ABSENT,
+	FETCH_ERR_TLS_SERVER_CERT_HOSTNAME,
+	FETCH_ERR_TLS_SERVER_CERT_UNTRUSTED,
+	FETCH_ERR_TLS_CLIENT_CERT_UNTRUSTED,
+	FETCH_ERR_TLS_HANDSHAKE,
+};
+
+#define fetch_err_make(category, code) ((((unsigned long)(unsigned char)category) << 32) + (unsigned long)(unsigned int)code)
+
+static inline unsigned char fetch_err_category(unsigned long err) {
+	return (unsigned char)(err >> 32);
+}
+static inline int fetch_err_code(unsigned long err) {
+	return (int)err;
+}
 
 #if defined(__cplusplus)
 extern "C" {
@@ -164,9 +181,7 @@ typedef int (*auth_t)(struct url *);
 extern auth_t		 fetchAuthMethod;
 
 /* Last error code */
-extern int		 fetchLastErrCode;
-#define MAXERRSTRING 256
-extern char		 fetchLastErrString[MAXERRSTRING];
+extern long		 fetchLastErrCode;
 
 /* I/O timeout */
 extern int		 fetchTimeout;

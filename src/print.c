@@ -21,9 +21,33 @@
 #include "apk_io.h"
 
 #define DECLARE_ERRMSGS(func) \
-	func(APKE_EOF,			"unexpected end of file") \
-	func(APKE_DNS,			"DNS error (try again later)") \
-	func(APKE_URL_FORMAT,		"invalid URL (check your repositories file)") \
+	func(APKE_FILE_UNCHANGED,		"file is unchanged") \
+	func(APKE_EOF,				"unexpected end of file") \
+	func(APKE_DNS_FAIL,			"DNS: non-recoverable failure") \
+	func(APKE_DNS_ADDRESS_FAMILY,		"DNS: address family for host not supported") \
+	func(APKE_DNS_AGAIN,			"DNS: transient error (try again later)") \
+	func(APKE_DNS_NO_DATA,			"DNS: no address for host") \
+	func(APKE_DNS_NO_NAME,			"DNS: name does not exist") \
+	func(APKE_TLS_ERROR,			"TLS: unspecified error") \
+	func(APKE_TLS_SERVER_CERT_HOSTNAME,	"TLS: server hostname mismatch") \
+	func(APKE_TLS_SERVER_CERT_UNTRUSTED,	"TLS: server certificate not trusted") \
+	func(APKE_TLS_CLIENT_CERT_UNTRUSTED,	"TLS: client certificate not trusted") \
+	func(APKE_TLS_HANDSHAKE,		"TLS: handshake failed (client cert needed?)") \
+	func(APKE_URL_FORMAT,			"invalid URL (check your repositories file)") \
+	func(APKE_HTTP_400_BAD_REQUEST,		"HTTP 400: Bad Request" ) \
+	func(APKE_HTTP_401_UNAUTHORIZED,	"HTTP 401: Unauthorized" ) \
+	func(APKE_HTTP_403_FORBIDDEN,		"HTTP 403: Forbidden" ) \
+	func(APKE_HTTP_404_NOT_FOUND,		"HTTP 404: Not Found" ) \
+	func(APKE_HTTP_405_METHOD_NOT_ALLOWED,	"HTTP 405: Method Not Allowed" ) \
+	func(APKE_HTTP_406_NOT_ACCEPTABLE,	"HTTP 406: Not Acceptable" ) \
+	func(APKE_HTTP_407_PROXY_AUTH_REQUIRED,	"HTTP 407: Proxy Authentication Required" ) \
+	func(APKE_HTTP_408_TIMEOUT,		"HTTP 408: Timeout" ) \
+	func(APKE_HTTP_500_INTERNAL_SERVER_ERROR, "HTTP 500: Internal Server Error" ) \
+	func(APKE_HTTP_501_NOT_IMPLEMENTED,	"HTTP 501: Not Implemented" ) \
+	func(APKE_HTTP_502_BAD_GATEWAY,		"HTTP 502: Bad Gateway" ) \
+	func(APKE_HTTP_503_SERVICE_UNAVAILABLE,	"HTTP 503: Service Unavailable" ) \
+	func(APKE_HTTP_504_GATEWAY_TIMEOUT,	"HTTP 504: Gateway Timeout" ) \
+	func(APKE_HTTP_UNKNOWN,			"HTTP: unrecognized server error" ) \
 	func(APKE_CRYPTO_ERROR,		"crypto error") \
 	func(APKE_CRYPTO_NOT_SUPPORTED,	"cryptographic algorithm not supported") \
 	func(APKE_CRYPTO_KEY_FORMAT,	"cryptographic key format not recognized") \
@@ -78,14 +102,7 @@ const char *apk_error_str(int error)
 	if (error < 0) error = -error;
 	if (error >= APKE_FIRST_VALUE && error < APKE_FIRST_VALUE + ARRAY_SIZE(errmsg_index))
 		return (char *)&errors + errmsg_index[error - APKE_FIRST_VALUE];
-
-	switch (error) {
-	case ECONNABORTED:	return "network connection aborted";
-	case ECONNREFUSED:	return "could not connect to server (check repositories file)";
-	case ENETUNREACH:	return "network error (check Internet connection and firewall)";
-	case EAGAIN:		return "temporary error (try again later)";
-	default:		return strerror(error);
-	}
+	return strerror(error);
 }
 
 int apk_exit_status_str(int status, char *buf, size_t sz)

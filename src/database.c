@@ -759,7 +759,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo, str
 	apk_extract_init(&ectx, db->ctx, NULL);
 	if (pkg) apk_extract_verify_identity(&ectx, pkg->digest_alg, apk_pkg_digest_blob(pkg));
 	r = apk_extract(&ectx, is);
-	if (r == -EALREADY) {
+	if (r == -APKE_FILE_UNCHANGED) {
 		if (!tee_flags) utimensat(cache_fd, cache_url, NULL, 0);
 		return r;
 	}
@@ -1537,7 +1537,7 @@ static void open_repository(struct apk_database *db, int repo_num)
 				case 0:
 					db->repositories.updated++;
 					// Fallthrough
-				case -EALREADY:
+				case -APKE_FILE_UNCHANGED:
 					update_error = 0;
 					repo->stale = 0;
 					break;

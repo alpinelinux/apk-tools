@@ -58,111 +58,13 @@
 
 static int ssl_verify_mode = SSL_VERIFY_PEER;
 
-/*
- * Error messages for resolver errors
- */
-static struct fetcherr netdb_errlist[] = {
-	{ EAI_ADDRFAMILY, FETCH_RESOLV, "Address family for host not supported" },
-	{ EAI_NODATA,	FETCH_RESOLV,	"No address for host" },
-	{ EAI_AGAIN,	FETCH_TEMP,	"Transient resolver failure" },
-	{ EAI_FAIL,	FETCH_RESOLV,	"Non-recoverable resolver failure" },
-	{ EAI_NONAME,	FETCH_RESOLV,	"Host does not resolve" },
-	{ -1,		FETCH_UNKNOWN,	"Unknown resolver error" }
-};
-
 /*** Error-reporting functions ***********************************************/
-
-/*
- * Map error code to string
- */
-static struct fetcherr *
-fetch_finderr(struct fetcherr *p, int e)
-{
-	while (p->num != -1 && p->num != e)
-		p++;
-	return (p);
-}
 
 void
 fetch_no_check_certificate(void)
 {
 	ssl_verify_mode = SSL_VERIFY_NONE;
 }
-
-/*
- * Set error code
- */
-void
-fetch_seterr(struct fetcherr *p, int e)
-{
-	p = fetch_finderr(p, e);
-	fetchLastErrCode = p->cat;
-	snprintf(fetchLastErrString, MAXERRSTRING, "%s", p->string);
-}
-
-/*
- * Set error code according to errno
- */
-void
-fetch_syserr(void)
-{
-	switch (errno) {
-	case 0:
-		fetchLastErrCode = FETCH_OK;
-		break;
-	case EPERM:
-	case EACCES:
-	case EROFS:
-#ifdef EAUTH
-	case EAUTH:
-#endif
-#ifdef ENEEDAUTH
-	case ENEEDAUTH:
-#endif
-		fetchLastErrCode = FETCH_AUTH;
-		break;
-	case ENOENT:
-	case EISDIR: /* XXX */
-		fetchLastErrCode = FETCH_UNAVAIL;
-		break;
-	case ENOMEM:
-		fetchLastErrCode = FETCH_MEMORY;
-		break;
-	case EBUSY:
-	case EAGAIN:
-		fetchLastErrCode = FETCH_TEMP;
-		break;
-	case EEXIST:
-		fetchLastErrCode = FETCH_EXISTS;
-		break;
-	case ENOSPC:
-		fetchLastErrCode = FETCH_FULL;
-		break;
-	case EADDRINUSE:
-	case EADDRNOTAVAIL:
-	case ENETDOWN:
-	case ENETUNREACH:
-	case ENETRESET:
-	case EHOSTUNREACH:
-		fetchLastErrCode = FETCH_NETWORK;
-		break;
-	case ECONNABORTED:
-	case ECONNRESET:
-		fetchLastErrCode = FETCH_ABORT;
-		break;
-	case ETIMEDOUT:
-		fetchLastErrCode = FETCH_TIMEOUT;
-		break;
-	case ECONNREFUSED:
-	case EHOSTDOWN:
-		fetchLastErrCode = FETCH_DOWN;
-		break;
-	default:
-		fetchLastErrCode = FETCH_UNKNOWN;
-	}
-	snprintf(fetchLastErrString, MAXERRSTRING, "%s", strerror(errno));
-}
-
 
 /*
  * Emit status message
@@ -572,6 +474,23 @@ static int fetch_ssl_setup_client_certificate(SSL_CTX *ctx, int verbose)
 	return 1;
 }
 
+static int map_tls_error(void)
+{
+	unsigned long err = ERR_peek_error();
+	if (ERR_GET_LIB(err) != ERR_LIB_SSL) err = ERR_peek_last_error();
+	if (ERR_GET_LIB(err) != ERR_LIB_SSL) return FETCH_ERR_TLS;
+	switch (ERR_GET_REASON(err)) {
+	case SSL_R_CERTIFICATE_VERIFY_FAILED:
+		return FETCH_ERR_TLS_SERVER_CERT_UNTRUSTED;
+	case SSL_AD_REASON_OFFSET + TLS1_AD_UNKNOWN_CA:
+		return FETCH_ERR_TLS_CLIENT_CERT_UNTRUSTED;
+	case SSL_AD_REASON_OFFSET + SSL3_AD_HANDSHAKE_FAILURE:
+		return FETCH_ERR_TLS_HANDSHAKE;
+	default:
+		return FETCH_ERR_TLS;
+	}
+}
+
 /*
  * Enable SSL on a connection.
  */
@@ -586,35 +505,28 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 	conn->ssl_ctx = SSL_CTX_new(conn->ssl_meth);
 	SSL_CTX_set_mode(conn->ssl_ctx, SSL_MODE_AUTO_RETRY);
 
-	if (!fetch_ssl_setup_peer_verification(conn->ssl_ctx, verbose))
-		return (-1);
-	if (!fetch_ssl_setup_client_certificate(conn->ssl_ctx, verbose))
-		return (-1);
+	if (!fetch_ssl_setup_peer_verification(conn->ssl_ctx, verbose)) goto err;
+	if (!fetch_ssl_setup_client_certificate(conn->ssl_ctx, verbose)) goto err;
 
 	conn->ssl = SSL_new(conn->ssl_ctx);
-	if (conn->ssl == NULL){
-		fprintf(stderr, "SSL context creation failed\n");
-		return (-1);
-	}
+	if (conn->ssl == NULL) goto err;
+
 	conn->buf_events = 0;
 	SSL_set_fd(conn->ssl, conn->sd);
 	if (!SSL_set_tlsext_host_name(conn->ssl, (char *)(uintptr_t)URL->host)) {
 		fprintf(stderr,
 		    "TLS server name indication extension failed for host %s\n",
 		    URL->host);
-		return (-1);
+		goto err;
 	}
 
-	if (SSL_connect(conn->ssl) == -1){
-		ERR_print_errors_fp(stderr);
-		return (-1);
+	if (SSL_connect(conn->ssl) == -1) {
+		tls_seterr(map_tls_error());
+		return -1;
 	}
 
 	conn->ssl_cert = SSL_get_peer_certificate(conn->ssl);
-	if (!conn->ssl_cert) {
-		fprintf(stderr, "No server SSL certificate\n");
-		return -1;
-	}
+	if (!conn->ssl_cert) goto err;
 
 	if (getenv("SSL_NO_VERIFY_HOSTNAME") == NULL) {
 		if (verbose)
@@ -622,10 +534,10 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 		if (X509_check_host(conn->ssl_cert, URL->host, strlen(URL->host),
 				X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS,
 				NULL) != 1) {
-			fprintf(stderr, "SSL certificate subject doesn't match host %s\n",
-				URL->host);
-			if (ssl_verify_mode != SSL_VERIFY_NONE)
+			if (ssl_verify_mode != SSL_VERIFY_NONE) {
+				tls_seterr(FETCH_ERR_TLS_SERVER_CERT_HOSTNAME);
 				return -1;
+			}
 		}
 	}
 
@@ -645,6 +557,9 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 	}
 
 	return (0);
+err:
+	tls_seterr(FETCH_ERR_TLS);
+	return (-1);
 }
 
 /*

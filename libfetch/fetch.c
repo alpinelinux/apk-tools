@@ -41,31 +41,10 @@
 
 fetch_redirect_t fetchRedirectMethod;
 auth_t	 fetchAuthMethod;
-int	 fetchLastErrCode;
-char	 fetchLastErrString[MAXERRSTRING];
+long	 fetchLastErrCode;
 int	 fetchTimeout;
 volatile int	 fetchRestartCalls = 1;
 int	 fetchDebug;
-
-
-/*** Local data **************************************************************/
-
-/*
- * Error messages for parser errors
- */
-#define URL_MALFORMED		1
-#define URL_BAD_SCHEME		2
-#define URL_BAD_PORT		3
-#define URL_BAD_HOST		4
-#define URL_BAD_AUTH		5
-static struct fetcherr url_errlist[] = {
-	{ URL_MALFORMED,	FETCH_URL,	"Malformed URL" },
-	{ URL_BAD_SCHEME,	FETCH_URL,	"Invalid URL scheme" },
-	{ URL_BAD_PORT,		FETCH_URL,	"Invalid server port" },
-	{ URL_BAD_HOST,		FETCH_URL,	"Invalid (or too long) hostname" },
-	{ URL_BAD_AUTH,		FETCH_URL,	"Invalid (or too long) credentials" },
-	{ -1,			FETCH_UNKNOWN,	"Unknown parser error" }
-};
 
 
 /*** Public API **************************************************************/

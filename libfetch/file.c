@@ -99,8 +99,7 @@ fetchXGetFile(struct url *u, struct url_stat *us, const char *flags)
 	if (if_modified_since && u->last_modified > 0 &&
 	    u->last_modified >= us->mtime) {
 		close(fd);
-		fetchLastErrCode = FETCH_UNCHANGED;
-		snprintf(fetchLastErrString, MAXERRSTRING, "Unchanged");
+		fetch_seterr(FETCH_ERR_UNCHANGED);
 		return NULL;
 	}
 
