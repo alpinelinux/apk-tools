@@ -6,18 +6,6 @@ libfetch_src = [
 	'openssl-compat.c'
 ]
 
-errlist_generator = find_program('errlist.sh')
-
-httperr_h = custom_target(
-	'httpderr.h',
-	capture: true,
-	command: [errlist_generator, 'http_errlist', 'HTTP', '@INPUT@'],
-	output: 'httperr.h',
-	input: 'http.errors',
-)
-
-libfetch_src += [httperr_h]
-
 libfetch_cargs = [
 	'-DCA_CERT_FILE="/' + apk_confdir / 'ca.pem"',
 	'-DCA_CRL_FILE="/' + apk_confdir / 'crl.pem"',
