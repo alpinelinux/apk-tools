@@ -1,7 +1,6 @@
 libfetch_src = [
 	'common.c',
 	'fetch.c',
-	'file.c',
 	'http.c',
 	'openssl-compat.c'
 ]

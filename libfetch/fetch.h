@@ -72,7 +72,6 @@ struct url_list {
 /* Recognized schemes */
 #define SCHEME_HTTP	"http"
 #define SCHEME_HTTPS	"https"
-#define SCHEME_FILE	"file"
 
 enum {
 	/* Error categories */
@@ -122,14 +121,6 @@ void		fetch_no_check_certificate(void);
 void		fetchIO_close(fetchIO *);
 ssize_t		fetchIO_read(fetchIO *, void *, size_t);
 ssize_t		fetchIO_write(fetchIO *, const void *, size_t);
-
-/* fetchIO-specific functions */
-fetchIO		*fetchXGetFile(struct url *, struct url_stat *, const char *);
-fetchIO		*fetchGetFile(struct url *, const char *);
-fetchIO		*fetchPutFile(struct url *, const char *);
-int		 fetchStatFile(struct url *, struct url_stat *, const char *);
-int		 fetchListFile(struct url_list *, struct url *, const char *,
-		    const char *);
 
 /* HTTP-specific functions */
 fetchIO		*fetchXGetHTTP(struct url *, struct url_stat *, const char *);

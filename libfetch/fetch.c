@@ -62,9 +62,7 @@ fetchXGet(struct url *URL, struct url_stat *us, const char *flags)
 		us->size = -1;
 		us->atime = us->mtime = 0;
 	}
-	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
-		return (fetchXGetFile(URL, us, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
+	if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 		return (fetchXGetHTTP(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
 		return (fetchXGetHTTP(URL, us, flags));
@@ -90,9 +88,7 @@ fetchIO *
 fetchPut(struct url *URL, const char *flags)
 {
 
-	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
-		return (fetchPutFile(URL, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
+	if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 		return (fetchPutHTTP(URL, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
 		return (fetchPutHTTP(URL, flags));
@@ -112,9 +108,7 @@ fetchStat(struct url *URL, struct url_stat *us, const char *flags)
 		us->size = -1;
 		us->atime = us->mtime = 0;
 	}
-	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
-		return (fetchStatFile(URL, us, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
+	if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 		return (fetchStatHTTP(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
 		return (fetchStatHTTP(URL, us, flags));
@@ -131,9 +125,7 @@ fetchList(struct url_list *ue, struct url *URL, const char *pattern,
     const char *flags)
 {
 
-	if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
-		return (fetchListFile(ue, URL, pattern, flags));
-	else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
+	if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
 		return (fetchListHTTP(ue, URL, pattern, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
 		return (fetchListHTTP(ue, URL, pattern, flags));
@@ -392,22 +384,9 @@ fetchParseURL(const char *URL)
 		return (NULL);
 	}
 
-	if (*URL == '/') {
-		pre_quoted = 0;
-		strcpy(u->scheme, SCHEME_FILE);
-		p = URL;
-		goto quote_doc;
-	}
-	if (strncmp(URL, "file:", 5) == 0) {
-		pre_quoted = 1;
-		strcpy(u->scheme, SCHEME_FILE);
-		URL += 5;
-		if (URL[0] != '/' || URL[1] != '/' || URL[2] != '/') {
-			url_seterr(URL_MALFORMED);
-			goto ouch;
-		}
-		p = URL + 2;
-		goto quote_doc;
+	if (*URL == '/' || strncmp(URL, "file:", 5) == 0) {
+		url_seterr(URL_BAD_SCHEME);
+		goto ouch;
 	}
 	if (strncmp(URL, "http:", 5) == 0 ||
 	    strncmp(URL, "https:", 6) == 0) {
@@ -493,7 +472,6 @@ find_user:
 	if (!*p)
 		p = "/";
 
-quote_doc:
 	count = 1;
 	for (i = 0; p[i] != '\0'; ++i) {
 		if ((!pre_quoted && p[i] == '%') ||
