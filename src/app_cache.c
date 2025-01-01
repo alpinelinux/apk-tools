@@ -105,8 +105,6 @@ static int cache_download(struct cache_ctx *cctx, struct apk_database *db, struc
 static void cache_clean_item(struct apk_database *db, int static_cache, int dirfd, const char *name, struct apk_package *pkg)
 {
 	struct apk_out *out = &db->ctx->out;
-	char index_url[PATH_MAX];
-	int i;
 
 	if (!static_cache) {
 		if (strcmp(name, "installed") == 0) return;
@@ -120,12 +118,12 @@ static void cache_clean_item(struct apk_database *db, int static_cache, int dirf
 		}
 	}
 
-	for (i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++) {
-		/* Check if this is a valid index */
-		if (apk_repo_index_cache_url(db, &db->repos[i], NULL, index_url, sizeof index_url) >= 0 &&
+	/* Check if this is a valid index */
+	apk_db_foreach_repository(repo, db) {
+		char index_url[PATH_MAX];
+		if (apk_repo_index_cache_url(db, repo, NULL, index_url, sizeof index_url) >= 0 &&
 		    strcmp(name, index_url) == 0) return;
 	}
-
 delete:
 	apk_dbg(out, "deleting %s", name);
 	if (!(db->ctx->flags & APK_SIMULATE)) {

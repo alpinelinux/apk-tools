@@ -25,16 +25,11 @@ static int ver_indexes(struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
 	struct apk_database *db = ac->db;
-	struct apk_repository *repo;
-	int i;
 
-	for (i = APK_REPOSITORY_FIRST_CONFIGURED; i < db->num_repos; i++) {
-		repo = &db->repos[i];
+	apk_db_foreach_repository(repo, db)
 		apk_out(out, BLOB_FMT " [" BLOB_FMT "]",
 			BLOB_PRINTF(repo->description),
 			BLOB_PRINTF(repo->url_base_printable));
-	}
-
 	return 0;
 }
 

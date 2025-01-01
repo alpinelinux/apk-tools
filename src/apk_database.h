@@ -245,6 +245,9 @@ struct apk_database {
 	} installed;
 };
 
+#define apk_db_foreach_repository(_repo, db) \
+	for (struct apk_repository *_repo = &db->repos[APK_REPOSITORY_FIRST_CONFIGURED]; _repo < &db->repos[db->num_repos]; _repo++)
+
 static inline int apk_name_cmp_display(const struct apk_name *a, const struct apk_name *b) {
 	return strcasecmp(a->name, b->name) ?: strcmp(a->name, b->name);
 }
