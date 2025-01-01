@@ -8,29 +8,55 @@ repositories
 # DESCRIPTION
 
 /etc/apk/repositories is the list of package repositories *apk*(8) uses to
-retrieve package files for installation. Each line of this file specifies the
-location of a package repository, and optionally a tag.
+retrieve package files for installation. Each line of this file is of the
+following format:
 
-The location may be an _http://_, _https://_, or the path to a directory on
-the local filesystem. A tagged repository is prefixed with the *@tag* specifier,
-followed by a space and the repository location. For more information about
-repository tags, see *apk-world*(5).
+	# comment++
+\[@tag\] url
+
+The optional *@tag* can be present to indicate that the repository should
+not be used by default. Refer to *apk-world*(5) on how to enable installation
+of packages from tagged repositories.
+
+The *url* refers to a base repository path or index file ending in *.adb*.
+Currently supported schemes are:
+	- _http://_
+	- _https://_
+	- _file://_
+	- local filesystem path
 
 # REPOSITORY LAYOUT
 
-Each repository must store an index at *$repository/$arch/APKINDEX.tar.gz*. See
-*apk-index*(8) for information about generating this file. The packages
-themselves are stored at *$repository/$arch/$pkgname-$pkgver-r$pkgrel.apk*.
+If the *url* refers to an index file (ending in *.adb*), the path resolution
+works as follows:
+	- *url* is a URL to the index file
+	- *base_url* is *url* with last component stripped off
+	- default package path: *$base_url/$name-$version.apk*
 
-*apk*(8) verifies that each of these files has a valid cryptographic signature
-unless explicitly told not to via the *--allow-untrusted* flag. See
-*abuild-keygen*(1) for information about generating keys, *apk-keys*(5) to add
-keys to the list of trusted keys, *abuild-sign*(1) for information about using
-these keys to sign files, and *apk-verify*(8) for information about verifying
-those signatures.
+Otherwise the *type* is one of the repository types, and the path resolution
+works as follows:
+	- *url* is the *base_url* to the repository
+	- index is at *$base_url/$arch/APKINDEX.tar.gz*
+	- default package path: *$base_url/$arch/$name-$version.apk*
 
-# UPDATING INDICIES
+If the index file has a *pkgname-spec* set, it is used to construct the package path.
+Otherwise the default package path based on above rules is used.
 
-*apk*(8) fetches and stores the index for each package repository at
-*/var/cache/apk*. To fetch fresh indicies for all configured repositories, use
-*apk-update*(8).
+# CREATING INDEXES AND REPOSITORIES
+
+See *apk-mkndx*(8) on how to create index files and *apk-adbsign*(8) on modifying
+signatures.
+
+For the legacy index format refer to *apk-index*(8) for index files, *abuild-keygen*(1)
+for information about generating keys, *abuild-sign*(1) for information about using
+these keys to sign files.
+
+*apk-verify*(8) can verify both new and old style index and package files.
+
+# CLIENT INDEX UPDATING
+
+*apk*(8) fetches and stores the index for each repository at a local cache
+in */etc/apk/cache* or */var/cache/apk*. Refer to *apk-cache*(5) for more details.
+
+Refer to *apk-keys*(5) on how the client needs to be configured for verifying
+the index signatures.
