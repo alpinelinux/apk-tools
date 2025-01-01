@@ -13,8 +13,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 
 #include "apk_defines.h"
 #include "apk_print.h"
@@ -103,21 +101,6 @@ const char *apk_error_str(int error)
 	if (error >= APKE_FIRST_VALUE && error < APKE_FIRST_VALUE + ARRAY_SIZE(errmsg_index))
 		return (char *)&errors + errmsg_index[error - APKE_FIRST_VALUE];
 	return strerror(error);
-}
-
-int apk_exit_status_str(int status, char *buf, size_t sz)
-{
-	if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
-		return 0;
-	if (WIFEXITED(status))
-		return apk_fmt(buf, sz, "exited with error %d", WEXITSTATUS(status));
-	if (WIFSIGNALED(status))
-		return apk_fmt(buf, sz, "killed by signal %d", WTERMSIG(status));
-	if (WIFSTOPPED(status))
-		return apk_fmt(buf, sz, "stopped by signal %d", WSTOPSIG(status));
-	if (WIFCONTINUED(status))
-		return apk_fmt(buf, sz, "continued");
-	return apk_fmt(buf, sz, "status unknown %x", status);
 }
 
 static const char *size_units[] = {"B", "KiB", "MiB", "GiB", "TiB"};

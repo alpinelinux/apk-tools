@@ -15,7 +15,6 @@
 #include <dirent.h>
 #include <stdint.h>
 #include <sys/mman.h>
-#include <sys/wait.h>
 #include <sys/stat.h>
 #include <pwd.h>
 #include <grp.h>

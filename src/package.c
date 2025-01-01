@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 
