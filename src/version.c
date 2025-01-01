@@ -278,7 +278,7 @@ int apk_version_validate(apk_blob_t ver)
 	return t.token == TOKEN_END;
 }
 
-static int apk_version_compare_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
+static int apk_version_compare_fuzzy(apk_blob_t a, apk_blob_t b, bool fuzzy)
 {
 	struct token_state ta, tb;
 
@@ -317,14 +317,14 @@ static int apk_version_compare_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 
 int apk_version_compare(apk_blob_t a, apk_blob_t b)
 {
-	return apk_version_compare_fuzzy(a, b, FALSE);
+	return apk_version_compare_fuzzy(a, b, false);
 }
 
 int apk_version_match(apk_blob_t a, int op, apk_blob_t b)
 {
 	int ok = 0;
 	if ((op & APK_DEPMASK_ANY) == APK_DEPMASK_ANY ||
-	    apk_version_compare_fuzzy(a, b, op & APK_VERSION_FUZZY) & op) ok = 1;
+	    apk_version_compare_fuzzy(a, b, (op & APK_VERSION_FUZZY) ? true : false) & op) ok = 1;
 	if (op & APK_VERSION_CONFLICT) ok = !ok;
 	return ok;
 }

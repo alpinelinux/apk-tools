@@ -159,25 +159,21 @@ static void disqualify_package(struct apk_solver_state *ss, struct apk_package *
 	reevaluate_reverse_installif_pkg(ss, pkg);
 }
 
-static int dependency_satisfiable(struct apk_solver_state *ss, const struct apk_package *dpkg, struct apk_dependency *dep)
+static bool dependency_satisfiable(struct apk_solver_state *ss, const struct apk_package *dpkg, struct apk_dependency *dep)
 {
 	struct apk_name *name = dep->name;
 	struct apk_provider *p;
 
-	if (apk_dep_conflict(dep) && ss->ignore_conflict)
-		return TRUE;
-
-	if (name->ss.locked)
-		return apk_dep_is_provided(dpkg, dep, &name->ss.chosen);
-
+	if (apk_dep_conflict(dep) && ss->ignore_conflict) return true;
+	if (name->ss.locked) return apk_dep_is_provided(dpkg, dep, &name->ss.chosen);
 	if (name->ss.requirers == 0 && apk_dep_is_provided(dpkg, dep, &provider_none))
-		return TRUE;
+		return true;
 
 	foreach_array_item(p, name->providers)
 		if (p->pkg->ss.pkg_selectable && apk_dep_is_provided(dpkg, dep, p))
-			return TRUE;
+			return true;
 
-	return FALSE;
+	return false;
 }
 
 static void discover_name(struct apk_solver_state *ss, struct apk_name *name)

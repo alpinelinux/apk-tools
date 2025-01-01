@@ -257,9 +257,13 @@ struct apk_name *apk_db_get_name(struct apk_database *db, apk_blob_t name);
 struct apk_name *apk_db_query_name(struct apk_database *db, apk_blob_t name);
 int apk_db_get_tag_id(struct apk_database *db, apk_blob_t tag);
 
+enum {
+	APK_DIR_FREE = 0,
+	APK_DIR_REMOVE
+};
 void apk_db_dir_update_permissions(struct apk_database *db, struct apk_db_dir_instance *diri);
 void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir, struct apk_db_acl *expected_acl, struct apk_db_acl *new_acl);
-void apk_db_dir_unref(struct apk_database *db, struct apk_db_dir *dir, int allow_rmdir);
+void apk_db_dir_unref(struct apk_database *db, struct apk_db_dir *dir, int rmdir_mode);
 struct apk_db_dir *apk_db_dir_ref(struct apk_db_dir *dir);
 struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name);
 struct apk_db_dir *apk_db_dir_query(struct apk_database *db, apk_blob_t name);

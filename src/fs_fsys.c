@@ -265,7 +265,7 @@ static const struct apk_fsdir_ops *apk_fsops_get(apk_blob_t dir)
 	return &fsdir_ops_fsys;
 }
 
-static int need_checksum(const struct apk_file_info *fi)
+static bool need_checksum(const struct apk_file_info *fi)
 {
 	switch (fi->mode & S_IFMT) {
 	case S_IFDIR:
@@ -273,10 +273,10 @@ static int need_checksum(const struct apk_file_info *fi)
 	case S_IFBLK:
 	case S_IFCHR:
 	case S_IFIFO:
-		return FALSE;
+		return false;
 	default:
-		if (fi->link_target) return FALSE;
-		return TRUE;
+		if (fi->link_target) return false;
+		return true;
 	}
 }
 

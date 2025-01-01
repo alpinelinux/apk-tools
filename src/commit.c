@@ -30,15 +30,12 @@ struct progress {
 	int total_changes_digits;
 };
 
-static inline int pkg_available(struct apk_database *db, struct apk_package *pkg)
+static inline bool pkg_available(struct apk_database *db, struct apk_package *pkg)
 {
-	if (pkg->repos & db->available_repos)
-		return TRUE;
-	return FALSE;
+	return (pkg->repos & db->available_repos) ? true : false;
 }
 
-static int print_change(struct apk_database *db, struct apk_change *change,
-			struct progress *prog)
+static bool print_change(struct apk_database *db, struct apk_change *change, struct progress *prog)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_name *name;
@@ -84,8 +81,7 @@ static int print_change(struct apk_database *db, struct apk_change *change,
 			break;
 		}
 	}
-	if (msg == NULL)
-		return FALSE;
+	if (!msg) return false;
 
 	if (oneversion) {
 		apk_msg(out, "%s %s %s" BLOB_FMT " (" BLOB_FMT ")",
@@ -101,7 +97,7 @@ static int print_change(struct apk_database *db, struct apk_change *change,
 			BLOB_PRINTF(*oldpkg->version),
 			BLOB_PRINTF(*newpkg->version));
 	}
-	return TRUE;
+	return true;
 }
 
 static void count_change(struct apk_change *change, struct apk_stats *stats)

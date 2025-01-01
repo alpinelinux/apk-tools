@@ -284,13 +284,12 @@ static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
 	}
 
 	if (S_ISDIR(fi.mode)) {
-		int recurse = TRUE;
+		bool recurse = true;
 
 		switch (actx->mode) {
 		case MODE_BACKUP:
 			child = apk_db_dir_get(db, bfull);
-			if (!child->has_protected_children)
-				recurse = FALSE;
+			if (!child->has_protected_children) recurse = false;
 			if (apk_protect_mode_none(child->protect_mode))
 				goto recurse_check;
 			break;
@@ -379,8 +378,7 @@ recurse_check:
 	}
 
 done:
-	if (child)
-		apk_db_dir_unref(db, child, FALSE);
+	if (child) apk_db_dir_unref(db, child, APK_DIR_FREE);
 
 	atctx->pathlen -= bent.len;
 	return 0;
@@ -397,7 +395,7 @@ static int audit_directory_tree(struct audit_tree_ctx *atctx, int dirfd)
 	atctx->dir = apk_db_dir_get(atctx->db, path);
 	atctx->dir->modified = 1;
 	r = apk_dir_foreach_file(dirfd, audit_directory_tree_item, atctx);
-	apk_db_dir_unref(atctx->db, atctx->dir, FALSE);
+	apk_db_dir_unref(atctx->db, atctx->dir, APK_DIR_FREE);
 
 	return r;
 }

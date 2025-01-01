@@ -42,11 +42,6 @@
 #include "apk_adb.h"
 #include "apk_fs.h"
 
-enum {
-	APK_DIR_FREE = 0,
-	APK_DIR_REMOVE
-};
-
 static const char * const apk_static_cache_dir = "var/cache/apk";
 static const char * const apk_world_file = "etc/apk/world";
 static const char * const apk_arch_file = "etc/apk/arch";
@@ -1318,12 +1313,10 @@ no_mode_char:
 	return 0;
 }
 
-static int file_ends_with_dot_list(const char *file)
+static bool file_ends_with_dot_list(const char *file)
 {
 	const char *ext = strrchr(file, '.');
-	if (ext == NULL || strcmp(ext, ".list") != 0)
-		return FALSE;
-	return TRUE;
+	return (ext && strcmp(ext, ".list") == 0) ? true : false;
 }
 
 static int add_protected_paths_from_file(void *ctx, int dirfd, const char *file)
@@ -2581,7 +2574,7 @@ int apk_db_repository_check(struct apk_database *db)
 static void apk_db_run_pending_script(struct install_ctx *ctx)
 {
 	if (!ctx->script_pending) return;
-	ctx->script_pending = FALSE;
+	ctx->script_pending = false;
 	apk_ipkg_run_script(ctx->ipkg, ctx->db, ctx->script, ctx->script_args);
 }
 
@@ -2884,9 +2877,7 @@ static int apk_db_audit_file(struct apk_fsdir *d, apk_blob_t filename, struct ap
 	return 0;
 }
 
-static void apk_db_purge_pkg(struct apk_database *db,
-			     struct apk_installed_package *ipkg,
-			     int is_installed)
+static void apk_db_purge_pkg(struct apk_database *db, struct apk_installed_package *ipkg, bool is_installed)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_db_dir_instance *diri;
@@ -3052,7 +3043,8 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	struct apk_repository *repo;
 	struct apk_package *pkg = ipkg->pkg;
 	char file_url[PATH_MAX], cache_url[NAME_MAX];
-	int r, file_fd = AT_FDCWD, cache_fd = AT_FDCWD, need_copy = FALSE;
+	int r, file_fd = AT_FDCWD, cache_fd = AT_FDCWD;
+	bool need_copy = false;
 
 	if (!pkg->filename_ndx) {
 		repo = apk_db_select_repo(db, pkg);
@@ -3062,15 +3054,15 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 		}
 		r = apk_repo_package_url(db, repo, pkg, &file_fd, file_url, sizeof file_url);
 		if (r < 0) goto err_msg;
-		if (!(pkg->repos & db->local_repos)) need_copy = TRUE;
+		if (!(pkg->repos & db->local_repos)) need_copy = true;
 	} else {
 		if (strlcpy(file_url, db->filename_array->item[pkg->filename_ndx-1], sizeof file_url) >= sizeof file_url) {
 			r = -ENAMETOOLONG;
 			goto err_msg;
 		}
-		need_copy = TRUE;
+		need_copy = true;
 	}
-	if (!apk_db_cache_active(db)) need_copy = FALSE;
+	if (!apk_db_cache_active(db)) need_copy = false;
 
 	is = apk_istream_from_fd_url(file_fd, file_url, apk_db_url_since(db, 0));
 	if (IS_ERR(is)) {
@@ -3133,7 +3125,7 @@ int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg,
 		if (ipkg == NULL)
 			goto ret_r;
 		apk_ipkg_run_script(ipkg, db, APK_SCRIPT_PRE_DEINSTALL, script_args);
-		apk_db_purge_pkg(db, ipkg, TRUE);
+		apk_db_purge_pkg(db, ipkg, true);
 		apk_ipkg_run_script(ipkg, db, APK_SCRIPT_POST_DEINSTALL, script_args);
 		apk_pkg_uninstall(db, oldpkg);
 		goto ret_r;
@@ -3158,7 +3150,7 @@ int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg,
 		r = apk_db_unpack_pkg(db, ipkg, (oldpkg != NULL), prog, script_args);
 		if (r != 0) {
 			if (oldpkg != newpkg)
-				apk_db_purge_pkg(db, ipkg, FALSE);
+				apk_db_purge_pkg(db, ipkg, false);
 			apk_pkg_uninstall(db, newpkg);
 			goto ret_r;
 		}
@@ -3166,7 +3158,7 @@ int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg,
 	}
 
 	if (oldpkg != NULL && oldpkg != newpkg && oldpkg->ipkg != NULL) {
-		apk_db_purge_pkg(db, oldpkg->ipkg, TRUE);
+		apk_db_purge_pkg(db, oldpkg->ipkg, true);
 		apk_pkg_uninstall(db, oldpkg);
 	}
 
