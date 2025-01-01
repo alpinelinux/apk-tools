@@ -25,7 +25,7 @@ libapk.so.$(libapk_soname)-objs := \
 	atom.o balloc.o blob.o commit.o common.o context.o crypto.o crypto_$(CRYPTO).o ctype.o \
 	database.o hash.o extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o \
 	io.o io_gunzip.o io_url_$(URL_BACKEND).o tar.o package.o pathbuilder.o print.o process.o \
-	serialize.o serialize_json.o serialize_yaml.o solver.o trust.o version.o
+	repoparser.o serialize.o serialize_json.o serialize_yaml.o solver.o trust.o version.o
 
 ifneq ($(URL_BACKEND),wget)
 CFLAGS_ALL += -Ilibfetch

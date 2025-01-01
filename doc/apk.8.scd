@@ -124,8 +124,10 @@ The following options are available for all commands.
 	Print program version and exit.
 
 *-X, --repository* _REPO_
-	Specify additional package repository. This option can be specified
-	multiple times.
+	Specify additional package repository. *apk-repositories*(5) specified
+	commands are not parsed (use *--repository-config* for that).
+	Additionally, relative paths are accepted and interpreted relative
+	to the startup directory.
 
 *--allow-untrusted*
 	Install packages with untrusted signature or no signature.
@@ -239,6 +241,11 @@ The following options are available for all commands.
 	option overrides the normal repositories file and repositories.d directory
 	processing. The given _REPOFILE_ is relative to the startup directory since
 	apk 2.12.0_rc2.
+
+*--repository-config* _REPOCONFIG_
+	Specify additional package repository configuration. The _REPOCONFIG_ is
+	parsed exactly the same way as if it was read from a *apk-repositories*(5)
+	specified *.list* file.
 
 *--timeout* _TIME_
 	Timeout network connections if no progress is made in TIME seconds.

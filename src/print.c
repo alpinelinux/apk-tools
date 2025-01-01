@@ -83,6 +83,9 @@
 	func(APKE_UVOL_ROOT,		"uvol not supported with --root") \
 	func(APKE_REMOTE_IO,		"remote server returned error (try 'apk update')") \
 	func(APKE_NOT_EXTRACTED,	"file not extracted") \
+	func(APKE_REPO_SYNTAX,		"repositories file syntax error") \
+	func(APKE_REPO_KEYWORD,		"unsupported repositories file keyword") \
+	func(APKE_REPO_VARIABLE,	"undefined repositories file variable") \
 
 const char *apk_error_str(int error)
 {

@@ -5,12 +5,12 @@ TESTDIR=$(realpath "${TESTDIR:-"$(dirname "$0")"}")
 
 update_repo() {
 	local repo="$1"
-	if [ ! -f "$repo.adb" ] || [ "$repo" -nt "$repo.adb" ]; then
-		local tmpname="$repo.adb.$$"
+	if [ ! -f "$repo.tar.gz" ] || [ "$repo" -nt "$repo.tar.gz" ]; then
+		local tmpname="$repo.tar.gz.$$"
 		ln -snf "$repo" APKINDEX
 		tar chzf "$tmpname" APKINDEX
 		rm APKINDEX
-		mv "$tmpname" "$repo.adb"
+		mv "$tmpname" "$repo.tar.gz"
 	fi
 }
 
@@ -45,12 +45,12 @@ run_test() {
 			repo="${tag#* }"
 			tag="${tag% *}"
 			update_repo "$testdir/$repo"
-			echo "$tag test:/$testdir/$repo.adb" >> "$TEST_ROOT"/etc/apk/repositories
+			echo "$tag test:/$testdir/$repo.tar.gz" >> "$TEST_ROOT"/etc/apk/repositories
 			;;
 		"@REPO "*)
 			repo="${ln#* }"
 			update_repo "$testdir/$repo"
-			echo "test:/$testdir/$repo.adb" >> "$TEST_ROOT"/etc/apk/repositories
+			echo "test:/$testdir/$repo.tar.gz" >> "$TEST_ROOT"/etc/apk/repositories
 			;;
 		"@CACHE "*)
 			ln -snf "$testdir/${ln#* }" "$TEST_ROOT/etc/apk/cache/installed"

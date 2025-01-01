@@ -67,6 +67,7 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_quiet,			APK_OPT_SH("q") "quiet") \
 	OPT(OPT_GLOBAL_repositories_file,	APK_OPT_ARG "repositories-file") \
 	OPT(OPT_GLOBAL_repository,		APK_OPT_ARG APK_OPT_SH("X") "repository") \
+	OPT(OPT_GLOBAL_repository_config,	APK_OPT_ARG "repository-config") \
 	OPT(OPT_GLOBAL_root,			APK_OPT_ARG APK_OPT_SH("p") "root") \
 	OPT(OPT_GLOBAL_timeout,			APK_OPT_ARG "timeout") \
 	OPT(OPT_GLOBAL_update_cache,		APK_OPT_SH("U") "update-cache") \
@@ -95,6 +96,9 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 		break;
 	case OPT_GLOBAL_repository:
 		apk_string_array_add(&ac->repository_list, (char*) optarg);
+		break;
+	case OPT_GLOBAL_repository_config:
+		apk_string_array_add(&ac->repository_config_list, (char*) optarg);
 		break;
 	case OPT_GLOBAL_quiet:
 		if (ac->out.verbosity) ac->out.verbosity--;

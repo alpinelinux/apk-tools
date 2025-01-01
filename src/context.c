@@ -18,6 +18,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 	memset(ac, 0, sizeof *ac);
 	apk_balloc_init(&ac->ba, 64*1024);
 	apk_string_array_init(&ac->repository_list);
+	apk_string_array_init(&ac->repository_config_list);
 	apk_string_array_init(&ac->arch_list);
 	apk_trust_init(&ac->trust);
 	apk_out_reset(&ac->out);
@@ -38,6 +39,7 @@ void apk_ctx_free(struct apk_ctx *ac)
 	apk_digest_ctx_free(&ac->dctx);
 	apk_id_cache_free(&ac->id_cache);
 	apk_trust_free(&ac->trust);
+	apk_string_array_free(&ac->repository_config_list);
 	apk_string_array_free(&ac->repository_list);
 	apk_string_array_free(&ac->arch_list);
 	if (ac->root_fd) close(ac->root_fd);

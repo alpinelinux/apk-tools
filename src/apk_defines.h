@@ -93,6 +93,9 @@ enum {
 	APKE_UVOL_ROOT,
 	APKE_REMOTE_IO,
 	APKE_NOT_EXTRACTED,
+	APKE_REPO_SYNTAX,
+	APKE_REPO_KEYWORD,
+	APKE_REPO_VARIABLE,
 };
 
 static inline void *ERR_PTR(long error) { return (void*) error; }

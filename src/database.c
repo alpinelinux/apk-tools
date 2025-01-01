@@ -1340,6 +1340,7 @@ static int load_v2index(struct apk_extract_ctx *ectx, apk_blob_t *desc, struct a
 	struct apkindex_ctx *ctx = container_of(ectx, struct apkindex_ctx, ectx);
 	struct apk_repository *repo = &ctx->db->repos[ctx->repo];
 
+	if (!repo->v2_allowed) return -APKE_FORMAT_INVALID;
 	repo->description = *apk_atomize_dup(&ctx->db->atoms, *desc);
 	return apk_db_index_read(ctx->db, is, ctx->repo);
 }
@@ -1419,64 +1420,26 @@ static bool is_index_stale(struct apk_database *db, struct apk_repository *repo)
 	return (time(NULL) - st.st_mtime) > db->ctx->cache_max_age;
 }
 
-static bool get_word(apk_blob_t *line, apk_blob_t *word)
+static int add_repository_component(struct apk_repoparser *rp, apk_blob_t url, const char *index_file, apk_blob_t tag)
 {
-	apk_blob_cspn(*line, APK_CTYPE_REPOSITORY_SEPARATOR, word, line);
-	apk_blob_spn(*line, APK_CTYPE_REPOSITORY_SEPARATOR, NULL, line);
-	return word->len > 0;
-}
-
-bool apk_repo_parse_line(apk_blob_t line, struct apk_repoline *rl)
-{
-	apk_blob_t word;
-
-	memset(rl, 0, sizeof *rl);
-	rl->type = APK_REPOTYPE_V2;
-
-	if (!get_word(&line, &word)) return false;
-	if (word.ptr[0] == '@') {
-		rl->tag = word;
-		if (!get_word(&line, &word)) return false;
-	}
-	if (apk_blob_ends_with(word, APK_BLOB_STRLIT(".adb"))) rl->type = APK_REPOTYPE_NDX;
-	rl->url = word;
-	return line.len == 0;
-}
-
-static int add_repository(struct apk_database *db, apk_blob_t line)
-{
-	struct apk_out *out = &db->ctx->out;
+	struct apk_database *db = container_of(rp, struct apk_database, repoparser);
 	struct apk_repository *repo;
-	struct apk_repoline rl;
 	apk_blob_t url_base, url_index, url_base_printable, url_index_printable;
 	apk_blob_t pkgname_spec, dot = APK_BLOB_STRLIT(".");
 	char buf[PATH_MAX];
-	int tag_id = 0;
+	int tag_id = apk_db_get_tag_id(db, tag);
 
-	if (!line.ptr || line.len == 0 || line.ptr[0] == '#') return 0;
-	if (!apk_repo_parse_line(line, &rl)) {
-		apk_warn(out, "Unable to parse repository: " BLOB_FMT, BLOB_PRINTF(line));
-		return 0;
-	}
-	if (rl.type == APK_REPOTYPE_INVALID) {
-		apk_warn(out, "Unsupported repository: " BLOB_FMT, BLOB_PRINTF(line));
-		return 0;
-	}
-	if (rl.tag.ptr) tag_id = apk_db_get_tag_id(db, rl.tag);
-
-	const char *index_file = NULL;
-	switch (rl.type) {
-	case APK_REPOTYPE_V2:
-		index_file = "APKINDEX.tar.gz";
-		break;
-	}
 	if (index_file) {
-		url_base = apk_blob_trim_end(rl.url, '/');
-		url_index = apk_blob_fmt(buf, sizeof buf, BLOB_FMT "/" BLOB_FMT "/%s", BLOB_PRINTF(url_base), BLOB_PRINTF(*db->arches->item[0]), index_file);
+		url_base = apk_blob_trim_end(url, '/');
+		url_index = apk_blob_fmt(buf, sizeof buf, BLOB_FMT "/" BLOB_FMT "/%s",
+			BLOB_PRINTF(url_base),
+			BLOB_PRINTF(*db->arches->item[0]),
+			index_file);
+		url_base = APK_BLOB_PTR_LEN(url_index.ptr, url_base.len);
 		pkgname_spec = db->ctx->default_reponame_spec;
 	} else {
-		if (!apk_blob_rsplit(rl.url, '/', &url_base, NULL)) url_base = dot;
-		url_index = rl.url;
+		if (!apk_blob_rsplit(url, '/', &url_base, NULL)) url_base = dot;
+		url_index = url;
 		pkgname_spec = db->ctx->default_pkgname_spec;
 	}
 
@@ -1507,11 +1470,16 @@ static int add_repository(struct apk_database *db, apk_blob_t line)
 		.is_remote = apk_url_local_file(url_index.ptr, url_index.len) == NULL ||
 			apk_blob_starts_with(url_index, APK_BLOB_STRLIT("test:")),
 		.tag_mask = BIT(tag_id),
+		.v2_allowed = !apk_blob_ends_with(url_index, APK_BLOB_STRLIT(".adb")),
 	};
 	apk_digest_calc(&repo->hash, APK_DIGEST_SHA256, url_index.ptr, url_index.len);
 	if (is_index_stale(db, repo)) repo->stale = 1;
 	return 0;
 }
+
+static const struct apk_repoparser_ops db_repoparser_ops = {
+	.repository = add_repository_component,
+};
 
 static void open_repository(struct apk_database *db, int repo_num)
 {
@@ -1574,12 +1542,18 @@ err:
 	}
 }
 
+static int add_repository(struct apk_database *db, apk_blob_t line)
+{
+	return apk_repoparser_parse(&db->repoparser, line, true);
+}
+
 static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 {
 	struct apk_database *db = (struct apk_database *) ctx;
 	struct apk_out *out = &db->ctx->out;
 	int r;
 
+	apk_repoparser_set_file(&db->repoparser, file);
 	r = apk_db_parse_istream(db, apk_istream_from_file(dirfd, file), add_repository);
 	if (r != 0) {
 		if (dirfd != AT_FDCWD) return 0;
@@ -1907,6 +1881,7 @@ void apk_db_init(struct apk_database *db, struct apk_ctx *ac)
 	apk_blobptr_array_init(&db->arches);
 	apk_name_array_init(&db->available.sorted_names);
 	apk_package_array_init(&db->installed.sorted_packages);
+	apk_repoparser_init(&db->repoparser, &ac->out, &db_repoparser_ops);
 	db->permanent = 1;
 	db->root_fd = -1;
 	db->noarch = apk_atomize_dup(&db->atoms, APK_BLOB_STRLIT("noarch"));
@@ -1960,6 +1935,7 @@ int apk_db_open(struct apk_database *db)
 		apk_db_add_arch(db, APK_BLOB_STR(APK_DEFAULT_ARCH));
 		db->write_arch = 1;
 	}
+	apk_variable_set(&db->repoparser.variables, APK_BLOB_STRLIT("APK_ARCH"), *db->arches->item[0], APK_VARF_READONLY);
 
 	if (ac->flags & APK_NO_CHROOT) db->root_dev_works = access("/dev/fd/0", R_OK) == 0;
 	else db->root_dev_works = faccessat(db->root_fd, "dev/fd/0", R_OK, 0) == 0;
@@ -2045,9 +2021,13 @@ int apk_db_open(struct apk_database *db)
 	}
 
 	if (!(ac->open_flags & APK_OPENF_NO_CMDLINE_REPOS)) {
-		char **repo;
-		foreach_array_item(repo, ac->repository_list)
-			add_repository(db, APK_BLOB_STR(*repo));
+		apk_repoparser_set_file(&db->repoparser, "<command line>");
+		apk_array_foreach_item(repo, ac->repository_list)
+			apk_repoparser_parse(&db->repoparser, APK_BLOB_STR(repo), false);
+		apk_array_foreach_item(config, ac->repository_config_list) {
+			apk_blob_foreach_token(line, APK_BLOB_STR(config), APK_BLOB_STRLIT("\n"))
+				apk_repoparser_parse(&db->repoparser, line, true);
+		}
 	}
 
 	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS)) {
@@ -2251,6 +2231,8 @@ void apk_db_close(struct apk_database *db)
 	apk_string_array_free(&db->filename_array);
 	apk_pkgtmpl_free(&db->overlay_tmpl);
 	apk_dependency_array_free(&db->world);
+
+	apk_repoparser_free(&db->repoparser);
 	apk_name_array_free(&db->available.sorted_names);
 	apk_package_array_free(&db->installed.sorted_packages);
 	apk_hash_free(&db->available.packages);

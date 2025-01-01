@@ -16,6 +16,7 @@ enum {
 	APK_CTYPE_DEPENDENCY_COMPARER,
 	APK_CTYPE_DEPENDENCY_SEPARATOR,
 	APK_CTYPE_REPOSITORY_SEPARATOR,
+	APK_CTYPE_VARIABLE_NAME,
 };
 
 int apk_blob_spn(apk_blob_t blob, unsigned char ctype, apk_blob_t *l, apk_blob_t *r);

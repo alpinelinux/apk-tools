@@ -29,6 +29,7 @@ libapk_src = [
 	'pathbuilder.c',
 	'print.c',
 	'process.c',
+	'repoparser.c',
 	'serialize.c',
 	'serialize_json.c',
 	'serialize_yaml.c',

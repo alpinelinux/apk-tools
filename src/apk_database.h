@@ -16,6 +16,7 @@
 #include "apk_package.h"
 #include "apk_io.h"
 #include "apk_context.h"
+#include "apk_repoparser.h"
 
 #include "apk_provider_data.h"
 #include "apk_solver_data.h"
@@ -136,17 +137,6 @@ struct apk_name {
 	char name[];
 };
 
-enum {
-	APK_REPOTYPE_INVALID = 0,
-	APK_REPOTYPE_NDX,
-	APK_REPOTYPE_V2,
-};
-
-struct apk_repoline {
-	apk_blob_t tag, url;
-	unsigned int type;
-};
-
 struct apk_repository {
 	struct apk_digest hash;
 	time_t mtime;
@@ -155,6 +145,7 @@ struct apk_repository {
 	unsigned short is_remote : 1;
 	unsigned short stale : 1;
 	unsigned short available : 1;
+	unsigned short v2_allowed : 1;
 
 	apk_blob_t description;
 	apk_blob_t url_base;
@@ -212,6 +203,7 @@ struct apk_database {
 	struct apk_id_cache *id_cache;
 	struct apk_protected_path_array *protected_paths;
 	struct apk_blobptr_array *arches;
+	struct apk_repoparser repoparser;
 	struct apk_repository cache_repository;
 	struct apk_repository repos[APK_MAX_REPOS];
 	struct apk_repository_tag repo_tags[APK_MAX_TAGS];
@@ -300,7 +292,6 @@ int apk_db_repository_check(struct apk_database *db);
 unsigned int apk_db_get_pinning_mask_repos(struct apk_database *db, unsigned short pinning_mask);
 struct apk_repository *apk_db_select_repo(struct apk_database *db, struct apk_package *pkg);
 
-bool apk_repo_parse_line(apk_blob_t line, struct apk_repoline *rl);
 int apk_repo_index_cache_url(struct apk_database *db, struct apk_repository *repo, int *fd, char *buf, size_t len);
 int apk_repo_package_url(struct apk_database *db, struct apk_repository *repo, struct apk_package *pkg, int *fd, char *buf, size_t len);
 
