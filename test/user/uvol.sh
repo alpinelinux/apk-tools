@@ -28,7 +28,7 @@ APK="$APK --allow-untrusted --no-interactive --force-no-chroot --uvol-manager $T
 $APK add --initdb $TEST_USERMODE
 
 reset_uvol_db
-$APK add uvol-data-1.0.apk > apk.log 2>&1 || assert "uvol-data shuld have succeeded"
+$APK add uvol-data-1.0.apk > apk.log 2>&1 || assert "uvol-data should have succeeded"
 diff -u - apk.log <<EOF || assert "wrong scripts result"
 (1/1) Installing uvol-data (1.0)
 uvol(create): uvol-test: create data 13 ro
