@@ -13,6 +13,12 @@
 
 #include "apk_crypto.h"
 
+/* TODO: remove insecure hashes */
+static EVP_MD *md5 = NULL;
+static EVP_MD *sha1 = NULL;
+static EVP_MD *sha256 = NULL;
+static EVP_MD *sha512 = NULL;
+
 // Copmatibility with older openssl
 
 #if OPENSSL_VERSION_NUMBER < 0x1010000fL || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2070000fL)
@@ -29,14 +35,47 @@ static inline void EVP_MD_CTX_free(EVP_MD_CTX *mdctx)
 
 #endif
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+static inline void lookup_algorithms(void)
+{
+	md5 = EVP_MD_fetch(NULL, "md5", NULL);
+	sha1 = EVP_MD_fetch(NULL, "sha1", NULL);
+	sha256 = EVP_MD_fetch(NULL, "sha256", NULL);
+	sha512 = EVP_MD_fetch(NULL, "sha512", NULL);
+}
+
+static inline void free_algorithms(void)
+{
+	EVP_MD_free(md5);
+	EVP_MD_free(sha1);
+	EVP_MD_free(sha256);
+	EVP_MD_free(sha512);
+}
+#else
+static inline void lookup_algorithms(void)
+{
+	md5 = EVP_md5();
+	sha1 = EVP_sha1();
+	sha256 = EVP_sha256();
+	sha512 = EVP_sha512();
+}
+
+static inline void free_algorithms(void)
+{
+}
+#endif
+
 static inline const EVP_MD *apk_digest_alg_to_evp(uint8_t alg) {
+	/*
+	 * "none"/EVP_md_null is broken on several versions of libcrypto and should be avoided.
+	 */
 	switch (alg) {
 	case APK_DIGEST_NONE:	return NULL;
-	case APK_DIGEST_MD5:	return EVP_md5();
-	case APK_DIGEST_SHA1:	return EVP_sha1();
+	case APK_DIGEST_MD5:	return md5;
+	case APK_DIGEST_SHA1:	return sha1;
 	case APK_DIGEST_SHA256_160:
-	case APK_DIGEST_SHA256:	return EVP_sha256();
-	case APK_DIGEST_SHA512:	return EVP_sha512();
+	case APK_DIGEST_SHA256:	return sha256;
+	case APK_DIGEST_SHA512:	return sha512;
 	default:
 		assert(!"valid alg");
 		return NULL;
@@ -185,31 +224,30 @@ int apk_verify(struct apk_digest_ctx *dctx, void *sig, size_t len)
 	return 0;
 }
 
-#if OPENSSL_VERSION_NUMBER < 0x1010000fL || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2070000fL)
-
 static void apk_crypto_cleanup(void)
 {
+	free_algorithms();
+
+#if OPENSSL_VERSION_NUMBER < 0x1010000fL || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2070000fL)
 	EVP_cleanup();
 #ifndef OPENSSL_NO_ENGINE
 	ENGINE_cleanup();
 #endif
 	CRYPTO_cleanup_all_ex_data();
+#endif
 }
 
 void apk_crypto_init(void)
 {
 	atexit(apk_crypto_cleanup);
+
+#if OPENSSL_VERSION_NUMBER < 0x1010000fL || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2070000fL)
 	OpenSSL_add_all_algorithms();
 #ifndef OPENSSL_NO_ENGINE
 	ENGINE_load_builtin_engines();
 	ENGINE_register_all_complete();
 #endif
-}
-
-#else
-
-void apk_crypto_init(void)
-{
-}
-
 #endif
+
+	lookup_algorithms();
+}
