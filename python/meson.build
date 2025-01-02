@@ -17,3 +17,14 @@ py_ext = shared_module(
 	c_args: apk_cargs,
 	install_dir: py_inst.get_install_dir(),
 )
+
+env = environment()
+env.append('PYTHONPATH', meson.current_build_dir())
+env.append('TESTS_BUILDDIR', meson.current_build_dir())
+test('apk-python-tests',
+	py_inst,
+	args : ['-m', 'unittest', 'discover', '-s', 'tests'],
+	workdir : meson.current_source_dir(),
+	env : env,
+	depends : py_ext,
+)
