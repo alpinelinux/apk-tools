@@ -81,7 +81,7 @@ static void create_virtual_package(struct apk_package_tmpl *virtpkg, struct apk_
 
 	virtpkg->pkg.name = dep->name;
 	virtpkg->pkg.version = dep->version;
-	virtpkg->pkg.description = apk_atomize_dup0(&db->atoms, APK_BLOB_STRLIT("virtual meta package"));
+	virtpkg->pkg.description = apk_atomize_dup(&db->atoms, APK_BLOB_STRLIT("virtual meta package"));
 	virtpkg->pkg.arch = apk_atomize(&db->atoms, APK_BLOB_STRLIT("noarch"));
 	virtpkg->pkg.cached = 1;
 

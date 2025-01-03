@@ -109,13 +109,14 @@ static int search_parse_option(void *ctx, struct apk_ctx *ac, int opt, const cha
 
 static void print_result_pkg(struct search_ctx *ctx, struct apk_package *pkg)
 {
+	char buf[2048];
 	char **pmatch;
 
 	if (ctx->search_description) {
 		foreach_array_item(pmatch, ctx->filter) {
-			if (fnmatch(*pmatch, pkg->description->ptr, FNM_CASEFOLD) == 0 ||
-			    fnmatch(*pmatch, pkg->name->name, FNM_CASEFOLD) == 0)
-				goto match;
+			if (fnmatch(*pmatch, pkg->name->name, FNM_CASEFOLD) == 0) goto match;
+			if (apk_fmt(buf, sizeof buf, BLOB_FMT, BLOB_PRINTF(*pkg->description)) > 0 &&
+			    fnmatch(*pmatch, buf, FNM_CASEFOLD) == 0) goto match;
 		}
 		return;
 	}

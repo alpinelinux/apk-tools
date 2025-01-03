@@ -498,7 +498,7 @@ int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl,
 		pkg->version = apk_atomize_dup(&db->atoms, value);
 		break;
 	case 'T':
-		pkg->description = apk_atomize_dup0(&db->atoms, value);
+		pkg->description = apk_atomize_dup(&db->atoms, value);
 		break;
 	case 'U':
 		pkg->url = apk_atomize_dup(&db->atoms, value);
@@ -591,7 +591,7 @@ void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl
 
 	pkg->name = apk_db_get_name(db, adb_ro_blob(pkginfo, ADBI_PI_NAME));
 	pkg->version = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_VERSION));
-	pkg->description = apk_atomize_dup0(&db->atoms, apk_blob_truncate(adb_ro_blob(pkginfo, ADBI_PI_DESCRIPTION), 512));
+	pkg->description = apk_atomize_dup(&db->atoms, apk_blob_truncate(adb_ro_blob(pkginfo, ADBI_PI_DESCRIPTION), 512));
 	pkg->url = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_URL));
 	pkg->license = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_LICENSE));
 	pkg->arch = apk_atomize_dup(&db->atoms, adb_ro_blob(pkginfo, ADBI_PI_ARCH));
