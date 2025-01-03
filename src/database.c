@@ -699,27 +699,25 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo, str
 	struct apk_istream *is;
 	struct apk_ostream *os;
 	struct apk_extract_ctx ectx;
-	const char *download_url;
-	char cache_url[NAME_MAX], package_url[PATH_MAX];
+	char cache_url[NAME_MAX], download_url[PATH_MAX];
 	int r, download_fd, cache_fd, tee_flags = 0;
 	time_t download_mtime = 0;
 
 	if (pkg != NULL) {
 		r = apk_repo_package_url(db, &db->cache_repository, pkg, &cache_fd, cache_url, sizeof cache_url);
 		if (r < 0) return r;
-		r = apk_repo_package_url(db, repo, pkg, &download_fd, package_url, sizeof package_url);
+		r = apk_repo_package_url(db, repo, pkg, &download_fd, download_url, sizeof download_url);
 		if (r < 0) return r;
 		tee_flags = APK_ISTREAM_TEE_COPY_META;
-		download_url = package_url;
 	} else {
 		r = apk_repo_index_cache_url(db, repo, &cache_fd, cache_url, sizeof cache_url);
 		if (r < 0) return r;
 		download_mtime = repo->mtime;
 		download_fd = AT_FDCWD;
-		download_url = repo->url_index.ptr;
+		r = apk_fmt(download_url, sizeof download_url, BLOB_FMT, BLOB_PRINTF(repo->url_index));
+		if (r < 0) return r;
+		if (!prog) apk_out_progress_note(out, "fetch " BLOB_FMT, BLOB_PRINTF(repo->url_index_printable));
 	}
-
-	if (!pkg && !prog) apk_out_progress_note(out, "fetch " BLOB_FMT, BLOB_PRINTF(repo->url_index_printable));
 	if (db->ctx->flags & APK_SIMULATE) return 0;
 
 	os = apk_ostream_to_file(cache_fd, cache_url, 0644);
@@ -1486,7 +1484,7 @@ static int add_repository(struct apk_database *db, apk_blob_t line)
 		repo->tag_mask |= BIT(tag_id);
 		return 0;
 	}
-	url_index = *apk_atomize_dup0(&db->atoms, url_index);
+	url_index = *apk_atomize_dup(&db->atoms, url_index);
 	// url base is a prefix of url_index or '.'
 	if (url_base.ptr != dot.ptr) url_base = APK_BLOB_PTR_LEN(url_index.ptr, url_base.len);
 
@@ -1513,7 +1511,7 @@ static void open_repository(struct apk_database *db, int repo_num)
 	const char *error_action = "constructing url";
 	unsigned int repo_mask = BIT(repo_num);
 	unsigned int available_repos = 0;
-	char cache_url[NAME_MAX], *open_url = repo->url_index.ptr;
+	char open_url[NAME_MAX];
 	int r, update_error = 0, open_fd = AT_FDCWD;
 
 	error_action = "opening";
@@ -1536,13 +1534,16 @@ static void open_repository(struct apk_database *db, int repo_num)
 					break;
 				}
 			}
-			open_url = cache_url;
-			r = apk_repo_index_cache_url(db, repo, &open_fd, cache_url, sizeof cache_url);
+			r = apk_repo_index_cache_url(db, repo, &open_fd, open_url, sizeof open_url);
 			if (r < 0) goto err;
 		}
-	} else if (!apk_blob_starts_with(repo->url_base, APK_BLOB_STRLIT("test:"))) {
-		available_repos = repo_mask;
-		db->local_repos |= repo_mask;
+	} else {
+		if (!apk_blob_starts_with(repo->url_base, APK_BLOB_STRLIT("test:"))) {
+			available_repos = repo_mask;
+			db->local_repos |= repo_mask;
+		}
+		r = apk_fmt(open_url, sizeof open_url, BLOB_FMT, BLOB_PRINTF(repo->url_index));
+		if (r < 0) goto err;
 	}
 	r = load_index(db, apk_istream_from_fd_url(open_fd, open_url, apk_db_url_since(db, 0)), repo_num);
 err:
