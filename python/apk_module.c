@@ -57,19 +57,44 @@ static PyObject *version_match(PyObject *self, PyObject *args) {
 	int result = apk_version_match(ver1, op, ver2);
 	return PyBool_FromLong(result);
 }
-static PyMethodDef ApkMethods[] = {
-	{"version_validate", version_validate, METH_VARARGS, "Validate a version string."},
-	{"version_compare", version_compare, METH_VARARGS, "Compare two version strings. Returns an integer"},
-	{"version_match", version_match, METH_VARARGS, "Match two version strings with a specified operation."},
+
+static PyMethodDef ApkVersionMethods[] = {
+	{"validate", version_validate, METH_VARARGS, "Validate a version string."},
+	{"compare", version_compare, METH_VARARGS, "Compare two version strings. Returns an integer."},
+	{"match", version_match, METH_VARARGS, "Match two version strings with a specified operation."},
 	{NULL, NULL, 0, NULL}
 };
 
+static struct PyModuleDef apkversionmodule = {
+	PyModuleDef_HEAD_INIT,
+	"apk.version",
+	"Namespace for version-related functions in libapk.",
+	-1,
+	ApkVersionMethods
+};
+
+static PyObject *PyInit_apk_version(void) {
+	PyObject *version_module = PyModule_Create(&apkversionmodule);
+	if (!version_module) {
+		return NULL;
+	}
+
+	PyModule_AddIntConstant(version_module, "UNKNOWN", APK_VERSION_UNKNOWN);
+	PyModule_AddIntConstant(version_module, "EQUAL", APK_VERSION_EQUAL);
+	PyModule_AddIntConstant(version_module, "LESS", APK_VERSION_LESS);
+	PyModule_AddIntConstant(version_module, "GREATER", APK_VERSION_GREATER);
+	PyModule_AddIntConstant(version_module, "FUZZY", APK_VERSION_FUZZY);
+	PyModule_AddIntConstant(version_module, "CONFLICT", APK_VERSION_CONFLICT);
+
+	return version_module;
+}
+
 static struct PyModuleDef apkmodule = {
 	PyModuleDef_HEAD_INIT,
-	"apk", // Module name
-	"Python bindings for libapk version functions.",
+	"apk",
+	"Python bindings for libapk functions.",
 	-1,
-	ApkMethods
+	NULL
 };
 
 PyMODINIT_FUNC PyInit_apk(void) {
@@ -78,12 +103,12 @@ PyMODINIT_FUNC PyInit_apk(void) {
 		return NULL;
 	}
 
-	PyModule_AddIntConstant(module, "VERSION_UNKNOWN", APK_VERSION_UNKNOWN);
-	PyModule_AddIntConstant(module, "VERSION_EQUAL", APK_VERSION_EQUAL);
-	PyModule_AddIntConstant(module, "VERSION_LESS", APK_VERSION_LESS);
-	PyModule_AddIntConstant(module, "VERSION_GREATER", APK_VERSION_GREATER);
-	PyModule_AddIntConstant(module, "VERSION_FUZZY", APK_VERSION_FUZZY);
-	PyModule_AddIntConstant(module, "VERSION_CONFLICT", APK_VERSION_CONFLICT);
+	PyObject *version_module = PyInit_apk_version();
+	if (!version_module) {
+		Py_DECREF(module);
+		return NULL;
+	}
+	PyModule_AddObject(module, "version", version_module);
 
 	return module;
 }

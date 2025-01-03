@@ -1,20 +1,20 @@
 import unittest
-import apk
+from apk import version
 
 
 class TestApkModule(unittest.TestCase):
     def test_version_validate(self):
-        self.assertTrue(apk.version_validate("1.0"))
-        self.assertFalse(apk.version_validate("invalid-version"))
+        self.assertTrue(version.validate("1.0"))
+        self.assertFalse(version.validate("invalid-version"))
 
     def test_version_compare(self):
-        self.assertEqual(apk.version_compare("1.0", "1.0"), apk.VERSION_EQUAL)
-        self.assertEqual(apk.version_compare("1.0", "2.0"), apk.VERSION_LESS)
-        self.assertTrue(apk.version_compare("2.0", "1.0"), apk.VERSION_GREATER)
+        self.assertEqual(version.compare("1.0", "1.0"), version.EQUAL)
+        self.assertEqual(version.compare("1.0", "2.0"), version.LESS)
+        self.assertTrue(version.compare("2.0", "1.0"), version.GREATER)
 
     def test_version_match(self):
-        self.assertTrue(apk.version_match("1.0", apk.VERSION_EQUAL, "1.0"))
-        self.assertFalse(apk.version_match("1.0", apk.VERSION_LESS, "1.0"))
+        self.assertTrue(version.match("1.0", version.EQUAL, "1.0"))
+        self.assertFalse(version.match("1.0", version.LESS, "1.0"))
 
 
 if __name__ == "__main__":
