@@ -46,21 +46,14 @@ static int origin_matches(const struct list_ctx *ctx, const struct apk_package *
 	return 0;
 }
 
-static int is_orphaned(const struct apk_name *name)
+static int is_orphaned(const struct apk_database *db, const struct apk_name *name)
 {
 	struct apk_provider *p;
 	unsigned int repos = 0;
 
-	if (name == NULL)
-		return 0;
-
-	foreach_array_item(p, name->providers)
-		repos |= p->pkg->repos;
-
-	/* repo 1 is always installed-db, so if other bits are set it means the package is available somewhere
-	 * (either cache or in a proper repo)
-	 */
-	return (repos & ~BIT(APK_REPOSITORY_CACHED)) == 0;
+	if (!name) return 0;
+	foreach_array_item(p, name->providers) repos |= p->pkg->repos;
+	return (repos & db->available_repos) == 0;
 }
 
 /* returns the currently installed package if 'pkg' is a newer and installable version */
@@ -120,24 +113,13 @@ static void print_manifest(const struct apk_package *pkg, const struct list_ctx 
 
 static void filter_package(const struct apk_database *db, const struct apk_package *pkg, const struct list_ctx *ctx, const struct apk_name *name)
 {
-	if (ctx->match_origin && !origin_matches(ctx, pkg))
-		return;
+	if (ctx->match_origin && !origin_matches(ctx, pkg)) return;
+	if (ctx->installed && !pkg->ipkg) return;
+	if (ctx->orphaned && !is_orphaned(db, pkg->name)) return;
+	if (ctx->available && !apk_db_pkg_available(db, pkg)) return;
+	if (ctx->upgradable && !is_upgradable(db, pkg)) return;
 
-	if (ctx->installed && pkg->ipkg == NULL)
-		return;
-
-	if (ctx->orphaned && !is_orphaned(pkg->name))
-		return;
-
-	if (ctx->available && pkg->repos == BIT(APK_REPOSITORY_CACHED))
-		return;
-
-	if (ctx->upgradable && !is_upgradable(db, pkg))
-		return;
-
-	if (ctx->match_providers)
-		printf("<%s> ", name->name);
-
+	if (ctx->match_providers) printf("<%s> ", name->name);
 	if (ctx->manifest)
 		print_manifest(pkg, ctx);
 	else

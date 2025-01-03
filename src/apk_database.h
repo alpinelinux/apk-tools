@@ -167,9 +167,6 @@ struct apk_repository {
 #define APK_DB_LAYER_UVOL		1
 #define APK_DB_LAYER_NUM		2
 
-#define APK_REPOSITORY_CACHED		0
-#define APK_REPOSITORY_FIRST_CONFIGURED	1
-
 #define APK_DEFAULT_REPOSITORY_TAG	0
 #define APK_DEFAULT_PINNING_MASK	BIT(APK_DEFAULT_REPOSITORY_TAG)
 
@@ -214,6 +211,7 @@ struct apk_database {
 	struct apk_id_cache *id_cache;
 	struct apk_protected_path_array *protected_paths;
 	struct apk_blobptr_array *arches;
+	struct apk_repository cache_repository;
 	struct apk_repository repos[APK_MAX_REPOS];
 	struct apk_repository_tag repo_tags[APK_MAX_TAGS];
 	struct apk_atom_pool atoms;
@@ -246,7 +244,7 @@ struct apk_database {
 };
 
 #define apk_db_foreach_repository(_repo, db) \
-	for (struct apk_repository *_repo = &db->repos[APK_REPOSITORY_FIRST_CONFIGURED]; _repo < &db->repos[db->num_repos]; _repo++)
+	for (struct apk_repository *_repo = &db->repos[0]; _repo < &db->repos[db->num_repos]; _repo++)
 
 static inline int apk_name_cmp_display(const struct apk_name *a, const struct apk_name *b) {
 	return strcasecmp(a->name, b->name) ?: strcmp(a->name, b->name);
@@ -286,6 +284,9 @@ static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
 
 bool apk_db_arch_compatible(struct apk_database *db, apk_blob_t *arch);
 
+static inline bool apk_db_pkg_available(struct apk_database *db, struct apk_package *pkg) {
+	return (pkg->repos & db->available_repos) ? true : false;
+}
 struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_tmpl *tmpl);
 struct apk_package *apk_db_get_pkg(struct apk_database *db, struct apk_digest *id);
 struct apk_package *apk_db_get_pkg_by_name(struct apk_database *db, apk_blob_t filename, ssize_t file_size, apk_blob_t pkgname_spec);

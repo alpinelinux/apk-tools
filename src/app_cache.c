@@ -112,8 +112,8 @@ static void cache_clean_item(struct apk_database *db, int static_cache, int dirf
 			if (db->ctx->flags & APK_PURGE) {
 				if (db->permanent || !pkg->ipkg) goto delete;
 			}
-			if (pkg->repos & db->local_repos & ~BIT(APK_REPOSITORY_CACHED)) goto delete;
-			if (pkg->ipkg == NULL && !(pkg->repos & ~BIT(APK_REPOSITORY_CACHED))) goto delete;
+			if (pkg->repos & db->local_repos) goto delete;
+			if (!pkg->ipkg && !apk_db_pkg_available(db, pkg)) goto delete;
 			return;
 		}
 	}

@@ -93,7 +93,8 @@ struct apk_package {
 	unsigned char marked : 1;
 	unsigned char uninstallable : 1;
 	unsigned char cached_non_repository : 1;
-	unsigned char layer : 4;
+	unsigned char cached : 1;
+	unsigned char layer : 3;
 	uint8_t digest_alg;
 	uint8_t digest[];
 };

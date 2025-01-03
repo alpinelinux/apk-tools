@@ -193,7 +193,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 			int i, j;
 			for (i = j = 0; i < apk_array_len(world); i++) {
 				foreach_array_item(p, world->item[i].name->providers) {
-					if (p->pkg->repos & ~APK_REPOSITORY_CACHED) {
+					if (apk_db_pkg_available(db, p->pkg)) {
 						world->item[j++] = world->item[i];
 						break;
 					}

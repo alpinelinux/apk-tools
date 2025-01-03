@@ -32,7 +32,7 @@ struct progress {
 
 static inline bool pkg_available(struct apk_database *db, struct apk_package *pkg)
 {
-	return (pkg->repos & db->available_repos) ? true : false;
+	return (pkg->cached || apk_db_pkg_available(db, pkg)) ? true : false;
 }
 
 static bool print_change(struct apk_database *db, struct apk_change *change, struct progress *prog)
@@ -183,8 +183,7 @@ static int cmp_reinstall(struct apk_change *change)
 
 static int cmp_non_repository(struct apk_change *change)
 {
-	if (!change->new_pkg) return 0;
-	if (change->new_pkg->repos & ~APK_REPOSITORY_CACHED) return 0;
+	if (!change->new_pkg || change->new_pkg->repos) return 0;
 	return 1;
 }
 
@@ -538,13 +537,13 @@ static void print_pinning_errors(struct print_state *ps, struct apk_package *pkg
 	if (pkg->ipkg != NULL)
 		return;
 
-	if (!(pkg->repos & db->available_repos)) {
+	if (!apk_db_pkg_available(db, pkg) && !pkg->cached) {
 		label_start(ps, "masked in:");
 		apk_print_indented_fmt(&ps->i, "--no-network");
 	} else if (!(BIT(pkg->layer) & db->active_layers)) {
 		label_start(ps, "masked in:");
 		apk_print_indented_fmt(&ps->i, "layer");
-	} else if (pkg->repos == BIT(APK_REPOSITORY_CACHED) && !pkg->filename_ndx) {
+	} else if (!pkg->repos && pkg->cached && !pkg->filename_ndx) {
 		label_start(ps, "masked in:");
 		apk_print_indented_fmt(&ps->i, "cache");
 	} else {

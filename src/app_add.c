@@ -83,7 +83,7 @@ static void create_virtual_package(struct apk_package_tmpl *virtpkg, struct apk_
 	virtpkg->pkg.version = dep->version;
 	virtpkg->pkg.description = apk_atomize_dup0(&db->atoms, APK_BLOB_STRLIT("virtual meta package"));
 	virtpkg->pkg.arch = apk_atomize(&db->atoms, APK_BLOB_STRLIT("noarch"));
-	virtpkg->pkg.repos |= BIT(APK_REPOSITORY_CACHED);
+	virtpkg->pkg.cached = 1;
 
 	apk_digest_ctx_init(&dctx, APK_DIGEST_SHA1);
 	apk_digest_ctx_update(&dctx, &pid, sizeof pid);
