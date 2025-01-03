@@ -284,7 +284,7 @@ static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
 
 bool apk_db_arch_compatible(struct apk_database *db, apk_blob_t *arch);
 
-static inline bool apk_db_pkg_available(struct apk_database *db, struct apk_package *pkg) {
+static inline bool apk_db_pkg_available(const struct apk_database *db, const struct apk_package *pkg) {
 	return (pkg->repos & db->available_repos) ? true : false;
 }
 struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_tmpl *tmpl);
