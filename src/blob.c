@@ -298,9 +298,6 @@ void apk_blob_push_uint(apk_blob_t *to, unsigned int value, int radix)
 void apk_blob_push_hash_hex(apk_blob_t *to, apk_blob_t hash)
 {
 	switch (hash.len) {
-	case APK_DIGEST_LENGTH_MD5:
-		apk_blob_push_hexdump(to, hash);
-		break;
 	case APK_DIGEST_LENGTH_SHA1:
 		apk_blob_push_blob(to, APK_BLOB_STR("X1"));
 		apk_blob_push_hexdump(to, hash);
@@ -314,9 +311,6 @@ void apk_blob_push_hash_hex(apk_blob_t *to, apk_blob_t hash)
 void apk_blob_push_hash(apk_blob_t *to, apk_blob_t hash)
 {
 	switch (hash.len) {
-	case APK_DIGEST_LENGTH_MD5:
-		apk_blob_push_hexdump(to, hash);
-		break;
 	case APK_DIGEST_LENGTH_SHA1:
 		apk_blob_push_blob(to, APK_BLOB_STR("Q1"));
 		apk_blob_push_base64(to, hash);
@@ -577,13 +571,6 @@ void apk_blob_pull_digest(apk_blob_t *b, struct apk_digest *d)
 
 	if (unlikely(APK_BLOB_IS_NULL(*b))) goto fail;
 	if (unlikely(b->len < 2)) goto fail;
-	if (unlikely(dx(b->ptr[0]) != 0xff)) {
-		/* Assume MD5 for backwards compatibility */
-		apk_digest_set(d, APK_DIGEST_MD5);
-		apk_blob_pull_hexdump(b, APK_DIGEST_BLOB(*d));
-		if (unlikely(APK_BLOB_IS_NULL(*b))) goto fail;
-		return;
-	}
 
 	encoding = b->ptr[0];
 	switch (b->ptr[1]) {

@@ -103,8 +103,6 @@ static void handle_extended_header(struct apk_file_info *fi, apk_blob_t hdr)
 			int alg = APK_DIGEST_NONE;
 			if (apk_blob_compare(name, APK_BLOB_STR("SHA1")) == 0)
 				alg = APK_DIGEST_SHA1;
-			else if (apk_blob_compare(name, APK_BLOB_STR("MD5")) == 0)
-				alg = APK_DIGEST_MD5;
 			if (alg > fi->digest.alg) {
 				apk_digest_set(&fi->digest, alg);
 				apk_blob_pull_hexdump(&value, APK_DIGEST_BLOB(fi->digest));

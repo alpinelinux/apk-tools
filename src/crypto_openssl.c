@@ -13,8 +13,6 @@
 
 #include "apk_crypto.h"
 
-/* TODO: remove insecure hashes */
-static EVP_MD *md5 = NULL;
 static EVP_MD *sha1 = NULL;
 static EVP_MD *sha256 = NULL;
 static EVP_MD *sha512 = NULL;
@@ -38,7 +36,6 @@ static inline void EVP_MD_CTX_free(EVP_MD_CTX *mdctx)
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 static inline void lookup_algorithms(void)
 {
-	md5 = EVP_MD_fetch(NULL, "md5", NULL);
 	sha1 = EVP_MD_fetch(NULL, "sha1", NULL);
 	sha256 = EVP_MD_fetch(NULL, "sha256", NULL);
 	sha512 = EVP_MD_fetch(NULL, "sha512", NULL);
@@ -46,7 +43,6 @@ static inline void lookup_algorithms(void)
 
 static inline void free_algorithms(void)
 {
-	EVP_MD_free(md5);
 	EVP_MD_free(sha1);
 	EVP_MD_free(sha256);
 	EVP_MD_free(sha512);
@@ -54,7 +50,6 @@ static inline void free_algorithms(void)
 #else
 static inline void lookup_algorithms(void)
 {
-	md5 = EVP_md5();
 	sha1 = EVP_sha1();
 	sha256 = EVP_sha256();
 	sha512 = EVP_sha512();
@@ -71,7 +66,6 @@ static inline const EVP_MD *apk_digest_alg_to_evp(uint8_t alg) {
 	 */
 	switch (alg) {
 	case APK_DIGEST_NONE:	return NULL;
-	case APK_DIGEST_MD5:	return md5;
 	case APK_DIGEST_SHA1:	return sha1;
 	case APK_DIGEST_SHA256_160:
 	case APK_DIGEST_SHA256:	return sha256;

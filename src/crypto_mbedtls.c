@@ -28,7 +28,6 @@
 static inline const mbedtls_md_type_t apk_digest_alg_to_mbedtls_type(uint8_t alg) {
 	switch (alg) {
 	case APK_DIGEST_NONE:	return MBEDTLS_MD_NONE;
-	case APK_DIGEST_MD5:	return MBEDTLS_MD_MD5;
 	case APK_DIGEST_SHA1:	return MBEDTLS_MD_SHA1;
 	case APK_DIGEST_SHA256_160:
 	case APK_DIGEST_SHA256:	return MBEDTLS_MD_SHA256;
