@@ -1447,7 +1447,8 @@ static int add_repository(struct apk_database *db, apk_blob_t line)
 	struct apk_out *out = &db->ctx->out;
 	struct apk_repository *repo;
 	struct apk_repoline rl;
-	apk_blob_t url_base, url_index, pkgname_spec, dot = APK_BLOB_STRLIT(".");
+	apk_blob_t url_base, url_index, url_base_printable, url_index_printable;
+	apk_blob_t pkgname_spec, dot = APK_BLOB_STRLIT(".");
 	char buf[PATH_MAX];
 	int tag_id = 0;
 
@@ -1485,16 +1486,22 @@ static int add_repository(struct apk_database *db, apk_blob_t line)
 		return 0;
 	}
 	url_index = *apk_atomize_dup(&db->atoms, url_index);
-	// url base is a prefix of url_index or '.'
-	if (url_base.ptr != dot.ptr) url_base = APK_BLOB_PTR_LEN(url_index.ptr, url_base.len);
+	url_index_printable = apk_url_sanitize(url_index, &db->atoms);
+	url_base_printable = url_base;
+	if (url_base.ptr != dot.ptr) {
+		// url base is a prefix of url index
+		url_base = APK_BLOB_PTR_LEN(url_index.ptr, url_base.len);
+		url_base_printable = APK_BLOB_PTR_LEN(url_index_printable.ptr,
+			url_index_printable.len + url_base.len - url_index.len);
+	}
 
 	if (db->num_repos >= APK_MAX_REPOS) return -1;
 	repo = &db->repos[db->num_repos++];
 	*repo = (struct apk_repository) {
 		.url_base = url_base,
-		.url_base_printable = apk_url_sanitize(url_base, &db->atoms),
+		.url_base_printable = url_base_printable,
 		.url_index = url_index,
-		.url_index_printable = apk_url_sanitize(url_index, &db->atoms),
+		.url_index_printable = url_index_printable,
 		.pkgname_spec = pkgname_spec,
 		.is_remote = apk_url_local_file(url_index.ptr, url_index.len) == NULL,
 		.tag_mask = BIT(tag_id),
