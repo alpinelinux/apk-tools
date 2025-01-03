@@ -26,15 +26,16 @@ struct mkndx_ctx {
 	const char *output;
 	const char *description;
 	apk_blob_t pkgname_spec;
+	apk_blob_t filter_spec;
 	apk_blob_t rewrite_arch;
 
 	apk_blob_t r;
 	struct adb db;
 	struct adb_obj pkgs;
 	struct adb_obj pkginfo;
-	time_t index_mtime;
 	uint8_t hash_alg;
 	uint8_t pkgname_spec_set : 1;
+	uint8_t filter_spec_set : 1;
 
 	struct apk_extract_ctx ectx;
 };
@@ -44,6 +45,7 @@ struct mkndx_ctx {
 #define MKNDX_OPTIONS(OPT) \
 	OPT(OPT_MKNDX_description,	APK_OPT_ARG APK_OPT_SH("d") "description") \
 	OPT(OPT_MKNDX_hash,		APK_OPT_ARG "hash") \
+	OPT(OPT_MKNDX_filter_spec,	APK_OPT_ARG "filter-spec") \
 	OPT(OPT_MKNDX_index,		APK_OPT_ARG APK_OPT_SH("x") "index") \
 	OPT(OPT_MKNDX_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
 	OPT(OPT_MKNDX_pkgname_spec,	APK_OPT_ARG "pkgname-spec") \
@@ -63,6 +65,10 @@ static int mkndx_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 		break;
 	case OPT_MKNDX_description:
 		ictx->description = optarg;
+		break;
+	case OPT_MKNDX_filter_spec:
+		ictx->filter_spec = APK_BLOB_STR(optarg);
+		ictx->filter_spec_set = 1;
 		break;
 	case OPT_MKNDX_hash:
 		ictx->hash_alg = apk_digest_alg_by_str(optarg);
@@ -224,7 +230,7 @@ static int find_package(struct adb_obj *pkgs, apk_blob_t filename, size_t filesi
 
 		adb_wo_resetdb(&tmpl);
 		adb_wo_blob(&tmpl, ADBI_PI_NAME, APK_BLOB_PTR_LEN(filename.ptr, i));
-		adb_wo_int(&tmpl, ADBI_PI_FILE_SIZE, filesize);
+		if (filesize) adb_wo_int(&tmpl, ADBI_PI_FILE_SIZE, filesize);
 
 		int ndx = 0;
 		while ((ndx = adb_ra_find(pkgs, ndx, &tmpl)) > 0) {
@@ -243,21 +249,29 @@ static int find_package(struct adb_obj *pkgs, apk_blob_t filename, size_t filesi
 
 static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
+	struct mkndx_ctx *ctx = pctx;
 	struct apk_out *out = &ac->out;
 	struct apk_trust *trust = apk_ctx_get_trust(ac);
 	struct adb odb;
 	struct adb_obj oroot, opkgs, ndx;
-	struct apk_file_info fi;
 	struct apk_digest digest;
-	adb_val_t val;
+	struct apk_file_info fi;
+	apk_blob_t lookup_spec = ctx->pkgname_spec;
 	int r, errors = 0, newpkgs = 0, numpkgs;
-	struct mkndx_ctx *ctx = pctx;
 	char **parg, buf[NAME_MAX];
 	time_t index_mtime = 0;
 
-	if (ctx->output == NULL) {
+	r = -1;
+	if (!ctx->output) {
 		apk_err(out, "Please specify --output FILE");
-		return -1;
+		goto done;
+	}
+	if (ctx->filter_spec_set) {
+		if (!ctx->index) {
+			apk_err(out, "--filter-spec requires --index");
+			goto done;
+		}
+		lookup_spec = ctx->filter_spec;
 	}
 
 	apk_extract_init(&ctx->ectx, ac, &extract_ndxinfo_ops);
@@ -283,20 +297,29 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	}
 
 	foreach_array_item(parg, args) {
-		r = apk_fileinfo_get(AT_FDCWD, *parg, 0, &fi, 0);
-		if (r < 0) goto err_pkg;
+		adb_val_t val = ADB_VAL_NULL;
+		off_t file_size = 0;
+		bool use_previous = true;
 
-		if (index_mtime >= fi.mtime && (r = find_package(&opkgs, APK_BLOB_STR(*parg), fi.size, ctx->pkgname_spec)) > 0) {
+		if (!ctx->filter_spec_set) {
+			r = apk_fileinfo_get(AT_FDCWD, *parg, 0, &fi, 0);
+			if (r < 0) goto err_pkg;
+			file_size = fi.size;
+			use_previous = index_mtime >= fi.mtime;
+		}
+
+		if (use_previous && (r = find_package(&opkgs, APK_BLOB_STR(*parg), file_size, lookup_spec)) > 0) {
 			apk_dbg(out, "%s: indexed from old index", *parg);
 			val = adb_wa_append(&ctx->pkgs, adb_w_copy(&ctx->db, &odb, adb_ro_val(&opkgs, r)));
-		} else {
+		}
+		if (val == ADB_VAL_NULL && !ctx->filter_spec_set) {
 			apk_digest_reset(&digest);
 			apk_extract_reset(&ctx->ectx);
 			apk_extract_generate_identity(&ctx->ectx, ctx->hash_alg, &digest);
 			r = apk_extract(&ctx->ectx, apk_istream_from_file(AT_FDCWD, *parg));
 			if (r < 0 && r != -ECANCELED) goto err_pkg;
 
-			adb_wo_int(&ctx->pkginfo, ADBI_PI_FILE_SIZE, fi.size);
+			adb_wo_int(&ctx->pkginfo, ADBI_PI_FILE_SIZE, file_size);
 			adb_wo_blob(&ctx->pkginfo, ADBI_PI_HASHES, APK_DIGEST_BLOB(digest));
 
 			if (ctx->pkgname_spec_set &&
@@ -308,6 +331,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			val = adb_wa_append_obj(&ctx->pkgs, &ctx->pkginfo);
 			newpkgs++;
 		}
+		if (val == ADB_VAL_NULL) continue;
 		if (ADB_IS_ERROR(val)) {
 			r = ADB_VAL_VALUE(val);
 		err_pkg:

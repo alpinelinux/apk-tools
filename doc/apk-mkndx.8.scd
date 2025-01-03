@@ -20,6 +20,11 @@ apk mkndx - create apkv3 repository index file from packages
 	information based on the git commit SHA of aports HEAD at the time of
 	index generation.
 
+*--filter-spec* _PKGNAME_SPEC_
+	Filter previous index only. Each argument should be _PKGNAME_SPEC_ formatted
+	name of a package to include from the index. This can be used to create
+	a subset of existing index.
+
 *--hash* _HASH_
 	Use _HASH_ as the algorithm for apk v3 integrity. Currently supported:
 	- sha256 (default)
