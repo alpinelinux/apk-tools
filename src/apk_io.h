@@ -206,8 +206,7 @@ void apk_fileinfo_hash_xattr(struct apk_file_info *fi, uint8_t alg);
 
 typedef int apk_dir_file_cb(void *ctx, int dirfd, const char *entry);
 int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx);
-
-const char *apk_url_local_file(const char *url);
+const char *apk_url_local_file(const char *url, size_t maxlen);
 
 void apk_id_cache_init(struct apk_id_cache *idc, int root_fd);
 void apk_id_cache_free(struct apk_id_cache *idc);

@@ -1498,7 +1498,7 @@ static int add_repository(struct apk_database *db, apk_blob_t line)
 		.url_index = url_index,
 		.url_index_printable = apk_url_sanitize(url_index, &db->atoms),
 		.pkgname_spec = pkgname_spec,
-		.is_remote = apk_url_local_file(url_index.ptr) == NULL,
+		.is_remote = apk_url_local_file(url_index.ptr, url_index.len) == NULL,
 		.tag_mask = BIT(tag_id),
 	};
 	apk_digest_calc(&repo->hash, APK_DIGEST_SHA256, url_index.ptr, url_index.len);
@@ -1540,7 +1540,7 @@ static void open_repository(struct apk_database *db, int repo_num)
 			r = apk_repo_index_cache_url(db, repo, &open_fd, cache_url, sizeof cache_url);
 			if (r < 0) goto err;
 		}
-	} else if (!apk_blob_starts_with(repo->url_base, APK_BLOB_STRLIT("file://localhost/"))) {
+	} else if (!apk_blob_starts_with(repo->url_base, APK_BLOB_STRLIT("test:"))) {
 		available_repos = repo_mask;
 		db->local_repos |= repo_mask;
 	}

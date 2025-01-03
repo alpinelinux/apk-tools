@@ -30,7 +30,7 @@ APK="$APK --allow-untrusted --no-interactive"
 setup_tmp
 setup_repo "$PWD/repo"
 
-APK="$APK --from none  --repository file://localhost/$PWD/repo/index.adb"
+APK="$APK --from none  --repository test:/$PWD/repo/index.adb"
 $APK fetch meta
 assert_downloaded meta-1.0.apk
 

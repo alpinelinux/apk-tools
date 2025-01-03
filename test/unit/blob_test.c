@@ -46,3 +46,14 @@ APK_TEST(blob_url_sanitize) {
 	}
 	apk_atom_free(&atoms);
 }
+
+APK_TEST(url_local) {
+	assert_non_null(apk_url_local_file("/path/to/file", PATH_MAX));
+	assert_non_null(apk_url_local_file("file:/path/to/file", PATH_MAX));
+	assert_non_null(apk_url_local_file("file://localfile/path/to/file", PATH_MAX));
+	assert_non_null(apk_url_local_file("test:/path/to/file", PATH_MAX));
+	assert_non_null(apk_url_local_file("test_file://past-eos", 8));
+	assert_null(apk_url_local_file("http://example.com", PATH_MAX));
+	assert_null(apk_url_local_file("https://example.com", PATH_MAX));
+	assert_null(apk_url_local_file("unknown://example.com", PATH_MAX));
+}

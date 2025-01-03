@@ -187,7 +187,7 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 		os = apk_ostream_to_fd(STDOUT_FILENO);
 	} else {
 		if ((ctx->flags & FETCH_LINK) && pkg_fd >= 0) {
-			const char *urlfile = apk_url_local_file(pkg_url);
+			const char *urlfile = apk_url_local_file(pkg_url, PATH_MAX);
 			if (urlfile &&
 			    linkat(pkg_fd, pkg_url, ctx->outdir_fd, filename, AT_SYMLINK_FOLLOW) == 0)
 				goto done;

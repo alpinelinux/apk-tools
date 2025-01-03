@@ -19,12 +19,12 @@ setup_apkroot
 setup_repo "$PWD/repo"
 
 mkdir -p "$TEST_ROOT"/etc/apk/cache
-$APK add --initdb $TEST_USERMODE --repository "file://localhost/$PWD/repo/index.adb" meta
+$APK add --initdb $TEST_USERMODE --repository "test:/$PWD/repo/index.adb" meta
 
 # reinstall from cache
 $APK del meta
-$APK add --initdb $TEST_USERMODE --no-network --repository "file://localhost/$PWD/repo/index.adb" meta
+$APK add --initdb $TEST_USERMODE --no-network --repository "test:/$PWD/repo/index.adb" meta
 
 # make sure fetch still works
-$APK fetch --repository "file://localhost/$PWD/repo/index.adb" meta
+$APK fetch --repository "test:/$PWD/repo/index.adb" meta
 [ -f meta-1.0.apk ] || assert "meta package not fetched"

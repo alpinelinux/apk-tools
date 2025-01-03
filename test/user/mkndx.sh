@@ -28,10 +28,10 @@ https://test/test-b-1.0.apk
 EOF
 
 $APK mkndx --pkgname-spec '${name:3}/${name}-${version}.apk' -o index.adb test-a-1.0.apk test-b-1.0.apk
-$APK fetch --url --simulate --from none --repository "file://localhost/$PWD/index.adb" --pkgname-spec '${name}_${version}.pkg' test-a test-b > fetch.log 2>&1
+$APK fetch --url --simulate --from none --repository "test:/$PWD/index.adb" --pkgname-spec '${name}_${version}.pkg' test-a test-b > fetch.log 2>&1
 diff -u fetch.log - <<EOF || assert "wrong fetch result"
-file://localhost/$PWD/tes/test-a-1.0.apk
-file://localhost/$PWD/tes/test-b-1.0.apk
+test:/$PWD/tes/test-a-1.0.apk
+test:/$PWD/tes/test-b-1.0.apk
 EOF
 
 $APK mkndx --pkgname-spec '${name:3}/${name}-${version}.apk' -o index.adb test-a-1.0.apk test-b-1.0.apk

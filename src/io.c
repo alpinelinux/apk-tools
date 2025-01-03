@@ -609,7 +609,7 @@ struct apk_istream *apk_istream_from_fd(int fd)
 
 struct apk_istream *apk_istream_from_fd_url_if_modified(int atfd, const char *url, time_t since)
 {
-	const char *fn = apk_url_local_file(url);
+	const char *fn = apk_url_local_file(url, PATH_MAX);
 	if (fn != NULL) return apk_istream_from_file(atfd, fn);
 	return apk_io_url_istream(url, since);
 }
@@ -1120,20 +1120,17 @@ static struct cache_item *idcache_by_id(struct apk_id_hash *hash, unsigned long 
 	return 0;
 }
 
-const char *apk_url_local_file(const char *url)
+const char *apk_url_local_file(const char *url, size_t maxlen)
 {
-	if (strncmp(url, "file:", 5) == 0) {
-		if (strncmp(url, "file://localhost/", 17) == 0)
-			return &url[16];
-		return &url[5];
+	if (maxlen < 4 || url[0] == '/') return url;
+	if (maxlen >= 5 && strncmp(url, "file:", 5) == 0) return &url[5];
+	if (maxlen >= 5 && strncmp(url, "test:", 5) == 0) return &url[5];
+	for (size_t i = 0; i < min(10UL, maxlen) - 2; i++)  {
+		if (url[i] != ':') continue;
+		if (url[i+1] == '/' && url[i+2] == '/') return NULL;
+		break;
 	}
-
-	if (strncmp(url, "http:", 5) != 0 &&
-	    strncmp(url, "https:", 6) != 0 &&
-	    strncmp(url, "ftp:", 4) != 0)
-		return url;
-
-	return NULL;
+	return url;
 }
 
 void apk_id_cache_init(struct apk_id_cache *idc, int root_fd)

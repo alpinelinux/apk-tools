@@ -45,12 +45,12 @@ run_test() {
 			repo="${tag#* }"
 			tag="${tag% *}"
 			update_repo "$testdir/$repo"
-			echo "$tag file://localhost/$testdir/$repo.adb" >> "$TEST_ROOT"/etc/apk/repositories
+			echo "$tag test:/$testdir/$repo.adb" >> "$TEST_ROOT"/etc/apk/repositories
 			;;
 		"@REPO "*)
 			repo="${ln#* }"
 			update_repo "$testdir/$repo"
-			echo "file://localhost/$testdir/$repo.adb" >> "$TEST_ROOT"/etc/apk/repositories
+			echo "test:/$testdir/$repo.adb" >> "$TEST_ROOT"/etc/apk/repositories
 			;;
 		"@CACHE "*)
 			ln -snf "$testdir/${ln#* }" "$TEST_ROOT/etc/apk/cache/installed"
