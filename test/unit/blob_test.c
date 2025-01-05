@@ -19,12 +19,21 @@ APK_TEST(blob_contains) {
 	assert_int_equal(4, apk_blob_contains(APK_BLOB_STRLIT("bar foo"), APK_BLOB_STRLIT("foo")));
 }
 
-APK_TEST(blob_split) {
+static void _assert_split(apk_blob_t b, apk_blob_t split, apk_blob_t el, apk_blob_t er, const char *const file, int lineno)
+{
 	apk_blob_t l, r;
+	_assert_int_equal(1, apk_blob_split(b, split, &l, &r), file, lineno);
+	_assert_blob_equal(l, el, file, lineno);
+	_assert_blob_equal(r, er, file, lineno);
+}
+#define assert_split(b, split, el, er) _assert_split(b, split, el, er, __FILE__, __LINE__)
+
+APK_TEST(blob_split) {
+	apk_blob_t l, r, foo = APK_BLOB_STRLIT("foo"), bar = APK_BLOB_STRLIT("bar");
+
 	assert_int_equal(0, apk_blob_split(APK_BLOB_STRLIT("bar bar"), APK_BLOB_STRLIT("foo"), &l, &r));
-	assert_int_equal(1, apk_blob_split(APK_BLOB_STRLIT("bar foo"), APK_BLOB_STRLIT(" "), &l, &r));
-	assert_int_equal(0, apk_blob_compare(l, APK_BLOB_STRLIT("bar")));
-	assert_int_equal(0, apk_blob_compare(r, APK_BLOB_STRLIT("foo")));
+	assert_split(APK_BLOB_STRLIT("bar foo"), APK_BLOB_STRLIT(" "), bar, foo);
+	assert_split(APK_BLOB_STRLIT("bar = foo"), APK_BLOB_STRLIT(" = "), bar, foo);
 }
 
 APK_TEST(blob_url_sanitize) {
