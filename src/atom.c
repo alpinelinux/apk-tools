@@ -45,7 +45,7 @@ apk_blob_t *apk_atom_get(struct apk_atom_pool *atoms, apk_blob_t blob, int dupli
 	struct apk_atom_hashnode *atom;
 	unsigned long hash = apk_hash_from_key(&atoms->hash, blob);
 
-	if (blob.len < 0 || !blob.ptr) return &apk_atom_null;
+	if (blob.len <= 0 || !blob.ptr) return &apk_atom_null;
 
 	atom = (struct apk_atom_hashnode *) apk_hash_get_hashed(&atoms->hash, blob, hash);
 	if (atom) return &atom->blob;
