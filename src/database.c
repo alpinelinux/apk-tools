@@ -573,7 +573,10 @@ static int apk_db_parse_istream(struct apk_database *db, struct apk_istream *is,
 
 static int apk_db_add_arch(struct apk_database *db, apk_blob_t arch)
 {
-	apk_blob_t **item, *atom = apk_atomize_dup(&db->atoms, apk_blob_trim(arch));
+	apk_blob_t **item, *atom;
+
+	if (arch.len == 0) return 0;
+	atom = apk_atomize_dup(&db->atoms, apk_blob_trim(arch));
 	foreach_array_item(item, db->arches)
 		if (*item == atom) return 0;
 	apk_blobptr_array_add(&db->arches, atom);
