@@ -3193,52 +3193,59 @@ int __apk_db_foreach_sorted_package(struct apk_database *db, struct apk_string_a
 	struct apk_name *name;
 	struct apk_package *results[128];
 	struct apk_provider *p;
+	int walk_all = FALSE;
 	size_t i, num_res = 0;
 	int r;
 
 	if (!filter || !filter->num) {
 		filter = NULL;
-		goto walk_all;
+		walk_all = TRUE;
+	} else {
+		foreach_array_item(pmatch, filter) {
+			int no_match = TRUE;
+			if (strchr(*pmatch, '*')) {
+				walk_all = TRUE;
+				continue;
+			}
+			name = apk_hash_get(&db->available.names, APK_BLOB_STR(*pmatch));
+			if (name) {
+				foreach_array_item(p, name->providers) {
+					if (!provides && p->pkg->name != name) continue;
+					no_match = FALSE;
+					if (walk_all) break;
+					if (p->pkg->seen) continue;
+					if (num_res >= ARRAY_SIZE(results)) {
+						walk_all = TRUE;
+						break;
+					}
+					p->pkg->seen = 1;
+					results[num_res++] = p->pkg;
+				}
+			}
+			if (no_match) cb(db, *pmatch, NULL, cb_ctx);
+		}
+		for (i = 0; i < num_res; i++) results[i]->seen = 0;
 	}
 
-	foreach_array_item(pmatch, filter) {
-		name = (struct apk_name *) apk_hash_get(&db->available.names, APK_BLOB_STR(*pmatch));
-		if (strchr(*pmatch, '*')) goto walk_all;
-		if (!name) {
-			cb(db, *pmatch, NULL, cb_ctx);
-			continue;
+	if (walk_all) {
+		struct apk_name_array *name_array = apk_db_sorted_names(db);
+		struct apk_name **nameptr;
+		foreach_array_item(nameptr, name_array) {
+			name = *nameptr;
+			apk_name_sorted_providers(name);
+			foreach_array_item(p, name->providers) {
+				if (p->pkg->name != name) continue;
+				if (apk_pkg_match(p->pkg, filter, &match, provides)) {
+					r = cb(db, match, p->pkg, cb_ctx);
+					if (r) return r;
+				}
+			}
 		}
-
-		foreach_array_item(p, name->providers) {
-			if (!provides && p->pkg->name != name) continue;
-			if (p->pkg->seen) continue;
-			p->pkg->seen = 1;
-			if (num_res >= ARRAY_SIZE(results)) goto walk_all;
-			results[num_res++] = p->pkg;
-		}
-	}
-	for (i = 0; i < num_res; i++) results[i]->seen = 0;
-
-	qsort(results, num_res, sizeof results[0], cmp_package);
-	for (i = 0; i < num_res; i++) {
-		if (apk_pkg_match(results[i], filter, &match, provides)) {
-			r = cb(db, match, results[i], cb_ctx);
-			if (r) return r;
-		}
-	}
-	return 0;
-
-walk_all:
-	for (i = 0; i < num_res; i++) results[i]->seen = 0;
-
-	struct apk_name_array *a = apk_db_sorted_names(db);
-	for (i = 0; i < a->num; i++) {
-		name = a->item[i];
-		apk_name_sorted_providers(name);
-		foreach_array_item(p, name->providers) {
-			if (p->pkg->name != name) continue;
-			if (apk_pkg_match(p->pkg, filter, &match, provides)) {
-				r = cb(db, match, p->pkg, cb_ctx);
+	} else {
+		qsort(results, num_res, sizeof results[0], cmp_package);
+		for (i = 0; i < num_res; i++) {
+			if (apk_pkg_match(results[i], filter, &match, provides)) {
+				r = cb(db, match, results[i], cb_ctx);
 				if (r) return r;
 			}
 		}
