@@ -1414,6 +1414,7 @@ static bool is_index_stale(struct apk_database *db, struct apk_repository *repo)
 
 	if (!db->autoupdate) return false;
 	if (!repo->is_remote) return false;
+	if (!db->ctx->cache_max_age) return true;
 	if (db->ctx->force & APK_FORCE_REFRESH) return true;
 	if (apk_repo_index_cache_url(db, repo, &cache_fd, cache_url, sizeof cache_url) < 0) return true;
 	if (fstatat(cache_fd, cache_url, &st, 0) != 0) return true;

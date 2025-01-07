@@ -177,9 +177,7 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 		ac->cache_dir = optarg;
 		break;
 	case OPT_GLOBAL_update_cache:
-		/* Make it one minute, to avoid updating indexes twice
-		 * when doing self-upgrade's re-exec */
-		ac->cache_max_age = 60;
+		ac->cache_max_age = 0;
 		break;
 	case OPT_GLOBAL_uvol_manager:
 		ac->uvol = optarg;
@@ -559,7 +557,6 @@ int main(int argc, char **argv)
 		if (applet->context_size != 0)
 			applet_ctx = calloc(1, applet->context_size);
 		ctx.open_flags = applet->open_flags;
-		ctx.force |= applet->forced_force;
 		if (applet->parse) applet->parse(applet_ctx, &ctx, APK_OPTIONS_INIT, NULL);
 	}
 

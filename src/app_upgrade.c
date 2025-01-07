@@ -42,6 +42,12 @@ static int upgrade_parse_option(void *ctx, struct apk_ctx *ac, int opt, const ch
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) ctx;
 
 	switch (opt) {
+	case APK_OPTIONS_INIT:
+		if (getenv("APK_SELF_UPGRADE_DONE") != NULL) {
+			uctx->no_self_upgrade = 1;
+			ac->open_flags |= APK_OPENF_NO_AUTOUPDATE;
+		}
+		break;
 	case OPT_UPGRADE_no_self_upgrade:
 		uctx->no_self_upgrade = 1;
 		break;
@@ -119,7 +125,9 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	if (self_upgrade_only) goto ret;
 
 	apk_db_close(db);
+
 	apk_msg(out, "Continuing the upgrade transaction with new apk-tools:");
+	putenv("APK_SELF_UPGRADE_DONE=yes");
 
 	for (r = 0; apk_argv[r] != NULL; r++)
 		;
@@ -171,7 +179,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 	if (apk_db_repository_check(db) != 0) return -1;
 
 	solver_flags = APK_SOLVERF_UPGRADE | uctx->solver_flags;
-	if (!uctx->no_self_upgrade && apk_array_len(args) == 0) {
+	if (!ac->root_set && !uctx->no_self_upgrade && apk_array_len(args) == 0) {
 		r = apk_do_self_upgrade(db, solver_flags, uctx->self_upgrade_only);
 		if (r != 0)
 			return r;

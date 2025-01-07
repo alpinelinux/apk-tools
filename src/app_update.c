@@ -14,6 +14,18 @@
 #include "apk_version.h"
 #include "apk_print.h"
 
+static int update_parse_options(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+{
+	switch (opt) {
+	case APK_OPTIONS_INIT:
+		ac->cache_max_age = 0;
+		break;
+	default:
+		return -ENOTSUP;
+	}
+	return 0;
+}
+
 static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
@@ -43,7 +55,7 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 static struct apk_applet apk_update = {
 	.name = "update",
 	.open_flags = APK_OPENF_WRITE | APK_OPENF_ALLOW_ARCH,
-	.forced_force = APK_FORCE_REFRESH,
+	.parse = update_parse_options,
 	.main = update_main,
 };
 

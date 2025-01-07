@@ -34,12 +34,12 @@ struct apk_applet {
 	const char *name;
 	const char *options_desc;
 
-	unsigned int optgroup_commit : 1;
-	unsigned int optgroup_generation : 1;
-	unsigned int optgroup_source : 1;
-	unsigned int remove_empty_arguments : 1;
-	unsigned int open_flags, forced_force;
-	int context_size;
+	unsigned short optgroup_commit : 1;
+	unsigned short optgroup_generation : 1;
+	unsigned short optgroup_source : 1;
+	unsigned short remove_empty_arguments : 1;
+	unsigned short context_size;
+	unsigned int open_flags;
 
 	int (*parse)(void *ctx, struct apk_ctx *ac, int opt, const char *optarg);
 	int (*main)(void *ctx, struct apk_ctx *ac, struct apk_string_array *args);

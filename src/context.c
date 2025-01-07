@@ -23,6 +23,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 	ac->out.out = stdout;
 	ac->out.err = stderr;
 	ac->out.verbosity = 1;
+	ac->cache_max_age = 4*60*60; /* 4 hours default */
 	ac->apknew_suffix = ".apk-new";
 	ac->default_pkgname_spec = APK_BLOB_STRLIT("${name}-${version}.apk");
 	ac->default_reponame_spec = APK_BLOB_STRLIT("${arch}/${name}-${version}.apk");;
@@ -54,7 +55,6 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 	else ac->cache_dir_set = 1;
 	if (!ac->keys_dir) ac->keys_dir = "etc/apk/keys";
 	if (!ac->root) ac->root = "/";
-	if (!ac->cache_max_age) ac->cache_max_age = 4*60*60; /* 4 hours default */
 
 	if (!strcmp(ac->root, "/")) {
 		// No chroot needed if using system root
