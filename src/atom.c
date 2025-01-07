@@ -40,26 +40,21 @@ void apk_atom_free(struct apk_atom_pool *atoms)
 	apk_balloc_destroy(&atoms->ba);
 }
 
-apk_blob_t *apk_atom_get(struct apk_atom_pool *atoms, apk_blob_t blob, int duplicate)
+apk_blob_t *apk_atomize_dup(struct apk_atom_pool *atoms, apk_blob_t blob)
 {
 	struct apk_atom_hashnode *atom;
 	unsigned long hash = apk_hash_from_key(&atoms->hash, blob);
+	char *ptr;
 
 	if (blob.len <= 0 || !blob.ptr) return &apk_atom_null;
 
 	atom = (struct apk_atom_hashnode *) apk_hash_get_hashed(&atoms->hash, blob, hash);
 	if (atom) return &atom->blob;
 
-	if (duplicate) {
-		char *ptr;
-		atom = apk_balloc_new_extra(&atoms->ba, struct apk_atom_hashnode, blob.len);
-		ptr = (char*) (atom + 1);
-		memcpy(ptr, blob.ptr, blob.len);
-		atom->blob = APK_BLOB_PTR_LEN(ptr, blob.len);
-	} else {
-		atom = apk_balloc_new(&atoms->ba, struct apk_atom_hashnode);
-		atom->blob = blob;
-	}
+	atom = apk_balloc_new_extra(&atoms->ba, struct apk_atom_hashnode, blob.len);
+	ptr = (char*) (atom + 1);
+	memcpy(ptr, blob.ptr, blob.len);
+	atom->blob = APK_BLOB_PTR_LEN(ptr, blob.len);
 	apk_hash_insert_hashed(&atoms->hash, atom, hash);
 	return &atom->blob;
 }

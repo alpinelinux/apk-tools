@@ -23,13 +23,6 @@ struct apk_atom_pool {
 
 void apk_atom_init(struct apk_atom_pool *);
 void apk_atom_free(struct apk_atom_pool *);
-apk_blob_t *apk_atom_get(struct apk_atom_pool *atoms, apk_blob_t blob, int duplicate);
-
-static inline apk_blob_t *apk_atomize(struct apk_atom_pool *atoms, apk_blob_t blob) {
-	return apk_atom_get(atoms, blob, 0);
-}
-static inline apk_blob_t *apk_atomize_dup(struct apk_atom_pool *atoms, apk_blob_t blob) {
-	return apk_atom_get(atoms, blob, 1);
-}
+apk_blob_t *apk_atomize_dup(struct apk_atom_pool *atoms, apk_blob_t blob);
 
 #endif

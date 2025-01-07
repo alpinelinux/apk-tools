@@ -1913,7 +1913,7 @@ void apk_db_init(struct apk_database *db)
 	apk_package_array_init(&db->installed.sorted_packages);
 	db->permanent = 1;
 	db->root_fd = -1;
-	db->noarch = apk_atomize(&db->atoms, APK_BLOB_STRLIT("noarch"));
+	db->noarch = apk_atomize_dup(&db->atoms, APK_BLOB_STRLIT("noarch"));
 }
 
 int apk_db_open(struct apk_database *db, struct apk_ctx *ac)

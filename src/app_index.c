@@ -184,7 +184,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	}
 
 	if (ictx->rewrite_arch)
-		rewrite_arch = apk_atomize(&db->atoms, APK_BLOB_STR(ictx->rewrite_arch));
+		rewrite_arch = apk_atomize_dup(&db->atoms, APK_BLOB_STR(ictx->rewrite_arch));
 
 	foreach_array_item(parg, args) {
 		if (apk_fileinfo_get(AT_FDCWD, *parg, 0, &fi, &db->atoms) < 0) {
