@@ -1049,6 +1049,19 @@ ssize_t apk_ostream_write_string(struct apk_ostream *os, const char *string)
 	return len;
 }
 
+int apk_ostream_fmt(struct apk_ostream *os, const char *fmt, ...)
+{
+	char buf[2048];
+	va_list va;
+	ssize_t n;
+
+	va_start(va, fmt);
+	n = vsnprintf(buf, sizeof buf, fmt, va);
+	va_end(va);
+	if (n > sizeof buf) return apk_ostream_cancel(os, -ENOBUFS);
+	return apk_ostream_write(os, buf, n);
+}
+
 void apk_ostream_copy_meta(struct apk_ostream *os, struct apk_istream *is)
 {
 	struct apk_file_meta meta;

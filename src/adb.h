@@ -305,14 +305,8 @@ extern const struct adb_walk_ops adb_walk_gentext_ops, adb_walk_genadb_ops;
 struct adb_walk {
 	const struct adb_walk_ops *ops;
 	const struct adb_db_schema *schemas;
-};
-
-struct adb_walk_gentext {
-	struct adb_walk d;
-	FILE *out;
-	int nest;
-	unsigned int line_started : 1;
-	unsigned int key_printed : 1;
+	struct apk_ostream *os;
+	unsigned long ctx[1];
 };
 
 #define ADB_WALK_GENADB_MAX_IDB		2

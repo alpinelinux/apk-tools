@@ -168,5 +168,5 @@ int adb_walk_adb(struct adb_walk *d, struct apk_istream *is, struct apk_trust *t
 
 	r = adb_m_process(&ctx.db, is, 0, &allow_untrusted, NULL, adb_walk_block);
 	adb_free(&ctx.db);
-	return r;
+	return apk_ostream_close_error(d->os, r);
 }

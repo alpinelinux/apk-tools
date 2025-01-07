@@ -18,13 +18,12 @@ static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	int r;
 
 	foreach_array_item(arg, args) {
-		struct adb_walk_gentext td = {
-			.d.ops = &adb_walk_gentext_ops,
-			.d.schemas = dbschemas,
-			.out = out->out,
+		struct adb_walk walk = {
+			.ops = &adb_walk_gentext_ops,
+			.schemas = dbschemas,
+			.os = apk_ostream_to_fd(STDOUT_FILENO),
 		};
-
-		r = adb_walk_adb(&td.d,
+		r = adb_walk_adb(&walk,
 			adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, *arg), 0),
 			apk_ctx_get_trust(ac));
 		if (r) {
