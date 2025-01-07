@@ -9,7 +9,6 @@
 
 struct adb_walk_ctx {
 	struct adb_walk *d;
-	struct apk_trust *trust;
 	struct adb db;
 	struct adb_verify_ctx vfy;
 };
@@ -135,7 +134,7 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 	case ADB_BLOCK_SIG:
 		s = (struct adb_sign_hdr*) apk_istream_get(is, sz);
 		data = APK_BLOB_PTR_LEN((char*)s, sz);
-		r = adb_trust_verify_signature(ctx->trust, db, &ctx->vfy, data);
+		r = adb_trust_verify_signature(d->trust, db, &ctx->vfy, data);
 		apk_blob_push_fmt(&c, "sig v%02x h%02x ", s->sign_ver, s->hash_alg);
 		for (size_t j = sizeof *s; j < data.len && c.len > 40; j++)
 			apk_blob_push_fmt(&c, "%02x", (uint8_t)data.ptr[j]);
@@ -153,20 +152,22 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 	return 0;
 }
 
-int adb_walk_adb(struct adb_walk *d, struct apk_istream *is, struct apk_trust *trust)
+int adb_walk_adb(struct adb_walk *d, struct apk_istream *is)
 {
 	struct apk_trust allow_untrusted = {
 		.allow_untrusted = 1,
 	};
 	struct adb_walk_ctx ctx = {
 		.d = d,
-		.trust = trust,
 	};
 	int r;
 
 	if (IS_ERR(is)) return PTR_ERR(is);
+	r = d->ops->init ? d->ops->init(d) : 0;
+	if (r) return r;
 
 	r = adb_m_process(&ctx.db, is, 0, &allow_untrusted, NULL, adb_walk_block);
+	if (d->ops->cleanup) d->ops->cleanup(d);
 	adb_free(&ctx.db);
 	return apk_ostream_close_error(d->os, r);
 }

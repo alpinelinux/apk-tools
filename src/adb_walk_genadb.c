@@ -2,9 +2,52 @@
 #include "adb.h"
 #include "apk_print.h"
 
+#define ADB_WALK_GENADB_MAX_IDB		2
+#define ADB_WALK_GENADB_MAX_NESTING	32
+#define ADB_WALK_GENADB_MAX_VALUES	100000
+
+struct adb_walk_genadb {
+	struct adb db;
+	struct adb idb[ADB_WALK_GENADB_MAX_IDB];
+	int nest, nestdb, num_vals;
+	struct adb_obj objs[ADB_WALK_GENADB_MAX_NESTING];
+	unsigned int curkey[ADB_WALK_GENADB_MAX_NESTING];
+	adb_val_t vals[ADB_WALK_GENADB_MAX_VALUES];
+
+	struct list_head db_buckets[1000];
+	struct list_head idb_buckets[100];
+};
+
+static struct adb_walk_genadb *walk_genadb_ctx(struct adb_walk *walk)
+{
+	return (struct adb_walk_genadb *) walk->ctx[0];
+}
+
+static int adb_walk_genadb_init(struct adb_walk *d)
+{
+	struct adb_walk_genadb *dt;
+
+	dt = calloc(1, sizeof *dt);
+	if (!dt) return -ENOMEM;
+	d->ctx[0] = (unsigned long) dt;
+	adb_w_init_dynamic(&dt->db, 0, dt->db_buckets, ARRAY_SIZE(dt->db_buckets));
+	adb_w_init_dynamic(&dt->idb[0], 0, dt->idb_buckets, ARRAY_SIZE(dt->idb_buckets));
+	return 0;
+}
+
+static void adb_walk_genadb_cleanup(struct adb_walk *d)
+{
+	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
+
+	adb_free(&dt->db);
+	adb_free(&dt->idb[0]);
+	free((void*) d->ctx[0]);
+	d->ctx[0] = 0;
+}
+
 static int adb_walk_genadb_schema(struct adb_walk *d, uint32_t schema_id)
 {
-	struct adb_walk_genadb *dt = container_of(d, struct adb_walk_genadb, d);
+	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
 	const struct adb_db_schema *s;
 
 	dt->db.schema = schema_id;
@@ -27,7 +70,7 @@ static int adb_walk_genadb_comment(struct adb_walk *d, apk_blob_t comment)
 
 static int adb_walk_genadb_start_object(struct adb_walk *d)
 {
-	struct adb_walk_genadb *dt = container_of(d, struct adb_walk_genadb, d);
+	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
 
 	if (!dt->db.schema) return -APKE_ADB_SCHEMA;
 	if (dt->nest >= ARRAY_SIZE(dt->objs)) return -APKE_ADB_LIMIT;
@@ -63,7 +106,7 @@ static int adb_walk_genadb_start_array(struct adb_walk *d, unsigned int num)
 
 static int adb_walk_genadb_end(struct adb_walk *d)
 {
-	struct adb_walk_genadb *dt = container_of(d, struct adb_walk_genadb, d);
+	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
 	adb_val_t val;
 
 	val = adb_w_obj(&dt->objs[dt->nest]);
@@ -74,8 +117,10 @@ static int adb_walk_genadb_end(struct adb_walk *d)
 	dt->num_vals -= dt->objs[dt->nest].schema->num_fields;
 
 	if (dt->nest == 0) {
-		dt->stored_object = val;
-		return 0;
+		adb_w_root(&dt->db, val);
+		int r = adb_c_create(d->os, &dt->db, d->trust);
+		d->os = NULL;
+		return r;
 	}
 
 	dt->nest--;
@@ -98,7 +143,7 @@ static int adb_walk_genadb_end(struct adb_walk *d)
 
 static int adb_walk_genadb_key(struct adb_walk *d, apk_blob_t key)
 {
-	struct adb_walk_genadb *dt = container_of(d, struct adb_walk_genadb, d);
+	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
 	uint8_t kind = dt->objs[dt->nest].schema->kind;
 
 	if (kind != ADB_KIND_OBJECT && kind != ADB_KIND_ADB)
@@ -113,7 +158,7 @@ static int adb_walk_genadb_key(struct adb_walk *d, apk_blob_t key)
 
 static int adb_walk_genadb_scalar(struct adb_walk *d, apk_blob_t scalar, int multiline)
 {
-	struct adb_walk_genadb *dt = container_of(d, struct adb_walk_genadb, d);
+	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
 
 	if (dt->objs[dt->nest].schema->kind == ADB_KIND_ARRAY) {
 		adb_wa_append_fromstring(&dt->objs[dt->nest], scalar);
@@ -129,6 +174,8 @@ static int adb_walk_genadb_scalar(struct adb_walk *d, apk_blob_t scalar, int mul
 }
 
 const struct adb_walk_ops adb_walk_genadb_ops = {
+	.init = adb_walk_genadb_init,
+	.cleanup = adb_walk_genadb_cleanup,
 	.schema = adb_walk_genadb_schema,
 	.comment = adb_walk_genadb_comment,
 	.start_array = adb_walk_genadb_start_array,

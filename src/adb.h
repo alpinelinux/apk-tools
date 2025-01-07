@@ -291,6 +291,8 @@ struct adb_db_schema {
 
 struct adb_walk;
 struct adb_walk_ops {
+	int (*init)(struct adb_walk *);
+	void (*cleanup)(struct adb_walk *);
 	int (*schema)(struct adb_walk *, uint32_t schema_id);
 	int (*comment)(struct adb_walk *, apk_blob_t comment);
 	int (*start_array)(struct adb_walk *, unsigned int num_items);
@@ -306,25 +308,11 @@ struct adb_walk {
 	const struct adb_walk_ops *ops;
 	const struct adb_db_schema *schemas;
 	struct apk_ostream *os;
+	struct apk_trust *trust;
 	unsigned long ctx[1];
 };
 
-#define ADB_WALK_GENADB_MAX_IDB		2
-#define ADB_WALK_GENADB_MAX_NESTING	32
-#define ADB_WALK_GENADB_MAX_VALUES	100000
-
-struct adb_walk_genadb {
-	struct adb_walk d;
-	struct adb db;
-	adb_val_t stored_object;
-	struct adb idb[ADB_WALK_GENADB_MAX_IDB];
-	int nest, nestdb, num_vals;
-	struct adb_obj objs[ADB_WALK_GENADB_MAX_NESTING];
-	unsigned int curkey[ADB_WALK_GENADB_MAX_NESTING];
-	adb_val_t vals[ADB_WALK_GENADB_MAX_VALUES];
-};
-
-int adb_walk_adb(struct adb_walk *d, struct apk_istream *is, struct apk_trust *trust);
+int adb_walk_adb(struct adb_walk *d, struct apk_istream *is);
 int adb_walk_text(struct adb_walk *d, struct apk_istream *is);
 
 // Seamless compression support

@@ -20,6 +20,9 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 	uint8_t started[64] = {0};
 
 	if (IS_ERR(is)) return PTR_ERR(is);
+	r = d->ops->init ? d->ops->init(d) : 0;
+	if (r) goto err;
+
 	if (apk_istream_get_delim(is, token, &l) != 0) goto err;
 	if (!apk_blob_pull_blob_match(&l, APK_BLOB_STR("#%SCHEMA: "))) goto err;
 	if ((r = d->ops->schema(d, apk_blob_pull_uint(&l, 16))) != 0) goto err;
@@ -126,5 +129,7 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 	d->ops->end(d);
 
 err:
+	if (d->ops->cleanup) d->ops->cleanup(d);
+	if (d->os) r = apk_ostream_close_error(d->os, r);
 	return apk_istream_close_error(is, r);
 }
