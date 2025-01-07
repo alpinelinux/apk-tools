@@ -115,7 +115,7 @@ The following options are available for all commands.
 	Print less information.
 
 *-U, --update-cache*
-	Alias for '--cache-max-age 1'.
+	Alias for '--cache-max-age 0'.
 
 *-v, --verbose*
 	Print more information (can be specified twice).
@@ -143,7 +143,8 @@ The following options are available for all commands.
 	to the _ROOT_.
 
 *--cache-max-age* _AGE_
-	Maximum AGE (in minutes) for index in cache before it's refreshed.
+	Maximum AGE (in minutes) for index in cache before it's refreshed. *0*
+	means always refresh.
 
 *--cache-predownload*
 	Download needed packages to cache before starting to commit a transtaction.
