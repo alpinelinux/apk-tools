@@ -179,7 +179,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 	if (apk_db_repository_check(db) != 0) return -1;
 
 	solver_flags = APK_SOLVERF_UPGRADE | uctx->solver_flags;
-	if (!ac->root_set && !uctx->no_self_upgrade && apk_array_len(args) == 0) {
+	if ((uctx->self_upgrade_only || !ac->root_set) && !uctx->no_self_upgrade && apk_array_len(args) == 0) {
 		r = apk_do_self_upgrade(db, solver_flags, uctx->self_upgrade_only);
 		if (r != 0)
 			return r;
