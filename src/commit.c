@@ -387,20 +387,20 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		apk_change_array_copy(&sorted, changeset->changes);
 		apk_array_qsort(sorted, sort_change);
 
-		r = dump_packages(db, sorted, cmp_non_repository, false,
-				   "NOTE: Consider running apk upgrade with --prune and/or --available.\n"
-				   "The following packages are no longer available from a repository");
-		r += dump_packages(db, sorted, cmp_remove, details,
-				  "The following packages will be REMOVED");
+		dump_packages(db, sorted, cmp_non_repository, false,
+			"NOTE: Consider running apk upgrade with --prune and/or --available.\n"
+			"The following packages are no longer available from a repository");
+		r = dump_packages(db, sorted, cmp_remove, details,
+			"The following packages will be REMOVED");
 		r += dump_packages(db, sorted, cmp_downgrade, details,
-				   "The following packages will be DOWNGRADED");
+			"The following packages will be DOWNGRADED");
 		if (r || (db->ctx->flags & APK_INTERACTIVE) || apk_out_verbosity(out) > 2) {
 			r += dump_packages(db, sorted, cmp_new, details,
-					   "The following NEW packages will be installed");
+				"The following NEW packages will be installed");
 			r += dump_packages(db, sorted, cmp_upgrade, details,
-					   "The following packages will be upgraded");
+				"The following packages will be upgraded");
 			r += dump_packages(db, sorted, cmp_reinstall, details,
-					   "The following packages will be reinstalled");
+				"The following packages will be reinstalled");
 			if (download_size) {
 				size_unit = apk_get_human_size(download_size, &humanized);
 				apk_msg(out, "Need to download %lld %s of packages.",
