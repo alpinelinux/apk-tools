@@ -532,7 +532,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 err:
 	adb_wo_free(&ctx->paths);
 	adb_free(&ctx->db);
-	if (r) apk_err(out, "failed to create package: %s: %s", ctx->output, apk_error_str(r));
+	if (r) apk_err(out, "failed to create package: %s", apk_error_str(r));
 	apk_string_array_free(&ctx->triggers);
 	apk_hash_free(&ctx->link_by_inode);
 	apk_balloc_destroy(&ctx->ba);
