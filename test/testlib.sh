@@ -11,7 +11,13 @@ assert() {
 
 glob_one() {
 	# shellcheck disable=SC2048 # argument is wildcard needing expansion
-	for a in $*; do echo "$a"; done
+	for a in $*; do
+		if [ -e "$a" ]; then
+			echo "$a"
+			return 0
+		fi
+	done
+	return 1
 }
 
 setup_tmp() {

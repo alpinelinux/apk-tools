@@ -197,8 +197,10 @@ static int fsys_file_control(struct apk_fsdir *d, apk_blob_t filename, int ctrl)
 	case APK_FS_CTRL_COMMIT:
 		// rename tmpname -> realname
 		if (renameat(atfd, format_tmpname(&ac->dctx, d->pkgctx, dirname, apk_pathbuilder_get(&d->pb), tmpname),
-			     atfd, fn) < 0)
+			     atfd, fn) < 0) {
 			rc = -errno;
+			unlinkat(atfd, tmpname, 0);
+		}
 		break;
 	case APK_FS_CTRL_APKNEW:
 		// rename tmpname -> realname.apk-new
