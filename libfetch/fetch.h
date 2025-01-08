@@ -103,13 +103,13 @@ enum {
 	FETCH_ERR_TLS_HANDSHAKE,
 };
 
-#define fetch_err_make(category, code) ((((unsigned long)(unsigned char)category) << 32) + (unsigned long)(unsigned int)code)
+#define fetch_err_make(category, code) ((((unsigned long)category) << 28) + (unsigned long)code)
 
 static inline unsigned char fetch_err_category(unsigned long err) {
-	return (unsigned char)(err >> 32);
+	return (unsigned char)(err >> 28);
 }
 static inline int fetch_err_code(unsigned long err) {
-	return (int)err;
+	return (int)(err & 0xfffffff);
 }
 
 #if defined(__cplusplus)
