@@ -293,23 +293,25 @@ struct adb_walk;
 struct adb_walk_ops {
 	int (*init)(struct adb_walk *);
 	void (*cleanup)(struct adb_walk *);
-	int (*schema)(struct adb_walk *, uint32_t schema_id);
-	int (*comment)(struct adb_walk *, apk_blob_t comment);
+	int (*start_schema)(struct adb_walk *, uint32_t schema_id);
 	int (*start_array)(struct adb_walk *, unsigned int num_items);
 	int (*start_object)(struct adb_walk *);
 	int (*end)(struct adb_walk *);
+	int (*comment)(struct adb_walk *, apk_blob_t comment);
 	int (*key)(struct adb_walk *, apk_blob_t key_name);
 	int (*scalar)(struct adb_walk *, apk_blob_t scalar, int multiline);
 };
 
 extern const struct adb_walk_ops adb_walk_gentext_ops, adb_walk_genadb_ops;
 
+#define ADB_WALK_MAX_NESTING	32
+
 struct adb_walk {
 	const struct adb_walk_ops *ops;
 	const struct adb_db_schema *schemas;
 	struct apk_ostream *os;
 	struct apk_trust *trust;
-	unsigned long ctx[1];
+	unsigned long ctx[64 / sizeof(unsigned long)];
 };
 
 int adb_walk_adb(struct adb_walk *d, struct apk_istream *is);

@@ -121,7 +121,7 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 
 	switch (adb_block_type(b)) {
 	case ADB_BLOCK_ADB:
-		d->ops->schema(d, db->schema);
+		d->ops->start_schema(d, db->schema);
 		for (ds = d->schemas; ds->magic; ds++)
 			if (ds->magic == schema_magic) break;
 		hdr = apk_istream_peek(is, sizeof *hdr);
@@ -130,6 +130,7 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 			sz, hdr->adb_compat_ver, hdr->adb_ver);
 		d->ops->comment(d, apk_blob_pushed(APK_BLOB_BUF(tmp), c));
 		if (ds->root && hdr->adb_compat_ver == 0) dump_object(ctx, ds->root, adb_r_root(db));
+		d->ops->end(d);
 		return 0;
 	case ADB_BLOCK_SIG:
 		s = (struct adb_sign_hdr*) apk_istream_get(is, sz);

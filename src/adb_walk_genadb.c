@@ -3,15 +3,14 @@
 #include "apk_print.h"
 
 #define ADB_WALK_GENADB_MAX_IDB		2
-#define ADB_WALK_GENADB_MAX_NESTING	32
 #define ADB_WALK_GENADB_MAX_VALUES	100000
 
 struct adb_walk_genadb {
 	struct adb db;
 	struct adb idb[ADB_WALK_GENADB_MAX_IDB];
 	int nest, nestdb, num_vals;
-	struct adb_obj objs[ADB_WALK_GENADB_MAX_NESTING];
-	unsigned int curkey[ADB_WALK_GENADB_MAX_NESTING];
+	struct adb_obj objs[ADB_WALK_MAX_NESTING];
+	unsigned int curkey[ADB_WALK_MAX_NESTING];
 	adb_val_t vals[ADB_WALK_GENADB_MAX_VALUES];
 
 	struct list_head db_buckets[1000];
@@ -45,7 +44,7 @@ static void adb_walk_genadb_cleanup(struct adb_walk *d)
 	d->ctx[0] = 0;
 }
 
-static int adb_walk_genadb_schema(struct adb_walk *d, uint32_t schema_id)
+static int adb_walk_genadb_start_schema(struct adb_walk *d, uint32_t schema_id)
 {
 	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
 	const struct adb_db_schema *s;
@@ -60,11 +59,6 @@ static int adb_walk_genadb_schema(struct adb_walk *d, uint32_t schema_id)
 	if (dt->num_vals >= ARRAY_SIZE(dt->vals)) return -APKE_ADB_LIMIT;
 	dt->nest = 0;
 
-	return 0;
-}
-
-static int adb_walk_genadb_comment(struct adb_walk *d, apk_blob_t comment)
-{
 	return 0;
 }
 
@@ -141,6 +135,11 @@ static int adb_walk_genadb_end(struct adb_walk *d)
 	return 0;
 }
 
+static int adb_walk_genadb_comment(struct adb_walk *d, apk_blob_t comment)
+{
+	return 0;
+}
+
 static int adb_walk_genadb_key(struct adb_walk *d, apk_blob_t key)
 {
 	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
@@ -176,11 +175,11 @@ static int adb_walk_genadb_scalar(struct adb_walk *d, apk_blob_t scalar, int mul
 const struct adb_walk_ops adb_walk_genadb_ops = {
 	.init = adb_walk_genadb_init,
 	.cleanup = adb_walk_genadb_cleanup,
-	.schema = adb_walk_genadb_schema,
-	.comment = adb_walk_genadb_comment,
+	.start_schema = adb_walk_genadb_start_schema,
 	.start_array = adb_walk_genadb_start_array,
 	.start_object = adb_walk_genadb_start_object,
 	.end = adb_walk_genadb_end,
+	.comment = adb_walk_genadb_comment,
 	.key = adb_walk_genadb_key,
 	.scalar = adb_walk_genadb_scalar,
 };
