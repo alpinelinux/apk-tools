@@ -124,7 +124,7 @@ static int need_quoting(apk_blob_t b)
 	return 0;
 }
 
-static int adb_walk_gentext_scalar(struct adb_walk *d, apk_blob_t scalar, int multiline)
+static int adb_walk_gentext_string(struct adb_walk *d, apk_blob_t scalar, int multiline)
 {
 	struct adb_walk_gentext *dt = walk_gentext_ctx(d);
 	apk_blob_t l, nl = APK_BLOB_STR("\n");
@@ -153,6 +153,14 @@ static int adb_walk_gentext_scalar(struct adb_walk *d, apk_blob_t scalar, int mu
 	return 0;
 }
 
+static int adb_walk_gentext_numeric(struct adb_walk *d, uint64_t val, int hint)
+{
+	adb_walk_gentext_indent(d);
+	apk_ostream_fmt(d->os, hint ? "%#llo" : "%llu", val);
+	adb_walk_gentext_newline(d);
+	return 0;
+}
+
 const struct adb_walk_ops adb_walk_gentext_ops = {
 	.start_schema = adb_walk_gentext_start_schema,
 	.start_array = adb_walk_gentext_start_array,
@@ -160,5 +168,6 @@ const struct adb_walk_ops adb_walk_gentext_ops = {
 	.end = adb_walk_gentext_end,
 	.comment = adb_walk_gentext_comment,
 	.key = adb_walk_gentext_key,
-	.scalar = adb_walk_gentext_scalar,
+	.string = adb_walk_gentext_string,
+	.numeric = adb_walk_gentext_numeric,
 };

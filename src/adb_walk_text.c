@@ -41,7 +41,7 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 				}
 				if (data.len && data.ptr[data.len-1] == '\n') data.len--;
 				dbg_printf("Multiline-Scalar >%d> "BLOB_FMT"\n", nesting, BLOB_PRINTF(data));
-				if ((r = d->ops->scalar(d, data, 1)) != 0) goto err;
+				if ((r = d->ops->string(d, data, 1)) != 0) goto err;
 				mblock = APK_BLOB_BUF(mblockdata);
 				multi_line = 0;
 			}
@@ -114,7 +114,7 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 					multi_line = nesting;
 				} else {
 					dbg_printf("Scalar >%d> "BLOB_FMT"\n", nesting, BLOB_PRINTF(scalar));
-					if ((r = d->ops->scalar(d, scalar, 0)) != 0) goto err;
+					if ((r = d->ops->string(d, scalar, 0)) != 0) goto err;
 				}
 			}
 			new_item = 0;

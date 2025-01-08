@@ -253,7 +253,7 @@ static int int_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t
 }
 
 static struct adb_scalar_schema scalar_int = {
-	.kind = ADB_KIND_INT,
+	.kind = ADB_KIND_NUMERIC,
 	.tostring = int_tostring,
 	.fromstring = int_fromstring,
 	.compare = int_compare,
@@ -272,7 +272,7 @@ static adb_val_t oct_fromstring(struct adb *db, apk_blob_t val)
 }
 
 static struct adb_scalar_schema scalar_oct = {
-	.kind = ADB_KIND_INT,
+	.kind = ADB_KIND_OCTAL,
 	.tostring = oct_tostring,
 	.fromstring = oct_fromstring,
 	.compare = int_compare,
@@ -300,7 +300,7 @@ static adb_val_t hsize_fromstring(struct adb *db, apk_blob_t val)
 }
 
 static struct adb_scalar_schema scalar_hsize = {
-	.kind = ADB_KIND_INT,
+	.kind = ADB_KIND_NUMERIC,
 	.tostring = hsize_tostring,
 	.fromstring = hsize_fromstring,
 	.compare = int_compare,

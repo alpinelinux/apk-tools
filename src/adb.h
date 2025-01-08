@@ -117,11 +117,12 @@ struct adb_sign_v0 {
 };
 
 /* Schema */
-#define ADB_KIND_ADB	1
-#define ADB_KIND_OBJECT	2
-#define ADB_KIND_ARRAY	3
-#define ADB_KIND_BLOB	4
-#define ADB_KIND_INT	5
+#define ADB_KIND_ADB		1
+#define ADB_KIND_OBJECT		2
+#define ADB_KIND_ARRAY		3
+#define ADB_KIND_BLOB		4
+#define ADB_KIND_NUMERIC	5
+#define ADB_KIND_OCTAL		6
 
 #define ADB_ARRAY_ITEM(_t) (const struct adb_object_schema_field[1]) { {.kind = &(_t).kind} }
 #define ADB_OBJECT_FIELDS(n) (const struct adb_object_schema_field[n])
@@ -299,7 +300,8 @@ struct adb_walk_ops {
 	int (*end)(struct adb_walk *);
 	int (*comment)(struct adb_walk *, apk_blob_t comment);
 	int (*key)(struct adb_walk *, apk_blob_t key_name);
-	int (*scalar)(struct adb_walk *, apk_blob_t scalar, int multiline);
+	int (*string)(struct adb_walk *, apk_blob_t val, int multiline);
+	int (*numeric)(struct adb_walk *, uint64_t val, int hint);
 };
 
 extern const struct adb_walk_ops adb_walk_gentext_ops, adb_walk_genadb_ops;

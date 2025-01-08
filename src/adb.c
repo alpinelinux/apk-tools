@@ -575,7 +575,8 @@ int adb_ro_cmp(const struct adb_obj *tmpl, const struct adb_obj *obj, unsigned i
 
 	switch (*schema->fields[i-1].kind) {
 	case ADB_KIND_BLOB:
-	case ADB_KIND_INT:
+	case ADB_KIND_NUMERIC:
+	case ADB_KIND_OCTAL:
 		return container_of(schema->fields[i-1].kind, struct adb_scalar_schema, kind)->compare(
 			tmpl->db, adb_ro_val(tmpl, i),
 			obj->db, adb_ro_val(obj, i));
@@ -860,7 +861,8 @@ adb_val_t adb_w_fromstring(struct adb *db, const uint8_t *kind, apk_blob_t val)
 
 	switch (*kind) {
 	case ADB_KIND_BLOB:
-	case ADB_KIND_INT:
+	case ADB_KIND_NUMERIC:
+	case ADB_KIND_OCTAL:
 		return container_of(kind, struct adb_scalar_schema, kind)->fromstring(db, val);
 	case ADB_KIND_OBJECT:
 	case ADB_KIND_ARRAY:; {
@@ -1171,8 +1173,9 @@ int adb_s_field_subst(void *ctx, apk_blob_t var, apk_blob_t *to)
 	val = adb_ro_val(obj, f);
 	kind = schema->fields[f-1].kind;
 	switch (*kind) {
-	case ADB_KIND_BLOB:
-	case ADB_KIND_INT:;
+	case ADB_KIND_NUMERIC:
+	case ADB_KIND_OCTAL:
+	case ADB_KIND_BLOB:;
 		struct adb_scalar_schema *scalar = container_of(kind, struct adb_scalar_schema, kind);
 		if (!scalar->tostring) return -APKE_ADB_SCHEMA;
 		done = scalar->tostring(obj->db, val, to->ptr, to->len);

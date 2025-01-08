@@ -155,7 +155,7 @@ static int adb_walk_genadb_key(struct adb_walk *d, apk_blob_t key)
 	return 0;
 }
 
-static int adb_walk_genadb_scalar(struct adb_walk *d, apk_blob_t scalar, int multiline)
+static int adb_walk_genadb_string(struct adb_walk *d, apk_blob_t scalar, int multiline)
 {
 	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
 
@@ -181,5 +181,5 @@ const struct adb_walk_ops adb_walk_genadb_ops = {
 	.end = adb_walk_genadb_end,
 	.comment = adb_walk_genadb_comment,
 	.key = adb_walk_genadb_key,
-	.scalar = adb_walk_genadb_scalar,
+	.string = adb_walk_genadb_string,
 };
