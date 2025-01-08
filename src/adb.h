@@ -304,7 +304,7 @@ struct adb_walk_ops {
 	int (*numeric)(struct adb_walk *, uint64_t val, int hint);
 };
 
-extern const struct adb_walk_ops adb_walk_gentext_ops, adb_walk_genadb_ops;
+extern const struct adb_walk_ops adb_walk_gentext_ops, adb_walk_genjson_ops, adb_walk_genadb_ops;
 
 #define ADB_WALK_MAX_NESTING	32
 

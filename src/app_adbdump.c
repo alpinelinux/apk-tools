@@ -11,15 +11,47 @@ static const struct adb_db_schema dbschemas[] = {
 	{},
 };
 
+#define ADBDUMP_OPTIONS(OPT) \
+	OPT(OPT_ADBDUMP_format,		APK_OPT_ARG "format")
+
+APK_OPTIONS(adbdump_options_desc, ADBDUMP_OPTIONS);
+
+struct adbdump_ctx {
+	const struct adb_walk_ops *ops;
+};
+
+static int adbdump_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
+{
+	struct adbdump_ctx *ctx = pctx;
+
+	switch (opt) {
+	case APK_OPTIONS_INIT:
+		ctx->ops = &adb_walk_gentext_ops;
+		break;
+	case OPT_ADBDUMP_format:
+		if (strcmp(optarg, "json") == 0)
+			ctx->ops = &adb_walk_genjson_ops;
+		else if (strcmp(optarg, "yaml") == 0)
+			ctx->ops = &adb_walk_gentext_ops;
+		else
+			return -EINVAL;
+		break;
+	default:
+		return -ENOTSUP;
+	}
+	return 0;
+}
+
 static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
+	struct adbdump_ctx *ctx = pctx;
 	struct apk_out *out = &ac->out;
 	char **arg;
 	int r;
 
 	foreach_array_item(arg, args) {
 		struct adb_walk walk = {
-			.ops = &adb_walk_gentext_ops,
+			.ops = ctx->ops,
 			.schemas = dbschemas,
 			.trust = apk_ctx_get_trust(ac),
 			.os = apk_ostream_to_fd(STDOUT_FILENO),
@@ -36,6 +68,9 @@ static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 
 static struct apk_applet apk_adbdump = {
 	.name = "adbdump",
+	.context_size = sizeof(struct adbdump_ctx),
+	.options_desc = adbdump_options_desc,
+	.parse = adbdump_parse_option,
 	.main = adbdump_main,
 };
 APK_DEFINE_APPLET(apk_adbdump);
