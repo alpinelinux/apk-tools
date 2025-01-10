@@ -3,7 +3,7 @@
 
 struct serialize_json {
 	struct apk_serializer ser;
-	int nest, indent;
+	int nest;
 	unsigned int key_printed : 1;
 	unsigned int need_separator : 1;
 	unsigned int need_newline : 1;
@@ -19,8 +19,8 @@ static void ser_json_indent(struct serialize_json *dt, bool item)
 	} else {
 		if (item && dt->need_separator) apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT(","));
 		if (dt->need_newline) {
-			assert(sizeof pad >= 2*dt->indent);
-			apk_ostream_write(dt->ser.os, pad, 1 + 2*dt->indent);
+			assert(sizeof pad >= 2*dt->nest);
+			apk_ostream_write(dt->ser.os, pad, 1 + 2*dt->nest);
 		} else {
 			apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT(" "));
 		}
@@ -31,9 +31,8 @@ static void ser_json_indent(struct serialize_json *dt, bool item)
 static void ser_json_start_indent(struct serialize_json *dt, char start_brace, char end_brace)
 {
 	assert(dt->nest < ARRAY_SIZE(dt->end));
-	if (start_brace) apk_ostream_write_blob(dt->ser.os, APK_BLOB_PTR_LEN(&start_brace, 1));
+	apk_ostream_write(dt->ser.os, &start_brace, 1);
 	dt->end[++dt->nest] = end_brace;
-	if (end_brace) dt->indent++;
 	dt->need_separator = 0;
 	dt->need_newline = 1;
 }
@@ -42,10 +41,8 @@ static int ser_json_start_schema(struct apk_serializer *ser, uint32_t schema_id)
 {
 	struct serialize_json *dt = container_of(ser, struct serialize_json, ser);
 
-	if (dt->nest == 0)
-		ser_json_start_indent(dt, '{', '}');
-	else	ser_json_start_indent(dt, 0, 0);
-
+	ser_json_indent(dt, true);
+	ser_json_start_indent(dt, '{', '}');
 	return 0;
 }
 
@@ -53,7 +50,7 @@ static int ser_json_start_array(struct apk_serializer *ser, unsigned int num)
 {
 	struct serialize_json *dt = container_of(ser, struct serialize_json, ser);
 
-	ser_json_indent(dt, true);
+	if (dt->nest) ser_json_indent(dt, true);
 	ser_json_start_indent(dt, '[', ']');
 	return 0;
 }
@@ -62,7 +59,7 @@ static int ser_json_start_object(struct apk_serializer *ser)
 {
 	struct serialize_json *dt = container_of(ser, struct serialize_json, ser);
 
-	ser_json_indent(dt, true);
+	if (dt->nest) ser_json_indent(dt, true);
 	ser_json_start_indent(dt, '{', '}');
 	return 0;
 }
@@ -72,15 +69,13 @@ static int ser_json_end(struct apk_serializer *ser)
 	struct serialize_json *dt = container_of(ser, struct serialize_json, ser);
 
 	dt->need_newline = 1;
-	if (dt->end[dt->nest]) {
-		dt->indent--;
-		ser_json_indent(dt, false);
-		apk_ostream_write_blob(dt->ser.os, APK_BLOB_PTR_LEN(&dt->end[dt->nest], 1));
-		dt->end[dt->nest] = 0;
-	}
 	dt->nest--;
+	ser_json_indent(dt, false);
+	apk_ostream_write(dt->ser.os, &dt->end[dt->nest+1], 1);
+	dt->end[dt->nest+1] = 0;
 	dt->need_separator = 1;
 	dt->need_newline = 0;
+	if (!dt->nest) apk_ostream_write(dt->ser.os, "\n", 1);
 	return 0;
 }
 
@@ -94,15 +89,13 @@ static int ser_json_key(struct apk_serializer *ser, apk_blob_t key)
 {
 	struct serialize_json *dt = container_of(ser, struct serialize_json, ser);
 
-	if (!APK_BLOB_IS_NULL(key)) {
-		dt->need_newline = 1;
-		ser_json_indent(dt, true);
-		apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT("\""));
-		apk_ostream_write_blob(dt->ser.os, key);
-		apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT("\":"));
-		dt->key_printed = 1;
-		dt->need_separator = 1;
-	}
+	dt->need_newline = 1;
+	ser_json_indent(dt, true);
+	apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT("\""));
+	apk_ostream_write_blob(dt->ser.os, key);
+	apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT("\":"));
+	dt->key_printed = 1;
+	dt->need_separator = 1;
 	return 0;
 }
 

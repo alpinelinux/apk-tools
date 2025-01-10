@@ -28,7 +28,7 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 
 	if (v == ADB_VAL_NULL) return 0;
 
-	apk_ser_key(ser, name ? APK_BLOB_STR(name) : APK_BLOB_NULL);
+	if (name) apk_ser_key(ser, APK_BLOB_STR(name));
 
 	switch (*kind) {
 	case ADB_KIND_ARRAY:
@@ -45,11 +45,9 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 	case ADB_KIND_ADB:
 		apk_istream_from_blob(&is, adb_r_blob(&ctx->db, v));
 		origdb = ctx->db;
-		apk_ser_start_object(ser);
 		adb_m_process(&ctx->db, &is,
 			container_of(kind, struct adb_adb_schema, kind)->schema_id | ADB_SCHEMA_IMPLIED,
 			0, NULL, adb_walk_block);
-		apk_ser_end(ser);
 		ctx->db = origdb;
 		break;
 	case ADB_KIND_OBJECT:;
