@@ -9,23 +9,31 @@
 #define dbg_printf(args...)
 #endif
 
-int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
+int adb_walk_text(struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ops, struct apk_trust *trust)
 {
 	const apk_blob_t token = APK_BLOB_STR("\n");
 	const apk_blob_t comment = APK_BLOB_STR(" #");
 	const apk_blob_t key_sep = APK_BLOB_STR(": ");
+	struct apk_serializer *ser;
 	char mblockdata[1024*4];
 	apk_blob_t l, comm, mblock = APK_BLOB_BUF(mblockdata);
 	int r = 0, i, multi_line = 0, nesting = 0, new_item = 0;
 	uint8_t started[64] = {0};
 
-	if (IS_ERR(is)) return PTR_ERR(is);
-	r = d->ops->init ? d->ops->init(d) : 0;
-	if (r) goto err;
+	ser = apk_serializer_init_alloca(ops, os);
+	if (IS_ERR(ser)) {
+		if (IS_ERR(is)) apk_istream_close(is);
+		return PTR_ERR(ser);
+	}
+	if (IS_ERR(is)) {
+		r = PTR_ERR(is);
+		goto err;
+	}
+	ser->trust = trust;
 
 	if (apk_istream_get_delim(is, token, &l) != 0) goto err;
 	if (!apk_blob_pull_blob_match(&l, APK_BLOB_STR("#%SCHEMA: "))) goto err;
-	if ((r = d->ops->start_schema(d, apk_blob_pull_uint(&l, 16))) != 0) goto err;
+	if ((r = apk_ser_start_schema(ser, apk_blob_pull_uint(&l, 16))) != 0) goto err;
 
 	started[0] = 1;
 	while (apk_istream_get_delim(is, token, &l) == 0) {
@@ -41,20 +49,20 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 				}
 				if (data.len && data.ptr[data.len-1] == '\n') data.len--;
 				dbg_printf("Multiline-Scalar >%d> "BLOB_FMT"\n", nesting, BLOB_PRINTF(data));
-				if ((r = d->ops->string(d, data, 1)) != 0) goto err;
+				if ((r = apk_ser_string(ser, data, 1)) != 0) goto err;
 				mblock = APK_BLOB_BUF(mblockdata);
 				multi_line = 0;
 			}
 			if (started[nesting]) {
 				dbg_printf("End %d\n", nesting);
-				if ((r = d->ops->end(d)) != 0) goto err;
+				if ((r = apk_ser_end(ser)) != 0) goto err;
 			}
 		}
 		if (l.len >= 2 && l.ptr[0] == '-' && l.ptr[1] == ' ') {
 			l.ptr += 2, l.len -= 2;
 			if (!started[nesting]) {
 				dbg_printf("Array %d\n", nesting);
-				if ((r = d->ops->start_array(d, 0)) != 0) goto err;
+				if ((r = apk_ser_start_array(ser, 0)) != 0) goto err;
 				started[nesting] = 1;
 			}
 			new_item = 1;
@@ -70,7 +78,7 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 		}
 
 		if (l.len && l.ptr[0] == '#') {
-			if ((r = d->ops->comment(d, l)) != 0) goto err;
+			if ((r = apk_ser_comment(ser, l)) != 0) goto err;
 			continue;
 		}
 
@@ -98,11 +106,11 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 				}
 				if (!started[nesting]) {
 					dbg_printf("Object %d\n", nesting);
-					if ((r = d->ops->start_object(d)) != 0) goto err;
+					if ((r = apk_ser_start_object(ser)) != 0) goto err;
 					started[nesting] = 1;
 				}
 				dbg_printf("Key >%d> "BLOB_FMT"\n", nesting, BLOB_PRINTF(key));
-				if ((r = d->ops->key(d, key)) != 0) goto err;
+				if ((r = apk_ser_key(ser, key)) != 0) goto err;
 				if (start) started[++nesting] = 0;
 			}
 
@@ -114,22 +122,21 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 					multi_line = nesting;
 				} else {
 					dbg_printf("Scalar >%d> "BLOB_FMT"\n", nesting, BLOB_PRINTF(scalar));
-					if ((r = d->ops->string(d, scalar, 0)) != 0) goto err;
+					if ((r = apk_ser_string(ser, scalar, 0)) != 0) goto err;
 				}
 			}
 			new_item = 0;
 		}
 
 		if (comm.len) {
-			if ((r = d->ops->comment(d, comm)) != 0) goto err;
+			if ((r = apk_ser_comment(ser, comm)) != 0) goto err;
 		}
 
 		dbg_printf(">%d> "BLOB_FMT"\n", indent, BLOB_PRINTF(l));
 	}
-	d->ops->end(d);
+	apk_ser_end(ser);
 
 err:
-	if (d->ops->cleanup) d->ops->cleanup(d);
-	if (d->os) r = apk_ostream_close_error(d->os, r);
+	apk_serializer_cleanup(ser);
 	return apk_istream_close_error(is, r);
 }

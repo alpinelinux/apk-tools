@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include "apk_io.h"
 #include "apk_trust.h"
+#include "apk_serialize.h"
 
 struct apk_extract_ctx;
 struct adb;
@@ -290,34 +291,11 @@ struct adb_db_schema {
 	const struct adb_object_schema *root;
 };
 
-struct adb_walk;
-struct adb_walk_ops {
-	int (*init)(struct adb_walk *);
-	void (*cleanup)(struct adb_walk *);
-	int (*start_schema)(struct adb_walk *, uint32_t schema_id);
-	int (*start_array)(struct adb_walk *, unsigned int num_items);
-	int (*start_object)(struct adb_walk *);
-	int (*end)(struct adb_walk *);
-	int (*comment)(struct adb_walk *, apk_blob_t comment);
-	int (*key)(struct adb_walk *, apk_blob_t key_name);
-	int (*string)(struct adb_walk *, apk_blob_t val, int multiline);
-	int (*numeric)(struct adb_walk *, uint64_t val, int hint);
-};
+extern const struct adb_db_schema adb_all_schemas[];
+extern const struct apk_serializer_ops apk_serializer_adb;
 
-extern const struct adb_walk_ops adb_walk_gentext_ops, adb_walk_genjson_ops, adb_walk_genadb_ops;
-
-#define ADB_WALK_MAX_NESTING	32
-
-struct adb_walk {
-	const struct adb_walk_ops *ops;
-	const struct adb_db_schema *schemas;
-	struct apk_ostream *os;
-	struct apk_trust *trust;
-	unsigned long ctx[64 / sizeof(unsigned long)];
-};
-
-int adb_walk_adb(struct adb_walk *d, struct apk_istream *is);
-int adb_walk_text(struct adb_walk *d, struct apk_istream *is);
+int adb_walk_adb(struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ser, struct apk_trust *trust);
+int adb_walk_text(struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ser, struct apk_trust *trust);
 
 // Seamless compression support
 

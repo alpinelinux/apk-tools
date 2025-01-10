@@ -4,20 +4,13 @@
 #include "apk_applet.h"
 #include "apk_print.h"
 
-static const struct adb_db_schema dbschemas[] = {
-	{ .magic = ADB_SCHEMA_INDEX,		.root = &schema_index, },
-	{ .magic = ADB_SCHEMA_INSTALLED_DB,	.root = &schema_idb, },
-	{ .magic = ADB_SCHEMA_PACKAGE,		.root = &schema_package },
-	{},
-};
-
 #define ADBDUMP_OPTIONS(OPT) \
 	OPT(OPT_ADBDUMP_format,		APK_OPT_ARG "format")
 
 APK_OPTIONS(adbdump_options_desc, ADBDUMP_OPTIONS);
 
 struct adbdump_ctx {
-	const struct adb_walk_ops *ops;
+	const struct apk_serializer_ops *ser;
 };
 
 static int adbdump_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
@@ -26,13 +19,13 @@ static int adbdump_parse_option(void *pctx, struct apk_ctx *ac, int opt, const c
 
 	switch (opt) {
 	case APK_OPTIONS_INIT:
-		ctx->ops = &adb_walk_gentext_ops;
+		ctx->ser = &apk_serializer_yaml;
 		break;
 	case OPT_ADBDUMP_format:
 		if (strcmp(optarg, "json") == 0)
-			ctx->ops = &adb_walk_genjson_ops;
+			ctx->ser = &apk_serializer_json;
 		else if (strcmp(optarg, "yaml") == 0)
-			ctx->ops = &adb_walk_gentext_ops;
+			ctx->ser = &apk_serializer_yaml;
 		else
 			return -EINVAL;
 		break;
@@ -50,13 +43,10 @@ static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	int r;
 
 	foreach_array_item(arg, args) {
-		struct adb_walk walk = {
-			.ops = ctx->ops,
-			.schemas = dbschemas,
-			.trust = apk_ctx_get_trust(ac),
-			.os = apk_ostream_to_fd(STDOUT_FILENO),
-		};
-		r = adb_walk_adb(&walk, adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, *arg), NULL));
+		r = adb_walk_adb(
+			adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, *arg), NULL),
+			apk_ostream_to_fd(STDOUT_FILENO),
+			ctx->ser, apk_ctx_get_trust(ac));
 		if (r) {
 			apk_err(out, "%s: %s", *arg, apk_error_str(r));
 			return r;
@@ -82,13 +72,11 @@ static int adbgen_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 	char **arg;
 
 	foreach_array_item(arg, args) {
-		struct adb_walk walk = {
-			.ops = &adb_walk_genadb_ops,
-			.schemas = dbschemas,
-			.trust = apk_ctx_get_trust(ac),
-			.os = apk_ostream_to_fd(STDOUT_FILENO),
-		};
-		int r = adb_walk_text(&walk, apk_istream_from_file(AT_FDCWD, *arg));
+		int r = adb_walk_text(
+			apk_istream_from_file(AT_FDCWD, *arg),
+			apk_ostream_to_fd(STDOUT_FILENO),
+			&apk_serializer_adb,
+			apk_ctx_get_trust(ac));
 		if (r) {
 			apk_err(out, "%s: %s", *arg, apk_error_str(r));
 			return r;

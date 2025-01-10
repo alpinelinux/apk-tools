@@ -8,7 +8,7 @@
 #include "apk_print.h"
 
 struct adb_walk_ctx {
-	struct adb_walk *d;
+	struct apk_serializer *ser;
 	struct adb db;
 	struct adb_verify_ctx vfy;
 };
@@ -18,7 +18,7 @@ static int dump_object(struct adb_walk_ctx *ctx, const struct adb_object_schema 
 
 static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *kind, adb_val_t v)
 {
-	struct adb_walk *d = ctx->d;
+	struct apk_serializer *ser = ctx->ser;
 	struct adb origdb;
 	struct adb_obj o;
 	struct adb_object_schema *obj_schema;
@@ -28,7 +28,7 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 
 	if (v == ADB_VAL_NULL) return 0;
 
-	d->ops->key(d, name ? APK_BLOB_STR(name) : APK_BLOB_NULL);
+	apk_ser_key(ser, name ? APK_BLOB_STR(name) : APK_BLOB_NULL);
 
 	switch (*kind) {
 	case ADB_KIND_ARRAY:
@@ -36,28 +36,28 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 		adb_r_obj(&ctx->db, v, &o, obj_schema);
 		//if (!adb_ra_num(&o)) return 0;
 
-		d->ops->start_array(d, adb_ra_num(&o));
+		apk_ser_start_array(ser, adb_ra_num(&o));
 		for (size_t i = ADBI_FIRST; i <= adb_ra_num(&o); i++) {
 			dump_item(ctx, NULL, obj_schema->fields[0].kind, adb_ro_val(&o, i));
 		}
-		d->ops->end(d);
+		apk_ser_end(ser);
 		break;
 	case ADB_KIND_ADB:
 		apk_istream_from_blob(&is, adb_r_blob(&ctx->db, v));
 		origdb = ctx->db;
-		d->ops->start_object(d);
+		apk_ser_start_object(ser);
 		adb_m_process(&ctx->db, &is,
 			container_of(kind, struct adb_adb_schema, kind)->schema_id | ADB_SCHEMA_IMPLIED,
 			0, NULL, adb_walk_block);
-		d->ops->end(d);
+		apk_ser_end(ser);
 		ctx->db = origdb;
 		break;
 	case ADB_KIND_OBJECT:;
 		struct adb_object_schema *object = container_of(kind, struct adb_object_schema, kind);
 		if (!object->tostring) {
-			d->ops->start_object(d);
+			apk_ser_start_object(ser);
 			dump_object(ctx, object, v);
-			d->ops->end(d);
+			apk_ser_end(ser);
 		} else {
 			dump_object(ctx, object, v);
 		}
@@ -69,13 +69,13 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 		} else {
 			b = APK_BLOB_STR("(unknown)");
 		}
-		d->ops->string(d, b, scalar->multiline);
+		apk_ser_string(ser, b, scalar->multiline);
 		break;
 	case ADB_KIND_NUMERIC:
-		d->ops->numeric(d, adb_r_int(&ctx->db, v), 0);
+		apk_ser_numeric(ser, adb_r_int(&ctx->db, v), 0);
 		break;
 	case ADB_KIND_OCTAL:
-		d->ops->numeric(d, adb_r_int(&ctx->db, v), 1);
+		apk_ser_numeric(ser, adb_r_int(&ctx->db, v), 1);
 		break;
 	}
 	return 0;
@@ -83,17 +83,17 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 
 static int dump_object(struct adb_walk_ctx *ctx, const struct adb_object_schema *schema, adb_val_t v)
 {
+	struct apk_serializer *ser = ctx->ser;
 	size_t schema_len = 0;
 	struct adb_obj o;
 	char tmp[256];
 	apk_blob_t b;
-	struct adb_walk *d = ctx->d;
 
 	adb_r_obj(&ctx->db, v, &o, schema);
 	if (schema) {
 		if (schema->tostring) {
 			b = schema->tostring(&o, tmp, sizeof tmp);
-			d->ops->string(d, b, 0);
+			apk_ser_string(ser, b, 0);
 			return 0;
 		}
 		schema_len = schema->num_fields;
@@ -112,7 +112,7 @@ static int dump_object(struct adb_walk_ctx *ctx, const struct adb_object_schema 
 static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istream *is)
 {
 	struct adb_walk_ctx *ctx = container_of(db, struct adb_walk_ctx, db);
-	struct adb_walk *d = ctx->d;
+	struct apk_serializer *ser = ctx->ser;
 	char tmp[160];
 	struct adb_hdr *hdr;
 	struct adb_sign_hdr *s;
@@ -124,21 +124,21 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 
 	switch (adb_block_type(b)) {
 	case ADB_BLOCK_ADB:
-		d->ops->start_schema(d, db->schema);
-		for (ds = d->schemas; ds->magic; ds++)
+		apk_ser_start_schema(ser, db->schema);
+		for (ds = adb_all_schemas; ds->magic; ds++)
 			if (ds->magic == schema_magic) break;
 		hdr = apk_istream_peek(is, sizeof *hdr);
 		if (IS_ERR(hdr)) return PTR_ERR(hdr);
 		apk_blob_push_fmt(&c, "ADB block, size: %" PRIu64 ", compat: %d, ver: %d",
 			sz, hdr->adb_compat_ver, hdr->adb_ver);
-		d->ops->comment(d, apk_blob_pushed(APK_BLOB_BUF(tmp), c));
+		apk_ser_comment(ser, apk_blob_pushed(APK_BLOB_BUF(tmp), c));
 		if (ds->root && hdr->adb_compat_ver == 0) dump_object(ctx, ds->root, adb_r_root(db));
-		d->ops->end(d);
+		apk_ser_end(ser);
 		return 0;
 	case ADB_BLOCK_SIG:
 		s = (struct adb_sign_hdr*) apk_istream_get(is, sz);
 		data = APK_BLOB_PTR_LEN((char*)s, sz);
-		r = adb_trust_verify_signature(d->trust, db, &ctx->vfy, data);
+		r = adb_trust_verify_signature(ser->trust, db, &ctx->vfy, data);
 		apk_blob_push_fmt(&c, "sig v%02x h%02x ", s->sign_ver, s->hash_alg);
 		for (size_t j = sizeof *s; j < data.len && c.len > 40; j++)
 			apk_blob_push_fmt(&c, "%02x", (uint8_t)data.ptr[j]);
@@ -152,26 +152,27 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 		apk_blob_push_fmt(&c, "unknown block %d, size: %" PRIu64, adb_block_type(b), sz);
 		break;
 	}
-	d->ops->comment(d, apk_blob_pushed(APK_BLOB_BUF(tmp), c));
+	apk_ser_comment(ser, apk_blob_pushed(APK_BLOB_BUF(tmp), c));
 	return 0;
 }
 
-int adb_walk_adb(struct adb_walk *d, struct apk_istream *is)
+int adb_walk_adb(struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ops, struct apk_trust *trust)
 {
 	struct apk_trust allow_untrusted = {
 		.allow_untrusted = 1,
 	};
-	struct adb_walk_ctx ctx = {
-		.d = d,
-	};
+	struct adb_walk_ctx ctx = { 0 };
 	int r;
 
-	if (IS_ERR(is)) return PTR_ERR(is);
-	r = d->ops->init ? d->ops->init(d) : 0;
-	if (r) return r;
+	ctx.ser = apk_serializer_init_alloca(ops, os);
+	if (IS_ERR(ctx.ser)) {
+		if (!IS_ERR(is)) apk_istream_close(is);
+		return PTR_ERR(ctx.ser);
+	}
+	ctx.ser->trust = trust;
 
 	r = adb_m_process(&ctx.db, is, 0, &allow_untrusted, NULL, adb_walk_block);
-	if (d->ops->cleanup) d->ops->cleanup(d);
 	adb_free(&ctx.db);
-	return apk_ostream_close_error(d->os, r);
+	apk_serializer_cleanup(ctx.ser);
+	return r;
 }

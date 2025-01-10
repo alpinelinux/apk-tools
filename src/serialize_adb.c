@@ -2,55 +2,47 @@
 #include "adb.h"
 #include "apk_print.h"
 
-#define ADB_WALK_GENADB_MAX_IDB		2
-#define ADB_WALK_GENADB_MAX_VALUES	100000
+#define SERIALIZE_ADB_MAX_IDB		2
+#define SERIALIZE_ADB_MAX_VALUES	100000
 
-struct adb_walk_genadb {
+struct serialize_adb {
+	struct apk_serializer ser;
+
 	struct adb db;
-	struct adb idb[ADB_WALK_GENADB_MAX_IDB];
+	struct adb idb[SERIALIZE_ADB_MAX_IDB];
 	int nest, nestdb, num_vals;
-	struct adb_obj objs[ADB_WALK_MAX_NESTING];
-	unsigned int curkey[ADB_WALK_MAX_NESTING];
-	adb_val_t vals[ADB_WALK_GENADB_MAX_VALUES];
+	struct adb_obj objs[APK_SERIALIZE_MAX_NESTING];
+	unsigned int curkey[APK_SERIALIZE_MAX_NESTING];
+	adb_val_t vals[SERIALIZE_ADB_MAX_VALUES];
 
 	struct list_head db_buckets[1000];
 	struct list_head idb_buckets[100];
 };
 
-static struct adb_walk_genadb *walk_genadb_ctx(struct adb_walk *walk)
+static int ser_adb_init(struct apk_serializer *ser)
 {
-	return (struct adb_walk_genadb *) walk->ctx[0];
-}
+	struct serialize_adb *dt = container_of(ser, struct serialize_adb, ser);
 
-static int adb_walk_genadb_init(struct adb_walk *d)
-{
-	struct adb_walk_genadb *dt;
-
-	dt = calloc(1, sizeof *dt);
-	if (!dt) return -ENOMEM;
-	d->ctx[0] = (unsigned long) dt;
 	adb_w_init_dynamic(&dt->db, 0, dt->db_buckets, ARRAY_SIZE(dt->db_buckets));
 	adb_w_init_dynamic(&dt->idb[0], 0, dt->idb_buckets, ARRAY_SIZE(dt->idb_buckets));
 	return 0;
 }
 
-static void adb_walk_genadb_cleanup(struct adb_walk *d)
+static void ser_adb_cleanup(struct apk_serializer *ser)
 {
-	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
+	struct serialize_adb *dt = container_of(ser, struct serialize_adb, ser);
 
 	adb_free(&dt->db);
 	adb_free(&dt->idb[0]);
-	free((void*) d->ctx[0]);
-	d->ctx[0] = 0;
 }
 
-static int adb_walk_genadb_start_schema(struct adb_walk *d, uint32_t schema_id)
+static int ser_adb_start_schema(struct apk_serializer *ser, uint32_t schema_id)
 {
-	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
+	struct serialize_adb *dt = container_of(ser, struct serialize_adb, ser);
 	const struct adb_db_schema *s;
 
 	dt->db.schema = schema_id;
-	for (s = d->schemas; s->magic; s++)
+	for (s = adb_all_schemas; s->magic; s++)
 		if (s->magic == schema_id) break;
 	if (!s || !s->magic) return -APKE_ADB_SCHEMA;
 
@@ -62,9 +54,9 @@ static int adb_walk_genadb_start_schema(struct adb_walk *d, uint32_t schema_id)
 	return 0;
 }
 
-static int adb_walk_genadb_start_object(struct adb_walk *d)
+static int ser_adb_start_object(struct apk_serializer *ser)
 {
-	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
+	struct serialize_adb *dt = container_of(ser, struct serialize_adb, ser);
 
 	if (!dt->db.schema) return -APKE_ADB_SCHEMA;
 	if (dt->nest >= ARRAY_SIZE(dt->objs)) return -APKE_ADB_LIMIT;
@@ -93,17 +85,18 @@ static int adb_walk_genadb_start_object(struct adb_walk *d)
 	return 0;
 }
 
-static int adb_walk_genadb_start_array(struct adb_walk *d, unsigned int num)
+static int ser_adb_start_array(struct apk_serializer *ser, unsigned int num)
 {
-	return adb_walk_genadb_start_object(d);
+	return ser_adb_start_object(ser);
 }
 
-static int adb_walk_genadb_end(struct adb_walk *d)
+static int ser_adb_end(struct apk_serializer *ser)
 {
-	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
+	struct serialize_adb *dt = container_of(ser, struct serialize_adb, ser);
 	adb_val_t val;
 
 	val = adb_w_obj(&dt->objs[dt->nest]);
+	adb_wo_free(&dt->objs[dt->nest]);
 	if (ADB_IS_ERROR(val))
 		return -ADB_VAL_VALUE(val);
 
@@ -112,8 +105,8 @@ static int adb_walk_genadb_end(struct adb_walk *d)
 
 	if (dt->nest == 0) {
 		adb_w_root(&dt->db, val);
-		int r = adb_c_create(d->os, &dt->db, d->trust);
-		d->os = NULL;
+		int r = adb_c_create(dt->ser.os, &dt->db, dt->ser.trust);
+		dt->ser.os = NULL;
 		return r;
 	}
 
@@ -135,14 +128,14 @@ static int adb_walk_genadb_end(struct adb_walk *d)
 	return 0;
 }
 
-static int adb_walk_genadb_comment(struct adb_walk *d, apk_blob_t comment)
+static int ser_adb_comment(struct apk_serializer *ser, apk_blob_t comment)
 {
 	return 0;
 }
 
-static int adb_walk_genadb_key(struct adb_walk *d, apk_blob_t key)
+static int ser_adb_key(struct apk_serializer *ser, apk_blob_t key)
 {
-	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
+	struct serialize_adb *dt = container_of(ser, struct serialize_adb, ser);
 	uint8_t kind = dt->objs[dt->nest].schema->kind;
 
 	if (kind != ADB_KIND_OBJECT && kind != ADB_KIND_ADB)
@@ -155,9 +148,9 @@ static int adb_walk_genadb_key(struct adb_walk *d, apk_blob_t key)
 	return 0;
 }
 
-static int adb_walk_genadb_string(struct adb_walk *d, apk_blob_t scalar, int multiline)
+static int ser_adb_string(struct apk_serializer *ser, apk_blob_t scalar, int multiline)
 {
-	struct adb_walk_genadb *dt = walk_genadb_ctx(d);
+	struct serialize_adb *dt = container_of(ser, struct serialize_adb, ser);
 
 	if (dt->objs[dt->nest].schema->kind == ADB_KIND_ARRAY) {
 		adb_wa_append_fromstring(&dt->objs[dt->nest], scalar);
@@ -172,14 +165,15 @@ static int adb_walk_genadb_string(struct adb_walk *d, apk_blob_t scalar, int mul
 	return 0;
 }
 
-const struct adb_walk_ops adb_walk_genadb_ops = {
-	.init = adb_walk_genadb_init,
-	.cleanup = adb_walk_genadb_cleanup,
-	.start_schema = adb_walk_genadb_start_schema,
-	.start_array = adb_walk_genadb_start_array,
-	.start_object = adb_walk_genadb_start_object,
-	.end = adb_walk_genadb_end,
-	.comment = adb_walk_genadb_comment,
-	.key = adb_walk_genadb_key,
-	.string = adb_walk_genadb_string,
+const struct apk_serializer_ops apk_serializer_adb = {
+	.context_size = sizeof(struct serialize_adb),
+	.init = ser_adb_init,
+	.cleanup = ser_adb_cleanup,
+	.start_schema = ser_adb_start_schema,
+	.start_array = ser_adb_start_array,
+	.start_object = ser_adb_start_object,
+	.end = ser_adb_end,
+	.comment = ser_adb_comment,
+	.key = ser_adb_key,
+	.string = ser_adb_string,
 };

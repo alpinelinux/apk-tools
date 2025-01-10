@@ -532,3 +532,10 @@ const struct adb_object_schema schema_idb = {
 		ADB_FIELD(ADBI_IDB_PACKAGES,	"packages",	schema_package_adb_array),
 	},
 };
+
+const struct adb_db_schema adb_all_schemas[] = {
+	{ .magic = ADB_SCHEMA_INDEX,		.root = &schema_index, },
+	{ .magic = ADB_SCHEMA_INSTALLED_DB,	.root = &schema_idb, },
+	{ .magic = ADB_SCHEMA_PACKAGE,		.root = &schema_package },
+	{},
+};
