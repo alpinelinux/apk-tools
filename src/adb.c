@@ -918,6 +918,7 @@ void adb_wo_free(struct adb_obj *o)
 {
 	if (o->dynamic) free(o->obj);
 	o->obj = 0;
+	o->dynamic = 0;
 }
 
 void adb_wo_reset(struct adb_obj *o)
