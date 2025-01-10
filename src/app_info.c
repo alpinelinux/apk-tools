@@ -16,31 +16,17 @@
 #include "apk_database.h"
 #include "apk_print.h"
 
+extern const struct apk_serializer_ops apk_serializer_query;
+
 struct info_ctx {
 	struct apk_database *db;
-	void (*action)(struct info_ctx *ctx, struct apk_database *db, struct apk_string_array *args);
-	int subaction_mask;
-	int errors;
+	unsigned int who_owns : 1;
+	unsigned int exists_test : 1;
 };
 
 static int verbosity = 0;
 
-/* These need to stay in sync with the function pointer array in
- * info_subaction() */
-#define APK_INFO_DESC		0x01
-#define APK_INFO_URL		0x02
-#define APK_INFO_SIZE		0x04
-#define APK_INFO_DEPENDS	0x08
-#define APK_INFO_PROVIDES	0x10
-#define APK_INFO_RDEPENDS	0x20
-#define APK_INFO_CONTENTS	0x40
-#define APK_INFO_TRIGGERS	0x80
-#define APK_INFO_INSTALL_IF	0x100
-#define APK_INFO_RINSTALL_IF	0x200
-#define APK_INFO_REPLACES	0x400
-#define APK_INFO_LICENSE	0x800
-
-static void verbose_print_pkg(struct apk_package *pkg, int minimal_verbosity)
+static void info_print_pkg_oneline(struct apk_package *pkg, int minimal_verbosity)
 {
 	int v = min(verbosity, minimal_verbosity);
 	if (pkg == NULL || v < 1) return;
@@ -50,138 +36,92 @@ static void verbose_print_pkg(struct apk_package *pkg, int minimal_verbosity)
 	printf("\n");
 }
 
-static void info_exists(struct info_ctx *ctx, struct apk_database *db,
-			struct apk_string_array *args)
+static int info_exists(struct info_ctx *ctx, struct apk_database *db, struct apk_string_array *args)
 {
 	struct apk_name *name;
 	struct apk_dependency dep;
-	struct apk_provider *p;
-	char **parg;
-	int ok;
+	int ok, errors = 0;
 
-	foreach_array_item(parg, args) {
-		apk_blob_t b = APK_BLOB_STR(*parg);
+	apk_array_foreach_item(arg, args) {
+		apk_blob_t b = APK_BLOB_STR(arg);
 
 		apk_blob_pull_dep(&b, db, &dep, true);
-		if (APK_BLOB_IS_NULL(b) || b.len > 0)
-			continue;
+		if (APK_BLOB_IS_NULL(b) || b.len > 0) continue;
 
 		name = dep.name;
-		if (name == NULL)
-			continue;
+		if (name == NULL) continue;
 
 		ok = apk_dep_is_provided(NULL, &dep, NULL);
-		foreach_array_item(p, name->providers) {
+		apk_array_foreach(p, name->providers) {
 			if (!p->pkg->ipkg) continue;
 			ok = apk_dep_is_provided(NULL, &dep, p);
-			if (ok) verbose_print_pkg(p->pkg, 0);
+			if (ok) info_print_pkg_oneline(p->pkg, 0);
 			break;
 		}
-		if (!ok) ctx->errors++;
+		if (!ok) errors++;
 	}
+	return errors;
 }
 
-static struct apk_package *get_owner(struct apk_database *db, apk_blob_t fn)
-{
-	struct apk_db_dir *dir;
-
-	apk_blob_pull_blob_match(&fn, APK_BLOB_STRLIT("/"));
-	fn = apk_blob_trim_end(fn, '/');
-
-	dir = apk_db_dir_query(db, fn);
-	if (dir && dir->owner) return dir->owner->pkg;
-	return apk_db_get_file_owner(db, fn);
-}
-
-static void info_who_owns(struct info_ctx *ctx, struct apk_database *db,
-			  struct apk_string_array *args)
+static int info_who_owns(struct info_ctx *ctx, struct apk_database *db, struct apk_string_array *args)
 {
 	struct apk_out *out = &db->ctx->out;
-	struct apk_package *pkg;
-	struct apk_dependency_array *deps;
-	struct apk_dependency dep;
-	struct apk_ostream *os;
-	const char *via;
-	char **parg, fnbuf[PATH_MAX], buf[PATH_MAX];
-	apk_blob_t fn;
-	ssize_t r;
+	struct apk_query_spec *qs = &db->ctx->query;
+	struct apk_package_array *pkgs;
+	struct apk_serializer *ser = NULL;
+	struct apk_query_match qm;
+	char fnbuf[PATH_MAX], buf[PATH_MAX];
+	int errors = 0;
 
-	apk_dependency_array_init(&deps);
-	foreach_array_item(parg, args) {
-		if (*parg[0] != '/' && realpath(*parg, fnbuf))
-			fn = APK_BLOB_STR(fnbuf);
-		else
-			fn = APK_BLOB_STR(*parg);
-
-		via = "";
-
-		pkg = get_owner(db, fn);
-		if (pkg == NULL) {
-			r = readlinkat(db->root_fd, *parg, buf, sizeof(buf));
-			if (r > 0 && r < PATH_MAX && buf[0] == '/') {
-				pkg = get_owner(db, APK_BLOB_PTR_LEN(buf, r));
-				via = "symlink target ";
-			}
-		}
-
-		if (pkg == NULL) {
-			apk_err(out, BLOB_FMT ": Could not find owner package",
-				BLOB_PRINTF(fn));
-			ctx->errors++;
+	if (qs->ser != &apk_serializer_query) {
+		if (!qs->fields) qs->fields = BIT(APK_Q_FIELD_QUERY) | BIT(APK_Q_FIELD_PATH_TARGET) | BIT(APK_Q_FIELD_ERROR) | BIT(APK_Q_FIELD_NAME);
+		ser = apk_serializer_init_alloca(qs->ser, apk_ostream_to_fd(STDOUT_FILENO));
+		if (IS_ERR(ser)) return PTR_ERR(ser);
+		apk_ser_start_array(ser, apk_array_len(args));
+	}
+	apk_package_array_init(&pkgs);
+	apk_array_foreach_item(arg, args) {
+		char *fn = arg;
+		if (arg[0] != '/' && realpath(arg, fnbuf)) fn = fnbuf;
+		apk_query_who_owns(db, fn, &qm, buf, sizeof buf);
+		if (ser) {
+			apk_ser_start_object(ser);
+			apk_query_match_serialize(&qm, db, qs->fields, ser);
+			apk_ser_end(ser);
 			continue;
 		}
-
-		if (verbosity < 1) {
-			dep = (struct apk_dependency) {
-				.name = pkg->name,
-				.version = &apk_atom_null,
-				.op = APK_DEPMASK_ANY,
-			};
-			apk_deps_add(&deps, &dep);
-		} else {
-			printf(BLOB_FMT " %sis owned by " PKG_VER_FMT "\n",
-			       BLOB_PRINTF(fn), via, PKG_VER_PRINTF(pkg));
+		if (!qm.pkg) {
+			apk_err(out, "%s: Could not find owner package", fn);
+			errors++;
+			continue;
+		}
+		if (verbosity >= 1) {
+			printf("%s %sis owned by " PKG_VER_FMT "\n",
+			       fn, qm.path_target.ptr ? "symlink target " : "",
+			       PKG_VER_PRINTF(qm.pkg));
+		} else if (!qm.pkg->marked) {
+			qm.pkg->marked = 1;
+			apk_package_array_add(&pkgs, qm.pkg);
 		}
 	}
-	if (verbosity < 1 && apk_array_len(deps) != 0) {
-		os = apk_ostream_to_fd(STDOUT_FILENO);
-		if (!IS_ERR(os)) {
-			apk_deps_write(db, deps, os, APK_BLOB_PTR_LEN(" ", 1));
-			apk_ostream_write(os, "\n", 1);
-			apk_ostream_close(os);
-		}
+	if (apk_array_len(pkgs) != 0) {
+		apk_array_qsort(pkgs, apk_package_array_qsort);
+		apk_array_foreach_item(pkg, pkgs) printf("%s\n", pkg->name->name);
 	}
-	apk_dependency_array_free(&deps);
+	apk_package_array_free(&pkgs);
+	if (ser) {
+		apk_ser_end(ser);
+		apk_serializer_cleanup(ser);
+	}
+	return errors;
 }
 
-static void info_print_description(struct apk_database *db, struct apk_package *pkg)
+static void info_print_blob(struct apk_database *db, struct apk_package *pkg, const char *field, apk_blob_t value)
 {
 	if (verbosity > 1)
-		printf("%s: " BLOB_FMT, pkg->name->name, BLOB_PRINTF(*pkg->description));
+		printf("%s: " BLOB_FMT "\n", pkg->name->name, BLOB_PRINTF(value));
 	else
-		printf(PKG_VER_FMT " description:\n" BLOB_FMT "\n",
-		       PKG_VER_PRINTF(pkg),
-		       BLOB_PRINTF(*pkg->description));
-}
-
-static void info_print_url(struct apk_database *db, struct apk_package *pkg)
-{
-	if (verbosity > 1)
-		printf("%s: " BLOB_FMT, pkg->name->name, BLOB_PRINTF(*pkg->url));
-	else
-		printf(PKG_VER_FMT " webpage:\n" BLOB_FMT "\n",
-		       PKG_VER_PRINTF(pkg),
-		       BLOB_PRINTF(*pkg->url));
-}
-
-static void info_print_license(struct apk_database *db, struct apk_package *pkg)
-{
-	if (verbosity > 1)
-		printf("%s: " BLOB_FMT , pkg->name->name, BLOB_PRINTF(*pkg->license));
-	else
-		printf(PKG_VER_FMT " license:\n" BLOB_FMT "\n",
-		       PKG_VER_PRINTF(pkg),
-		       BLOB_PRINTF(*pkg->license));
+		printf(PKG_VER_FMT " %s:\n" BLOB_FMT "\n\n", PKG_VER_PRINTF(pkg), field, BLOB_PRINTF(value));
 }
 
 static void info_print_size(struct apk_database *db, struct apk_package *pkg)
@@ -191,40 +131,28 @@ static void info_print_size(struct apk_database *db, struct apk_package *pkg)
 
 	size_unit = apk_get_human_size(pkg->installed_size, &size);
 	if (verbosity > 1)
-		printf("%s: %" PRIu64 " %s", pkg->name->name, size, size_unit);
+		printf("%s: %" PRIu64 " %s\n", pkg->name->name, size, size_unit);
 	else
-		printf(PKG_VER_FMT " installed size:\n%" PRIu64 " %s\n",
+		printf(PKG_VER_FMT " installed size:\n%" PRIu64 " %s\n\n",
 		       PKG_VER_PRINTF(pkg), size, size_unit);
 }
 
 static void info_print_dep_array(struct apk_database *db, struct apk_package *pkg,
 				 struct apk_dependency_array *deps, const char *dep_text)
 {
-	struct apk_dependency *d;
 	apk_blob_t separator = APK_BLOB_STR(verbosity > 1 ? " " : "\n");
 	char buf[256];
 
-	if (verbosity == 1)
-		printf(PKG_VER_FMT " %s:\n", PKG_VER_PRINTF(pkg), dep_text);
-	if (verbosity > 1)
-		printf("%s: ", pkg->name->name);
-	foreach_array_item(d, deps) {
+	if (verbosity == 1) printf(PKG_VER_FMT " %s:\n", PKG_VER_PRINTF(pkg), dep_text);
+	if (verbosity > 1) printf("%s: ", pkg->name->name);
+	apk_array_foreach(d, deps) {
 		apk_blob_t b = APK_BLOB_BUF(buf);
 		apk_blob_push_dep(&b, db, d);
 		apk_blob_push_blob(&b, separator);
 		b = apk_blob_pushed(APK_BLOB_BUF(buf), b);
 		fwrite(b.ptr, b.len, 1, stdout);
 	}
-}
-
-static void info_print_depends(struct apk_database *db, struct apk_package *pkg)
-{
-	info_print_dep_array(db, pkg, pkg->depends, "depends on");
-}
-
-static void info_print_provides(struct apk_database *db, struct apk_package *pkg)
-{
-	info_print_dep_array(db, pkg, pkg->provides, "provides");
+	puts("");
 }
 
 static void print_rdep_pkg(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *pctx)
@@ -234,46 +162,35 @@ static void print_rdep_pkg(struct apk_package *pkg0, struct apk_dependency *dep0
 
 static void info_print_required_by(struct apk_database *db, struct apk_package *pkg)
 {
-	if (verbosity == 1)
-		printf(PKG_VER_FMT " is required by:\n", PKG_VER_PRINTF(pkg));
-	if (verbosity > 1)
-		printf("%s: ", pkg->name->name);
+	if (verbosity == 1) printf(PKG_VER_FMT " is required by:\n", PKG_VER_PRINTF(pkg));
+	if (verbosity > 1) printf("%s: ", pkg->name->name);
 	apk_pkg_foreach_reverse_dependency(
 		pkg,
 		APK_FOREACH_INSTALLED | APK_DEP_SATISFIES | apk_foreach_genid(),
 		print_rdep_pkg, NULL);
-}
-
-static void info_print_install_if(struct apk_database *db, struct apk_package *pkg)
-{
-	info_print_dep_array(db, pkg, pkg->install_if, "has auto-install rule");
+	puts("");
 }
 
 static void info_print_rinstall_if(struct apk_database *db, struct apk_package *pkg)
 {
-	struct apk_name **name0;
 	struct apk_dependency *dep;
 	char *separator = verbosity > 1 ? " " : "\n";
 
-	if (verbosity == 1)
-		printf(PKG_VER_FMT " affects auto-installation of:\n",
-		       PKG_VER_PRINTF(pkg));
-	if (verbosity > 1)
-		printf("%s: ", pkg->name->name);
+	if (verbosity == 1) printf(PKG_VER_FMT " affects auto-installation of:\n", PKG_VER_PRINTF(pkg));
+	if (verbosity > 1) printf("%s: ", pkg->name->name);
 
-	foreach_array_item(name0, pkg->name->rinstall_if) {
+	apk_array_foreach_item(name0, pkg->name->rinstall_if) {
 		/* Check only the package that is installed, and that
 		 * it actually has this package in install_if. */
-		struct apk_package *pkg0 = apk_pkg_get_installed(*name0);
+		struct apk_package *pkg0 = apk_pkg_get_installed(name0);
 		if (pkg0 == NULL) continue;
 		foreach_array_item(dep, pkg0->install_if) {
 			if (dep->name != pkg->name) continue;
-			printf(PKG_VER_FMT "%s",
-			       PKG_VER_PRINTF(pkg0),
-			       separator);
+			printf(PKG_VER_FMT "%s", PKG_VER_PRINTF(pkg0), separator);
 			break;
 		}
 	}
+	puts("");
 }
 
 static void info_print_contents(struct apk_database *db, struct apk_package *pkg)
@@ -283,9 +200,7 @@ static void info_print_contents(struct apk_database *db, struct apk_package *pkg
 	struct apk_db_file *file;
 	struct hlist_node *dc, *dn, *fc, *fn;
 
-	if (verbosity == 1)
-		printf(PKG_VER_FMT " contains:\n",
-		       PKG_VER_PRINTF(pkg));
+	if (verbosity == 1) printf(PKG_VER_FMT " contains:\n", PKG_VER_PRINTF(pkg));
 
 	hlist_for_each_entry_safe(diri, dc, dn, &ipkg->owned_dirs,
 				  pkg_dirs_list) {
@@ -296,74 +211,45 @@ static void info_print_contents(struct apk_database *db, struct apk_package *pkg
 			printf(DIR_FILE_FMT "\n", DIR_FILE_PRINTF(diri->dir, file));
 		}
 	}
+	puts("");
 }
 
 static void info_print_triggers(struct apk_database *db, struct apk_package *pkg)
 {
 	struct apk_installed_package *ipkg = pkg->ipkg;
-	char **trigger;
 
-	if (verbosity == 1)
-		printf(PKG_VER_FMT " triggers:\n",
-		       PKG_VER_PRINTF(pkg));
-
-	foreach_array_item(trigger, ipkg->triggers) {
+	if (verbosity == 1) printf(PKG_VER_FMT " triggers:\n", PKG_VER_PRINTF(pkg));
+	apk_array_foreach_item(trigger, ipkg->triggers) {
 		if (verbosity > 1)
 			printf("%s: trigger ", pkg->name->name);
-		printf("%s\n", *trigger);
+		printf("%s\n", trigger);
 	}
+	puts("");
 }
 
-static void info_print_replaces(struct apk_database *db, struct apk_package *pkg)
+static void info_subactions(struct info_ctx *ctx, struct apk_package *pkg)
 {
-	info_print_dep_array(db, pkg, pkg->ipkg->replaces, "replaces");
-}
-
-static void info_subaction(struct info_ctx *ctx, struct apk_package *pkg)
-{
-	typedef void (*subaction_t)(struct apk_database *, struct apk_package *);
-	static subaction_t subactions[] = {
-		info_print_description,
-		info_print_url,
-		info_print_size,
-		info_print_depends,
-		info_print_provides,
-		info_print_required_by,
-		info_print_contents,
-		info_print_triggers,
-		info_print_install_if,
-		info_print_rinstall_if,
-		info_print_replaces,
-		info_print_license,
-	};
-	const int requireipkg =
-		APK_INFO_CONTENTS | APK_INFO_TRIGGERS | APK_INFO_RDEPENDS |
-		APK_INFO_RINSTALL_IF | APK_INFO_REPLACES;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(subactions); i++) {
-		if (!(BIT(i) & ctx->subaction_mask))
-			continue;
-
-		if (pkg->ipkg == NULL && (BIT(i) & requireipkg))
-			continue;
-
-		subactions[i](ctx->db, pkg);
-		puts("");
+	struct apk_database *db = ctx->db;
+	uint64_t fields = db->ctx->query.fields;
+	if (!pkg->ipkg) {
+		const uint64_t installed_package_fields =
+			BIT(APK_Q_FIELD_CONTENTS) | BIT(APK_Q_FIELD_TRIGGERS) |
+			BIT(APK_Q_FIELD_REVDEPS_PKGNAME) | BIT(APK_Q_FIELD_RINSTALL_IF) |
+			BIT(APK_Q_FIELD_REPLACES);
+		fields &= ~installed_package_fields;
 	}
-}
-
-static int print_name_info(struct apk_database *db, const char *match, struct apk_package *pkg, void *pctx)
-{
-	struct info_ctx *ctx = (struct info_ctx *) pctx;
-
-	if (!pkg) {
-		ctx->errors++;
-		return 0;
-	}
-
-	info_subaction(ctx, pkg);
-	return 0;
+	if (fields & BIT(APK_Q_FIELD_DESCRIPTION)) info_print_blob(db, pkg, "description", *pkg->description);
+	if (fields & BIT(APK_Q_FIELD_URL)) info_print_blob(db, pkg, "webpage", *pkg->url);
+	if (fields & BIT(APK_Q_FIELD_INSTALLED_SIZE)) info_print_size(db, pkg);
+	if (fields & BIT(APK_Q_FIELD_DEPENDS)) info_print_dep_array(db, pkg, pkg->depends, "depends on");
+	if (fields & BIT(APK_Q_FIELD_PROVIDES)) info_print_dep_array(db, pkg, pkg->provides, "provides");
+	if (fields & BIT(APK_Q_FIELD_REVDEPS_PKGNAME)) info_print_required_by(db, pkg);
+	if (fields & BIT(APK_Q_FIELD_CONTENTS)) info_print_contents(db, pkg);
+	if (fields & BIT(APK_Q_FIELD_TRIGGERS)) info_print_triggers(db, pkg);
+	if (fields & BIT(APK_Q_FIELD_INSTALL_IF)) info_print_dep_array(db, pkg, pkg->install_if, "has auto-install rule");
+	if (fields & BIT(APK_Q_FIELD_RINSTALL_IF)) info_print_rinstall_if(db, pkg);
+	if (fields & BIT(APK_Q_FIELD_REPLACES)) info_print_dep_array(db, pkg, pkg->ipkg->replaces, "replaces");
+	if (fields & BIT(APK_Q_FIELD_LICENSE)) info_print_blob(db, pkg, "license", *pkg->license);
 }
 
 #define INFO_OPTIONS(OPT) \
@@ -371,8 +257,9 @@ static int print_name_info(struct apk_database *db, const char *match, struct ap
 	OPT(OPT_INFO_contents,		APK_OPT_SH("L") "contents") \
 	OPT(OPT_INFO_depends,		APK_OPT_SH("R") "depends") \
 	OPT(OPT_INFO_description,	APK_OPT_SH("d") "description") \
+	OPT(OPT_INFO_exists,		APK_OPT_SH("e") "exists") \
 	OPT(OPT_INFO_install_if,	"install-if") \
-	OPT(OPT_INFO_installed,		APK_OPT_SH("e") "installed") \
+	OPT(OPT_INFO_installed,		"installed") \
 	OPT(OPT_INFO_license,		"license") \
 	OPT(OPT_INFO_provides,		APK_OPT_SH("P") "provides") \
 	OPT(OPT_INFO_rdepends,		APK_OPT_SH("r") "rdepends") \
@@ -388,55 +275,62 @@ APK_OPTIONS(info_options_desc, INFO_OPTIONS);
 static int info_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct info_ctx *ctx = (struct info_ctx *) pctx;
+	struct apk_query_spec *qs = &ac->query;
 
-	ctx->action = NULL;
+	ctx->who_owns = ctx->exists_test = 0;
 	switch (opt) {
+	case OPT_INFO_exists:
 	case OPT_INFO_installed:
-		ctx->action = info_exists;
+		ctx->exists_test = 1;
 		ac->open_flags |= APK_OPENF_NO_REPOS;
 		break;
 	case OPT_INFO_who_owns:
-		ctx->action = info_who_owns;
+		ctx->who_owns = 1;
 		ac->open_flags |= APK_OPENF_NO_REPOS;
 		break;
 	case OPT_INFO_webpage:
-		ctx->subaction_mask |= APK_INFO_URL;
+		qs->fields |= BIT(APK_Q_FIELD_URL);
 		break;
 	case OPT_INFO_depends:
-		ctx->subaction_mask |= APK_INFO_DEPENDS;
+		qs->fields |= BIT(APK_Q_FIELD_DEPENDS);
 		break;
 	case OPT_INFO_provides:
-		ctx->subaction_mask |= APK_INFO_PROVIDES;
+		qs->fields |= BIT(APK_Q_FIELD_PROVIDES);
 		break;
 	case OPT_INFO_rdepends:
-		ctx->subaction_mask |= APK_INFO_RDEPENDS;
+		qs->fields |= BIT(APK_Q_FIELD_REVDEPS_PKGNAME);
 		break;
 	case OPT_INFO_install_if:
-		ctx->subaction_mask |= APK_INFO_INSTALL_IF;
+		qs->fields |= BIT(APK_Q_FIELD_INSTALL_IF);
 		break;
 	case OPT_INFO_rinstall_if:
-		ctx->subaction_mask |= APK_INFO_RINSTALL_IF;
+		qs->fields |= BIT(APK_Q_FIELD_RINSTALL_IF);
 		break;
 	case OPT_INFO_size:
-		ctx->subaction_mask |= APK_INFO_SIZE;
+		qs->fields |= BIT(APK_Q_FIELD_INSTALLED_SIZE);
 		break;
 	case OPT_INFO_description:
-		ctx->subaction_mask |= APK_INFO_DESC;
+		qs->fields |= BIT(APK_Q_FIELD_DESCRIPTION);
 		break;
 	case OPT_INFO_contents:
-		ctx->subaction_mask |= APK_INFO_CONTENTS;
+		qs->fields |= BIT(APK_Q_FIELD_CONTENTS);
 		break;
 	case OPT_INFO_triggers:
-		ctx->subaction_mask |= APK_INFO_TRIGGERS;
+		qs->fields |= BIT(APK_Q_FIELD_TRIGGERS);
 		break;
 	case OPT_INFO_replaces:
-		ctx->subaction_mask |= APK_INFO_REPLACES;
+		qs->fields |= BIT(APK_Q_FIELD_REPLACES);
 		break;
 	case OPT_INFO_license:
-		ctx->subaction_mask |= APK_INFO_LICENSE;
+		qs->fields |= BIT(APK_Q_FIELD_LICENSE);
 		break;
 	case OPT_INFO_all:
-		ctx->subaction_mask = 0xffffffff;
+		qs->fields |= BIT(APK_Q_FIELD_URL) | BIT(APK_Q_FIELD_DEPENDS) |
+			BIT(APK_Q_FIELD_PROVIDES) | BIT(APK_Q_FIELD_REVDEPS_PKGNAME) |
+			BIT(APK_Q_FIELD_INSTALL_IF) | BIT(APK_Q_FIELD_RINSTALL_IF) |
+			BIT(APK_Q_FIELD_INSTALLED_SIZE) | BIT(APK_Q_FIELD_DESCRIPTION) |
+			BIT(APK_Q_FIELD_CONTENTS) | BIT(APK_Q_FIELD_TRIGGERS) |
+			BIT(APK_Q_FIELD_REPLACES) | BIT(APK_Q_FIELD_LICENSE);
 		break;
 	default:
 		return -ENOTSUP;
@@ -448,32 +342,44 @@ static int info_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *arg
 {
 	struct apk_out *out = &ac->out;
 	struct apk_database *db = ac->db;
+	struct apk_query_spec *qs = &ac->query;
 	struct info_ctx *ictx = (struct info_ctx *) ctx;
+	struct apk_package_array *pkgs;
+	int oneline = 0;
 
 	verbosity = apk_out_verbosity(out);
 	ictx->db = db;
-	if (ictx->subaction_mask == 0)
-		ictx->subaction_mask = APK_INFO_DESC | APK_INFO_URL | APK_INFO_SIZE;
-	if (ictx->action != NULL) {
-		ictx->action(ictx, db, args);
-	} else if (apk_array_len(args) > 0) {
-		/* Print info on given packages */
-		apk_db_foreach_sorted_providers(db, args, print_name_info, ctx);
-	} else {
-		/* Print all installed packages */
-		struct apk_package_array *pkgs = apk_db_sorted_installed_packages(db);
-		struct apk_package **ppkg;
-		foreach_array_item(ppkg, pkgs)
-			verbose_print_pkg(*ppkg, 1);
-	}
 
-	return ictx->errors;
+	if (ictx->who_owns) return info_who_owns(ctx, db, args);
+	if (ictx->exists_test) return info_exists(ctx, db, args);
+
+	qs->filter.all_matches = 1;
+	if (apk_array_len(args) == 0) {
+		qs->filter.installed = 1;
+		qs->mode.empty_matches_all = 1;
+		oneline = 1;
+	}
+	if (!qs->fields) qs->fields = BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_VERSION) |
+		BIT(APK_Q_FIELD_DESCRIPTION) | BIT(APK_Q_FIELD_URL) | BIT(APK_Q_FIELD_INSTALLED_SIZE);
+	if (!qs->match) qs->match = BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_PROVIDES);
+	if (qs->ser == &apk_serializer_query && (oneline || ac->legacy_info)) {
+		apk_package_array_init(&pkgs);
+		int errors = apk_query_packages(ac, qs, args, &pkgs);
+		if (oneline) {
+			apk_array_foreach_item(pkg, pkgs) info_print_pkg_oneline(pkg, 1);
+		}else {
+			apk_array_foreach_item(pkg, pkgs) info_subactions(ctx, pkg);
+		}
+		apk_package_array_free(&pkgs);
+		return errors;
+	}
+	return apk_query_main(ac, args);
 }
 
 static struct apk_applet apk_info = {
 	.name = "info",
 	.options_desc = info_options_desc,
-	.optgroup_source = 1,
+	.optgroup_query = 1,
 	.open_flags = APK_OPENF_READ | APK_OPENF_ALLOW_ARCH,
 	.context_size = sizeof(struct info_ctx),
 	.parse = info_parse_option,

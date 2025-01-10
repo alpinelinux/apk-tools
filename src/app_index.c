@@ -81,44 +81,33 @@ static int index_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char
 	return 0;
 }
 
-struct index_writer {
-	struct apk_ostream *os;
-	int count;
-	unsigned short index_flags;
-};
-
-static int index_write_entry(struct apk_database *db, const char *match, struct apk_package *pkg, void *ctx)
-{
-	struct index_writer *iw = ctx;
-
-	switch (iw->index_flags & (APK_INDEXF_MERGE|APK_INDEXF_PRUNE_ORIGIN)) {
-	case APK_INDEXF_MERGE:
-		break;
-	case APK_INDEXF_MERGE|APK_INDEXF_PRUNE_ORIGIN:
-		if (!pkg->marked && pkg->origin) {
-			struct apk_name *n = apk_db_query_name(db, *pkg->origin);
-			if (n && n->state_int) return 0;
-		}
-		break;
-	default:
-		if (!pkg->marked) return 0;
-		break;
-	}
-
-	iw->count++;
-	return apk_pkg_write_index_entry(pkg, iw->os);
-}
-
 static int index_write(struct index_ctx *ictx, struct apk_database *db, struct apk_ostream *os)
 {
-	struct index_writer iw = {
-		.index_flags = ictx->index_flags,
-		.os = os,
-	};
+	int count = 0;
 
-	apk_db_foreach_sorted_package(db, NULL, index_write_entry, &iw);
+	apk_array_foreach_item(name, apk_db_sorted_names(db)) {
+		apk_array_foreach(p, apk_name_sorted_providers(name)) {
+			struct apk_package *pkg = p->pkg;
+			if (name != pkg->name) continue;
 
-	return iw.count;
+			switch (ictx->index_flags & (APK_INDEXF_MERGE|APK_INDEXF_PRUNE_ORIGIN)) {
+			case APK_INDEXF_MERGE:
+				break;
+			case APK_INDEXF_MERGE|APK_INDEXF_PRUNE_ORIGIN:
+				if (!pkg->marked && pkg->origin) {
+					struct apk_name *n = apk_db_query_name(db, *pkg->origin);
+					if (n && n->state_int) continue;
+				}
+				break;
+			default:
+				if (!pkg->marked) continue;
+				break;
+			}
+			count++;
+			apk_pkg_write_index_entry(pkg, os);
+		}
+	}
+	return count;
 }
 
 static int index_read_file(struct apk_database *db, struct index_ctx *ictx)

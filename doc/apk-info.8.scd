@@ -30,10 +30,12 @@ display the appropriate information, then an empty line terminates that field.
 *-d, --description*
 	Print the package description.
 
-*-e, --installed*
+*-e, --exists, --installed*
 	Check package installed status. For each installed package, print it's
 	name. The exit status is the number of given packages not installed.
 	Thus, zero (or success) is returned if all named packages are installed.
+	NOTE: *--installed* is deprecated and will be removed to allow
+	the same option in *query* group to function.
 
 *-L, --contents*
 	List files included in the package.

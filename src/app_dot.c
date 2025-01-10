@@ -17,29 +17,27 @@
 #define S_EVALUATING	-2
 
 struct dot_ctx {
+	struct apk_query_spec *qs;
 	unsigned short not_empty : 1;
 	unsigned short errors_only : 1;
-	unsigned short installed_only : 1;
 };
 
 #define DOT_OPTIONS(OPT) \
-	OPT(OPT_DOT_errors,	"errors") \
-	OPT(OPT_DOT_installed,	"installed")
+	OPT(OPT_DOT_errors,	"errors")
 
 APK_OPTIONS(dot_options_desc, DOT_OPTIONS);
 
 static int dot_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct dot_ctx *ctx = (struct dot_ctx *) pctx;
+	struct apk_query_spec *qs = &ac->query;
 
 	switch (opt) {
+	case APK_OPTIONS_INIT:
+		qs->mode.empty_matches_all = 1;
+		break;
 	case OPT_DOT_errors:
 		ctx->errors_only = 1;
-		break;
-	case OPT_DOT_installed:
-		ctx->installed_only = 1;
-		ac->open_flags &= ~APK_OPENF_NO_INSTALLED;
-		ac->open_flags |= APK_OPENF_NO_SYS_REPOS;
 		break;
 	default:
 		return -ENOTSUP;
@@ -81,10 +79,8 @@ static void dump_broken_deps(struct dot_ctx *ctx, struct apk_package *pkg, const
 
 static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 {
+	struct apk_query_spec *qs = ctx->qs;
 	int r, ret = 0;
-
-	if (ctx->installed_only && pkg->ipkg == NULL)
-		return 0;
 
 	if (pkg->state_int == S_EVALUATED)
 		return 0;
@@ -111,10 +107,8 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 		}
 
 		apk_array_foreach(p0, name->providers) {
-			if (ctx->installed_only && p0->pkg->ipkg == NULL)
-				continue;
-			if (!apk_dep_is_provided(pkg, dep, p0))
-				continue;
+			if (qs->filter.installed && !p0->pkg->ipkg) continue;
+			if (!apk_dep_is_provided(pkg, dep, p0)) continue;
 
 			r = dump_pkg(ctx, p0->pkg);
 			ret += r;
@@ -140,27 +134,24 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 	return ret;
 }
 
-static int dump(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+static int dot_match(void *pctx, struct apk_query_match *qm)
 {
 	struct dot_ctx *ctx = pctx;
 
-	if (!name) return 0;
-
-	apk_name_sorted_providers(name);
-	apk_array_foreach(p, name->providers)
-		dump_pkg(ctx, p->pkg);
+	if (qm->pkg) dump_pkg(ctx, qm->pkg);
 	return 0;
 }
 
 static int dot_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_database *db = ac->db;
 	struct dot_ctx *ctx = (struct dot_ctx *) pctx;
+	struct apk_query_spec *qs = &ac->query;
 
-	apk_db_foreach_matching_name(db, args, dump, pctx);
-
-	if (!ctx->not_empty)
-		return 1;
+	ctx->qs = qs;
+	qs->match |= BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_PROVIDES);
+	qs->mode.empty_matches_all = 1;
+	apk_query_matches(ac, qs, args, dot_match, ctx);
+	if (!ctx->not_empty) return 1;
 
 	printf("}\n");
 	return 0;
@@ -170,7 +161,7 @@ static struct apk_applet apk_dot = {
 	.name = "dot",
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_ALLOW_ARCH,
 	.options_desc = dot_options_desc,
-	.optgroup_source = 1,
+	.optgroup_query = 1,
 	.remove_empty_arguments = 1,
 	.context_size = sizeof(struct dot_ctx),
 	.parse = dot_parse_option,

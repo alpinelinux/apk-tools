@@ -13,62 +13,64 @@
 #include "apk_version.h"
 #include "apk_print.h"
 
-static int print_policy(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
+static int policy_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
-	struct apk_provider *p;
-	struct apk_repository *repo;
-	int i, j, num = 0;
+	struct apk_package_array *pkgs;
+	struct apk_name *name = NULL;
+	struct apk_out *out = &ac->out;
+	struct apk_database *db = ac->db;
+	int r;
 
-	if (!name) return 0;
+	ac->query.filter.all_matches = 1;
 
-/*
-zlib1g policy:
-  2.0:
-    @testing http://nl.alpinelinux.org/alpine/edge/testing
-  1.7:
-    @edge http://nl.alpinelinux.org/alpine/edge/main
-  1.2.3.5 (upgradeable):
-    http://nl.alpinelinux.org/alpine/v2.6/main
-  1.2.3.4 (installed):
-    /media/cdrom/...
-    http://nl.alpinelinux.org/alpine/v2.5/main
-  1.1:
-    http://nl.alpinelinux.org/alpine/v2.4/main
-*/
-	apk_name_sorted_providers(name);
-	foreach_array_item(p, name->providers) {
-		if (p->pkg->name != name) continue;
-		if (num++ == 0) apk_out(out, "%s policy:", name->name);
-		apk_out(out, "  " BLOB_FMT ":", BLOB_PRINTF(*p->version));
-		if (p->pkg->ipkg)
-			apk_out(out, "    %s/installed", apk_db_layer_name(p->pkg->layer));
-		for (i = 0; i < db->num_repos; i++) {
-			repo = &db->repos[i];
-			if (!(BIT(i) & p->pkg->repos))
-				continue;
-			for (j = 0; j < db->num_repo_tags; j++) {
-				if (db->repo_tags[j].allowed_repos & p->pkg->repos)
+	apk_package_array_init(&pkgs);
+	r = apk_query_packages(ac, &ac->query, args, &pkgs);
+	if (r < 0) {
+		apk_err(out, "query failed: %s", apk_error_str(r));
+		goto err;
+	}
+
+	apk_array_foreach_item(pkg, pkgs) {
+		/*
+		zlib1g policy:
+		  2.0:
+		    @testing http://nl.alpinelinux.org/alpine/edge/testing
+		  1.7:
+		    @edge http://nl.alpinelinux.org/alpine/edge/main
+		  1.2.3.5 (upgradeable):
+		    http://nl.alpinelinux.org/alpine/v2.6/main
+		  1.2.3.4 (installed):
+		    /media/cdrom/...
+		    http://nl.alpinelinux.org/alpine/v2.5/main
+		  1.1:
+		    http://nl.alpinelinux.org/alpine/v2.4/main
+		*/
+		if (pkg->name != name) {
+			name = pkg->name;
+			apk_out(out, "%s policy:", name->name);
+		}
+		apk_out(out, "  " BLOB_FMT ":", BLOB_PRINTF(*pkg->version));
+		if (pkg->ipkg) apk_out(out, "    %s/installed", apk_db_layer_name(pkg->layer));
+		for (int i = 0; i < db->num_repos; i++) {
+			if (!(BIT(i) & pkg->repos)) continue;
+			for (int j = 0; j < db->num_repo_tags; j++) {
+				if (db->repo_tags[j].allowed_repos & pkg->repos)
 					apk_out(out, "    " BLOB_FMT "%s" BLOB_FMT,
 						BLOB_PRINTF(db->repo_tags[j].tag),
 						j == 0 ? "" : " ",
-						BLOB_PRINTF(repo->url_base_printable));
+						BLOB_PRINTF(db->repos[i].url_base_printable));
 			}
 		}
 	}
-	return 0;
-}
-
-static int policy_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
-{
-	if (apk_array_len(args) == 0) return 0;
-	apk_db_foreach_sorted_name(ac->db, args, print_policy, NULL);
-	return 0;
+	r = 0;
+err:
+	apk_package_array_free(&pkgs);
+	return r;
 }
 
 static struct apk_applet apk_policy = {
 	.name = "policy",
-	.optgroup_source = 1,
+	.optgroup_query = 1,
 	.open_flags = APK_OPENF_READ | APK_OPENF_ALLOW_ARCH,
 	.main = policy_main,
 };

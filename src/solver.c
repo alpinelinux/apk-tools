@@ -361,11 +361,9 @@ static inline int merge_index_complete(unsigned short *index, int num_options)
 
 static bool is_provider_auto_selectable(struct apk_provider *p)
 {
-	/* Virtual packages without provider_priority cannot be autoselected,
-	 * without provider_priority or auto_select_virtual override */
+	// Virtual packages without provider_priority cannot be autoselected without provider_priority
 	if (p->version != &apk_atom_null) return true;
 	if (p->pkg->provider_priority) return true;
-	if (p->pkg->name->auto_select_virtual) return true;
 	if (p->pkg->name->ss.requirers) return true;
 	return false;
 }

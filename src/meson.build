@@ -29,6 +29,7 @@ libapk_src = [
 	'pathbuilder.c',
 	'print.c',
 	'process.c',
+	'query.c',
 	'repoparser.c',
 	'serialize.c',
 	'serialize_json.c',
@@ -59,6 +60,7 @@ libapk_headers = [
 	'apk_pathbuilder.h',
 	'apk_print.h',
 	'apk_provider_data.h',
+	'apk_query.h',
 	'apk_serialize.h',
 	'apk_solver_data.h',
 	'apk_solver.h',
@@ -89,6 +91,7 @@ apk_src = [
 	'app_mkndx.c',
 	'app_mkpkg.c',
 	'app_policy.c',
+	'app_query.c',
 	'app_update.c',
 	'app_upgrade.c',
 	'app_search.c',
@@ -96,6 +99,7 @@ apk_src = [
 	'app_verify.c',
 	'app_version.c',
 	'applet.c',
+	'serialize_query.c',
 ]
 
 apk_cargs = [

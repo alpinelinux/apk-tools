@@ -106,6 +106,7 @@ static inline apk_blob_t apk_pkg_digest_blob(const struct apk_package *pkg) {
 }
 
 APK_ARRAY(apk_package_array, struct apk_package *);
+int apk_package_array_qsort(const void *a, const void *b);
 
 #define APK_PROVIDER_FROM_PACKAGE(pkg)	  (struct apk_provider){(pkg),(pkg)->version}
 #define APK_PROVIDER_FROM_PROVIDES(pkg,p) (struct apk_provider){(pkg),(p)->version}

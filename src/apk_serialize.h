@@ -36,8 +36,9 @@ struct apk_serializer {
 	struct apk_trust *trust;
 };
 
+const struct apk_serializer_ops *apk_serializer_lookup(const char *format);
 struct apk_serializer *_apk_serializer_init(const struct apk_serializer_ops *ops, struct apk_ostream *os, void *ctx);
-#define apk_serializer_init_alloca(ops, os) _apk_serializer_init(ops, os, ops->context_size < 1024 ? alloca(ops->context_size) : NULL)
+#define apk_serializer_init_alloca(ops, os) _apk_serializer_init(ops, os, (ops)->context_size < 1024 ? alloca((ops)->context_size) : NULL)
 void apk_serializer_cleanup(struct apk_serializer *ser);
 
 static inline int apk_ser_start_schema(struct apk_serializer *ser, uint32_t schema_id) { return ser->ops->start_object(ser, schema_id); }

@@ -54,6 +54,7 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_help,			APK_OPT_SH("h") "help") \
 	OPT(OPT_GLOBAL_interactive,		APK_OPT_SH("i") "interactive") \
 	OPT(OPT_GLOBAL_keys_dir,		APK_OPT_ARG "keys-dir") \
+	OPT(OPT_GLOBAL_legacy_info,		APK_OPT_BOOL "legacy-info") \
 	OPT(OPT_GLOBAL_no_cache,		"no-cache") \
 	OPT(OPT_GLOBAL_no_check_certificate,	"no-check-certificate") \
 	OPT(OPT_GLOBAL_no_interactive,		"no-interactive") \
@@ -201,6 +202,9 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 	case OPT_GLOBAL_print_arch:
 		puts(APK_DEFAULT_ARCH);
 		return -ESHUTDOWN;
+	case OPT_GLOBAL_legacy_info:
+		ac->legacy_info = APK_OPT_BOOL_VAL(optarg);
+		break;
 	default:
 		return -ENOTSUP;
 	}
@@ -246,39 +250,6 @@ static int optgroup_commit_parse(struct apk_ctx *ac, int opt, const char *optarg
 	}
 	return 0;
 }
-
-#define SOURCE_OPTIONS(OPT) \
-	OPT(OPT_SOURCE_from,		APK_OPT_ARG "from")
-
-APK_OPTIONS(optgroup_source_desc, SOURCE_OPTIONS);
-
-static int optgroup_source_parse(struct apk_ctx *ac, int opt, const char *optarg)
-{
-	const unsigned long all_flags = APK_OPENF_NO_SYS_REPOS | APK_OPENF_NO_INSTALLED_REPO | APK_OPENF_NO_INSTALLED;
-	unsigned long flags;
-
-	switch (opt) {
-	case OPT_SOURCE_from:
-		if (strcmp(optarg, "none") == 0) {
-			flags = APK_OPENF_NO_SYS_REPOS | APK_OPENF_NO_INSTALLED_REPO | APK_OPENF_NO_INSTALLED;
-		} else if (strcmp(optarg, "repositories") == 0) {
-			flags = APK_OPENF_NO_INSTALLED_REPO | APK_OPENF_NO_INSTALLED;
-		} else if (strcmp(optarg, "installed") == 0) {
-			flags = APK_OPENF_NO_SYS_REPOS;
-		} else if (strcmp(optarg, "system") == 0) {
-			flags = 0;
-		} else
-			return -ENOTSUP;
-
-		ac->open_flags &= ~all_flags;
-		ac->open_flags |= flags;
-		break;
-	default:
-		return -ENOTSUP;
-	}
-	return 0;
-}
-
 
 #define GENERATION_OPTIONS(OPT) \
 	OPT(OPT_GENERATION_compression,	APK_OPT_ARG APK_OPT_SH("c") "compression") \
@@ -430,8 +401,9 @@ static void setup_automatic_flags(struct apk_ctx *ac)
 	else
 		ac->out.progress_char = "#";
 
-	if (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO) || !isatty(STDIN_FILENO)) {
+	if (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
 		ac->out.progress_disable = 1;
+		ac->legacy_info = 1;
 		return;
 	}
 
@@ -519,7 +491,7 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 	if (applet) {
 		if (applet->options_desc) add_options(&opts, applet->options_desc, 15);
 		if (applet->optgroup_commit) add_options(&opts, optgroup_commit_desc, 2);
-		if (applet->optgroup_source) add_options(&opts, optgroup_source_desc, 3);
+		if (applet->optgroup_query) add_options(&opts, optgroup_query_desc, 3);
 		if (applet->optgroup_generation) add_options(&opts, optgroup_generation_desc, 4);
 	}
 
@@ -529,7 +501,7 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 		switch (APK_OPTVAL_GROUPID(p)) {
 		case 1: r = optgroup_global_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
 		case 2: r = optgroup_commit_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
-		case 3: r = optgroup_source_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
+		case 3: r = apk_query_parse_option(ac, APK_OPTVAL_OPTIONID(p), arg); break;
 		case 4: r = optgroup_generation_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
 		case 15: r = applet->parse(ctx, ac, APK_OPTVAL_OPTIONID(p), arg); break;
 		default: r = -EINVAL;
@@ -599,9 +571,10 @@ int main(int argc, char **argv)
 
 	applet = deduce_applet(argc, argv);
 	if (applet != NULL) {
-		if (applet->context_size != 0)
-			applet_ctx = calloc(1, applet->context_size);
+		extern const struct apk_serializer_ops apk_serializer_query;
+		ctx.query.ser = &apk_serializer_query;
 		ctx.open_flags = applet->open_flags;
+		if (applet->context_size) applet_ctx = calloc(1, applet->context_size);
 		if (applet->parse) applet->parse(applet_ctx, &ctx, APK_OPTIONS_INIT, NULL);
 	}
 

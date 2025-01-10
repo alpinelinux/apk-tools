@@ -19,14 +19,8 @@ struct search_ctx {
 	void (*print_package)(struct search_ctx *ctx, struct apk_package *pkg);
 
 	int verbosity;
-	unsigned int show_all : 1;
-	unsigned int search_exact : 1;
-	unsigned int search_description : 1;
-	unsigned int search_origin : 1;
-
 	unsigned int matches;
 	struct apk_string_array *filter;
-	struct apk_package *prev_match;
 };
 
 static void print_package_name(struct search_ctx *ctx, struct apk_package *pkg)
@@ -78,17 +72,24 @@ APK_OPTIONS(search_options_desc, SEARCH_OPTIONS);
 static int search_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct search_ctx *ictx = (struct search_ctx *) ctx;
+	struct apk_query_spec *qs = &ac->query;
 
 	switch (opt) {
+	case APK_OPTIONS_INIT:
+		qs->mode.search = 1;
+		qs->mode.empty_matches_all = 1;
+		//qs->match = BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_PROVIDES);
+		break;
 	case OPT_SEARCH_all:
-		ictx->show_all = 1;
+		qs->filter.all_matches = 1;
 		break;
 	case OPT_SEARCH_description:
-		ictx->search_description = 1;
-		ictx->show_all = 1;
+		qs->match = BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_DESCRIPTION);
+		qs->mode.search = 1;
+		qs->filter.all_matches = 1;
 		break;
 	case OPT_SEARCH_exact:
-		ictx->search_exact = 1;
+		qs->mode.search = 0;
 		break;
 	case OPT_SEARCH_origin:
 		ictx->print_package = print_origin_name;
@@ -97,9 +98,9 @@ static int search_parse_option(void *ctx, struct apk_ctx *ac, int opt, const cha
 		ictx->print_result = print_rdepends;
 		break;
 	case OPT_SEARCH_has_origin:
-		ictx->search_origin = 1;
-		ictx->search_exact = 1;
-		ictx->show_all = 1;
+		qs->match = BIT(APK_Q_FIELD_ORIGIN);
+		qs->filter.all_matches = 1;
+		qs->mode.search = 0;
 		break;
 	default:
 		return -ENOTSUP;
@@ -107,59 +108,13 @@ static int search_parse_option(void *ctx, struct apk_ctx *ac, int opt, const cha
 	return 0;
 }
 
-static void print_result_pkg(struct search_ctx *ctx, struct apk_package *pkg)
-{
-	char buf[2048];
-
-	if (ctx->search_description) {
-		apk_array_foreach_item(match, ctx->filter) {
-			if (fnmatch(match, pkg->name->name, FNM_CASEFOLD) == 0) goto match;
-			if (apk_fmt(buf, sizeof buf, BLOB_FMT, BLOB_PRINTF(*pkg->description)) > 0 &&
-			    fnmatch(match, buf, FNM_CASEFOLD) == 0) goto match;
-		}
-		return;
-	}
-	if (ctx->search_origin) {
-		apk_array_foreach_item(match, ctx->filter) {
-			if (!pkg->origin) continue;
-			if (apk_blob_compare(APK_BLOB_STR(match), *pkg->origin) == 0)
-				goto match;
-		}
-		return;
-	}
-match:
-	ctx->print_result(ctx, pkg);
-}
-
-static int print_result(struct apk_database *db, const char *match, struct apk_package *pkg, void *pctx)
-{
-	struct search_ctx *ctx = pctx;
-
-	if (!pkg) return 0;
-
-	if (ctx->show_all) {
-		print_result_pkg(ctx, pkg);
-		return 0;
-	}
-
-	if (!ctx->prev_match) {
-		ctx->prev_match = pkg;
-		return 0;
-	}
-	if (ctx->prev_match->name != pkg->name) {
-		print_result_pkg(ctx, ctx->prev_match);
-		ctx->prev_match = pkg;
-		return 0;
-	}
-	if (apk_pkg_version_compare(pkg, ctx->prev_match) == APK_VERSION_GREATER)
-		ctx->prev_match = pkg;
-	return 0;
-}
-
 static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_database *db = ac->db;
+	struct apk_out *out = &ac->out;
 	struct search_ctx *ctx = (struct search_ctx *) pctx;
+	struct apk_package_array *pkgs;
+	int r;
 
 	ctx->verbosity = apk_out_verbosity(&db->ctx->out);
 	ctx->filter = args;
@@ -169,28 +124,23 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 	if (ctx->print_result == NULL)
 		ctx->print_result = ctx->print_package;
 
-	if (ctx->search_description || ctx->search_origin) {
-		// Just enumerate all names in sorted order, and do the
-		// filtering in the callback.
-		args = NULL;
+	ac->query.match |= BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_PROVIDES);
+	apk_package_array_init(&pkgs);
+	r = apk_query_packages(ac, &ac->query, args, &pkgs);
+	if (r == 0) {
+		apk_array_foreach_item(pkg, pkgs) ctx->print_result(ctx, pkg);
+	} else {
+		apk_err(out, "query failed: %s", apk_error_str(r));
 	}
+	apk_package_array_free(&pkgs);
 
-	if (!ctx->search_exact) {
-		apk_array_foreach(pmatch, ctx->filter) {
-			size_t slen = strlen(*pmatch) + 3;
-			*pmatch = apk_fmts(alloca(slen), slen, "*%s*", *pmatch);
-		}
-	}
-	apk_db_foreach_sorted_providers(db, args, print_result, ctx);
-	if (ctx->prev_match) print_result_pkg(ctx, ctx->prev_match);
-
-	return 0;
+	return r;
 }
 
 static struct apk_applet apk_search = {
 	.name = "search",
 	.options_desc = search_options_desc,
-	.optgroup_source = 1,
+	.optgroup_query = 1,
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_ALLOW_ARCH,
 	.context_size = sizeof(struct search_ctx),
 	.parse = search_parse_option,

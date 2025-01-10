@@ -13,6 +13,7 @@
 #include "apk_io.h"
 #include "apk_crypto.h"
 #include "apk_balloc.h"
+#include "apk_query.h"
 #include "adb.h"
 
 #define APK_SIMULATE			BIT(0)
@@ -85,12 +86,14 @@ struct apk_ctx {
 	struct apk_trust trust;
 	struct apk_id_cache id_cache;
 	struct apk_database *db;
+	struct apk_query_spec query;
 	int root_fd, dest_fd;
 	unsigned int root_set : 1;
 	unsigned int cache_dir_set : 1;
 	unsigned int cache_packages : 1;
 	unsigned int cache_predownload : 1;
 	unsigned int keys_loaded : 1;
+	unsigned int legacy_info : 1;
 };
 
 void apk_ctx_init(struct apk_ctx *ac);

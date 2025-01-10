@@ -13,7 +13,7 @@ struct serialize_yaml {
 
 static void ser_yaml_indent(struct serialize_yaml *dt, bool item, bool continue_line)
 {
-	static char pad[] = "                                ";
+	char pad[] = "                                ";
 
 	if (!dt->line_started) {
 		assert(sizeof pad >= 2*dt->indent);

@@ -23,6 +23,7 @@
 
 struct apk_name;
 APK_ARRAY(apk_name_array, struct apk_name *);
+int apk_name_array_qsort(const void *a, const void *b);
 
 struct apk_db_acl {
 	mode_t mode;
@@ -124,7 +125,6 @@ struct apk_name {
 	struct apk_name_array *rdepends;
 	struct apk_name_array *rinstall_if;
 	unsigned is_dependency : 1;
-	unsigned auto_select_virtual: 1;
 	unsigned solver_flags_set : 1;
 	unsigned providers_sorted : 1;
 	unsigned has_repository_providers : 1;
@@ -284,6 +284,7 @@ bool apk_db_arch_compatible(struct apk_database *db, apk_blob_t *arch);
 static inline bool apk_db_pkg_available(const struct apk_database *db, const struct apk_package *pkg) {
 	return (pkg->repos & db->available_repos) ? true : false;
 }
+const struct apk_package *apk_db_pkg_upgradable(const struct apk_database *db, const struct apk_package *pkg);
 struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_tmpl *tmpl);
 struct apk_package *apk_db_get_pkg(struct apk_database *db, struct apk_digest *id);
 struct apk_package *apk_db_get_pkg_by_name(struct apk_database *db, apk_blob_t filename, ssize_t file_size, apk_blob_t pkgname_spec);
@@ -308,6 +309,7 @@ int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb);
 
 int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg, struct apk_package *newpkg, struct apk_progress *prog);
 
+struct apk_name_array *apk_db_sorted_names(struct apk_database *db);
 struct apk_package_array *apk_db_sorted_installed_packages(struct apk_database *db);
 
 typedef int (*apk_db_foreach_name_cb)(struct apk_database *db, const char *match, struct apk_name *name, void *ctx);
@@ -317,18 +319,3 @@ int apk_db_foreach_matching_name(struct apk_database *db, struct apk_string_arra
 
 int apk_db_foreach_sorted_name(struct apk_database *db, struct apk_string_array *filter,
 			       apk_db_foreach_name_cb cb, void *ctx);
-
-typedef int (*apk_db_foreach_package_cb)(struct apk_database *db, const char *match, struct apk_package *pkg, void *ctx);
-
-int __apk_db_foreach_sorted_package(struct apk_database *db, struct apk_string_array *filter,
-				    apk_db_foreach_package_cb cb, void *cb_ctx, int provides);
-
-static inline int apk_db_foreach_sorted_package(struct apk_database *db, struct apk_string_array *filter,
-						apk_db_foreach_package_cb cb, void *cb_ctx) {
-	return __apk_db_foreach_sorted_package(db, filter, cb, cb_ctx, 0);
-}
-
-static inline int apk_db_foreach_sorted_providers(struct apk_database *db, struct apk_string_array *filter,
-						  apk_db_foreach_package_cb cb, void *cb_ctx) {
-	return __apk_db_foreach_sorted_package(db, filter, cb, cb_ctx, 1);
-}

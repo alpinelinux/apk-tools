@@ -17,26 +17,22 @@
 #include "apk_applet.h"
 #include "apk_database.h"
 #include "apk_extract.h"
-#include "apk_io.h"
-#include "apk_print.h"
-#include "apk_solver.h"
+#include "apk_query.h"
 
-#define FETCH_RECURSIVE		0x01
-#define FETCH_STDOUT		0x02
-#define FETCH_LINK		0x04
-#define FETCH_URL		0x08
-#define FETCH_WORLD		0x10
+#define FETCH_STDOUT		0x01
+#define FETCH_LINK		0x02
+#define FETCH_URL		0x04
 
 struct fetch_ctx {
+	struct apk_ctx *ac;
 	unsigned int flags;
 	int outdir_fd, errors;
 	time_t built_after;
 	apk_blob_t pkgname_spec;
-	struct apk_database *db;
 	struct apk_progress prog;
-	unsigned long done_packages, total_packages;
+	struct apk_package_array *pkgs;
+	unsigned long done_packages;
 	uint64_t done_bytes, total_bytes;
-	struct apk_dependency_array *world;
 };
 
 static int cup(void)
@@ -77,12 +73,10 @@ static int cup(void)
 	OPT(OPT_FETCH_built_after,	APK_OPT_ARG "built-after") \
 	OPT(OPT_FETCH_link,		APK_OPT_SH("l") "link") \
 	OPT(OPT_FETCH_pkgname_spec,	APK_OPT_ARG "pkgname-spec") \
-	OPT(OPT_FETCH_recursive,	APK_OPT_SH("R") "recursive") \
 	OPT(OPT_FETCH_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
 	OPT(OPT_FETCH_simulate,		"simulate") \
 	OPT(OPT_FETCH_stdout,		APK_OPT_SH("s") "stdout") \
 	OPT(OPT_FETCH_url,		"url") \
-	OPT(OPT_FETCH_world,		APK_OPT_SH("w") "world") \
 
 APK_OPTIONS(fetch_options_desc, FETCH_OPTIONS);
 
@@ -116,9 +110,6 @@ static int fetch_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char
 	case OPT_FETCH_pkgname_spec:
 		fctx->pkgname_spec = APK_BLOB_STR(optarg);
 		break;
-	case OPT_FETCH_recursive:
-		fctx->flags |= FETCH_RECURSIVE;
-		break;
 	case OPT_FETCH_stdout:
 		fctx->flags |= FETCH_STDOUT;
 		break;
@@ -131,20 +122,16 @@ static int fetch_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char
 	case OPT_FETCH_url:
 		fctx->flags |= FETCH_URL;
 		break;
-	case OPT_FETCH_world:
-		fctx->flags |= FETCH_WORLD | FETCH_RECURSIVE;
-		ac->open_flags &= ~APK_OPENF_NO_WORLD;
-		break;
 	default:
 		return -ENOTSUP;
 	}
 	return 0;
 }
 
-static int fetch_package(struct apk_database *db, const char *match, struct apk_package *pkg, void *pctx)
+static int fetch_package(struct fetch_ctx *ctx, struct apk_package *pkg)
 {
-	struct fetch_ctx *ctx = pctx;
-	struct apk_out *out = &db->ctx->out;
+	struct apk_out *out = &ctx->ac->out;
+	struct apk_database *db = ctx->ac->db;
 	struct apk_istream *is;
 	struct apk_ostream *os;
 	struct apk_repository *repo;
@@ -153,9 +140,6 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 	struct apk_progress_istream pis;
 	char pkg_url[PATH_MAX], filename[PATH_MAX];
 	int r, pkg_fd;
-
-	if (!pkg->marked)
-		return 0;
 
 	apk_progress_item_start(&ctx->prog, apk_progress_weight(ctx->done_bytes, ctx->done_packages), pkg->size);
 
@@ -221,98 +205,30 @@ done:
 	return 0;
 }
 
-static void mark_package(struct fetch_ctx *ctx, struct apk_package *pkg)
+static int fetch_match_package(void *pctx, struct apk_query_match *qm)
 {
-	if (pkg == NULL || pkg->marked)
-		return;
-	if (ctx->built_after && pkg->build_time && ctx->built_after >= pkg->build_time)
-		return;
-	ctx->total_bytes += pkg->size;
-	ctx->total_packages++;
-	pkg->marked = 1;
-}
+	struct fetch_ctx *ctx = pctx;
+	struct apk_out *out = &ctx->ac->out;
+	struct apk_package *pkg = qm->pkg;
 
-static void mark_error(struct fetch_ctx *ctx, const char *match, struct apk_name *name)
-{
-	struct apk_out *out = &ctx->db->ctx->out;
-
-	if (strchr(match, '*') != NULL)
-		return;
-
-	apk_msg(out, "%s: unable to select package (or its dependencies)", name ? name->name : match);
-	ctx->errors++;
-}
-
-static void mark_dep_flags(struct fetch_ctx *ctx, struct apk_dependency *dep)
-{
-	dep->name->auto_select_virtual = 1;
-	apk_deps_add(&ctx->world, dep);
-}
-
-static int mark_name_flags(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
-{
-	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	struct apk_dependency dep = (struct apk_dependency) {
-		.name = name,
-		.version = &apk_atom_null,
-		.op = APK_DEPMASK_ANY,
-	};
-
-	if (!name) {
-		ctx->errors++;
-		mark_error(ctx, match, name);
+	if (pkg == NULL) {
+		if (!apk_blob_contains(qm->query, APK_BLOB_STRLIT('*'))) {
+			apk_msg(out, BLOB_FMT ": unable to select package (or its dependencies)",
+				BLOB_PRINTF(qm->query));
+			ctx->errors++;
+		}
 		return 0;
 	}
-	mark_dep_flags(ctx, &dep);
-	return 0;
-}
-
-static void mark_names_recursive(struct apk_database *db, struct apk_string_array *args, void *pctx)
-{
-	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	struct apk_changeset changeset = {};
-	struct apk_change *change;
-	int r;
-
-	apk_change_array_init(&changeset.changes);
-	r = apk_solver_solve(db, APK_SOLVERF_IGNORE_CONFLICT, ctx->world, &changeset);
-	if (r == 0) {
-		foreach_array_item(change, changeset.changes)
-			mark_package(ctx, change->new_pkg);
-	} else {
-		apk_solver_print_errors(db, &changeset, ctx->world);
-		ctx->errors++;
-	}
-	apk_change_array_free(&changeset.changes);
-}
-
-static int mark_name(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
-{
-	struct apk_package *pkg = NULL;
-	struct apk_provider *p;
-
-	if (!name) goto err;
-
-	foreach_array_item(p, name->providers) {
-		if (pkg == NULL ||
-		    (p->pkg->name == name && pkg->name != name) ||
-		    apk_version_compare(*p->version, *pkg->version) == APK_VERSION_GREATER)
-			pkg = p->pkg;
-	}
-
-	if (!pkg) goto err;
-	mark_package(ctx, pkg);
-	return 0;
-
-err:
-	mark_error(ctx, match, name);
+	if (ctx->built_after && pkg->build_time && ctx->built_after >= pkg->build_time) return 0;
+	ctx->total_bytes += pkg->size;
+	apk_package_array_add(&ctx->pkgs, pkg);
 	return 0;
 }
 
 static int purge_package(void *pctx, int dirfd, const char *filename)
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	struct apk_database *db = ctx->db;
+	struct apk_database *db = ctx->ac->db;
 	struct apk_out *out = &db->ctx->out;
 	struct apk_file_info fi;
 
@@ -332,9 +248,8 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	struct apk_out *out = &ac->out;
 	struct apk_database *db = ac->db;
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	struct apk_dependency *dep;
 
-	ctx->db = db;
+	ctx->ac = ac;
 
 	if (APK_BLOB_IS_NULL(ctx->pkgname_spec)) ctx->pkgname_spec = ac->default_pkgname_spec;
 	if (ctx->flags & FETCH_STDOUT) {
@@ -351,37 +266,28 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		return 0;
 	}
 
-	if (ctx->flags & FETCH_RECURSIVE) {
-		apk_dependency_array_init(&ctx->world);
-		foreach_array_item(dep, db->world)
-			mark_dep_flags(ctx, dep);
-		if (apk_array_len(args) != 0)
-			apk_db_foreach_matching_name(db, args, mark_name_flags, ctx);
-		if (ctx->errors == 0)
-			mark_names_recursive(db, args, ctx);
-		apk_dependency_array_free(&ctx->world);
-	} else {
-		if (apk_array_len(args) != 0)
-			apk_db_foreach_matching_name(db, args, mark_name, ctx);
-	}
-	if (!ctx->errors) {
-		apk_progress_start(&ctx->prog, &ac->out, "fetch", apk_progress_weight(ctx->total_bytes, ctx->total_packages));
-		apk_db_foreach_sorted_package(db, NULL, fetch_package, ctx);
+	apk_package_array_init(&ctx->pkgs);
+	apk_query_matches(ac, &ac->query, args, fetch_match_package, ctx);
+	if (ctx->errors == 0) {
+		apk_array_qsort(ctx->pkgs, apk_package_array_qsort);
+		apk_progress_start(&ctx->prog, &ac->out, "fetch", apk_progress_weight(ctx->total_bytes, apk_array_len(ctx->pkgs)));
+		apk_array_foreach_item(pkg, ctx->pkgs)
+			fetch_package(ctx, pkg);
 		apk_progress_end(&ctx->prog);
+
+		/* Remove packages not matching download spec from the output directory */
+		if (!ctx->errors && (db->ctx->flags & APK_PURGE) &&
+		    !(ctx->flags & FETCH_STDOUT) && ctx->outdir_fd > 0)
+			apk_dir_foreach_file(ctx->outdir_fd, purge_package, ctx);
 	}
-
-	/* Remove packages not matching download spec from the output directory */
-	if (!ctx->errors && (db->ctx->flags & APK_PURGE) &&
-	    !(ctx->flags & FETCH_STDOUT) && ctx->outdir_fd > 0)
-		apk_dir_foreach_file(ctx->outdir_fd, purge_package, ctx);
-
+	apk_package_array_free(&ctx->pkgs);
 	return ctx->errors;
 }
 
 static struct apk_applet apk_fetch = {
 	.name = "fetch",
 	.options_desc = fetch_options_desc,
-	.optgroup_source = 1,
+	.optgroup_query = 1,
 	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_ALLOW_ARCH,
 	.context_size = sizeof(struct fetch_ctx),
 	.parse = fetch_parse_option,

@@ -46,8 +46,8 @@ Each command is documented in detail on its manual page.
 
 ## QUERYING PACKAGE INFORMATION
 
-|[ *apk-info*(8)
-:< Give detailed information about packages or repositories
+|[ *apk-query*(8)
+:< Query information about packages by various criteria
 |  *apk-list*(8)
 :  List packages matching a pattern or other criteria
 |  *apk-dot*(8)
@@ -56,6 +56,8 @@ Each command is documented in detail on its manual page.
 :  Show repository policy for packages
 |  *apk-search*(8)
 :  Search for packages by name or description
+|  *apk-info*(8)
+:< Give detailed information about packages or repositories
 
 ## REPOSITORY AND PACKAGE MAINTENANCE
 
@@ -200,6 +202,10 @@ The following options are available for all commands.
 	only this directory is processed. The _KEYSDIR_ is treated relative
 	to _ROOT_.
 
+*--legacy-info*
+	Print output from "info" applet in legacy format. Defaults to yes if
+	output is not a tty.
+
 *--no-cache*
 	Do not use any local cache path.
 
@@ -208,6 +214,9 @@ The following options are available for all commands.
 
 *--no-interactive*
 	Disable interactive mode.
+
+*--no-legacy-info*
+	Print output from "info" applet in same format as "query" applet.
 
 *--no-logfile*
 	Disable writing to the log file.
@@ -283,17 +292,6 @@ The following options are available for all commands which commit the database.
 	Used by initramfs when it's recreating root tmpfs. This enables selected
 	force options to minimize failure, and disables commit hooks, among
 	other features.
-
-
-# SOURCE OPTIONS
-
-The following options are available for all commands which operate on the
-package indexes only.
-
-*--from* _FROMSPEC_
-	Search packages from: *system* (all system sources), *repositories*
-	(exclude installed database), *installed* (exclude normal repositories)
-	or *none* (commandline repositories only).
 
 # GENERATION OPTIONS
 

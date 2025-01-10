@@ -15,59 +15,52 @@
 #include "apk_applet.h"
 #include "apk_package.h"
 #include "apk_database.h"
+#include "apk_hash.h"
 #include "apk_print.h"
 
-struct list_ctx {
-	int verbosity;
-	unsigned int installed : 1;
-	unsigned int orphaned : 1;
-	unsigned int available : 1;
-	unsigned int upgradable : 1;
-	unsigned int match_origin : 1;
-	unsigned int match_depends : 1;
-	unsigned int match_providers : 1;
-	unsigned int manifest : 1;
+struct match {
+	struct apk_name *name;
+	struct apk_package *pkg;
+};
+APK_ARRAY(match_array, struct match *);
 
-	struct apk_string_array *filters;
+struct match_hash_item {
+	struct hlist_node hash_node;
+	struct match match;
 };
 
-static int origin_matches(const struct list_ctx *ctx, const struct apk_package *pkg)
+static apk_blob_t match_hash_get_key(apk_hash_item item)
 {
-	char **pmatch;
+	struct match_hash_item *m = item;
+	return APK_BLOB_STRUCT(m->match);
+}
 
-	if (pkg->origin->len == 0) return 0;
+static struct apk_hash_ops match_ops = {
+	.node_offset = offsetof(struct match_hash_item, hash_node),
+	.get_key = match_hash_get_key,
+	.hash_key = apk_blob_hash,
+	.compare = apk_blob_compare,
+};
 
-	foreach_array_item(pmatch, ctx->filters) {
-		if (apk_blob_compare(APK_BLOB_STR(*pmatch), *pkg->origin) == 0)
-			return 1;
+struct list_ctx {
+	struct apk_balloc *ba;
+	struct apk_hash hash;
+	struct match_array *matches;
+	int verbosity;
+	unsigned int match_providers : 1;
+	unsigned int match_depends : 1;
+	unsigned int manifest : 1;
+};
+
+static void print_package(const struct apk_database *db, const struct apk_name *name, const struct apk_package *pkg, const struct list_ctx *ctx)
+{
+	if (ctx->match_providers) printf("<%s> ", name->name);
+
+	if (ctx->manifest) {
+		printf("%s " BLOB_FMT "\n", pkg->name->name, BLOB_PRINTF(*pkg->version));
+		return;
 	}
 
-	return 0;
-}
-
-static int is_orphaned(const struct apk_database *db, const struct apk_name *name)
-{
-	return name ? !name->has_repository_providers : 0;
-}
-
-/* returns the currently installed package if 'pkg' is a newer and installable version */
-static const struct apk_package *is_upgradable(const struct apk_database *db, const struct apk_package *pkg)
-{
-	struct apk_name *name = pkg->name;
-	struct apk_package *ipkg;
-	unsigned short allowed_repos;
-
-	ipkg = apk_pkg_get_installed(name);
-	if (!ipkg) return NULL;
-
-	allowed_repos = db->repo_tags[ipkg->ipkg->repository_tag].allowed_repos;
-	if (!(pkg->repos & allowed_repos)) return NULL;
-
-	return apk_version_match(*ipkg->version, APK_VERSION_LESS, *pkg->version) ? ipkg : NULL;
-}
-
-static void print_package(const struct apk_database *db, const struct apk_package *pkg, const struct list_ctx *ctx)
-{
 	if (ctx->verbosity <= 0) {
 		printf("%s\n", pkg->name->name);
 		return;
@@ -86,10 +79,9 @@ static void print_package(const struct apk_database *db, const struct apk_packag
 	if (pkg->ipkg)
 		printf(" [installed]");
 	else {
-		const struct apk_package *u = is_upgradable(db, pkg);
+		const struct apk_package *u = apk_db_pkg_upgradable(db, pkg);
 		if (u != NULL) printf(" [upgradable from: " PKG_VER_FMT "]", PKG_VER_PRINTF(u));
 	}
-
 
 	if (ctx->verbosity > 1) {
 		printf("\n  " BLOB_FMT "\n", BLOB_PRINTF(*pkg->description));
@@ -100,104 +92,49 @@ static void print_package(const struct apk_database *db, const struct apk_packag
 	printf("\n");
 }
 
-static void print_manifest(const struct apk_package *pkg, const struct list_ctx *ctx)
-{
-	printf("%s " BLOB_FMT "\n", pkg->name->name, BLOB_PRINTF(*pkg->version));
-}
-
-static void filter_package(const struct apk_database *db, const struct apk_package *pkg, const struct list_ctx *ctx, const struct apk_name *name)
-{
-	if (ctx->match_origin && !origin_matches(ctx, pkg)) return;
-	if (ctx->installed && !pkg->ipkg) return;
-	if (ctx->orphaned && !is_orphaned(db, pkg->name)) return;
-	if (ctx->available && !apk_db_pkg_available(db, pkg)) return;
-	if (ctx->upgradable && !is_upgradable(db, pkg)) return;
-
-	if (ctx->match_providers) printf("<%s> ", name->name);
-	if (ctx->manifest)
-		print_manifest(pkg, ctx);
-	else
-		print_package(db, pkg, ctx);
-}
-
-static void iterate_providers(const struct apk_database *db, const struct apk_name *name, const struct list_ctx *ctx)
-{
-	struct apk_provider *p;
-
-	foreach_array_item(p, name->providers) {
-		if (!ctx->match_providers && p->pkg->name != name)
-			continue;
-
-		filter_package(db, p->pkg, ctx, name);
-	}
-}
-
-static int print_result(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
-{
-	struct list_ctx *ctx = pctx;
-	struct apk_name **pname;
-
-	if (!name) return 0;
-
-	apk_name_sorted_providers(name);
-	if (ctx->match_depends) {
-		foreach_array_item(pname, name->rdepends)
-			iterate_providers(db, *pname, ctx);
-	} else {
-		iterate_providers(db, name, ctx);
-	}
-	return 0;
-}
-
 #define LIST_OPTIONS(OPT) \
-	OPT(OPT_LIST_available,		APK_OPT_SH("a") "available") \
+	OPT(OPT_LIST_available,		APK_OPT_SH("a")) \
 	OPT(OPT_LIST_depends,		APK_OPT_SH("d") "depends") \
-	OPT(OPT_LIST_installed,		APK_OPT_SH("I") "installed") \
+	OPT(OPT_LIST_installed,		APK_OPT_SH("I")) \
 	OPT(OPT_LIST_manifest,		"manifest") \
 	OPT(OPT_LIST_origin,		APK_OPT_SH("o") "origin") \
-	OPT(OPT_LIST_orphaned,		APK_OPT_SH("O") "orphaned") \
+	OPT(OPT_LIST_orphaned,		APK_OPT_SH("O")) \
 	OPT(OPT_LIST_providers,		APK_OPT_SH("P") "providers") \
-	OPT(OPT_LIST_upgradable,	APK_OPT_SH("u") "upgradable") \
-	OPT(OPT_LIST_upgradeable,	"upgradeable")
+	OPT(OPT_LIST_upgradeable,	APK_OPT_SH("u") "upgradeable")
 
 APK_OPTIONS(list_options_desc, LIST_OPTIONS);
 
 static int list_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct list_ctx *ctx = pctx;
+	struct apk_query_spec *qs = &ac->query;
 
 	switch (opt) {
 	case OPT_LIST_available:
-		ctx->available = 1;
-		ctx->orphaned = 0;
+		qs->filter.available = 1;
 		break;
 	case OPT_LIST_depends:
 		ctx->match_depends = 1;
 		break;
 	case OPT_LIST_installed:
-		ctx->installed = 1;
+	installed:
+		qs->filter.installed = 1;
 		ac->open_flags |= APK_OPENF_NO_SYS_REPOS;
 		break;
 	case OPT_LIST_manifest:
 		ctx->manifest = 1;
-		ctx->installed = 1;
-		break;
+		goto installed;
 	case OPT_LIST_origin:
-		ctx->match_origin = 1;
+		qs->match = BIT(APK_Q_FIELD_ORIGIN);
 		break;
 	case OPT_LIST_orphaned:
-		ctx->installed = 1;
-		ctx->orphaned = 1;
+		qs->filter.orphaned = 1;
 		break;
 	case OPT_LIST_providers:
 		ctx->match_providers = 1;
 		break;
-	case OPT_LIST_upgradable:
 	case OPT_LIST_upgradeable:
-		ctx->available = 1;
-		ctx->orphaned = 0;
-		ctx->installed = 0;
-		ctx->upgradable = 1;
+		qs->filter.upgradable = 1;
 		break;
 	default:
 		return -ENOTSUP;
@@ -206,19 +143,57 @@ static int list_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char
 	return 0;
 }
 
+static int match_array_sort(const void *a, const void *b)
+{
+	const struct match *ma = *(const struct match **)a, *mb = *(const struct match **)b;
+	int r = apk_name_cmp_display(ma->name, mb->name);
+	if (r) return r;
+	return apk_pkg_cmp_display(ma->pkg, mb->pkg);
+}
+
+static int list_match_cb(void *pctx, struct apk_query_match *qm)
+{
+	struct list_ctx *ctx = pctx;
+	struct match m = { .name = qm->name, .pkg = qm->pkg };
+
+	if (!m.pkg) return 0;
+	if (!m.name) m.name = m.pkg->name;
+
+	unsigned long hash = apk_hash_from_key(&ctx->hash, APK_BLOB_STRUCT(m));
+	if (apk_hash_get_hashed(&ctx->hash, APK_BLOB_STRUCT(m), hash) != NULL) return 0;
+
+	struct match_hash_item *hi = apk_balloc_new(ctx->ba, struct match_hash_item);
+	hi->match = m;
+	apk_hash_insert_hashed(&ctx->hash, hi, hash);
+	match_array_add(&ctx->matches, &hi->match);
+	return 0;
+}
+
 static int list_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
 	struct apk_database *db = ac->db;
+	struct apk_query_spec *qs = &ac->query;
 	struct list_ctx *ctx = pctx;
 
+	ctx->ba = &ac->ba;
 	ctx->verbosity = apk_out_verbosity(out);
-	ctx->filters = args;
 
-	if (ctx->match_origin)
-		args = NULL;
+	qs->mode.empty_matches_all = 1;
+	qs->filter.all_matches = 1;
+	if (!qs->match) {
+		if (ctx->match_depends) qs->match = BIT(APK_Q_FIELD_DEPENDS);
+		else if (ctx->match_providers) qs->match = BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_PROVIDES);
+		else qs->match = BIT(APK_Q_FIELD_NAME);
+	}
 
-	apk_db_foreach_sorted_name(db, args, print_result, ctx);
+	apk_hash_init(&ctx->hash, &match_ops, 100);
+	match_array_init(&ctx->matches);
+	apk_query_matches(ac, qs, args, list_match_cb, ctx);
+	apk_array_qsort(ctx->matches, match_array_sort);
+	apk_array_foreach_item(m, ctx->matches) print_package(db, m->name, m->pkg, ctx);
+	match_array_free(&ctx->matches);
+	apk_hash_free(&ctx->hash);
 	return 0;
 }
 
@@ -226,7 +201,7 @@ static struct apk_applet apk_list = {
 	.name = "list",
 	.open_flags = APK_OPENF_READ | APK_OPENF_ALLOW_ARCH,
 	.options_desc = list_options_desc,
-	.optgroup_source = 1,
+	.optgroup_query = 1,
 	.context_size = sizeof(struct list_ctx),
 	.parse = list_parse_option,
 	.main = list_main,

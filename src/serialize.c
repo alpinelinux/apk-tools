@@ -3,6 +3,14 @@
 #include "apk_serialize.h"
 #include "apk_io.h"
 
+const struct apk_serializer_ops *apk_serializer_lookup(const char *format)
+{
+	if (strcmp(format, "json") == 0) return &apk_serializer_json;
+	if (strcmp(format, "yaml") == 0) return &apk_serializer_yaml;
+	if (strcmp(format, "default") == 0) return NULL;
+	return ERR_PTR(-EINVAL);
+}
+
 struct apk_serializer *_apk_serializer_init(const struct apk_serializer_ops *ops, struct apk_ostream *os, void *ctx)
 {
 	int r = -ENOMEM;

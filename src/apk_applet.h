@@ -27,6 +27,10 @@
 	enum { init_macro(__APK_OPT_ENUM) }; \
 	static const char var_name[] = init_macro(__APK_OPT_DESC);
 
+#define APK_OPTIONS_EXT(var_name, init_macro) \
+	enum { init_macro(__APK_OPT_ENUM) }; \
+	const char var_name[] = init_macro(__APK_OPT_DESC);
+
 #define APK_OPTIONS_INIT 0xffff00
 
 struct apk_applet {
@@ -37,7 +41,7 @@ struct apk_applet {
 
 	unsigned short optgroup_commit : 1;
 	unsigned short optgroup_generation : 1;
-	unsigned short optgroup_source : 1;
+	unsigned short optgroup_query : 1;
 	unsigned short remove_empty_arguments : 1;
 	unsigned short context_size;
 	unsigned int open_flags;
