@@ -1,0 +1,55 @@
+/* apk_serialize.h - Alpine Package Keeper (APK)
+ *
+ * Copyright (C) 2025 Timo Teräs <timo.teras@iki.fi>
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: GPL-2.0-only
+ */
+
+#ifndef APK_SERIALIZE_H
+#define APK_SERIALIZE_H
+
+#include "apk_blob.h"
+
+#define APK_SERIALIZE_MAX_NESTING 32
+
+struct apk_serializer;
+struct apk_ostream;
+struct apk_trust;
+
+struct apk_serializer_ops {
+	size_t context_size;
+	int (*init)(struct apk_serializer *);
+	void (*cleanup)(struct apk_serializer *);
+	int (*start_schema)(struct apk_serializer *, uint32_t schema_id);
+	int (*start_array)(struct apk_serializer *, unsigned int num_items);
+	int (*start_object)(struct apk_serializer *);
+	int (*end)(struct apk_serializer *);
+	int (*comment)(struct apk_serializer *, apk_blob_t comment);
+	int (*key)(struct apk_serializer *, apk_blob_t key_name);
+	int (*string)(struct apk_serializer *, apk_blob_t val, int multiline);
+	int (*numeric)(struct apk_serializer *, uint64_t val, int hint);
+};
+
+extern const struct apk_serializer_ops apk_serializer_yaml, apk_serializer_json;
+
+struct apk_serializer {
+	const struct apk_serializer_ops *ops;
+	struct apk_ostream *os;
+	struct apk_trust *trust;
+};
+
+struct apk_serializer *_apk_serializer_init(const struct apk_serializer_ops *ops, struct apk_ostream *os, void *ctx);
+#define apk_serializer_init_alloca(ops, os) _apk_serializer_init(ops, os, ops->context_size < 1024 ? alloca(ops->context_size) : NULL)
+void apk_serializer_cleanup(struct apk_serializer *ser);
+
+static inline int apk_ser_start_schema(struct apk_serializer *ser, uint32_t schema_id) { return ser->ops->start_schema(ser, schema_id); }
+static inline int apk_ser_start_array(struct apk_serializer *ser, unsigned int num) { return ser->ops->start_array(ser, num); }
+static inline int apk_ser_start_object(struct apk_serializer *ser) { return ser->ops->start_object(ser); }
+static inline int apk_ser_end(struct apk_serializer *ser) { return ser->ops->end(ser); }
+static inline int apk_ser_comment(struct apk_serializer *ser, apk_blob_t comment) { return ser->ops->comment(ser, comment); }
+static inline int apk_ser_key(struct apk_serializer *ser, apk_blob_t key_name) { return ser->ops->key(ser, key_name); }
+static inline int apk_ser_string(struct apk_serializer *ser, apk_blob_t val, int ml) { return ser->ops->string(ser, val, ml); }
+static inline int apk_ser_numeric(struct apk_serializer *ser, uint64_t val, int hint) { return ser->ops->numeric(ser, val, hint); }
+
+#endif
