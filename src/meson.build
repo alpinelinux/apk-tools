@@ -31,7 +31,6 @@ libapk_src = [
 	'print.c',
 	'process.c',
 	'serialize.c',
-	'serialize_adb.c',
 	'serialize_json.c',
 	'serialize_yaml.c',
 	'solver.c',
@@ -96,6 +95,7 @@ apk_src = [
 	'app_verify.c',
 	'app_version.c',
 	'applet.c',
+	'serialize_adb.c',
 ]
 
 apk_cargs = [

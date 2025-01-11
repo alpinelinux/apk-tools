@@ -25,7 +25,7 @@ libapk.so.$(libapk_soname)-objs := \
 	atom.o balloc.o blob.o commit.o common.o context.o crypto.o crypto_$(CRYPTO).o ctype.o \
 	database.o hash.o extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o \
 	io.o io_gunzip.o io_url_$(URL_BACKEND).o tar.o package.o pathbuilder.o print.o process.o \
-	serialize.o serialize_adb.o serialize_json.o serialize_yaml.o solver.o trust.o version.o
+	serialize.o serialize_json.o serialize_yaml.o solver.o trust.o version.o
 
 ifneq ($(URL_BACKEND),wget)
 CFLAGS_ALL += -Ilibfetch
@@ -65,7 +65,7 @@ apk-objs		:= \
 	app_convdb.o app_convndx.o app_del.o app_dot.o app_extract.o app_fetch.o \
 	app_fix.o app_index.o app_info.o app_list.o app_manifest.o app_mkndx.o \
 	app_mkpkg.o app_policy.o app_update.o app_upgrade.o app_search.o \
-	app_stats.o app_verify.o app_version.o applet.o
+	app_stats.o app_verify.o app_version.o applet.o serialize_adb.o
 
 LIBS_apk		:= -lapk
 LIBS_apk.so		:= -L$(obj) -lapk
