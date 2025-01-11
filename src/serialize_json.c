@@ -37,11 +37,11 @@ static void ser_json_start_indent(struct serialize_json *dt, char start_brace, c
 	dt->need_newline = 1;
 }
 
-static int ser_json_start_schema(struct apk_serializer *ser, uint32_t schema_id)
+static int ser_json_start_object(struct apk_serializer *ser, uint32_t schema_id)
 {
 	struct serialize_json *dt = container_of(ser, struct serialize_json, ser);
 
-	ser_json_indent(dt, true);
+	if (dt->nest) ser_json_indent(dt, true);
 	ser_json_start_indent(dt, '{', '}');
 	return 0;
 }
@@ -52,15 +52,6 @@ static int ser_json_start_array(struct apk_serializer *ser, unsigned int num)
 
 	if (dt->nest) ser_json_indent(dt, true);
 	ser_json_start_indent(dt, '[', ']');
-	return 0;
-}
-
-static int ser_json_start_object(struct apk_serializer *ser)
-{
-	struct serialize_json *dt = container_of(ser, struct serialize_json, ser);
-
-	if (dt->nest) ser_json_indent(dt, true);
-	ser_json_start_indent(dt, '{', '}');
 	return 0;
 }
 
@@ -140,9 +131,8 @@ static int ser_json_numeric(struct apk_serializer *ser, uint64_t val, int octal)
 
 const struct apk_serializer_ops apk_serializer_json = {
 	.context_size = sizeof(struct serialize_json),
-	.start_schema = ser_json_start_schema,
-	.start_array = ser_json_start_array,
 	.start_object = ser_json_start_object,
+	.start_array = ser_json_start_array,
 	.end = ser_json_end,
 	.comment = ser_json_comment,
 	.key = ser_json_key,

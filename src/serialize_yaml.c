@@ -41,14 +41,16 @@ static void ser_yaml_newline(struct serialize_yaml *dt)
 	dt->key_printed = 0;
 }
 
-static int ser_yaml_start_schema(struct apk_serializer *ser, uint32_t schema_id)
+static int ser_yaml_start_object(struct apk_serializer *ser, uint32_t schema_id)
 {
 	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
 
 	ser_yaml_indent(dt, true);
 	ser_yaml_start_indent(dt, 0);
-	apk_ostream_fmt(dt->ser.os, "#%%SCHEMA: %08X", schema_id);
-	ser_yaml_newline(dt);
+	if (schema_id) {
+		apk_ostream_fmt(dt->ser.os, "#%%SCHEMA: %08X", schema_id);
+		ser_yaml_newline(dt);
+	}
 	return 0;
 }
 
@@ -60,15 +62,6 @@ static int ser_yaml_start_array(struct apk_serializer *ser, unsigned int num)
 	apk_ostream_fmt(dt->ser.os, "# %d items", num);
 	ser_yaml_newline(dt);
 	ser_yaml_start_indent(dt, F_ARRAY);
-	return 0;
-}
-
-static int ser_yaml_start_object(struct apk_serializer *ser)
-{
-	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
-
-	ser_yaml_indent(dt, true);
-	ser_yaml_start_indent(dt, 0);
 	return 0;
 }
 
@@ -164,9 +157,8 @@ static int ser_yaml_numeric(struct apk_serializer *ser, uint64_t val, int hint)
 
 const struct apk_serializer_ops apk_serializer_yaml = {
 	.context_size = sizeof(struct serialize_yaml),
-	.start_schema = ser_yaml_start_schema,
-	.start_array = ser_yaml_start_array,
 	.start_object = ser_yaml_start_object,
+	.start_array = ser_yaml_start_array,
 	.end = ser_yaml_end,
 	.comment = ser_yaml_comment,
 	.key = ser_yaml_key,

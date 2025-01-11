@@ -36,58 +36,49 @@ static void ser_adb_cleanup(struct apk_serializer *ser)
 	adb_free(&dt->idb[0]);
 }
 
-static int ser_adb_start_schema(struct apk_serializer *ser, uint32_t schema_id)
-{
-	struct serialize_adb *dt = container_of(ser, struct serialize_adb, ser);
-	const struct adb_db_schema *s;
-
-	dt->db.schema = schema_id;
-	for (s = adb_all_schemas; s->magic; s++)
-		if (s->magic == schema_id) break;
-	if (!s || !s->magic) return -APKE_ADB_SCHEMA;
-
-	adb_wo_init(&dt->objs[0], &dt->vals[0], s->root, &dt->db);
-	dt->num_vals += s->root->num_fields;
-	if (dt->num_vals >= ARRAY_SIZE(dt->vals)) return -APKE_ADB_LIMIT;
-	dt->nest = 0;
-
-	return 0;
-}
-
-static int ser_adb_start_object(struct apk_serializer *ser)
+static int ser_adb_start_object(struct apk_serializer *ser, uint32_t schema_id)
 {
 	struct serialize_adb *dt = container_of(ser, struct serialize_adb, ser);
 
-	if (!dt->db.schema) return -APKE_ADB_SCHEMA;
-	if (dt->nest >= ARRAY_SIZE(dt->objs)) return -APKE_ADB_LIMIT;
+	if (schema_id) {
+		const struct adb_db_schema *s;
+		dt->db.schema = schema_id;
+		for (s = adb_all_schemas; s->magic; s++)
+			if (s->magic == schema_id) break;
+		if (!s || !s->magic) return -APKE_ADB_SCHEMA;
 
-	if (dt->curkey[dt->nest] == 0 &&
-	    dt->objs[dt->nest].schema->kind == ADB_KIND_OBJECT)
-		return -APKE_ADB_SCHEMA;
+		adb_wo_init(&dt->objs[0], &dt->vals[0], s->root, &dt->db);
+		dt->num_vals += s->root->num_fields;
+		dt->nest = 0;
+	} else {
+		if (!dt->db.schema) return -APKE_ADB_SCHEMA;
+		if (dt->nest >= ARRAY_SIZE(dt->objs)) return -APKE_ADB_LIMIT;
+		if (dt->curkey[dt->nest] == 0 &&
+		    dt->objs[dt->nest].schema->kind == ADB_KIND_OBJECT)
+			return -APKE_ADB_SCHEMA;
 
-	dt->nest++;
-	adb_wo_init_val(
-		&dt->objs[dt->nest], &dt->vals[dt->num_vals],
-		&dt->objs[dt->nest-1], dt->curkey[dt->nest-1]);
+		dt->nest++;
+		adb_wo_init_val(
+			&dt->objs[dt->nest], &dt->vals[dt->num_vals],
+			&dt->objs[dt->nest-1], dt->curkey[dt->nest-1]);
 
-	if (*adb_ro_kind(&dt->objs[dt->nest-1], dt->curkey[dt->nest-1]) == ADB_KIND_ADB) {
-		struct adb_adb_schema *schema = container_of(&dt->objs[dt->nest-1].schema->kind, struct adb_adb_schema, kind);
-		if (dt->nestdb >= ARRAY_SIZE(dt->idb)) return -APKE_ADB_LIMIT;
-		adb_reset(&dt->idb[dt->nestdb]);
-		dt->idb[dt->nestdb].schema = schema->schema_id;
-		dt->objs[dt->nest].db = &dt->idb[dt->nestdb];
-		dt->nestdb++;
+		if (*adb_ro_kind(&dt->objs[dt->nest-1], dt->curkey[dt->nest-1]) == ADB_KIND_ADB) {
+			struct adb_adb_schema *schema = container_of(&dt->objs[dt->nest-1].schema->kind, struct adb_adb_schema, kind);
+			if (dt->nestdb >= ARRAY_SIZE(dt->idb)) return -APKE_ADB_LIMIT;
+			adb_reset(&dt->idb[dt->nestdb]);
+			dt->idb[dt->nestdb].schema = schema->schema_id;
+			dt->objs[dt->nest].db = &dt->idb[dt->nestdb];
+			dt->nestdb++;
+		}
+		dt->num_vals += dt->objs[dt->nest].schema->num_fields;
 	}
-
-	dt->num_vals += dt->objs[dt->nest].schema->num_fields;
 	if (dt->num_vals >= ARRAY_SIZE(dt->vals)) return -APKE_ADB_LIMIT;
-
 	return 0;
 }
 
 static int ser_adb_start_array(struct apk_serializer *ser, unsigned int num)
 {
-	return ser_adb_start_object(ser);
+	return ser_adb_start_object(ser, 0);
 }
 
 static int ser_adb_end(struct apk_serializer *ser)
@@ -169,9 +160,8 @@ const struct apk_serializer_ops apk_serializer_adb = {
 	.context_size = sizeof(struct serialize_adb),
 	.init = ser_adb_init,
 	.cleanup = ser_adb_cleanup,
-	.start_schema = ser_adb_start_schema,
-	.start_array = ser_adb_start_array,
 	.start_object = ser_adb_start_object,
+	.start_array = ser_adb_start_array,
 	.end = ser_adb_end,
 	.comment = ser_adb_comment,
 	.key = ser_adb_key,
