@@ -109,6 +109,7 @@ static int need_quoting(apk_blob_t b)
 	if (strchr("-?:,[]{}#&*!|>'\"%@`", b.ptr[0])) return 1;
 	// must not contain ": " or " #"
 	for (int i = 1; i < b.len-1; i++) {
+		if (b.ptr[i] == '\n') return 1;
 		if (b.ptr[i] == '#') return 1;
 		if (b.ptr[i] != ' ') continue;
 		if (b.ptr[i-1] == ':') return 1;
@@ -122,7 +123,7 @@ static int ser_yaml_string(struct apk_serializer *ser, apk_blob_t scalar, int mu
 	apk_blob_t l, nl = APK_BLOB_STR("\n");
 
 	ser_yaml_indent(dt, true);
-	if (scalar.len >= 60 || multiline || need_quoting(scalar)) {
+	if (scalar.len >= 80 || multiline || need_quoting(scalar)) {
 		/* long or multiline */
 		apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT("|"));
 		ser_yaml_newline(dt);
