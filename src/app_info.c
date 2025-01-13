@@ -110,7 +110,7 @@ static void info_who_owns(struct info_ctx *ctx, struct apk_database *db,
 		if (pkg == NULL) {
 			r = readlinkat(db->root_fd, *parg, buf, sizeof(buf));
 			if (r > 0 && r < PATH_MAX && buf[0] == '/') {
-				pkg = apk_db_get_file_owner(db, APK_BLOB_STR(buf));
+				pkg = apk_db_get_file_owner(db, APK_BLOB_PTR_LEN(buf, r));
 				via = "symlink target ";
 			}
 		}
