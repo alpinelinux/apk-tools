@@ -130,7 +130,7 @@ struct apk_repository_list {
 
 struct apk_db_options {
 	int lock_wait;
-	unsigned int cache_max_age;
+	int cache_max_age;
 	unsigned long open_flags;
 	const char *root;
 	const char *arch;

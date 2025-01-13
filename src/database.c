@@ -653,7 +653,8 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 	r = apk_repo_format_real_url(db->arch, repo, pkg, url, sizeof(url), &urlp);
 	if (r < 0) return r;
 
-	if (autoupdate && !(apk_force & APK_FORCE_REFRESH)) {
+	if (autoupdate && db->cache_max_age > 0 && !(apk_force & APK_FORCE_REFRESH)) {
+		fprintf(stderr, "cache_max_age=%d\n", db->cache_max_age);
 		if (fstatat(db->cache_fd, cacheitem, &st, 0) == 0 &&
 		    now - st.st_mtime <= db->cache_max_age)
 			return -EALREADY;
@@ -1517,7 +1518,7 @@ int apk_db_open(struct apk_database *db, struct apk_db_options *dbopts)
 
 	apk_db_setup_repositories(db, dbopts->cache_dir);
 
-	db->cache_max_age = dbopts->cache_max_age ?: 4*60*60; /* 4 hours default */
+	db->cache_max_age = dbopts->cache_max_age;
 	db->root = strdup(dbopts->root ?: "/");
 	if (!strcmp(db->root, "/")) db->no_chroot = 1; /* skip chroot if root is default */
 	db->root_fd = openat(AT_FDCWD, db->root, O_RDONLY | O_CLOEXEC);
