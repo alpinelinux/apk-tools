@@ -6,7 +6,7 @@ apk extract - Extract package file contents
 
 # SYNOPSIS
 
-*apk extract* [<_options_>...] _packages_...
+*apk extract* [<_options_>...] _files_...
 
 # DESCRIPTION
 
