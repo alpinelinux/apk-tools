@@ -208,10 +208,11 @@ static int option_parse_global(void *ctx, struct apk_db_options *dbopts, int opt
 		dbopts->cache_dir = optarg;
 		break;
 	case OPT_GLOBAL_update_cache:
-		dbopts->cache_max_age = 0;
+		dbopts->cache_max_age = -1;
 		break;
 	case OPT_GLOBAL_cache_max_age:
 		dbopts->cache_max_age = atoi(optarg) * 60;
+		if (!dbopts->cache_max_age) dbopts->cache_max_age = -1;
 		break;
 	case OPT_GLOBAL_timeout:
 		fetchTimeout = atoi(optarg);
@@ -518,7 +519,6 @@ int main(int argc, char **argv)
 	apk_argv[argc+1] = NULL;
 
 	memset(&dbopts, 0, sizeof(dbopts));
-	dbopts.cache_max_age = 4*60*60; /* 4 hours default */
 	list_init(&dbopts.repository_list);
 	umask(0);
 	setup_terminal();
