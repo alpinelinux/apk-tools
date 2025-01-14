@@ -1571,6 +1571,7 @@ err:
 			error_action, BLOB_PRINTF(repo->url_index_printable), apk_error_str(update_error));
 	}
 	if (r == 0) {
+		repo->available = 1;
 		db->available_repos |= available_repos;
 		for (unsigned int tag_id = 0, mask = repo->tag_mask; mask; mask >>= 1, tag_id++)
 			if (mask & 1) db->repo_tags[tag_id].allowed_repos |= repo_mask;

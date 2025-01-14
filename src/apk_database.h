@@ -154,6 +154,7 @@ struct apk_repository {
 	unsigned short absolute_pkgname : 1;
 	unsigned short is_remote : 1;
 	unsigned short stale : 1;
+	unsigned short available : 1;
 
 	apk_blob_t description;
 	apk_blob_t url_base;

@@ -36,10 +36,12 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 	if (apk_out_verbosity(out) < 1)
 		return db->repositories.unavailable + db->repositories.stale;
 
-	apk_db_foreach_repository(repo, db)
+	apk_db_foreach_repository(repo, db) {
+		if (!repo->available) continue;
 		apk_msg(out, BLOB_FMT " [" BLOB_FMT "]",
 			BLOB_PRINTF(repo->description),
 			BLOB_PRINTF(repo->url_base_printable));
+	}
 
 	if (db->repositories.unavailable || db->repositories.stale)
 		msg = apk_fmts(buf, sizeof buf, "%d unavailable, %d stale;",
