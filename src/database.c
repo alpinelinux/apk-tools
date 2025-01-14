@@ -654,7 +654,6 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 	if (r < 0) return r;
 
 	if (autoupdate && db->cache_max_age > 0 && !(apk_force & APK_FORCE_REFRESH)) {
-		fprintf(stderr, "cache_max_age=%d\n", db->cache_max_age);
 		if (fstatat(db->cache_fd, cacheitem, &st, 0) == 0 &&
 		    now - st.st_mtime <= db->cache_max_age)
 			return -EALREADY;
