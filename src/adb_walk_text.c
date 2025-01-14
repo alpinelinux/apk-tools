@@ -121,7 +121,17 @@ int adb_walk_text(struct apk_istream *is, struct apk_ostream *os, const struct a
 					started[++nesting] = 0;
 					multi_line = nesting;
 				} else {
-					dbg_printf("Scalar >%d> "BLOB_FMT"\n", nesting, BLOB_PRINTF(scalar));
+					if (scalar.ptr[0] == '\'') {
+						dbg_printf("Scalar-squote >%d> "BLOB_FMT"\n", nesting, BLOB_PRINTF(scalar));
+						if (scalar.len < 2 || scalar.ptr[scalar.len-1] != '\'') {
+							r = -APKE_FORMAT_INVALID;
+							goto err;
+						}
+						scalar.ptr ++;
+						scalar.len -= 2;
+					} else {
+						dbg_printf("Scalar >%d> "BLOB_FMT"\n", nesting, BLOB_PRINTF(scalar));
+					}
 					if ((r = apk_ser_string(ser, scalar, 0)) != 0) goto err;
 				}
 			}
@@ -132,7 +142,7 @@ int adb_walk_text(struct apk_istream *is, struct apk_ostream *os, const struct a
 			if ((r = apk_ser_comment(ser, comm)) != 0) goto err;
 		}
 
-		dbg_printf(">%d> "BLOB_FMT"\n", indent, BLOB_PRINTF(l));
+		dbg_printf(">%d> "BLOB_FMT"\n", nesting, BLOB_PRINTF(l));
 	}
 	apk_ser_end(ser);
 

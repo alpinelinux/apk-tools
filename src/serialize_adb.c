@@ -40,7 +40,7 @@ static int ser_adb_start_object(struct apk_serializer *ser, uint32_t schema_id)
 {
 	struct serialize_adb *dt = container_of(ser, struct serialize_adb, ser);
 
-	if (schema_id) {
+	if (dt->db.schema == 0) {
 		const struct adb_db_schema *s;
 		dt->db.schema = schema_id;
 		for (s = adb_all_schemas; s->magic; s++)
@@ -49,7 +49,6 @@ static int ser_adb_start_object(struct apk_serializer *ser, uint32_t schema_id)
 
 		adb_wo_init(&dt->objs[0], &dt->vals[0], s->root, &dt->db);
 		dt->num_vals += s->root->num_fields;
-		dt->nest = 0;
 	} else {
 		if (!dt->db.schema) return -APKE_ADB_SCHEMA;
 		if (dt->nest >= ARRAY_SIZE(dt->objs)) return -APKE_ADB_LIMIT;

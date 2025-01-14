@@ -11,7 +11,7 @@ struct serialize_yaml {
 	uint8_t flags[APK_SERIALIZE_MAX_NESTING];
 };
 
-static void ser_yaml_indent(struct serialize_yaml *dt, bool item)
+static void ser_yaml_indent(struct serialize_yaml *dt, bool item, bool continue_line)
 {
 	static char pad[] = "                                ";
 
@@ -21,7 +21,7 @@ static void ser_yaml_indent(struct serialize_yaml *dt, bool item)
 
 		if (item && (dt->flags[dt->nest]&F_ARRAY))
 			apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT("- "));
-	} else if (dt->key_printed) {
+	} else if (dt->key_printed && continue_line) {
 		apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT(" "));
 	}
 	dt->line_started = 1;
@@ -45,7 +45,7 @@ static int ser_yaml_start_object(struct apk_serializer *ser, uint32_t schema_id)
 {
 	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
 
-	ser_yaml_indent(dt, true);
+	ser_yaml_indent(dt, true, false);
 	ser_yaml_start_indent(dt, 0);
 	if (schema_id) {
 		apk_ostream_fmt(dt->ser.os, "#%%SCHEMA: %08X", schema_id);
@@ -58,7 +58,7 @@ static int ser_yaml_start_array(struct apk_serializer *ser, unsigned int num)
 {
 	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
 
-	ser_yaml_indent(dt, true);
+	ser_yaml_indent(dt, true, true);
 	apk_ostream_fmt(dt->ser.os, "# %d items", num);
 	ser_yaml_newline(dt);
 	ser_yaml_start_indent(dt, F_ARRAY);
@@ -70,7 +70,7 @@ static int ser_yaml_end(struct apk_serializer *ser)
 	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
 
 	if (dt->line_started) {
-		ser_yaml_indent(dt, false);
+		ser_yaml_indent(dt, false, true);
 		apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT("# empty object"));
 		ser_yaml_newline(dt);
 	}
@@ -83,7 +83,7 @@ static int ser_yaml_comment(struct apk_serializer *ser, apk_blob_t comment)
 {
 	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
 
-	ser_yaml_indent(dt, false);
+	ser_yaml_indent(dt, false, true);
 	apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT("# "));
 	apk_ostream_write_blob(dt->ser.os, comment);
 	ser_yaml_newline(dt);
@@ -95,26 +95,47 @@ static int ser_yaml_key(struct apk_serializer *ser, apk_blob_t key)
 	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
 
 	if (dt->key_printed) ser_yaml_newline(dt);
-	ser_yaml_indent(dt, true);
+	ser_yaml_indent(dt, true, true);
 	apk_ostream_write_blob(dt->ser.os, key);
 	apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT(":"));
 	dt->key_printed = 1;
 	return 0;
 }
 
-static int need_quoting(apk_blob_t b)
+enum {
+	QUOTE_NONE,
+	QUOTE_SINGLE,
+	QUOTE_BLOCK,
+};
+
+static int need_quoting(apk_blob_t b, int multiline)
 {
-	if (!b.len) return 0;
+	int style = QUOTE_NONE;
+
+	if (!b.len) return QUOTE_NONE;
+	if (b.len >= 80 || multiline) return QUOTE_BLOCK;
+
 	// must not start with indicator character
-	if (strchr("-?:,[]{}#&*!|>'\"%@`", b.ptr[0])) return 1;
+	if (strchr("-?:,[]{}#&*!|>'\"%@`", b.ptr[0])) style = QUOTE_SINGLE;
 	// must not contain ": " or " #"
-	for (int i = 1; i < b.len-1; i++) {
-		if (b.ptr[i] == '\n') return 1;
-		if (b.ptr[i] == '#') return 1;
-		if (b.ptr[i] != ' ') continue;
-		if (b.ptr[i-1] == ':') return 1;
+	for (int i = 0, prev = i; i < b.len; i++) {
+		switch (b.ptr[i]) {
+		case '\r':
+		case '\n':
+		case '\'':
+			return QUOTE_BLOCK;
+		case ' ':
+			if (prev == ':') style = QUOTE_SINGLE;
+			break;
+		case '#':
+			// The adbgen parser requires ' #' to be block quited currently
+			if (prev == ' ') return QUOTE_BLOCK;
+			style = QUOTE_SINGLE;
+			break;
+		}
+		prev = b.ptr[i];
 	}
-	return 0;
+	return style;
 }
 
 static int ser_yaml_string(struct apk_serializer *ser, apk_blob_t scalar, int multiline)
@@ -122,26 +143,36 @@ static int ser_yaml_string(struct apk_serializer *ser, apk_blob_t scalar, int mu
 	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
 	apk_blob_t l, nl = APK_BLOB_STR("\n");
 
-	ser_yaml_indent(dt, true);
-	if (scalar.len >= 80 || multiline || need_quoting(scalar)) {
+	ser_yaml_indent(dt, true, true);
+	switch (need_quoting(scalar, multiline)) {
+	case QUOTE_NONE:
+		apk_ostream_write_blob(dt->ser.os, scalar);
+		ser_yaml_newline(dt);
+		break;
+	case QUOTE_SINGLE:
+		apk_ostream_write(dt->ser.os, "'", 1);
+		apk_ostream_write_blob(dt->ser.os, scalar);
+		apk_ostream_write(dt->ser.os, "'", 1);
+		ser_yaml_newline(dt);
+		break;
+	case QUOTE_BLOCK:
+	default:
 		/* long or multiline */
 		apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT("|"));
 		ser_yaml_newline(dt);
 		dt->indent++;
 		while (apk_blob_split(scalar, nl, &l, &scalar)) {
-			ser_yaml_indent(dt, false);
+			ser_yaml_indent(dt, false, true);
 			apk_ostream_write_blob(dt->ser.os, l);
 			ser_yaml_newline(dt);
 		}
 		if (scalar.len) {
-			ser_yaml_indent(dt, false);
+			ser_yaml_indent(dt, false, true);
 			apk_ostream_write_blob(dt->ser.os, scalar);
 			ser_yaml_newline(dt);
 		}
 		dt->indent--;
-	} else {
-		apk_ostream_write_blob(dt->ser.os, scalar);
-		ser_yaml_newline(dt);
+		break;
 	}
 	return 0;
 }
@@ -150,7 +181,7 @@ static int ser_yaml_numeric(struct apk_serializer *ser, uint64_t val, int hint)
 {
 	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
 
-	ser_yaml_indent(dt, true);
+	ser_yaml_indent(dt, true, true);
 	apk_ostream_fmt(dt->ser.os, hint ? "%#llo" : "%llu", val);
 	ser_yaml_newline(dt);
 	return 0;
