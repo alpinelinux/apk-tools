@@ -1507,7 +1507,8 @@ static int add_repository(struct apk_database *db, apk_blob_t line)
 		.url_index = url_index,
 		.url_index_printable = url_index_printable,
 		.pkgname_spec = pkgname_spec,
-		.is_remote = apk_url_local_file(url_index.ptr, url_index.len) == NULL,
+		.is_remote = apk_url_local_file(url_index.ptr, url_index.len) == NULL ||
+			apk_blob_starts_with(url_index, APK_BLOB_STRLIT("test:")),
 		.tag_mask = BIT(tag_id),
 	};
 	apk_digest_calc(&repo->hash, APK_DIGEST_SHA256, url_index.ptr, url_index.len);
@@ -1527,35 +1528,33 @@ static void open_repository(struct apk_database *db, int repo_num)
 
 	error_action = "opening";
 	if (!(db->ctx->flags & APK_NO_NETWORK)) available_repos = repo_mask;
-	if (repo->is_remote) {
-		if (db->ctx->flags & APK_NO_CACHE) {
+
+	if (repo->is_remote && !(db->ctx->flags & APK_NO_CACHE)) {
+		error_action = "opening from cache";
+		if (repo->stale) {
+			update_error = apk_cache_download(db, repo, NULL, NULL);
+			switch (update_error) {
+			case 0:
+				db->repositories.updated++;
+				// Fallthrough
+			case -APKE_FILE_UNCHANGED:
+				update_error = 0;
+				repo->stale = 0;
+				break;
+			}
+		}
+		r = apk_repo_index_cache_url(db, repo, &open_fd, open_url, sizeof open_url);
+	} else {
+		if (repo->is_remote) {
 			error_action = "fetching";
 			apk_out_progress_note(out, "fetch " BLOB_FMT, BLOB_PRINTF(repo->url_index_printable));
 		} else {
-			error_action = "opening from cache";
-			if (repo->stale) {
-				update_error = apk_cache_download(db, repo, NULL, NULL);
-				switch (update_error) {
-				case 0:
-					db->repositories.updated++;
-					// Fallthrough
-				case -APKE_FILE_UNCHANGED:
-					update_error = 0;
-					repo->stale = 0;
-					break;
-				}
-			}
-			r = apk_repo_index_cache_url(db, repo, &open_fd, open_url, sizeof open_url);
-			if (r < 0) goto err;
-		}
-	} else {
-		if (!apk_blob_starts_with(repo->url_base, APK_BLOB_STRLIT("test:"))) {
 			available_repos = repo_mask;
 			db->local_repos |= repo_mask;
 		}
 		r = apk_fmt(open_url, sizeof open_url, BLOB_FMT, BLOB_PRINTF(repo->url_index));
-		if (r < 0) goto err;
 	}
+	if (r < 0) goto err;
 	r = load_index(db, apk_istream_from_fd_url(open_fd, open_url, apk_db_url_since(db, 0)), repo_num);
 err:
 	if (r || update_error) {

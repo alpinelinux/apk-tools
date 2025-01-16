@@ -6,7 +6,7 @@ TESTDIR=$(realpath "${TESTDIR:-"$(dirname "$0")"/..}")
 . "$TESTDIR"/testlib.sh
 
 setup_apkroot
-APK="$APK --allow-untrusted --no-interactive"
+APK="$APK --allow-untrusted --no-interactive --no-cache"
 
 $APK mkpkg -I name:test-a -I version:1.0 -o test-a-1.0.apk
 $APK mkpkg -I name:test-b -I version:1.0 -o test-b-1.0.apk

@@ -70,6 +70,8 @@ run_test() {
 	done < "$testfile"
 	exec 4> /dev/null
 
+	[ -e "$TEST_ROOT/etc/apk/cache/installed" ] || args="--no-cache $args"
+
 	retcode=1
 	if [ "$run_found" = "yes" ]; then
 		# shellcheck disable=SC2086 # $args needs to be word splitted
