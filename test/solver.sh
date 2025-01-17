@@ -18,7 +18,7 @@ run_test() {
 	local test="$1"
 	local testfile testdir
 
-	testfile="$(realpath -e "$test")"
+	testfile="$(realpath "$test")"
 	testdir="$(dirname "$testfile")"
 
 	setup_apkroot
