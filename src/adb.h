@@ -68,7 +68,7 @@ struct adb_block {
 };
 
 static inline struct adb_block adb_block_init(uint32_t type, uint64_t length) {
-	if (length <= 0x3fffffff) {
+	if (length <= 0x3fffffff - sizeof(uint32_t)) {
 		return (struct adb_block) {
 			.type_size = htole32((type << 30) + sizeof(uint32_t) + length),
 		};
