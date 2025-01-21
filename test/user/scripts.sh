@@ -21,9 +21,9 @@ $APK mkpkg -I name:scripts -I version:1.0 -s pre-install:pre.sh -s post-install:
 $APK add --initdb $TEST_USERMODE scripts-1.0.apk > apk-stdout.log 2> apk-stderr.log
 diff -u - apk-stdout.log <<EOF || assert "wrong scripts result"
 (1/1) Installing scripts (1.0)
-Executing scripts-1.0.pre-install
+scripts-1.0.pre-install: Executing script...
 scripts-1.0.pre-install: Hello from pre-install
-Executing scripts-1.0.post-install
+scripts-1.0.post-install: Executing script...
 scripts-1.0.post-install: Hello from post-install
 OK: 0 MiB in 1 packages
 EOF

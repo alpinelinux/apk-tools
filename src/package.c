@@ -769,19 +769,18 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	static const char script_exec_dir[] = "lib/apk/exec";
 	struct apk_out *out = &db->ctx->out;
 	struct apk_package *pkg = ipkg->pkg;
+	const char *reason = "failed to execute: ";
 	char fn[PATH_MAX];
-	int fd = -1, root_fd = db->root_fd, ret = 0;
+	int fd = -1, root_fd = db->root_fd, ret = 0, r;
 	bool created = false;
 
 	if (type >= APK_SCRIPT_MAX || ipkg->script[type].ptr == NULL) return 0;
 	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
 
-	if (apk_fmt(fn, sizeof fn, "%s/" PKG_VER_FMT ".%s",
-		    script_exec_dir, PKG_VER_PRINTF(pkg), apk_script_types[type]) < 0)
-		return 0;
+	r = apk_fmt(fn, sizeof fn, "%s/" PKG_VER_FMT ".%s", script_exec_dir, PKG_VER_PRINTF(pkg), apk_script_types[type]);
+	if (r < 0) goto err_r;
 
 	argv[0] = fn;
-	apk_msg(out, "Executing %s", apk_last_path_segment(fn));
 
 	if (db->root_dev_works) {
 		/* Linux kernel >= 6.3 */
@@ -793,13 +792,12 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	}
 	if (!db->script_dirs_checked) {
 		if (fd < 0 && apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0) {
-			apk_err(out, "failed to prepare dirs for hook scripts: %s",
-				apk_error_str(errno));
-			goto err;
+			reason = "failed to prepare dirs for hook scripts: ";
+			goto err_errno;
 		}
 		if (!(db->ctx->flags & APK_NO_CHROOT) && make_device_tree(db) < 0) {
-			apk_warn(out, "failed to create initial device nodes for scripts: %s",
-				apk_error_str(errno));
+			apk_warn(out, PKG_VER_FMT ": failed to create initial device nodes: %s",
+				PKG_VER_PRINTF(pkg), apk_error_str(errno));
 		}
 		db->script_dirs_checked = 1;
 	}
@@ -807,26 +805,28 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		fd = openat(root_fd, fn, O_CREAT | O_RDWR | O_TRUNC, 0755);
 		created = fd >= 0;
 	}
-	if (fd < 0) goto err_log;
+	if (fd < 0) goto err_errno;
 
 	if (write(fd, ipkg->script[type].ptr, ipkg->script[type].len) < 0)
-		goto err_log;
+		goto err_errno;
 
 	if (created) {
 		close(fd);
 		fd = -1;
 	}
 
+	apk_msg(out, PKG_VER_FMT ".%s: Executing script...", PKG_VER_PRINTF(pkg), apk_script_types[type]);
 	if (apk_db_run_script(db, fd, argv) < 0)
 		goto err;
 
 	/* Script may have done something that changes id cache contents */
 	apk_id_cache_reset(db->id_cache);
-
 	goto cleanup;
 
-err_log:
-	apk_err(out, "%s: failed to execute: %s", apk_last_path_segment(fn), apk_error_str(errno));
+err_errno:
+	r = errno;
+err_r:
+	apk_err(out, PKG_VER_FMT ".%s: %s%s", PKG_VER_PRINTF(pkg), apk_script_types[type], reason, apk_error_str(r));
 err:
 	ipkg->broken_script = 1;
 	ret = 1;
