@@ -204,7 +204,7 @@ static const struct apk_extract_ops extract_ndxinfo_ops = {
 	.v3meta = mkndx_parse_v3meta,
 };
 
-static int find_package(struct adb_obj *pkgs, apk_blob_t filename, size_t filesize, apk_blob_t pkgname_spec)
+static int find_package(struct adb_obj *pkgs, apk_blob_t filename, int64_t filesize, apk_blob_t pkgname_spec)
 {
 	char buf[NAME_MAX], split_char;
 	apk_blob_t name_format;
@@ -298,7 +298,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 	foreach_array_item(parg, args) {
 		adb_val_t val = ADB_VAL_NULL;
-		off_t file_size = 0;
+		int64_t file_size = 0;
 		bool use_previous = true;
 
 		if (!ctx->filter_spec_set) {

@@ -36,11 +36,6 @@ static int uvol_run(struct apk_ctx *ac, char *action, const char *volname, char 
 	return _uvol_run(ac, action, volname, arg1, arg2, NULL);
 }
 
-static int uvol_extract(struct apk_ctx *ac, const char *volname, char *arg1, off_t sz, struct apk_istream *is)
-{
-	return _uvol_run(ac, "write", volname, arg1, 0, is);
-}
-
 static int uvol_dir_create(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid)
 {
 	return 0;
@@ -72,13 +67,13 @@ static int uvol_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 	uvol_name = strrchr(fi->name, '/');
 	uvol_name = uvol_name ? uvol_name + 1 : fi->name;
 
-	r = apk_fmt(size, sizeof size, "%ju", (intmax_t) fi->size);
+	r = apk_fmt(size, sizeof size, "%" PRIu64, (uint64_t) fi->size);
 	if (r < 0) return r;
 
 	r = uvol_run(ac, "create", uvol_name, size, "ro");
 	if (r != 0) return r;
 
-	r = uvol_extract(ac, uvol_name, size, fi->size, is);
+	r = _uvol_run(ac, "write", uvol_name, size, 0, is);
 	if (r == 0 && !pkgctx.ptr)
 		r = uvol_run(ac, "up", uvol_name, 0, 0);
 
