@@ -110,7 +110,7 @@ void *apk_istream_get(struct apk_istream *is, size_t len);
 int apk_istream_get_max(struct apk_istream *is, size_t size, apk_blob_t *data);
 int apk_istream_get_delim(struct apk_istream *is, apk_blob_t token, apk_blob_t *data);
 static inline int apk_istream_get_all(struct apk_istream *is, apk_blob_t *data) { return apk_istream_get_max(is, APK_IO_ALL, data); }
-ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size, struct apk_digest_ctx *dctx);
+int64_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, uint64_t size, struct apk_digest_ctx *dctx);
 
 static inline struct apk_istream *apk_istream_from_url(const char *url, time_t since)
 {
@@ -143,19 +143,19 @@ struct apk_istream *apk_io_url_istream(const char *url, time_t since);
 struct apk_segment_istream {
 	struct apk_istream is;
 	struct apk_istream *pis;
-	size_t bytes_left;
+	uint64_t bytes_left;
 	time_t mtime;
 };
-struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, size_t len, time_t mtime);
+struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, uint64_t len, time_t mtime);
 
 struct apk_digest_istream {
 	struct apk_istream is;
 	struct apk_istream *pis;
 	struct apk_digest *digest;
 	struct apk_digest_ctx dctx;
-	off_t size_left;
+	uint64_t size_left;
 };
-struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct apk_istream *is, off_t size, struct apk_digest *d);
+struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct apk_istream *is, uint64_t size, struct apk_digest *d);
 
 #define APK_ISTREAM_TEE_COPY_META 1
 #define APK_ISTREAM_TEE_OPTIONAL  2

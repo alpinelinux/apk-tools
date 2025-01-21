@@ -299,7 +299,7 @@ static const struct apk_istream_ops segment_istream_ops = {
 	.close = segment_close,
 };
 
-struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, size_t len, time_t mtime)
+struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, uint64_t len, time_t mtime)
 {
 	*sis = (struct apk_segment_istream) {
 		.is.ops = &segment_istream_ops,
@@ -362,7 +362,7 @@ static const struct apk_istream_ops digest_istream_ops = {
 	.close = digest_close,
 };
 
-struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct apk_istream *is, off_t size, struct apk_digest *d)
+struct apk_istream *apk_istream_verify(struct apk_digest_istream *dis, struct apk_istream *is, uint64_t size, struct apk_digest *d)
 {
 	*dis = (struct apk_digest_istream) {
 		.is.ops = &digest_istream_ops,
@@ -387,7 +387,6 @@ struct apk_tee_istream {
 	struct apk_istream *inner_is;
 	struct apk_ostream *to;
 	int flags;
-	size_t size;
 };
 
 static void tee_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
@@ -400,7 +399,6 @@ static int __tee_write(struct apk_tee_istream *tee, void *ptr, size_t size)
 {
 	int r = apk_ostream_write(tee->to, ptr, size);
 	if (r < 0) return r;
-	tee->size += size;
 	return size;
 }
 
@@ -630,9 +628,9 @@ struct apk_istream *__apk_istream_from_file(int atfd, const char *file, int try_
 	return apk_istream_from_fd(fd);
 }
 
-ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t size, struct apk_digest_ctx *dctx)
+int64_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, uint64_t size, struct apk_digest_ctx *dctx)
 {
-	size_t done = 0;
+	uint64_t done = 0;
 	apk_blob_t d;
 	int r;
 
@@ -640,7 +638,7 @@ ssize_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, size_t s
 	if (IS_ERR(os)) return PTR_ERR(os);
 
 	while (done < size) {
-		r = apk_istream_get_max(is, size - done, &d);
+		r = apk_istream_get_max(is, min(size - done, SSIZE_MAX), &d);
 		if (r < 0) {
 			if (r == -APKE_EOF && size == APK_IO_ALL) break;
 			apk_ostream_cancel(os, r);
