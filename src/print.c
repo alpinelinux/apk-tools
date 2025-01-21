@@ -186,8 +186,8 @@ static void apk_out_render_progress(struct apk_out *out, bool force)
 
 	bar_width = apk_out_get_width(out) - 6;
 	if (p->max_progress > 0) {
-		bar = muldiv(bar_width, p->cur_progress, p->max_progress);
-		percent = muldiv(100, p->cur_progress, p->max_progress);
+		bar = bar_width * p->cur_progress / p->max_progress;
+		percent = 100 * p->cur_progress / p->max_progress;
 	}
 	if (force || bar != p->last_bar || percent != p->last_percent) {
 		FILE *f = out->out;

@@ -139,23 +139,6 @@ static inline uint64_t apk_calc_installed_size(uint64_t size)
 	return ROUND_UP(size, 4096ULL);
 }
 
-static inline size_t muldiv(size_t a, size_t b, size_t c)
-{
-	unsigned long long tmp;
-	tmp = a;
-	tmp *= b;
-	tmp /= c;
-	return (size_t) tmp;
-}
-static inline size_t mulmod(size_t a, size_t b, size_t c)
-{
-	unsigned long long tmp;
-	tmp = a;
-	tmp *= b;
-	tmp %= c;
-	return (size_t) tmp;
-}
-
 static inline uint32_t get_unaligned32(const void *ptr)
 {
 #if defined(__x86_64__) || defined(__i386__)
