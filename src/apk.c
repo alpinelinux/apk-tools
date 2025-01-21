@@ -427,18 +427,22 @@ static int load_config(struct apk_ctx *ac, struct apk_options *opts)
 		r = -1;
 		for (int i = 0; i < opts->num_opts; i++) {
 			struct option *opt = &opts->options[i];
+			char *str = NULL;
 			if (strncmp(opt->name, key.ptr, key.len) != 0 || opt->name[key.len] != 0) continue;
 			switch (opt->has_arg) {
 			case no_argument:
 				if (!APK_BLOB_IS_NULL(value)) r = -2;
 				break;
 			case required_argument:
-				if (APK_BLOB_IS_NULL(value)) r = -3;
-				value.ptr[value.len] = 0;
+				if (APK_BLOB_IS_NULL(value)) {
+					r = -3;
+					break;
+				}
+				str = apk_balloc_cstr(&ac->ba, value);
 				break;
 			}
 			assert((opt->val >> 10) == 1);
-			if (r == -1) r = optgroup_global_parse(ac, opt->val&0x3ff, value.ptr);
+			if (r == -1) r = optgroup_global_parse(ac, opt->val&0x3ff, str);
 			break;
 		}
 		switch (r) {
