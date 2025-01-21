@@ -640,18 +640,6 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 	return idb;
 }
 
-int apk_repo_format_cache_index(apk_blob_t to, struct apk_repository *repo)
-{
-	/* APKINDEX.12345678.tar.gz */
-	apk_blob_push_blob(&to, APK_BLOB_STR("APKINDEX."));
-	apk_blob_push_hexdump(&to, APK_BLOB_PTR_LEN((char *) repo->hash.data, APK_CACHE_CSUM_BYTES));
-	apk_blob_push_blob(&to, APK_BLOB_STR(".tar.gz"));
-	apk_blob_push_blob(&to, APK_BLOB_PTR_LEN("", 1));
-	if (APK_BLOB_IS_NULL(to))
-		return -ENOBUFS;
-	return 0;
-}
-
 static int apk_repo_fd(struct apk_database *db, struct apk_repository *repo, int *fd)
 {
 	if (!fd) return 0;

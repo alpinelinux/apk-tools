@@ -132,7 +132,6 @@ static inline int IS_ERR(const void *ptr) { return (unsigned long)ptr >= (unsign
 
 #define APK_MAX_REPOS		32	/* see struct apk_package */
 #define APK_MAX_TAGS		16	/* see solver; unsigned short */
-#define APK_CACHE_CSUM_BYTES	4
 
 static inline uint64_t apk_calc_installed_size(uint64_t size)
 {
