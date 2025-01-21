@@ -277,7 +277,7 @@ void apk_blob_push_blob(apk_blob_t *to, apk_blob_t literal)
 
 static const char *xd = "0123456789abcdefghijklmnopqrstuvwxyz";
 
-void apk_blob_push_uint(apk_blob_t *to, unsigned int value, int radix)
+void apk_blob_push_uint(apk_blob_t *to, uint64_t value, int radix)
 {
 	char buf[64];
 	char *ptr = &buf[sizeof(buf)-1];

@@ -86,7 +86,7 @@ static inline char *apk_blob_chr(apk_blob_t b, unsigned char ch)
 }
 
 void apk_blob_push_blob(apk_blob_t *to, apk_blob_t literal);
-void apk_blob_push_uint(apk_blob_t *to, unsigned int value, int radix);
+void apk_blob_push_uint(apk_blob_t *to, uint64_t value, int radix);
 void apk_blob_push_hash(apk_blob_t *to, apk_blob_t digest);
 void apk_blob_push_hash_hex(apk_blob_t *to, apk_blob_t digest);
 void apk_blob_push_base64(apk_blob_t *to, apk_blob_t binary);
