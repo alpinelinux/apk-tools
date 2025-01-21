@@ -283,7 +283,7 @@ static int segment_close(struct apk_istream *is)
 {
 	struct apk_segment_istream *sis = container_of(is, struct apk_segment_istream, is);
 
-	if (sis->bytes_left) apk_istream_skip(is, sis->bytes_left);
+	if (sis->bytes_left) apk_istream_skip(sis->pis, sis->bytes_left);
 	return is->err < 0 ? is->err : 0;
 }
 
