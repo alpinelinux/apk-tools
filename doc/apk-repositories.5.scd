@@ -2,14 +2,20 @@ apk-repositories(5)
 
 # NAME
 
-*/etc/apk/repositories*, */etc/apk/repositories.d/\*.list* - list of package
-repositories
+*/etc/apk/repositories*++
+*/etc/apk/repositories.d/\*.list*++
+*/lib/apk/repositories.d/\*.list*++
+	list of package repositories
 
 # DESCRIPTION
 
-/etc/apk/repositories is the list of package repositories *apk*(8) uses to
-retrieve package files for installation. Each line of this file is of the
-following format:
+*apk*(8) loads repository definitions from the above mentioned files.
+The *repositories* file is first loaded. The *repositories.d* paths are
+then processed if *--repositories-file* option was not used. The directories
+are enumerated in the above mentioned order. Once a *.list* file of given
+name is seen, any file of the same name in subsequent directories is ignored.
+
+Each line of this file is of the following format:
 
 	# comment++
 \[@tag\] url

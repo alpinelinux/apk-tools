@@ -875,6 +875,75 @@ int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx)
 	return ret;
 }
 
+struct apk_atfile {
+	int atfd;
+	const char *name;
+};
+APK_ARRAY(apk_atfile_array, struct apk_atfile);
+
+static int apk_atfile_cmp(const void *pa, const void *pb)
+{
+	const struct apk_atfile *a = pa, *b = pb;
+	return strcmp(a->name, b->name);
+}
+
+struct apk_dir_config {
+	int num, atfd;
+	bool (*filter)(const char *filename);
+	struct apk_atfile_array *files;
+};
+
+static int apk_dir_config_file_amend(void *pctx, int atfd, const char *name)
+{
+	struct apk_dir_config *ctx = pctx;
+	struct apk_atfile key = {
+		.atfd = ctx->atfd,
+		.name = name,
+	};
+	if (ctx->filter && !ctx->filter(name)) return 0;
+	if (bsearch(&key, ctx->files->item, ctx->num, apk_array_item_size(ctx->files), apk_atfile_cmp)) return 0;
+	key.name = strdup(key.name);
+	apk_atfile_array_add(&ctx->files, key);
+	return 0;
+}
+
+int apk_dir_foreach_config_file(int dirfd, apk_dir_file_cb cb, void *cbctx, bool (*filter)(const char*), ...)
+{
+	struct apk_dir_config ctx = {
+		.filter = filter,
+	};
+	struct apk_atfile *atf;
+	const char *path;
+	int path_fd[8], num_paths = 0;
+	va_list va;
+	int r, i;
+
+	va_start(va, filter);
+	apk_atfile_array_init(&ctx.files);
+	while ((path = va_arg(va, const char *)) != 0) {
+		assert(num_paths < ARRAY_SIZE(path_fd));
+		ctx.num = apk_array_len(ctx.files);
+		ctx.atfd = openat(dirfd, path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+		if (ctx.atfd < 0) continue;
+		path_fd[num_paths++] = ctx.atfd;
+		r = apk_dir_foreach_file(dup(ctx.atfd), apk_dir_config_file_amend, &ctx);
+		if (r) break;
+		apk_array_qsort(ctx.files, apk_atfile_cmp);
+	}
+	if (r == 0) {
+		foreach_array_item(atf, ctx.files) {
+			r = cb(cbctx, atf->atfd, atf->name);
+			if (r) break;
+		}
+	}
+	foreach_array_item(atf, ctx.files) free((void*) atf->name);
+	for (i = 0; i < num_paths; i++) close(path_fd[i]);
+	apk_atfile_array_free(&ctx.files);
+	va_end(va);
+
+	return r;
+}
+
 struct apk_fd_ostream {
 	struct apk_ostream os;
 	int fd;

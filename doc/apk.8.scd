@@ -387,6 +387,7 @@ timeout 120
 
 */etc/apk/repositories*++
 */etc/apk/repositories.d/\*.list*
+*/lib/apk/repositories.d/\*.list*
 	Configuration files to specify repositories. See *apk-repositories*(5)
 	for details.
 

@@ -1571,12 +1571,6 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 	struct apk_out *out = &db->ctx->out;
 	int r;
 
-	if (dirfd != AT_FDCWD && dirfd != db->root_fd) {
-		/* loading from repositories.d; check extension */
-		if (!file_ends_with_dot_list(file))
-			return 0;
-	}
-
 	r = apk_db_parse_istream(db, apk_istream_from_file(dirfd, file), add_repository);
 	if (r != 0) {
 		if (dirfd != AT_FDCWD) return 0;
@@ -2047,8 +2041,12 @@ int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
 	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS)) {
 		if (ac->repositories_file == NULL) {
 			add_repos_from_file(db, db->root_fd, "etc/apk/repositories");
-			apk_dir_foreach_file(openat(db->root_fd, "etc/apk/repositories.d", O_DIRECTORY | O_RDONLY | O_CLOEXEC),
-					     add_repos_from_file, db);
+			apk_dir_foreach_config_file(db->root_fd,
+				add_repos_from_file, db,
+				file_ends_with_dot_list,
+				"etc/apk/repositories.d",
+				"lib/apk/repositories.d",
+				NULL);
 		} else {
 			add_repos_from_file(db, AT_FDCWD, ac->repositories_file);
 		}
