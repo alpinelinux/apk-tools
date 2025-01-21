@@ -730,11 +730,10 @@ int apk_ipkg_assign_script(struct apk_installed_package *ipkg, unsigned int type
 	return 0;
 }
 
-int apk_ipkg_add_script(struct apk_installed_package *ipkg,
-			struct apk_istream *is,
-			unsigned int type, unsigned int size)
+int apk_ipkg_add_script(struct apk_installed_package *ipkg, struct apk_istream *is, unsigned int type, uint64_t size)
 {
 	apk_blob_t b;
+	if (size > APK_MAX_SCRIPT_SIZE) return -APKE_FORMAT_INVALID;
 	apk_blob_from_istream(is, size, &b);
 	return apk_ipkg_assign_script(ipkg, type, b);
 }

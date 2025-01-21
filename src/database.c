@@ -2663,7 +2663,7 @@ static int apk_db_install_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *p
 	return 0;
 }
 
-static int apk_db_install_script(struct apk_extract_ctx *ectx, unsigned int type, size_t size, struct apk_istream *is)
+static int apk_db_install_script(struct apk_extract_ctx *ectx, unsigned int type, uint64_t size, struct apk_istream *is)
 {
 	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
 	struct apk_package *pkg = ctx->pkg;

@@ -130,6 +130,7 @@ static inline int IS_ERR(const void *ptr) { return (unsigned long)ptr >= (unsign
 #define ROUND_DOWN(x,a)		((x) & ~(a-1))
 #define ROUND_UP(x,a)		(((x)+(a)-1) & ~((a)-1))
 
+#define APK_MAX_SCRIPT_SIZE	262144	/* package install script size 256kb */
 #define APK_MAX_REPOS		32	/* see struct apk_package */
 #define APK_MAX_TAGS		16	/* see solver; unsigned short */
 

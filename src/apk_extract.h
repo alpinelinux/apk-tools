@@ -23,7 +23,7 @@ struct apk_extract_ops {
 	int (*v2meta)(struct apk_extract_ctx *, struct apk_istream *is);
 	int (*v3index)(struct apk_extract_ctx *, struct adb_obj *);
 	int (*v3meta)(struct apk_extract_ctx *, struct adb_obj *);
-	int (*script)(struct apk_extract_ctx *, unsigned int script, size_t size, struct apk_istream *is);
+	int (*script)(struct apk_extract_ctx *, unsigned int script, uint64_t size, struct apk_istream *is);
 	int (*file)(struct apk_extract_ctx *, const struct apk_file_info *fi, struct apk_istream *is);
 };
 
