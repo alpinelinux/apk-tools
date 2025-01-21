@@ -239,7 +239,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 			paxlen = 0;
 		}
 
-		if (toskip && (r = apk_istream_read(is, NULL, toskip)) < 0)
+		if (toskip && (r = apk_istream_skip(is, toskip)) < 0)
 			goto err;
 	}
 

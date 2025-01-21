@@ -110,6 +110,7 @@ void *apk_istream_get(struct apk_istream *is, size_t len);
 int apk_istream_get_max(struct apk_istream *is, size_t size, apk_blob_t *data);
 int apk_istream_get_delim(struct apk_istream *is, apk_blob_t token, apk_blob_t *data);
 static inline int apk_istream_get_all(struct apk_istream *is, apk_blob_t *data) { return apk_istream_get_max(is, APK_IO_ALL, data); }
+int apk_istream_skip(struct apk_istream *is, uint64_t size);
 int64_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, uint64_t size, struct apk_digest_ctx *dctx);
 
 static inline struct apk_istream *apk_istream_from_url(const char *url, time_t since)

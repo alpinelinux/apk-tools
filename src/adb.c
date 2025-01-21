@@ -313,7 +313,7 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 		if (r < 0) break;
 
 	skip_padding:
-		r = apk_istream_read(is, 0, adb_block_padding(&blk));
+		r = apk_istream_skip(is, adb_block_padding(&blk));
 		if (r < 0) break;
 	} while (1);
 err:

@@ -97,17 +97,15 @@ ssize_t apk_istream_read_max(struct apk_istream *is, void *ptr, size_t size)
 	while (left) {
 		if (is->ptr != is->end) {
 			r = min(left, is->end - is->ptr);
-			if (ptr) {
-				memcpy(ptr, is->ptr, r);
-				ptr += r;
-			}
+			memcpy(ptr, is->ptr, r);
+			ptr += r;
 			is->ptr += r;
 			left -= r;
 			continue;
 		}
 		if (is->err) break;
 
-		if (ptr && left > is->buf_size/4) {
+		if (left > is->buf_size/4) {
 			r = is->ops->read(is, ptr, left);
 			if (r <= 0) break;
 			left -= r;
@@ -283,14 +281,10 @@ static ssize_t segment_read(struct apk_istream *is, void *ptr, size_t size)
 
 static int segment_close(struct apk_istream *is)
 {
-	int r = is->err;
 	struct apk_segment_istream *sis = container_of(is, struct apk_segment_istream, is);
 
-	if (sis->bytes_left) {
-		apk_istream_read(sis->pis, NULL, sis->bytes_left);
-		sis->bytes_left = 0;
-	}
-	return r < 0 ? r : 0;
+	if (sis->bytes_left) apk_istream_skip(is, sis->bytes_left);
+	return is->err < 0 ? is->err : 0;
 }
 
 static const struct apk_istream_ops segment_istream_ops = {
@@ -626,6 +620,22 @@ struct apk_istream *__apk_istream_from_file(int atfd, const char *file, int try_
 		if (!IS_ERR(is)) return is;
 	}
 	return apk_istream_from_fd(fd);
+}
+
+int apk_istream_skip(struct apk_istream *is, uint64_t size)
+{
+	uint64_t done = 0;
+	apk_blob_t d;
+	int r;
+
+	if (IS_ERR(is)) return PTR_ERR(is);
+
+	while (done < size) {
+		r = apk_istream_get_max(is, min(size - done, SSIZE_MAX), &d);
+		if (r < 0) return r;
+		done += d.len;
+	}
+	return done;
 }
 
 int64_t apk_stream_copy(struct apk_istream *is, struct apk_ostream *os, uint64_t size, struct apk_digest_ctx *dctx)

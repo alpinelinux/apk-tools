@@ -231,7 +231,7 @@ static int apk_extract_v3_verify_meta(struct apk_extract_ctx *ectx, struct adb_o
 static int apk_extract_v3_verify_file(struct apk_extract_ctx *ectx, const struct apk_file_info *fi, struct apk_istream *is)
 {
 	if (is) {
-		apk_istream_read(is, 0, fi->size);
+		apk_istream_skip(is, fi->size);
 		return apk_istream_close(is);
 	}
 	return 0;
