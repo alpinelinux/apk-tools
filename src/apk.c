@@ -411,7 +411,7 @@ static int load_config(struct apk_ctx *ac, struct apk_options *opts)
 	apk_blob_t space = APK_BLOB_STRLIT(" "), line, key, value;
 	int r;
 
-	is = apk_istream_from_file(AT_FDCWD, "/etc/apk/config");
+	is = apk_istream_from_file(AT_FDCWD, getenv("APK_CONFIG") ?: "/etc/apk/config");
 	if (IS_ERR(is)) return PTR_ERR(is);
 
 	while (apk_istream_get_delim(is, newline, &line) == 0) {

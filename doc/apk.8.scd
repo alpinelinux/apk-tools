@@ -297,6 +297,9 @@ The following options are available for all commands which generate APKv3 files.
 
 # ENVIRONMENT
 
+*APK_CONFIG*
+	Override the default config file name. See */etc/apk/config*
+
 *LANG*
 	Used to determine if UTF-8 is supported, and set the default progress
 	character accordingly.
