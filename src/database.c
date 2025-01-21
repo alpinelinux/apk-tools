@@ -1477,8 +1477,8 @@ static int add_repository(struct apk_database *db, apk_blob_t line)
 		repo->tag_mask |= BIT(tag_id);
 		return 0;
 	}
-	url_index = *apk_atomize_dup(&db->atoms, url_index);
-	url_index_printable = apk_url_sanitize(url_index, &db->atoms);
+	url_index = apk_balloc_dup(&db->ctx->ba, url_index);
+	url_index_printable = apk_url_sanitize(url_index, &db->ctx->ba);
 	url_base_printable = url_base;
 	if (url_base.ptr != dot.ptr) {
 		// url base is a prefix of url index
@@ -1873,9 +1873,10 @@ static void setup_uvol_target(struct apk_database *db)
 static void setup_uvol_target(struct apk_database *db) { }
 #endif
 
-void apk_db_init(struct apk_database *db)
+void apk_db_init(struct apk_database *db, struct apk_ctx *ac)
 {
 	memset(db, 0, sizeof(*db));
+	db->ctx = ac;
 	apk_balloc_init(&db->ba_names, (sizeof(struct apk_name) + 16) * 256);
 	apk_balloc_init(&db->ba_pkgs, sizeof(struct apk_package) * 256);
 	apk_balloc_init(&db->ba_deps, sizeof(struct apk_dependency) * 256);
@@ -1884,7 +1885,7 @@ void apk_db_init(struct apk_database *db)
 	apk_hash_init(&db->available.packages, &pkg_info_hash_ops, 10000);
 	apk_hash_init(&db->installed.dirs, &dir_hash_ops, 20000);
 	apk_hash_init(&db->installed.files, &file_hash_ops, 200000);
-	apk_atom_init(&db->atoms);
+	apk_atom_init(&db->atoms, &db->ctx->ba);
 	apk_dependency_array_init(&db->world);
 	apk_pkgtmpl_init(&db->overlay_tmpl);
 	list_init(&db->installed.packages);
@@ -1899,16 +1900,15 @@ void apk_db_init(struct apk_database *db)
 	db->noarch = apk_atomize_dup(&db->atoms, APK_BLOB_STRLIT("noarch"));
 }
 
-int apk_db_open(struct apk_database *db, struct apk_ctx *ac)
+int apk_db_open(struct apk_database *db)
 {
+	struct apk_ctx *ac = db->ctx;
 	struct apk_out *out = &ac->out;
 	const char *msg = NULL;
 	int r = -1, i;
 
 	apk_default_acl_dir = apk_db_acl_atomize(db, 0755, 0, 0);
 	apk_default_acl_file = apk_db_acl_atomize(db, 0644, 0, 0);
-
-	db->ctx = ac;
 	if (ac->open_flags == 0) {
 		msg = "Invalid open flags (internal error)";
 		goto ret_r;

@@ -194,8 +194,8 @@ static int Papk_db_open(lua_State *L)
 	luaL_getmetatable(L, APK_DB_META);
 	lua_setmetatable(L, -2);
 
-	apk_db_init(db);
-	r = apk_db_open(db, ac);
+	apk_db_init(db, ac);
+	r = apk_db_open(db);
 	if (r != 0)
 		luaL_error(L, "apk_db_open() failed");
 	return 1;

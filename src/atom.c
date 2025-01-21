@@ -28,16 +28,15 @@ static struct apk_hash_ops atom_ops = {
 	.compare = apk_blob_compare,
 };
 
-void apk_atom_init(struct apk_atom_pool *atoms)
+void apk_atom_init(struct apk_atom_pool *atoms, struct apk_balloc *ba)
 {
-	apk_balloc_init(&atoms->ba, 64*1024);
+	atoms->ba = ba;
 	apk_hash_init(&atoms->hash, &atom_ops, 10000);
 }
 
 void apk_atom_free(struct apk_atom_pool *atoms)
 {
 	apk_hash_free(&atoms->hash);
-	apk_balloc_destroy(&atoms->ba);
 }
 
 apk_blob_t *apk_atomize_dup(struct apk_atom_pool *atoms, apk_blob_t blob)
@@ -51,7 +50,7 @@ apk_blob_t *apk_atomize_dup(struct apk_atom_pool *atoms, apk_blob_t blob)
 	atom = (struct apk_atom_hashnode *) apk_hash_get_hashed(&atoms->hash, blob, hash);
 	if (atom) return &atom->blob;
 
-	atom = apk_balloc_new_extra(&atoms->ba, struct apk_atom_hashnode, blob.len);
+	atom = apk_balloc_new_extra(atoms->ba, struct apk_atom_hashnode, blob.len);
 	ptr = (char*) (atom + 1);
 	memcpy(ptr, blob.ptr, blob.len);
 	atom->blob = APK_BLOB_PTR_LEN(ptr, blob.len);

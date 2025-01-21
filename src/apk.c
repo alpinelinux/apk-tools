@@ -585,7 +585,7 @@ int main(int argc, char **argv)
 	if (applet->remove_empty_arguments)
 		argc = remove_empty_strings(argc, argv);
 
-	apk_db_init(&db);
+	apk_db_init(&db, &ctx);
 	signal(SIGINT, on_sigint);
 
 	r = apk_ctx_prepare(&ctx);
@@ -595,7 +595,7 @@ int main(int argc, char **argv)
 	version(&ctx.out, APK_OUT_LOG_ONLY);
 
 	if (ctx.open_flags) {
-		r = apk_db_open(&db, &ctx);
+		r = apk_db_open(&db);
 		if (r != 0) {
 			apk_err(out, "Failed to open apk database: %s", apk_error_str(r));
 			goto err;

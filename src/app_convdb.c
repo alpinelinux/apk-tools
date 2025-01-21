@@ -13,13 +13,12 @@ struct conv_script {
 	char csum[2*APK_DIGEST_LENGTH_MAX];
 	int type;
 	size_t size;
-	apk_blob_t *triggers;
+	apk_blob_t triggers;
 	char script[];
 };
 
 struct conv_ctx {
 	struct apk_ctx *ac;
-	struct apk_atom_pool atoms;
 	struct adb_obj pkgs;
 
 	struct list_head script_head;
@@ -88,7 +87,7 @@ static int read_triggers(struct conv_ctx *ctx, struct apk_istream *is)
 		s = find_pkg(ctx, l, ADBI_SCRPT_TRIGGER);
 		if (!s) continue;
 
-		s->triggers = apk_atomize_dup(&ctx->atoms, r);
+		s->triggers = apk_balloc_dup(&ctx->ac->ba, r);
 	}
 	return apk_istream_close(is);
 }
@@ -141,8 +140,8 @@ static int convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 					continue;
 
 				adb_wo_blob(&scripts, s->type, APK_BLOB_PTR_LEN(s->script, s->size));
-				if (s->type == ADBI_SCRPT_TRIGGER && s->triggers) {
-					apk_blob_t r = *s->triggers, l = *s->triggers;
+				if (s->type == ADBI_SCRPT_TRIGGER && !APK_BLOB_IS_NULL(s->triggers)) {
+					apk_blob_t r = s->triggers, l = s->triggers;
 					while (apk_blob_split(r, spc, &l, &r))
 						adb_wa_append(&triggers, adb_w_blob(&ctx->dbp, l));
 					adb_wa_append(&triggers, adb_w_blob(&ctx->dbp, r));
@@ -205,7 +204,6 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 
 	ctx->ac = ac;
 	list_init(&ctx->script_head);
-	apk_atom_init(&ctx->atoms);
 
 	adb_w_init_alloca(&ctx->dbi, ADB_SCHEMA_INSTALLED_DB, 10);
 	adb_w_init_alloca(&ctx->dbp, ADB_SCHEMA_PACKAGE, 1000);
@@ -233,7 +231,6 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 
 	adb_free(&ctx->dbi);
 	adb_free(&ctx->dbp);
-	apk_atom_free(&ctx->atoms);
 
 	return r;
 }

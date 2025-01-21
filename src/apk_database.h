@@ -269,8 +269,8 @@ struct apk_db_file *apk_db_file_query(struct apk_database *db,
 				      apk_blob_t dir, apk_blob_t name);
 
 const char *apk_db_layer_name(int layer);
-void apk_db_init(struct apk_database *db);
-int apk_db_open(struct apk_database *db, struct apk_ctx *ctx);
+void apk_db_init(struct apk_database *db, struct apk_ctx *ctx);
+int apk_db_open(struct apk_database *db);
 void apk_db_close(struct apk_database *db);
 int apk_db_write_config(struct apk_database *db);
 int apk_db_permanent(struct apk_database *db);

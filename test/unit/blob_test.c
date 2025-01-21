@@ -1,6 +1,6 @@
 #include "apk_test.h"
 #include "apk_blob.h"
-#include "apk_atom.h"
+#include "apk_balloc.h"
 #include "apk_print.h"
 
 APK_TEST(blob_foreach_word_test) {
@@ -45,15 +45,15 @@ APK_TEST(blob_url_sanitize) {
 		{ "http://foo:pass@example.com", "http://foo:*@example.com" },
 		{ "http://example.com/foo:pass@bar", NULL },
 	};
-	struct apk_atom_pool atoms;
-	apk_atom_init(&atoms);
+	struct apk_balloc ba;
+	apk_balloc_init(&ba, 64*1024);
 	for (int i = 0; i < ARRAY_SIZE(tests); i++) {
 		apk_blob_t url = APK_BLOB_STR(tests[i].url);
-		apk_blob_t res = apk_url_sanitize(APK_BLOB_STR(tests[i].url), &atoms);
+		apk_blob_t res = apk_url_sanitize(APK_BLOB_STR(tests[i].url), &ba);
 		if (tests[i].sanitized) assert_blob_equal(APK_BLOB_STR(tests[i].sanitized), res);
 		else assert_blob_identical(url, res);
 	}
-	apk_atom_free(&atoms);
+	apk_balloc_destroy(&ba);
 }
 
 APK_TEST(url_local) {

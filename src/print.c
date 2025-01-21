@@ -131,7 +131,7 @@ const char *apk_last_path_segment(const char *path)
 	return last == NULL ? path : last + 1;
 }
 
-apk_blob_t apk_url_sanitize(apk_blob_t url, struct apk_atom_pool *atoms)
+apk_blob_t apk_url_sanitize(apk_blob_t url, struct apk_balloc *ba)
 {
 	char buf[PATH_MAX];
 	int password_start = 0;
@@ -145,7 +145,7 @@ apk_blob_t apk_url_sanitize(apk_blob_t url, struct apk_atom_pool *atoms)
 		case '@':
 			if (!password_start) return url;
 			// password_start ... i-1 is the password
-			return *apk_atomize_dup(atoms,
+			return apk_balloc_dup(ba,
 				apk_blob_fmt(buf, sizeof buf, "%.*s*%.*s",
 					password_start, url.ptr,
 					(int)(url.len - i), &url.ptr[i]));

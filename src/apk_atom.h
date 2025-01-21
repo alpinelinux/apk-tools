@@ -15,10 +15,10 @@
 extern apk_blob_t apk_atom_null;
 
 struct apk_atom_pool {
-	struct apk_balloc ba;
+	struct apk_balloc *ba;
 	struct apk_hash hash;
 };
 
-void apk_atom_init(struct apk_atom_pool *);
+void apk_atom_init(struct apk_atom_pool *, struct apk_balloc *ba);
 void apk_atom_free(struct apk_atom_pool *);
 apk_blob_t *apk_atomize_dup(struct apk_atom_pool *atoms, apk_blob_t blob);

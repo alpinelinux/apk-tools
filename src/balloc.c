@@ -50,3 +50,18 @@ void *apk_balloc_aligned0(struct apk_balloc *ba, size_t size, size_t align)
 	memset(ptr, 0, size);
 	return ptr;
 }
+
+apk_blob_t apk_balloc_dup(struct apk_balloc *ba, apk_blob_t b)
+{
+	void *ptr = apk_balloc_aligned(ba, b.len, 1);
+	memcpy(ptr, b.ptr, b.len);
+	return APK_BLOB_PTR_LEN(ptr, b.len);
+}
+
+char *apk_balloc_cstr(struct apk_balloc *ba, apk_blob_t b)
+{
+	char *str = apk_balloc_aligned(ba, b.len + 1, 1);
+	memcpy(str, b.ptr, b.len);
+	str[b.len] = 0;
+	return str;
+}

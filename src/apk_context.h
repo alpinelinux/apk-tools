@@ -12,6 +12,7 @@
 #include "apk_trust.h"
 #include "apk_io.h"
 #include "apk_crypto.h"
+#include "apk_balloc.h"
 #include "adb.h"
 
 #define APK_SIMULATE			BIT(0)
@@ -61,6 +62,7 @@
 struct apk_database;
 
 struct apk_ctx {
+	struct apk_balloc ba;
 	unsigned int flags, force, open_flags;
 	unsigned int lock_wait, cache_max_age;
 	struct apk_out out;
