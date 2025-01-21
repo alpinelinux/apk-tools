@@ -265,12 +265,12 @@ void apk_out_log_argv(struct apk_out *out, char **argv)
 	fprintf(out->log, "` at %s\n", when);
 }
 
-size_t apk_progress_weight(size_t bytes, size_t packages)
+uint64_t apk_progress_weight(uint64_t bytes, unsigned int packages)
 {
 	return bytes + packages * 1024 * 64;
 }
 
-void apk_progress_start(struct apk_progress *p, struct apk_out *out, const char *stage, size_t max_progress)
+void apk_progress_start(struct apk_progress *p, struct apk_out *out, const char *stage, uint64_t max_progress)
 {
 	*p = (struct apk_progress) {
 		.out = out,
@@ -282,7 +282,7 @@ void apk_progress_start(struct apk_progress *p, struct apk_out *out, const char 
 	out->prog = p;
 }
 
-void apk_progress_update(struct apk_progress *p, size_t cur_progress)
+void apk_progress_update(struct apk_progress *p, uint64_t cur_progress)
 {
 	if (cur_progress >= p->item_max_progress) cur_progress = p->item_max_progress;
 	cur_progress += p->item_base_progress;
@@ -291,8 +291,8 @@ void apk_progress_update(struct apk_progress *p, size_t cur_progress)
 
 	int progress_fd = p->out->progress_fd;
 	if (progress_fd != 0) {
-		char buf[64]; /* enough for petabytes... */
-		int i = apk_fmt(buf, sizeof buf, "%zu/%zu %s\n", cur_progress, p->max_progress, p->stage);
+		char buf[256];
+		int i = apk_fmt(buf, sizeof buf, "%" PRIu64 "/%" PRIu64 " %s\n", cur_progress, p->max_progress, p->stage);
 		if (i < 0 || apk_write_fully(progress_fd, buf, i) != i) {
 			close(progress_fd);
 			p->out->progress_fd = 0;
@@ -308,7 +308,7 @@ void apk_progress_end(struct apk_progress *p)
 	p->out->prog = NULL;
 }
 
-void apk_progress_item_start(struct apk_progress *p, size_t base_progress, size_t max_item_progress)
+void apk_progress_item_start(struct apk_progress *p, uint64_t base_progress, uint64_t max_item_progress)
 {
 	p->item_base_progress = p->cur_progress;
 	p->item_max_progress = max_item_progress;

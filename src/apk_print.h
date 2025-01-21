@@ -58,22 +58,22 @@ struct apk_progress {
 	struct apk_out *out;
 	const char *stage;
 	int last_bar, last_percent;
-	size_t cur_progress, max_progress;
-	size_t item_base_progress, item_max_progress;
+	uint64_t cur_progress, max_progress;
+	uint64_t item_base_progress, item_max_progress;
 };
 
-size_t apk_progress_weight(size_t bytes, size_t packages);
-void apk_progress_start(struct apk_progress *p, struct apk_out *out, const char *stage, size_t max_progress);
-void apk_progress_update(struct apk_progress *p, size_t cur_progress);
+uint64_t apk_progress_weight(uint64_t bytes, unsigned int packages);
+void apk_progress_start(struct apk_progress *p, struct apk_out *out, const char *stage, uint64_t max_progress);
+void apk_progress_update(struct apk_progress *p, uint64_t cur_progress);
 void apk_progress_end(struct apk_progress *p);
-void apk_progress_item_start(struct apk_progress *p, size_t base_progress, size_t max_item_progress);
+void apk_progress_item_start(struct apk_progress *p, uint64_t base_progress, uint64_t max_item_progress);
 void apk_progress_item_end(struct apk_progress *p);
 
 struct apk_progress_istream {
 	struct apk_istream is;
 	struct apk_istream *pis;
 	struct apk_progress *p;
-	size_t done;
+	uint64_t done;
 };
 struct apk_istream *apk_progress_istream(struct apk_progress_istream *pis, struct apk_istream *is, struct apk_progress *p);
 
