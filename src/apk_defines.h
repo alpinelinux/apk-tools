@@ -134,12 +134,11 @@ static inline int IS_ERR(const void *ptr) { return (unsigned long)ptr >= (unsign
 #define APK_MAX_TAGS		16	/* see solver; unsigned short */
 #define APK_CACHE_CSUM_BYTES	4
 
-static inline size_t apk_calc_installed_size(size_t size)
+static inline uint64_t apk_calc_installed_size(uint64_t size)
 {
-	const size_t bsize = 4 * 1024;
-
-	return (size + bsize - 1) & ~(bsize - 1);
+	return ROUND_UP(size, 4096ULL);
 }
+
 static inline size_t muldiv(size_t a, size_t b, size_t c)
 {
 	unsigned long long tmp;

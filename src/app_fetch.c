@@ -34,7 +34,8 @@ struct fetch_ctx {
 	apk_blob_t pkgname_spec;
 	struct apk_database *db;
 	struct apk_progress prog;
-	size_t done_bytes, done_packages, total_bytes, total_packages;
+	unsigned long done_packages, total_packages;
+	uint64_t done_bytes, total_bytes;
 	struct apk_dependency_array *world;
 };
 

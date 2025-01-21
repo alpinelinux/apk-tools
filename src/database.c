@@ -61,7 +61,7 @@ struct install_ctx {
 	struct apk_db_dir_instance *diri;
 	struct apk_extract_ctx ectx;
 
-	size_t installed_size;
+	uint64_t installed_size;
 
 	struct hlist_node **diri_node;
 	struct hlist_node **file_diri_node;

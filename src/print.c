@@ -113,12 +113,10 @@ int apk_get_human_size_unit(apk_blob_t b)
 	return 1;
 }
 
-const char *apk_get_human_size(off_t size, off_t *dest)
+const char *apk_get_human_size(uint64_t size, uint64_t *dest)
 {
 	size_t i;
-	off_t s;
-
-	assert(size >= 0);
+	uint64_t s;
 
 	for (i = 0, s = size; s >= 10000 && i < ARRAY_SIZE(size_units); i++)
 		s /= 1024;

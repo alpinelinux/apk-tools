@@ -77,7 +77,7 @@ struct apk_package {
 	struct apk_dependency_array *depends, *install_if, *provides;
 	apk_blob_t *version;
 	apk_blob_t *arch, *license, *origin, *maintainer, *url, *description, *commit;
-	size_t installed_size, size;
+	uint64_t installed_size, size;
 	time_t build_time;
 
 	union {

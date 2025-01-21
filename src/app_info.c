@@ -186,16 +186,15 @@ static void info_print_license(struct apk_database *db, struct apk_package *pkg)
 
 static void info_print_size(struct apk_database *db, struct apk_package *pkg)
 {
-	off_t size;
+	uint64_t size;
 	const char *size_unit;
 
 	size_unit = apk_get_human_size(pkg->installed_size, &size);
 	if (verbosity > 1)
-		printf("%s: %lld %s", pkg->name->name,
-		       (long long)size, size_unit);
+		printf("%s: %" PRIu64 " %s", pkg->name->name, size, size_unit);
 	else
-		printf(PKG_VER_FMT " installed size:\n%lld %s\n",
-		       PKG_VER_PRINTF(pkg), (long long)size, size_unit);
+		printf(PKG_VER_FMT " installed size:\n%" PRIu64 " %s\n",
+		       PKG_VER_PRINTF(pkg), size, size_unit);
 }
 
 static void info_print_dep_array(struct apk_database *db, struct apk_package *pkg,

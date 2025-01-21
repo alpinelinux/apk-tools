@@ -236,10 +236,10 @@ struct apk_database {
 		struct apk_hash dirs;
 		struct apk_hash files;
 		struct {
+			uint64_t bytes;
 			unsigned files;
 			unsigned dirs;
 			unsigned packages;
-			size_t bytes;
 		} stats;
 	} installed;
 };

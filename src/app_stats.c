@@ -32,7 +32,7 @@ static int stats_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		"  packages: %d\n"
 		"  dirs: %d\n"
 		"  files: %d\n"
-		"  bytes: %zu\n"
+		"  bytes: %" PRIu64 "\n"
 		"  triggers: %d\n"
 		"available:\n"
 		"  names: %d\n"

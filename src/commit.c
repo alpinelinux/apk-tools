@@ -17,7 +17,7 @@
 #include "apk_print.h"
 
 struct apk_stats {
-	size_t bytes;
+	uint64_t bytes;
 	unsigned int changes;
 	unsigned int packages;
 };
@@ -349,7 +349,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	struct progress prog = { 0 };
 	struct apk_change *change;
 	const char *size_unit;
-	off_t humanized, size_diff = 0, download_size = 0;
+	uint64_t humanized, size_diff = 0, download_size = 0;
 	int r, errors = 0, pkg_diff = 0;
 
 	assert(world);
@@ -403,13 +403,12 @@ int apk_solver_commit_changeset(struct apk_database *db,
 				"The following packages will be reinstalled");
 			if (download_size) {
 				size_unit = apk_get_human_size(download_size, &humanized);
-				apk_msg(out, "Need to download %lld %s of packages.",
-					(long long)humanized, size_unit);
+				apk_msg(out, "Need to download %" PRIu64 " %s of packages.",
+					humanized, size_unit);
 			}
 			size_unit = apk_get_human_size(llabs(size_diff), &humanized);
-			apk_msg(out, "After this operation, %lld %s of %s.",
-				(long long)humanized,
-				size_unit,
+			apk_msg(out, "After this operation, %" PRIu64 " %s of %s.",
+				humanized, size_unit,
 				(size_diff < 0) ?
 				"disk space will be freed" :
 				"additional disk space will be used");
@@ -473,7 +472,7 @@ all_done:
 		if (errors) msg = apk_fmts(buf, sizeof buf, "%d error%s;",
 				errors, errors > 1 ? "s" : "") ?: "ERRORS;";
 
-		off_t installed_bytes = db->installed.stats.bytes;
+		uint64_t installed_bytes = db->installed.stats.bytes;
 		int installed_packages = db->installed.stats.packages;
 		if (db->ctx->flags & APK_SIMULATE) {
 			installed_bytes += size_diff;
@@ -481,17 +480,17 @@ all_done:
 		}
 
 		if (apk_out_verbosity(out) > 1) {
-			apk_msg(out, "%s %d packages, %d dirs, %d files, %llu MiB",
+			apk_msg(out, "%s %d packages, %d dirs, %d files, %" PRIu64 " MiB",
 				msg,
 				installed_packages,
 				db->installed.stats.dirs,
 				db->installed.stats.files,
-				(unsigned long long)installed_bytes / (1024 * 1024)
+				installed_bytes / (1024 * 1024)
 				);
 		} else {
-			apk_msg(out, "%s %llu MiB in %d packages",
+			apk_msg(out, "%s %" PRIu64 " MiB in %d packages",
 				msg,
-				(unsigned long long)installed_bytes / (1024 * 1024),
+				installed_bytes / (1024 * 1024),
 				installed_packages);
 		}
 	}
