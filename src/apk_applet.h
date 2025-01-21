@@ -7,9 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_APPLET_H
-#define APK_APPLET_H
-
+#pragma once
 #include <errno.h>
 #include <getopt.h>
 #include "apk_defines.h"
@@ -51,5 +49,3 @@ void apk_applet_help(struct apk_applet *applet, struct apk_out *out);
 
 #define APK_DEFINE_APPLET(x) \
 __attribute__((constructor)) static void __register_##x(void) { apk_applet_register(&x); }
-
-#endif

@@ -6,8 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_CTYPE_H
-#define APK_CTYPE_H
+#pragma once
 
 enum {
 	APK_CTYPE_HEXDIGIT = 0,
@@ -21,5 +20,3 @@ enum {
 
 int apk_blob_spn(apk_blob_t blob, unsigned char ctype, apk_blob_t *l, apk_blob_t *r);
 int apk_blob_cspn(apk_blob_t blob, unsigned char ctype, apk_blob_t *l, apk_blob_t *r);
-
-#endif

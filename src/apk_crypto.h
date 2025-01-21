@@ -6,9 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_CRYPTO_H
-#define APK_CRYPTO_H
-
+#pragma once
 #include <string.h>
 #include "apk_defines.h"
 #include "apk_blob.h"
@@ -106,5 +104,3 @@ int apk_verify(struct apk_digest_ctx *, void *, size_t);
 // Initializiation
 
 void apk_crypto_init(void);
-
-#endif

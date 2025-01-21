@@ -7,9 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_HASH_H
-#define APK_HASH_H
-
+#pragma once
 #include <stdlib.h>
 #include <stddef.h>
 #include "apk_defines.h"
@@ -72,5 +70,3 @@ static inline void apk_hash_insert(struct apk_hash *h, apk_hash_item item)
 {
 	return apk_hash_insert_hashed(h, item, apk_hash_from_item(h, item));
 }
-
-#endif

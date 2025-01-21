@@ -6,9 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_PATHBUILDER_H
-#define APK_PATHBUILDER_H
-
+#pragma once
 #include <limits.h>
 #include "apk_blob.h"
 
@@ -41,5 +39,3 @@ static inline apk_blob_t apk_pathbuilder_get(const struct apk_pathbuilder *pb)
 {
 	return APK_BLOB_PTR_LEN((void*)pb->name, pb->namelen);
 }
-
-#endif

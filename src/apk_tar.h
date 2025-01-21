@@ -7,9 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_TAR
-#define APK_TAR
-
+#pragma once
 #include "apk_io.h"
 
 int apk_tar_parse(struct apk_istream *,
@@ -18,5 +16,3 @@ int apk_tar_parse(struct apk_istream *,
 int apk_tar_write_entry(struct apk_ostream *, const struct apk_file_info *ae,
 			const char *data);
 int apk_tar_write_padding(struct apk_ostream *, int size);
-
-#endif

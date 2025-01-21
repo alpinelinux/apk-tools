@@ -7,9 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_PKG_H
-#define APK_PKG_H
-
+#pragma once
 #include "apk_version.h"
 #include "apk_hash.h"
 #include "apk_io.h"
@@ -197,5 +195,3 @@ void apk_pkg_foreach_reverse_dependency(
 		struct apk_package *pkg, unsigned int match,
 		void cb(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *ctx),
 		void *ctx);
-
-#endif

@@ -6,8 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_CRYPTO_MBEDTLS_H
-#define APK_CRYPTO_MBEDTLS_H
+#pragma once
 
 #include <mbedtls/md.h>
 #include <mbedtls/pk.h>
@@ -28,5 +27,3 @@ struct apk_digest_ctx {
 #define APK_ENC_KEY_MAX_LENGTH          (38 + 2 * MBEDTLS_MPI_MAX_SIZE)
 /* sane limit for keyfiles with PEM, long keys and maybe comments */
 #define APK_KEYFILE_MAX_LENGTH		64000
-
-#endif

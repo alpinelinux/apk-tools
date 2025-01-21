@@ -7,8 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_CRYPTO_OPENSSL_H
-#define APK_CRYPTO_OPENSSL_H
+#pragma once
 
 #include <openssl/evp.h>
 
@@ -21,5 +20,3 @@ struct apk_pkey {
 	uint8_t id[16];
 	EVP_PKEY *key;
 };
-
-#endif

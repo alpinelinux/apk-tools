@@ -7,9 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_PRINT_H
-#define APK_PRINT_H
-
+#pragma once
 #include <stdio.h>
 #include "apk_blob.h"
 #include "apk_io.h"
@@ -90,5 +88,3 @@ int  apk_print_indented(struct apk_indent *i, apk_blob_t blob);
 void apk_print_indented_words(struct apk_indent *i, const char *text);
 void apk_print_indented_fmt(struct apk_indent *i, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
-
-#endif

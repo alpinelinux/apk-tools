@@ -6,9 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_BALLOC_H
-#define APK_BALLOC_H
-
+#pragma once
 #include "apk_defines.h"
 
 struct apk_balloc {
@@ -26,5 +24,3 @@ void *apk_balloc_aligned0(struct apk_balloc *ba, size_t size, size_t align);
 #define apk_balloc_new(ba, type) (type *) apk_balloc_new_extra(ba, type, 0)
 #define apk_balloc_new0_extra(ba, type, extra) (type *) apk_balloc_aligned0(ba, sizeof(type)+extra, alignof(type))
 #define apk_balloc_new0(ba, type) (type *) apk_balloc_new0_extra(ba, type, 0)
-
-#endif

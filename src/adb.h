@@ -1,5 +1,4 @@
-#ifndef ADB_H
-#define ADB_H
+#pragma once
 
 #include <endian.h>
 #include <stdint.h>
@@ -314,5 +313,3 @@ struct adb_compression_spec {
 int adb_parse_compression(const char *spec_string, struct adb_compression_spec *spec);
 struct apk_istream *adb_decompress(struct apk_istream *is, struct adb_compression_spec *spec);
 struct apk_ostream *adb_compress(struct apk_ostream *os, struct adb_compression_spec *spec);
-
-#endif

@@ -7,12 +7,9 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_BLOB_H
-#define APK_BLOB_H
-
+#pragma once
 #include <ctype.h>
 #include <string.h>
-
 #include "apk_defines.h"
 
 struct apk_blob {
@@ -102,5 +99,3 @@ int apk_blob_pull_blob_match(apk_blob_t *b, apk_blob_t match);
 
 struct apk_digest;
 void apk_blob_pull_digest(apk_blob_t *b, struct apk_digest *digest);
-
-#endif

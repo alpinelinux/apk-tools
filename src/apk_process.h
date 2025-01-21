@@ -6,9 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_PROCESS_H
-#define APK_PROCESS_H
-
+#pragma once
 #include <sys/types.h>
 #include "apk_defines.h"
 #include "apk_blob.h"
@@ -37,5 +35,3 @@ int apk_process_spawn(struct apk_process *p, const char *path, char * const* arg
 int apk_process_run(struct apk_process *p);
 int apk_process_cleanup(struct apk_process *p);
 struct apk_istream *apk_process_istream(char * const* argv, struct apk_out *out, const char *argv0);
-
-#endif

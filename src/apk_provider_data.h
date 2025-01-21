@@ -7,9 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_PROVIDER_DATA_H
-#define APK_PROVIDER_DATA_H
-
+#pragma once
 #include "apk_defines.h"
 #include "apk_blob.h"
 
@@ -21,5 +19,3 @@ APK_ARRAY(apk_provider_array, struct apk_provider);
 
 #define PROVIDER_FMT		"%s%s"BLOB_FMT
 #define PROVIDER_PRINTF(n,p)	(n)->name, (p)->version->len ? "-" : "", BLOB_PRINTF(*(p)->version)
-
-#endif

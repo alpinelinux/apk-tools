@@ -6,9 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_IO
-#define APK_IO
-
+#pragma once
 #include <sys/types.h>
 #include <fcntl.h>
 #include <time.h>
@@ -253,5 +251,3 @@ static inline struct apk_ostream *apk_ostream_deflate(struct apk_ostream *os, ui
 
 struct apk_istream *apk_istream_zstd(struct apk_istream *);
 struct apk_ostream *apk_ostream_zstd(struct apk_ostream *, uint8_t);
-
-#endif

@@ -7,9 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_ATOM_H
-#define APK_ATOM_H
-
+#pragma once
 #include "apk_hash.h"
 #include "apk_blob.h"
 #include "apk_balloc.h"
@@ -24,5 +22,3 @@ struct apk_atom_pool {
 void apk_atom_init(struct apk_atom_pool *);
 void apk_atom_free(struct apk_atom_pool *);
 apk_blob_t *apk_atomize_dup(struct apk_atom_pool *atoms, apk_blob_t blob);
-
-#endif

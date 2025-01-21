@@ -6,9 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_FS_H
-#define APK_FS_H
-
+#pragma once
 #include "apk_context.h"
 #include "apk_io.h"
 #include "apk_pathbuilder.h"
@@ -79,5 +77,3 @@ static inline int apk_fsdir_file_control(struct apk_fsdir *fs, apk_blob_t filena
 static inline int apk_fsdir_file_info(struct apk_fsdir *fs, apk_blob_t filename, unsigned int flags, struct apk_file_info *fi) {
 	return fs->ops->file_info(fs, filename, flags, fi);
 }
-
-#endif

@@ -6,9 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_CONTEXT_H
-#define APK_CONTEXT_H
-
+#pragma once
 #include "apk_blob.h"
 #include "apk_print.h"
 #include "apk_trust.h"
@@ -103,5 +101,3 @@ static inline time_t apk_ctx_since(struct apk_ctx *ac, time_t since) {
 	return (ac->force & APK_FORCE_REFRESH) ? APK_ISTREAM_FORCE_REFRESH : since;
 }
 static inline const char *apk_ctx_get_uvol(struct apk_ctx *ac) { return ac->uvol; }
-
-#endif

@@ -7,9 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_SOLVER_DATA_H
-#define APK_SOLVER_DATA_H
-
+#pragma once
 #include <stdint.h>
 #include "apk_defines.h"
 #include "apk_provider_data.h"
@@ -61,5 +59,3 @@ struct apk_solver_package_state {
 	unsigned char iif_failed : 1;
 	unsigned char error : 1;
 };
-
-#endif

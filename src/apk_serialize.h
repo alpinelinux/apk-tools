@@ -6,9 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_SERIALIZE_H
-#define APK_SERIALIZE_H
-
+#pragma once
 #include "apk_blob.h"
 
 #define APK_SERIALIZE_MAX_NESTING 32
@@ -50,5 +48,3 @@ static inline int apk_ser_comment(struct apk_serializer *ser, apk_blob_t comment
 static inline int apk_ser_key(struct apk_serializer *ser, apk_blob_t key_name) { return ser->ops->key(ser, key_name); }
 static inline int apk_ser_string(struct apk_serializer *ser, apk_blob_t val, int ml) { return ser->ops->string(ser, val, ml); }
 static inline int apk_ser_numeric(struct apk_serializer *ser, uint64_t val, int hint) { return ser->ops->numeric(ser, val, hint); }
-
-#endif

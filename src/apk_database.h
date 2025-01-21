@@ -7,8 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_PKGDB_H
-#define APK_PKGDB_H
+#pragma once
 
 #include "apk_version.h"
 #include "apk_hash.h"
@@ -337,5 +336,3 @@ static inline int apk_db_foreach_sorted_providers(struct apk_database *db, struc
 						  apk_db_foreach_package_cb cb, void *cb_ctx) {
 	return __apk_db_foreach_sorted_package(db, filter, cb, cb_ctx, 1);
 }
-
-#endif

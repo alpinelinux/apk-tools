@@ -7,8 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_EXTRACT
-#define APK_EXTRACT
+#pragma once
 
 #include "apk_crypto.h"
 #include "apk_print.h"
@@ -68,5 +67,3 @@ void apk_extract_v2_control(struct apk_extract_ctx *, apk_blob_t, apk_blob_t);
 int apk_extract_v2_meta(struct apk_extract_ctx *ectx, struct apk_istream *is);
 
 int apk_extract_v3(struct apk_extract_ctx *, struct apk_istream *is);
-
-#endif

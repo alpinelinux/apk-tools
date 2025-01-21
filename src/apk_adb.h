@@ -1,3 +1,4 @@
+#pragma once
 #include "adb.h"
 
 /* Schemas */

@@ -7,8 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_SOLVER_H
-#define APK_SOLVER_H
+#pragma once
 
 struct apk_name;
 struct apk_package;
@@ -55,6 +54,3 @@ void apk_solver_print_errors(struct apk_database *db,
 
 int apk_solver_commit(struct apk_database *db, unsigned short solver_flags,
 		      struct apk_dependency_array *world);
-
-#endif
-

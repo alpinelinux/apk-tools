@@ -7,9 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_DEFINES_H
-#define APK_DEFINES_H
-
+#pragma once
 #include <assert.h>
 #include <endian.h>
 #include <stdint.h>
@@ -393,5 +391,3 @@ static inline struct list_head *__list_pop(struct list_head *head)
 		n = list_entry(pos->member.next, typeof(*pos), member);	\
 	     &pos->member != (head); 					\
 	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
-
-#endif
