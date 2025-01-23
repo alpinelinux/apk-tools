@@ -412,6 +412,7 @@ static int load_config(struct apk_ctx *ac, struct apk_options *opts)
 	int r;
 
 	is = apk_istream_from_file(AT_FDCWD, getenv("APK_CONFIG") ?: "/etc/apk/config");
+	if (is == ERR_PTR(-ENOENT)) is = apk_istream_from_file(AT_FDCWD, "/lib/apk/config");
 	if (IS_ERR(is)) return PTR_ERR(is);
 
 	while (apk_istream_get_delim(is, newline, &line) == 0) {

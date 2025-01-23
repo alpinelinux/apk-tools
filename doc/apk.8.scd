@@ -353,8 +353,14 @@ The following options are available for all commands which generate APKv3 files.
 
 ## Configuration files
 
-*/etc/apk/config*
-	Default global options. The file contains one long option per line.
+*/etc/apk/config*++
+*/lib/apk/config*
+	Default global options. Only the first file existing in the above list is
+	read and parsed. The file in */lib* is intended to be for distribution default
+	options, which can be then overridden by user with the file in */etc*. See also
+	*APK_CONFIG* environment variable.
+
+	A configuration file contains one long option per line. For example:
 		no-cache++
 timeout 120
 
