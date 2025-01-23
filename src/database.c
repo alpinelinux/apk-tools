@@ -596,6 +596,7 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 {
 	struct apk_package *pkg = &tmpl->pkg, *idb;
 	struct apk_dependency *dep;
+	unsigned short old_repos = 0;
 
 	if (!pkg->name || !pkg->version || tmpl->id.len < APK_DIGEST_LENGTH_SHA1) return NULL;
 
@@ -623,9 +624,16 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 		if (db->open_complete)
 			apk_db_pkg_rdepends(db, idb);
 	} else {
+		old_repos = idb->repos;
 		idb->repos |= pkg->repos;
 		if (!idb->filename_ndx) idb->filename_ndx = pkg->filename_ndx;
 	}
+	if (idb->repos && !old_repos) {
+		pkg->name->has_repository_providers = 1;
+		foreach_array_item(dep, idb->provides)
+			dep->name->has_repository_providers = 1;
+	}
+
 	if (idb->ipkg == NULL && pkg->ipkg != NULL) {
 		struct apk_db_dir_instance *diri;
 		struct hlist_node *n;

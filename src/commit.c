@@ -183,7 +183,7 @@ static int cmp_reinstall(struct apk_change *change)
 
 static int cmp_non_repository(struct apk_change *change)
 {
-	if (!change->new_pkg || change->new_pkg->repos) return 0;
+	if (!change->new_pkg || change->new_pkg->name->has_repository_providers) return 0;
 	return 1;
 }
 

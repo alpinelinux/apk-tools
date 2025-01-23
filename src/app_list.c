@@ -48,12 +48,7 @@ static int origin_matches(const struct list_ctx *ctx, const struct apk_package *
 
 static int is_orphaned(const struct apk_database *db, const struct apk_name *name)
 {
-	struct apk_provider *p;
-	unsigned int repos = 0;
-
-	if (!name) return 0;
-	foreach_array_item(p, name->providers) repos |= p->pkg->repos;
-	return (repos & db->available_repos) == 0;
+	return name ? !name->has_repository_providers : 0;
 }
 
 /* returns the currently installed package if 'pkg' is a newer and installable version */
