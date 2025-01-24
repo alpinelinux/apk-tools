@@ -341,6 +341,11 @@ static struct apk_applet *deduce_applet(int argc, char **argv)
 	return NULL;
 }
 
+// Pack and unpack group and option id into one integer (struct option.val)
+#define APK_OPTVAL_PACK(group_id, option_id) ((group_id << 10) + option_id)
+#define APK_OPTVAL_GROUPID(optval) ((optval) >> 10)
+#define APK_OPTVAL_OPTIONID(optval) ((optval) & 0x3ff)
+
 struct apk_options {
 	struct option options[80];
 	unsigned short short_option_val[64];
@@ -350,14 +355,14 @@ struct apk_options {
 
 static void add_options(struct apk_options *opts, const char *desc, int group_id)
 {
-	unsigned short option_id = group_id << 10;
+	unsigned short option_id = 0;
 	int num_short;
 
 	for (const char *d = desc; *d; d += strlen(d) + 1, option_id++) {
 		struct option *opt = &opts->options[opts->num_opts++];
 		assert(opts->num_opts < ARRAY_SIZE(opts->options));
 
-		opt->val = option_id;
+		opt->val = APK_OPTVAL_PACK(group_id, option_id);
 		opt->flag = 0;
 		opt->has_arg = no_argument;
 		if ((unsigned char)*d == 0xaf) {
@@ -370,7 +375,7 @@ static void add_options(struct apk_options *opts, const char *desc, int group_id
 		for (; num_short > 0; num_short--) {
 			unsigned char ch = *(unsigned char *)d;
 			assert(ch >= 64 && ch < 128);
-			opts->short_option_val[ch-64] = option_id;
+			opts->short_option_val[ch-64] = opt->val;
 			opts->short_options[opts->num_sopts++] = *d++;
 			if (opt->has_arg != no_argument)
 				opts->short_options[opts->num_sopts++] = ':';
@@ -442,8 +447,8 @@ static int load_config(struct apk_ctx *ac, struct apk_options *opts)
 				str = apk_balloc_cstr(&ac->ba, value);
 				break;
 			}
-			assert((opt->val >> 10) == 1);
-			if (r == -1) r = optgroup_global_parse(ac, opt->val&0x3ff, str);
+			assert(APK_OPTVAL_GROUPID(opt->val) == 1);
+			if (r == -1) r = optgroup_global_parse(ac, APK_OPTVAL_OPTIONID(opt->val), str);
 			break;
 		}
 		switch (r) {
@@ -486,12 +491,12 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 
 	while ((p = getopt_long(argc, argv, opts.short_options, opts.options, NULL)) != -1) {
 		if (p >= 64 && p < 128) p = opts.short_option_val[p - 64];
-		switch (p >> 10) {
-		case 1: r = optgroup_global_parse(ac, p&0x3ff, optarg); break;
-		case 2: r = optgroup_commit_parse(ac, p&0x3ff, optarg); break;
-		case 3: r = optgroup_source_parse(ac, p&0x3ff, optarg); break;
-		case 4: r = optgroup_generation_parse(ac, p&0x3ff, optarg); break;
-		case 15: r = applet->parse(ctx, ac, p&0x3ff, optarg); break;
+		switch (APK_OPTVAL_GROUPID(p)) {
+		case 1: r = optgroup_global_parse(ac, APK_OPTVAL_OPTIONID(p), optarg); break;
+		case 2: r = optgroup_commit_parse(ac, APK_OPTVAL_OPTIONID(p), optarg); break;
+		case 3: r = optgroup_source_parse(ac, APK_OPTVAL_OPTIONID(p), optarg); break;
+		case 4: r = optgroup_generation_parse(ac, APK_OPTVAL_OPTIONID(p), optarg); break;
+		case 15: r = applet->parse(ctx, ac, APK_OPTVAL_OPTIONID(p), optarg); break;
 		default: r = -EINVAL;
 		}
 		if (r == -EINVAL || r == -ENOTSUP) return usage(out, applet);
