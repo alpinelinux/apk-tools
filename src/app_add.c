@@ -123,11 +123,8 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 		apk_blob_t b = APK_BLOB_STR(actx->virtpkg);
 		apk_blob_pull_dep(&b, db, &virtdep, true);
 
-		if (APK_BLOB_IS_NULL(b) || apk_dep_conflict(&virtdep) ||
-		    (virtdep.name->name[0] != '.' && non_repository_check(db)) ||
-		    virtdep.broken)
-			goto bad_spec;
-
+		if (APK_BLOB_IS_NULL(b) || apk_dep_conflict(&virtdep) || virtdep.broken) goto bad_spec;
+		if (virtdep.name->name[0] != '.' && non_repository_check(db)) return -1;
 		switch (virtdep.op) {
 		case APK_DEPMASK_ANY:
 			if (virtdep.version != &apk_atom_null) goto bad_spec;
