@@ -207,12 +207,11 @@ int apk_blob_subst(char *buf, size_t sz, apk_blob_t fmt, int (*res)(void *ctx, a
 	return to.ptr - buf - 1;
 }
 
-int apk_blob_word_iterate(apk_blob_t *b, apk_blob_t *iter)
+int apk_blob_tokenize(apk_blob_t *b, apk_blob_t *iter, apk_blob_t token)
 {
-	const apk_blob_t space = APK_BLOB_STRLIT(" ");
 	do {
 		if (b->ptr == NULL) return 0;
-		if (!apk_blob_split(*b, space, iter, b)) {
+		if (!apk_blob_split(*b, token, iter, b)) {
 			*iter = *b;
 			*b = APK_BLOB_NULL;
 		}

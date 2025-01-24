@@ -73,9 +73,9 @@ apk_blob_t apk_blob_fmt(char *str, size_t sz, const char *fmt, ...)
 
 int apk_blob_subst(char *buf, size_t sz, apk_blob_t fmt, int (*res)(void *ctx, apk_blob_t var, apk_blob_t *to), void *ctx);
 
-int apk_blob_word_iterate(apk_blob_t *b, apk_blob_t *iter);
-#define apk_blob_foreach_word(iter, blob) \
-	for (apk_blob_t iter, left = blob; apk_blob_word_iterate(&left, &iter); )
+int apk_blob_tokenize(apk_blob_t *b, apk_blob_t *iter, apk_blob_t token);
+#define apk_blob_foreach_token(iter, blob, token) for (apk_blob_t iter, __left = blob; apk_blob_tokenize(&__left, &iter, token); )
+#define apk_blob_foreach_word(iter, blob) apk_blob_foreach_token(iter, blob, APK_BLOB_STRLIT(" "))
 
 static inline char *apk_blob_chr(apk_blob_t b, unsigned char ch)
 {

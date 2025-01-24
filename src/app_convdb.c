@@ -97,7 +97,7 @@ static int convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 	struct apk_id_cache *idc = apk_ctx_get_id_cache(ctx->ac);
 	struct apk_digest digest;
 	struct adb_obj pkg, pkginfo, files, file, paths, path, scripts, triggers, acl;
-	apk_blob_t l, val, spc = APK_BLOB_STR(" "), nl = APK_BLOB_STR("\n");
+	apk_blob_t l, val, nl = APK_BLOB_STR("\n");
 	struct conv_script *s;
 	int i;
 
@@ -141,10 +141,8 @@ static int convert_idb(struct conv_ctx *ctx, struct apk_istream *is)
 
 				adb_wo_blob(&scripts, s->type, APK_BLOB_PTR_LEN(s->script, s->size));
 				if (s->type == ADBI_SCRPT_TRIGGER && !APK_BLOB_IS_NULL(s->triggers)) {
-					apk_blob_t r = s->triggers, l = s->triggers;
-					while (apk_blob_split(r, spc, &l, &r))
-						adb_wa_append(&triggers, adb_w_blob(&ctx->dbp, l));
-					adb_wa_append(&triggers, adb_w_blob(&ctx->dbp, r));
+					apk_blob_foreach_word(trigger, s->triggers)
+						adb_wa_append(&triggers, adb_w_blob(&ctx->dbp, trigger));
 					adb_wo_obj(&pkg, ADBI_PKG_TRIGGERS, &triggers);
 				}
 			}

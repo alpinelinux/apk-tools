@@ -141,7 +141,6 @@ static int need_quoting(apk_blob_t b, int multiline)
 static int ser_yaml_string(struct apk_serializer *ser, apk_blob_t scalar, int multiline)
 {
 	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
-	apk_blob_t l, nl = APK_BLOB_STR("\n");
 
 	ser_yaml_indent(dt, true, true);
 	switch (need_quoting(scalar, multiline)) {
@@ -161,14 +160,9 @@ static int ser_yaml_string(struct apk_serializer *ser, apk_blob_t scalar, int mu
 		apk_ostream_write_blob(dt->ser.os, APK_BLOB_STRLIT("|"));
 		ser_yaml_newline(dt);
 		dt->indent++;
-		while (apk_blob_split(scalar, nl, &l, &scalar)) {
+		apk_blob_foreach_token(line, scalar, APK_BLOB_STR("\n")) {
 			ser_yaml_indent(dt, false, true);
-			apk_ostream_write_blob(dt->ser.os, l);
-			ser_yaml_newline(dt);
-		}
-		if (scalar.len) {
-			ser_yaml_indent(dt, false, true);
-			apk_ostream_write_blob(dt->ser.os, scalar);
+			apk_ostream_write_blob(dt->ser.os, line);
 			ser_yaml_newline(dt);
 		}
 		dt->indent--;
