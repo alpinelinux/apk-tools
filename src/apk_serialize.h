@@ -46,5 +46,6 @@ static inline int apk_ser_start_array(struct apk_serializer *ser, unsigned int n
 static inline int apk_ser_end(struct apk_serializer *ser) { return ser->ops->end(ser); }
 static inline int apk_ser_comment(struct apk_serializer *ser, apk_blob_t comment) { return ser->ops->comment(ser, comment); }
 static inline int apk_ser_key(struct apk_serializer *ser, apk_blob_t key_name) { return ser->ops->key(ser, key_name); }
-static inline int apk_ser_string(struct apk_serializer *ser, apk_blob_t val, int ml) { return ser->ops->string(ser, val, ml); }
+static inline int apk_ser_string_ml(struct apk_serializer *ser, apk_blob_t val, int ml) { return ser->ops->string(ser, val, ml); }
+static inline int apk_ser_string(struct apk_serializer *ser, apk_blob_t val) { return ser->ops->string(ser, val, 0); }
 static inline int apk_ser_numeric(struct apk_serializer *ser, uint64_t val, int hint) { return ser->ops->numeric(ser, val, hint); }

@@ -67,7 +67,7 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 		} else {
 			b = APK_BLOB_STR("(unknown)");
 		}
-		apk_ser_string(ser, b, scalar->multiline);
+		apk_ser_string_ml(ser, b, scalar->multiline);
 		break;
 	case ADB_KIND_NUMERIC:
 		apk_ser_numeric(ser, adb_r_int(&ctx->db, v), 0);
@@ -91,7 +91,7 @@ static int dump_object(struct adb_walk_ctx *ctx, const struct adb_object_schema 
 	if (schema) {
 		if (schema->tostring) {
 			b = schema->tostring(&o, tmp, sizeof tmp);
-			apk_ser_string(ser, b, 0);
+			apk_ser_string(ser, b);
 			return 0;
 		}
 		schema_len = schema->num_fields;
