@@ -734,7 +734,6 @@ static void hash_len_data(struct apk_digest_ctx *ctx, uint32_t len, const void *
 
 static void apk_fileinfo_hash_xattr_array(struct apk_xattr_array *xattrs, uint8_t alg, struct apk_digest *d)
 {
-	struct apk_xattr *xattr;
 	struct apk_digest_ctx dctx;
 
 	apk_digest_reset(d);
@@ -742,7 +741,7 @@ static void apk_fileinfo_hash_xattr_array(struct apk_xattr_array *xattrs, uint8_
 	if (apk_digest_ctx_init(&dctx, alg)) return;
 
 	apk_array_qsort(xattrs, cmp_xattr);
-	foreach_array_item(xattr, xattrs) {
+	apk_array_foreach(xattr, xattrs) {
 		hash_len_data(&dctx, strlen(xattr->name), xattr->name);
 		hash_len_data(&dctx, xattr->value.len, xattr->value.ptr);
 	}
@@ -912,7 +911,6 @@ int apk_dir_foreach_config_file(int dirfd, apk_dir_file_cb cb, void *cbctx, bool
 	struct apk_dir_config ctx = {
 		.filter = filter,
 	};
-	struct apk_atfile *atf;
 	const char *path;
 	int path_fd[8], num_paths = 0;
 	va_list va;
@@ -931,12 +929,12 @@ int apk_dir_foreach_config_file(int dirfd, apk_dir_file_cb cb, void *cbctx, bool
 		apk_array_qsort(ctx.files, apk_atfile_cmp);
 	}
 	if (r == 0) {
-		foreach_array_item(atf, ctx.files) {
+		apk_array_foreach(atf, ctx.files) {
 			r = cb(cbctx, atf->atfd, atf->name);
 			if (r) break;
 		}
 	}
-	foreach_array_item(atf, ctx.files) free((void*) atf->name);
+	apk_array_foreach(atf, ctx.files) free((void*) atf->name);
 	for (i = 0; i < num_paths; i++) close(path_fd[i]);
 	apk_atfile_array_free(&ctx.files);
 	va_end(va);

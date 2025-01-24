@@ -77,7 +77,6 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	struct apk_out *out = &db->ctx->out;
 	struct apk_name *name;
 	struct apk_package *pkg;
-	struct apk_provider *p0;
 	struct apk_changeset changeset = {};
 	int r;
 
@@ -89,7 +88,7 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	pkg = apk_pkg_get_installed(name);
 	if (!pkg) goto ret;
 
-	foreach_array_item(p0, name->providers) {
+	apk_array_foreach(p0, name->providers) {
 		struct apk_package *pkg0 = p0->pkg;
 		if (pkg0->name != name || pkg0->repos == 0)
 			continue;
@@ -164,8 +163,6 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 	struct apk_database *db = ac->db;
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) ctx;
 	unsigned short solver_flags;
-	struct apk_dependency *dep;
-	struct apk_provider *p;
 	struct apk_dependency_array *world;
 	int r = 0;
 
@@ -190,7 +187,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 	if (uctx->prune || (solver_flags & APK_SOLVERF_AVAILABLE)) {
 		apk_dependency_array_copy(&world, db->world);
 		if (solver_flags & APK_SOLVERF_AVAILABLE) {
-			foreach_array_item(dep, world) {
+			apk_array_foreach(dep, world) {
 				if (dep->op == APK_DEPMASK_CHECKSUM) {
 					dep->op = APK_DEPMASK_ANY;
 					dep->version = &apk_atom_null;
@@ -200,7 +197,7 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 		if (uctx->prune) {
 			int i, j;
 			for (i = j = 0; i < apk_array_len(world); i++) {
-				foreach_array_item(p, world->item[i].name->providers) {
+				apk_array_foreach(p, world->item[i].name->providers) {
 					if (apk_db_pkg_available(db, p->pkg)) {
 						world->item[j++] = world->item[i];
 						break;

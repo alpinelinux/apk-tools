@@ -258,7 +258,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	struct apk_file_info fi;
 	apk_blob_t lookup_spec = ctx->pkgname_spec;
 	int r, errors = 0, newpkgs = 0, numpkgs;
-	char **parg, buf[NAME_MAX];
+	char buf[NAME_MAX];
 	time_t index_mtime = 0;
 
 	r = -1;
@@ -296,27 +296,27 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		adb_ro_obj(adb_r_rootobj(&odb, &oroot, &schema_index), ADBI_NDX_PACKAGES, &opkgs);
 	}
 
-	foreach_array_item(parg, args) {
+	apk_array_foreach_item(arg, args) {
 		adb_val_t val = ADB_VAL_NULL;
 		int64_t file_size = 0;
 		bool use_previous = true;
 
 		if (!ctx->filter_spec_set) {
-			r = apk_fileinfo_get(AT_FDCWD, *parg, 0, &fi, 0);
+			r = apk_fileinfo_get(AT_FDCWD, arg, 0, &fi, 0);
 			if (r < 0) goto err_pkg;
 			file_size = fi.size;
 			use_previous = index_mtime >= fi.mtime;
 		}
 
-		if (use_previous && (r = find_package(&opkgs, APK_BLOB_STR(*parg), file_size, lookup_spec)) > 0) {
-			apk_dbg(out, "%s: indexed from old index", *parg);
+		if (use_previous && (r = find_package(&opkgs, APK_BLOB_STR(arg), file_size, lookup_spec)) > 0) {
+			apk_dbg(out, "%s: indexed from old index", arg);
 			val = adb_wa_append(&ctx->pkgs, adb_w_copy(&ctx->db, &odb, adb_ro_val(&opkgs, r)));
 		}
 		if (val == ADB_VAL_NULL && !ctx->filter_spec_set) {
 			apk_digest_reset(&digest);
 			apk_extract_reset(&ctx->ectx);
 			apk_extract_generate_identity(&ctx->ectx, ctx->hash_alg, &digest);
-			r = apk_extract(&ctx->ectx, apk_istream_from_file(AT_FDCWD, *parg));
+			r = apk_extract(&ctx->ectx, apk_istream_from_file(AT_FDCWD, arg));
 			if (r < 0 && r != -ECANCELED) goto err_pkg;
 
 			adb_wo_int(&ctx->pkginfo, ADBI_PI_FILE_SIZE, file_size);
@@ -324,10 +324,10 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 			if (ctx->pkgname_spec_set &&
 			    (apk_blob_subst(buf, sizeof buf, ctx->pkgname_spec, adb_s_field_subst, &ctx->pkginfo) < 0 ||
-			     strcmp(apk_last_path_segment(buf), apk_last_path_segment(*parg)) != 0))
-				apk_warn(out, "%s: not matching package name specification '%s'", *parg, buf);
+			     strcmp(apk_last_path_segment(buf), apk_last_path_segment(arg)) != 0))
+				apk_warn(out, "%s: not matching package name specification '%s'", arg, buf);
 
-			apk_dbg(out, "%s: indexed new package", *parg);
+			apk_dbg(out, "%s: indexed new package", arg);
 			val = adb_wa_append_obj(&ctx->pkgs, &ctx->pkginfo);
 			newpkgs++;
 		}
@@ -335,7 +335,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		if (ADB_IS_ERROR(val)) {
 			r = ADB_VAL_VALUE(val);
 		err_pkg:
-			apk_err(out, "%s: %s", *parg, apk_error_str(r));
+			apk_err(out, "%s: %s", arg, apk_error_str(r));
 			errors++;
 		}
 	}

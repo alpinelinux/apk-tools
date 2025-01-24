@@ -39,16 +39,15 @@ static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 {
 	struct adbdump_ctx *ctx = pctx;
 	struct apk_out *out = &ac->out;
-	char **arg;
 	int r;
 
-	foreach_array_item(arg, args) {
+	apk_array_foreach_item(arg, args) {
 		r = adb_walk_adb(
-			adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, *arg), NULL),
+			adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, arg), NULL),
 			apk_ostream_to_fd(STDOUT_FILENO),
 			ctx->ser, apk_ctx_get_trust(ac));
 		if (r) {
-			apk_err(out, "%s: %s", *arg, apk_error_str(r));
+			apk_err(out, "%s: %s", arg, apk_error_str(r));
 			return r;
 		}
 	}
@@ -69,16 +68,15 @@ APK_DEFINE_APPLET(apk_adbdump);
 static int adbgen_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
-	char **arg;
 
-	foreach_array_item(arg, args) {
+	apk_array_foreach_item(arg, args) {
 		int r = adb_walk_text(
-			apk_istream_from_file(AT_FDCWD, *arg),
+			apk_istream_from_file(AT_FDCWD, arg),
 			apk_ostream_to_fd(STDOUT_FILENO),
 			&apk_serializer_adb,
 			apk_ctx_get_trust(ac));
 		if (r) {
-			apk_err(out, "%s: %s", *arg, apk_error_str(r));
+			apk_err(out, "%s: %s", arg, apk_error_str(r));
 			return r;
 		}
 	}

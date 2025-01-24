@@ -110,20 +110,19 @@ static int search_parse_option(void *ctx, struct apk_ctx *ac, int opt, const cha
 static void print_result_pkg(struct search_ctx *ctx, struct apk_package *pkg)
 {
 	char buf[2048];
-	char **pmatch;
 
 	if (ctx->search_description) {
-		foreach_array_item(pmatch, ctx->filter) {
-			if (fnmatch(*pmatch, pkg->name->name, FNM_CASEFOLD) == 0) goto match;
+		apk_array_foreach_item(match, ctx->filter) {
+			if (fnmatch(match, pkg->name->name, FNM_CASEFOLD) == 0) goto match;
 			if (apk_fmt(buf, sizeof buf, BLOB_FMT, BLOB_PRINTF(*pkg->description)) > 0 &&
-			    fnmatch(*pmatch, buf, FNM_CASEFOLD) == 0) goto match;
+			    fnmatch(match, buf, FNM_CASEFOLD) == 0) goto match;
 		}
 		return;
 	}
 	if (ctx->search_origin) {
-		foreach_array_item(pmatch, ctx->filter) {
+		apk_array_foreach_item(match, ctx->filter) {
 			if (!pkg->origin) continue;
-			if (apk_blob_compare(APK_BLOB_STR(*pmatch), *pkg->origin) == 0)
+			if (apk_blob_compare(APK_BLOB_STR(match), *pkg->origin) == 0)
 				goto match;
 		}
 		return;
@@ -161,7 +160,6 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 {
 	struct apk_database *db = ac->db;
 	struct search_ctx *ctx = (struct search_ctx *) pctx;
-	char **pmatch;
 
 	ctx->verbosity = apk_out_verbosity(&db->ctx->out);
 	ctx->filter = args;
@@ -178,7 +176,7 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 	}
 
 	if (!ctx->search_exact) {
-		foreach_array_item(pmatch, ctx->filter) {
+		apk_array_foreach(pmatch, ctx->filter) {
 			size_t slen = strlen(*pmatch) + 3;
 			*pmatch = apk_fmts(alloca(slen), slen, "*%s*", *pmatch);
 		}

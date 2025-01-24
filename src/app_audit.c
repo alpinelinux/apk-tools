@@ -242,11 +242,10 @@ static void report_audit(struct audit_ctx *actx,
 
 static int determine_file_protect_mode(struct apk_db_dir *dir, const char *name)
 {
-	struct apk_protected_path *ppath;
 	int protect_mode = dir->protect_mode;
 
 	/* inherit file's protection mask */
-	foreach_array_item(ppath, dir->protected_paths) {
+	apk_array_foreach(ppath, dir->protected_paths) {
 		char *slash = strchr(ppath->relative_pattern, '/');
 		if (slash == NULL) {
 			if (fnmatch(ppath->relative_pattern, name, FNM_PATHNAME) != 0)
@@ -425,7 +424,6 @@ static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	struct apk_database *db = ac->db;
 	struct audit_tree_ctx atctx;
 	struct audit_ctx *actx = (struct audit_ctx *) ctx;
-	char **parg, *arg;
 	int r = 0;
 
 	if (db->usermode) {
@@ -443,8 +441,7 @@ static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	if (apk_array_len(args) == 0) {
 		r |= audit_directory_tree(&atctx, dup(db->root_fd));
 	} else {
-		foreach_array_item(parg, args) {
-			arg = *parg;
+		apk_array_foreach_item(arg, args) {
 			if (arg[0] != '/') {
 				apk_warn(out, "%s: relative path skipped.", arg);
 				continue;

@@ -81,7 +81,6 @@ static int extract_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 {
 	struct extract_ctx *ctx = pctx;
 	struct apk_out *out = &ac->out;
-	char **parg;
 	int r = 0;
 
 	ctx->ac = ac;
@@ -98,11 +97,11 @@ static int extract_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	}
 
 	apk_extract_init(&ctx->ectx, ac, &extract_ops);
-	foreach_array_item(parg, args) {
-		apk_out(out, "Extracting %s...", *parg);
-		r = apk_extract(&ctx->ectx, apk_istream_from_fd_url(AT_FDCWD, *parg, apk_ctx_since(ac, 0)));
+	apk_array_foreach_item(arg, args) {
+		apk_out(out, "Extracting %s...", arg);
+		r = apk_extract(&ctx->ectx, apk_istream_from_fd_url(AT_FDCWD, arg, apk_ctx_since(ac, 0)));
 		if (r != 0) {
-			apk_err(out, "%s: %s", *parg, apk_error_str(r));
+			apk_err(out, "%s: %s", arg, apk_error_str(r));
 			break;
 		}
 	}

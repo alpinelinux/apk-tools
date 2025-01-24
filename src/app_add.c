@@ -112,7 +112,6 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 	struct apk_package_tmpl virtpkg;
 	struct apk_dependency virtdep;
 	struct apk_dependency_array *world;
-	char **parg;
 	int r = 0;
 
 	apk_pkgtmpl_init(&virtpkg);
@@ -144,29 +143,29 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 		if (apk_array_len(args) == 0) apk_warn(out, "creating empty virtual package");
 	}
 
-	foreach_array_item(parg, args) {
+	apk_array_foreach_item(arg, args) {
 		struct apk_dependency dep;
 
-		if (strchr(*parg, '.') && access(*parg, F_OK) == 0) {
+		if (strchr(arg, '.') && access(arg, F_OK) == 0) {
 			struct apk_package *pkg = NULL;
 
 			if (non_repository_check(db))
 				return -1;
 
-			r = apk_pkg_read(db, *parg, &pkg, true);
+			r = apk_pkg_read(db, arg, &pkg, true);
 			if (r == 0 && pkg->uninstallable) r = -APKE_FORMAT_NOT_SUPPORTED;
 			if (r != 0) {
-				apk_err(out, "%s: %s", *parg, apk_error_str(r));
+				apk_err(out, "%s: %s", arg, apk_error_str(r));
 				return -1;
 			}
 			apk_dep_from_pkg(&dep, db, pkg);
 		} else {
-			apk_blob_t b = APK_BLOB_STR(*parg);
+			apk_blob_t b = APK_BLOB_STR(arg);
 
 			apk_blob_pull_dep(&b, db, &dep, !actx->virtpkg);
 			if (APK_BLOB_IS_NULL(b) || b.len > 0 || dep.broken) {
 				apk_err(out, "'%s' is not a valid %s dependency, format is %s",
-					*parg,
+					arg,
 					actx->virtpkg ? "package" : "world",
 					actx->virtpkg ? "name([<>~=]version)" : "name(@tag)([<>~=]version)");
 				return -1;

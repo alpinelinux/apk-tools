@@ -18,7 +18,7 @@
 #include <time.h>
 
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
-#define BIT(x)		(1U << (x))
+#define BIT(x)		(1UL << (x))
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #define max(a, b)	((a) > (b) ? (a) : (b))
 
@@ -211,6 +211,11 @@ static inline struct apk_array *_apk_array_truncate(struct apk_array *hdr, size_
 	}
 
 APK_ARRAY(apk_string_array, char *);
+
+#define apk_array_foreach(iter, array) \
+	for (typeof((array)->item[0]) *iter = &(array)->item[0]; iter < &(array)->item[(array)->hdr.num]; iter++)
+#define apk_array_foreach_item(value, array) \
+	for (typeof((array)->item[0]) *__iter = &(array)->item[0], value; __iter < &(array)->item[(array)->hdr.num] && ({ value = *__iter; 1; }); __iter++)
 
 #define foreach_array_item(iter, array) \
 	for (iter = &(array)->item[0]; iter < &(array)->item[(array)->hdr.num]; iter++)

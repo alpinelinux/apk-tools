@@ -148,15 +148,12 @@ static void process_file(struct apk_database *db, const char *match)
 
 static int process_match(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
 {
-	struct apk_provider *p;
-
 	if (!name) {
 		process_file(db, match);
 		return 0;
 	}
-
 	apk_name_sorted_providers(name);
-	foreach_array_item(p, name->providers) {
+	apk_array_foreach(p, name->providers) {
 		if (p->pkg->name != name) continue;
 		process_package(db, p->pkg);
 	}

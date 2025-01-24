@@ -49,12 +49,11 @@ static int ver_test(struct apk_ctx *ac, struct apk_string_array *args)
 static int ver_validate(struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
-	char **parg;
 	int errors = 0;
 
-	foreach_array_item(parg, args) {
-		if (!apk_version_validate(APK_BLOB_STR(*parg))) {
-			apk_msg(out, "%s", *parg);
+	apk_array_foreach_item(arg, args) {
+		if (!apk_version_validate(APK_BLOB_STR(arg))) {
+			apk_msg(out, "%s", arg);
 			errors++;
 		}
 	}
@@ -113,7 +112,6 @@ static int ver_calculate_length(struct apk_database *db, const char *match, stru
 {
 	struct ver_ctx *ctx = (struct ver_ctx *) pctx;
 	struct apk_package *installed, *latest;
-	struct apk_provider *p0;
 	struct ver_name_state *ns;
 	unsigned int latest_repos = 0;
 	unsigned short tag, allowed_repos;
@@ -126,7 +124,7 @@ static int ver_calculate_length(struct apk_database *db, const char *match, stru
 	if (!installed) return 0;
 
 	allowed_repos = db->repo_tags[installed->ipkg->repository_tag].allowed_repos;
-	foreach_array_item(p0, name->providers) {
+	apk_array_foreach(p0, name->providers) {
 		struct apk_package *pkg0 = p0->pkg;
 		if (pkg0->name != name || pkg0->repos == 0)
 			continue;

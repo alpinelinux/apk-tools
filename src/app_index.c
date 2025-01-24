@@ -167,7 +167,6 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	int total, r, newpkgs = 0, errors = 0;
 	struct index_ctx *ictx = (struct index_ctx *) ctx;
 	struct apk_package *pkg;
-	char **parg;
 	apk_blob_t *rewrite_arch = NULL;
 
 	if (isatty(STDOUT_FILENO) && ictx->output == NULL &&
@@ -186,27 +185,27 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	if (ictx->rewrite_arch)
 		rewrite_arch = apk_atomize_dup(&db->atoms, APK_BLOB_STR(ictx->rewrite_arch));
 
-	foreach_array_item(parg, args) {
-		if (apk_fileinfo_get(AT_FDCWD, *parg, 0, &fi, &db->atoms) < 0) {
-			apk_warn(out, "File '%s' is unaccessible", *parg);
+	apk_array_foreach_item(arg, args) {
+		if (apk_fileinfo_get(AT_FDCWD, arg, 0, &fi, &db->atoms) < 0) {
+			apk_warn(out, "File '%s' is unaccessible", arg);
 			continue;
 		}
 
 		if (ictx->index && ictx->index_mtime >= fi.mtime) {
-			pkg = apk_db_get_pkg_by_name(db, APK_BLOB_STR(*parg), fi.size, APK_BLOB_NULL);
+			pkg = apk_db_get_pkg_by_name(db, APK_BLOB_STR(arg), fi.size, APK_BLOB_NULL);
 			if (pkg) {
-				apk_dbg(out, "%s: indexed from old index", *parg);
+				apk_dbg(out, "%s: indexed from old index", arg);
 				index_mark_package(db, pkg, rewrite_arch);
 				continue;
 			}
 		}
 
-		r = apk_pkg_read(db, *parg, &pkg, false);
+		r = apk_pkg_read(db, arg, &pkg, false);
 		if (r < 0) {
-			apk_err(out, "%s: %s", *parg, apk_error_str(r));
+			apk_err(out, "%s: %s", arg, apk_error_str(r));
 			errors++;
 		} else {
-			apk_dbg(out, "%s: indexed new package", *parg);
+			apk_dbg(out, "%s: indexed new package", arg);
 			index_mark_package(db, pkg, rewrite_arch);
 			newpkgs++;
 		}

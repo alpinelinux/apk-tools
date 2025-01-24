@@ -57,8 +57,6 @@ static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependenc
 {
 	struct not_deleted_ctx *ctx = (struct not_deleted_ctx *) pctx;
 	struct apk_out *out = ctx->out;
-	struct apk_dependency *d;
-	struct apk_provider *p;
 
 	if (!ctx->header) {
 		apk_msg(out, "World updated, but the following packages are not removed due to:");
@@ -68,14 +66,14 @@ static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependenc
 		apk_print_indented_group(&ctx->indent, 0, "  %s:", ctx->name->name);
 	if (name_in_world(pkg0->name))
 		apk_print_indented(&ctx->indent, APK_BLOB_STR(pkg0->name->name));
-	foreach_array_item(d, pkg0->provides) {
+	apk_array_foreach(d, pkg0->provides) {
 		if (!name_in_world(d->name)) continue;
 		apk_print_indented(&ctx->indent, APK_BLOB_STR(d->name->name));
 	}
 
 	apk_pkg_foreach_reverse_dependency(pkg0, ctx->matches, print_not_deleted_pkg, pctx);
-	foreach_array_item(d, pkg0->install_if) {
-		foreach_array_item(p, d->name->providers) {
+	apk_array_foreach(d, pkg0->install_if) {
+		apk_array_foreach(p, d->name->providers) {
 			if (!p->pkg->marked) continue;
 			if (apk_pkg_match_genid(p->pkg, ctx->matches)) continue;
 			print_not_deleted_pkg(p->pkg, NULL, NULL, pctx);
@@ -88,14 +86,13 @@ static int print_not_deleted_name(struct apk_database *db, const char *match,
 {
 	struct apk_out *out = &db->ctx->out;
 	struct not_deleted_ctx *ctx = (struct not_deleted_ctx *) pctx;
-	struct apk_provider *p;
 
 	if (!name) return 0;
 
 	ctx->name = name;
 	ctx->matches = apk_foreach_genid() | APK_FOREACH_MARKED | APK_DEP_SATISFIES;
 	apk_print_indented_init(&ctx->indent, out, 0);
-	foreach_array_item(p, name->providers)
+	apk_array_foreach(p, name->providers)
 		if (p->pkg->marked)
 			print_not_deleted_pkg(p->pkg, NULL, NULL, ctx);
 	apk_print_indented_end(&ctx->indent);
@@ -106,13 +103,12 @@ static void delete_pkg(struct apk_package *pkg0, struct apk_dependency *dep0,
 		       struct apk_package *pkg, void *pctx)
 {
 	struct del_ctx *ctx = (struct del_ctx *) pctx;
-	struct apk_dependency *d;
 
 	apk_deps_del(&ctx->world, pkg0->name);
 	apk_solver_set_name_flags(pkg0->name, APK_SOLVERF_REMOVE, 0);
 
 	if (ctx->recursive_delete) {
-		foreach_array_item(d, pkg0->provides)
+		apk_array_foreach(d, pkg0->provides)
 			apk_deps_del(&ctx->world, d->name);
 
 		apk_pkg_foreach_reverse_dependency(
@@ -148,8 +144,6 @@ static int del_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 	struct del_ctx *ctx = (struct del_ctx *) pctx;
 	struct not_deleted_ctx ndctx = { .out = &db->ctx->out };
 	struct apk_changeset changeset = {};
-	struct apk_change *change;
-	struct apk_dependency *d;
 	int r = 0;
 
 	apk_change_array_init(&changeset.changes);
@@ -163,10 +157,10 @@ static int del_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 	if (r == 0) {
 		if (apk_out_verbosity(&db->ctx->out) >= 1) {
 			/* check for non-deleted package names */
-			foreach_array_item(change, changeset.changes)
+			apk_array_foreach(change, changeset.changes)
 				if (change->new_pkg != NULL)
 					change->new_pkg->marked = 1;
-			foreach_array_item(d, ctx->world)
+			apk_array_foreach(d, ctx->world)
 				d->name->state_int = 1;
 			if (apk_array_len(args))
 				apk_db_foreach_sorted_name(db, args, print_not_deleted_name, &ndctx);

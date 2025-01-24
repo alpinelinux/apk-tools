@@ -46,7 +46,6 @@ static int load_index(struct conv_ctx *ctx, struct apk_istream *is)
 
 static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
-	char **arg;
 	struct conv_ctx *ctx = pctx;
 	struct apk_trust *trust = apk_ctx_get_trust(ac);
 	struct apk_out *out = &ac->out;
@@ -58,13 +57,13 @@ static int conv_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *ar
 	adb_wo_alloca(&ndx, &schema_index, &ctx->dbi);
 	adb_wo_alloca(&ctx->pkgs, &schema_pkginfo_array, &ctx->dbi);
 
-	foreach_array_item(arg, args) {
-		r = load_index(ctx, apk_istream_from_url(*arg, apk_ctx_since(ac, 0)));
+	apk_array_foreach_item(arg, args) {
+		r = load_index(ctx, apk_istream_from_url(arg, apk_ctx_since(ac, 0)));
 		if (r) {
-			apk_err(out, "%s: %s", *arg, apk_error_str(r));
+			apk_err(out, "%s: %s", arg, apk_error_str(r));
 			goto err;
 		}
-		apk_notice(out, "%s: %u packages", *arg, adb_ra_num(&ctx->pkgs));
+		apk_notice(out, "%s: %u packages", arg, adb_ra_num(&ctx->pkgs));
 	}
 
 	adb_wo_obj(&ndx, ADBI_NDX_PACKAGES, &ctx->pkgs);

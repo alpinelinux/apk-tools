@@ -95,7 +95,6 @@ static int is_system_xattr(const char *name)
 static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct apk_istream *is, unsigned int extract_flags, apk_blob_t pkgctx)
 {
 	char tmpname_file[TMPNAME_MAX], tmpname_linktarget[TMPNAME_MAX];
-	struct apk_xattr *xattr;
 	int fd, r = -1, atflags = 0, ret = 0;
 	int atfd = apk_ctx_fd_dest(ac);
 	const char *fn = fi->name, *link_target = fi->link_target;
@@ -159,7 +158,7 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 		r = 0;
 		fd = openat(atfd, fn, O_RDWR | O_CLOEXEC);
 		if (fd >= 0) {
-			foreach_array_item(xattr, fi->xattrs) {
+			apk_array_foreach(xattr, fi->xattrs) {
 				if ((extract_flags & APK_FSEXTRACTF_NO_SYS_XATTRS) && is_system_xattr(xattr->name))
 					continue;
 				if (apk_fsetxattr(fd, xattr->name, xattr->value.ptr, xattr->value.len) < 0)

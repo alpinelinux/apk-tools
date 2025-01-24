@@ -81,8 +81,6 @@ static void dump_broken_deps(struct dot_ctx *ctx, struct apk_package *pkg, const
 
 static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 {
-	struct apk_dependency *dep;
-	struct apk_provider *p0;
 	int r, ret = 0;
 
 	if (ctx->installed_only && pkg->ipkg == NULL)
@@ -97,7 +95,7 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 	}
 
 	pkg->state_int = S_EVALUATING;
-	foreach_array_item(dep, pkg->depends) {
+	apk_array_foreach(dep, pkg->depends) {
 		struct apk_name *name = dep->name;
 
 		dump_broken_deps(ctx, pkg, "normal", dep);
@@ -112,7 +110,7 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 			continue;
 		}
 
-		foreach_array_item(p0, name->providers) {
+		apk_array_foreach(p0, name->providers) {
 			if (ctx->installed_only && p0->pkg->ipkg == NULL)
 				continue;
 			if (!apk_dep_is_provided(pkg, dep, p0))
@@ -134,8 +132,8 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 			}
 		}
 	}
-	foreach_array_item(dep, pkg->provides) dump_broken_deps(ctx, pkg, "inv", dep);
-	foreach_array_item(dep, pkg->install_if) dump_broken_deps(ctx, pkg, "diamond", dep);
+	apk_array_foreach(dep, pkg->provides) dump_broken_deps(ctx, pkg, "inv", dep);
+	apk_array_foreach(dep, pkg->install_if) dump_broken_deps(ctx, pkg, "diamond", dep);
 	ret -= S_EVALUATING - pkg->state_int;
 	pkg->state_int = S_EVALUATED;
 
@@ -145,12 +143,11 @@ static int dump_pkg(struct dot_ctx *ctx, struct apk_package *pkg)
 static int dump(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
 {
 	struct dot_ctx *ctx = pctx;
-	struct apk_provider *p;
 
 	if (!name) return 0;
 
 	apk_name_sorted_providers(name);
-	foreach_array_item(p, name->providers)
+	apk_array_foreach(p, name->providers)
 		dump_pkg(ctx, p->pkg);
 	return 0;
 }
