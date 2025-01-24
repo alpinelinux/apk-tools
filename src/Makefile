@@ -21,7 +21,7 @@ ZLIB_LIBS		:= $(shell $(PKG_CONFIG) --libs zlib)
 libapk_soname		:= $(SO_VERSION)
 libapk_so		:= $(obj)/libapk.so.$(libapk_soname)
 libapk.so.$(libapk_soname)-objs := \
-	adb.o adb_comp.o adb_walk_adb.o adb_walk_text.o apk_adb.o \
+	adb.o adb_comp.o adb_walk_adb.o apk_adb.o \
 	atom.o balloc.o blob.o commit.o common.o context.o crypto.o crypto_$(CRYPTO).o ctype.o \
 	database.o hash.o extract_v2.o extract_v3.o fs_fsys.o fs_uvol.o \
 	io.o io_gunzip.o io_url_$(URL_BACKEND).o tar.o package.o pathbuilder.o print.o process.o \
@@ -61,11 +61,11 @@ apk-static-libs		:= $(libapk.a-libs) $(obj)/libapk.a
 # Apk utility
 progs-y			+= apk
 apk-objs		:= \
-	apk.o app_adbdump.o app_adbsign.o app_add.o app_audit.o app_cache.o \
+	apk.o app_adbdump.o app_adbgen.o app_adbsign.o app_add.o app_audit.o app_cache.o \
 	app_convdb.o app_convndx.o app_del.o app_dot.o app_extract.o app_fetch.o \
 	app_fix.o app_index.o app_info.o app_list.o app_manifest.o app_mkndx.o \
 	app_mkpkg.o app_policy.o app_update.o app_upgrade.o app_search.o \
-	app_stats.o app_verify.o app_version.o applet.o serialize_adb.o
+	app_stats.o app_verify.o app_version.o applet.o
 
 LIBS_apk		:= -lapk
 LIBS_apk.so		:= -L$(obj) -lapk

@@ -6,7 +6,6 @@ libapk_src = [
 	'adb.c',
 	'adb_comp.c',
 	'adb_walk_adb.c',
-	'adb_walk_text.c',
 	'apk_adb.c',
 	'atom.c',
 	'balloc.c',
@@ -70,6 +69,7 @@ libapk_headers = [
 apk_src = [
 	'apk.c',
 	'app_adbdump.c',
+	'app_adbgen.c',
 	'app_adbsign.c',
 	'app_add.c',
 	'app_audit.c',
@@ -95,7 +95,6 @@ apk_src = [
 	'app_verify.c',
 	'app_version.c',
 	'applet.c',
-	'serialize_adb.c',
 ]
 
 apk_cargs = [

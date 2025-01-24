@@ -294,7 +294,6 @@ extern const struct adb_db_schema adb_all_schemas[];
 extern const struct apk_serializer_ops apk_serializer_adb;
 
 int adb_walk_adb(struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ser, struct apk_trust *trust);
-int adb_walk_text(struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ser, struct apk_trust *trust);
 
 // Seamless compression support
 

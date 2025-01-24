@@ -63,30 +63,3 @@ static struct apk_applet apk_adbdump = {
 	.main = adbdump_main,
 };
 APK_DEFINE_APPLET(apk_adbdump);
-
-
-static int adbgen_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
-{
-	struct apk_out *out = &ac->out;
-
-	apk_array_foreach_item(arg, args) {
-		int r = adb_walk_text(
-			apk_istream_from_file(AT_FDCWD, arg),
-			apk_ostream_to_fd(STDOUT_FILENO),
-			&apk_serializer_adb,
-			apk_ctx_get_trust(ac));
-		if (r) {
-			apk_err(out, "%s: %s", arg, apk_error_str(r));
-			return r;
-		}
-	}
-
-	return 0;
-}
-
-static struct apk_applet apk_adbgen = {
-	.name = "adbgen",
-	.main = adbgen_main,
-};
-APK_DEFINE_APPLET(apk_adbgen);
-
