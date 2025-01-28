@@ -35,8 +35,7 @@ static int origin_matches(const struct list_ctx *ctx, const struct apk_package *
 {
 	char **pmatch;
 
-	if (pkg->origin == NULL)
-		return 0;
+	if (pkg->origin->len == 0) return 0;
 
 	foreach_array_item(pmatch, ctx->filters) {
 		if (apk_blob_compare(APK_BLOB_STR(*pmatch), *pkg->origin) == 0)
@@ -77,7 +76,7 @@ static void print_package(const struct apk_database *db, const struct apk_packag
 	printf(PKG_VER_FMT " " BLOB_FMT " ",
 		PKG_VER_PRINTF(pkg), BLOB_PRINTF(*pkg->arch));
 
-	if (pkg->origin != NULL)
+	if (pkg->origin->len)
 		printf("{" BLOB_FMT "}", BLOB_PRINTF(*pkg->origin));
 	else
 		printf("{%s}", pkg->name->name);

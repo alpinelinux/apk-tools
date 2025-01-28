@@ -41,7 +41,7 @@ static void print_package_name(struct search_ctx *ctx, struct apk_package *pkg)
 
 static void print_origin_name(struct search_ctx *ctx, struct apk_package *pkg)
 {
-	if (pkg->origin != NULL)
+	if (pkg->origin->len)
 		printf(BLOB_FMT, BLOB_PRINTF(*pkg->origin));
 	else
 		printf("%s", pkg->name->name);
