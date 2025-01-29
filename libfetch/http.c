@@ -893,6 +893,8 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		/* proxy authorization */
 		http_proxy_authorize(conn, purl);
 
+		if (need_auth && !*url->pwd && !*url->user)
+			fetch_netrc_auth(url);
 		/* server authorization */
 		if (need_auth || *url->user || *url->pwd) {
 			if (*url->user || *url->pwd)
