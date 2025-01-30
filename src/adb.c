@@ -823,11 +823,12 @@ adb_val_t adb_w_copy(struct adb *db, struct adb *srcdb, adb_val_t v)
 		goto copy;
 	case ADB_TYPE_OBJECT:
 	case ADB_TYPE_ARRAY: {
-		adb_val_t cpy[512];
+		adb_val_t *cpy;
 		struct adb_obj obj;
+
 		adb_r_obj(srcdb, v, &obj, NULL);
 		sz = adb_ro_num(&obj);
-		if (sz > ARRAY_SIZE(cpy)) return adb_w_error(db, E2BIG);
+		cpy = alloca(sizeof(adb_val_t[sz]));
 		cpy[ADBI_NUM_ENTRIES] = obj.obj[ADBI_NUM_ENTRIES];
 		for (int i = ADBI_FIRST; i < sz; i++) cpy[i] = adb_w_copy(db, srcdb, adb_ro_val(&obj, i));
 		return ADB_VAL(ADB_VAL_TYPE(v), adb_w_data1(db, cpy, sizeof(adb_val_t[sz]), sizeof(adb_val_t)));
