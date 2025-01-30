@@ -204,10 +204,10 @@ static const struct apk_extract_ops extract_ndxinfo_ops = {
 	.v3meta = mkndx_parse_v3meta,
 };
 
-static int find_package(struct adb_obj *pkgs, apk_blob_t filename, int64_t filesize, apk_blob_t pkgname_spec)
+static int find_package(struct adb_obj *pkgs, apk_blob_t path, int64_t filesize, apk_blob_t pkgname_spec)
 {
 	char buf[NAME_MAX], split_char;
-	apk_blob_t name_format;
+	apk_blob_t name_format, filename = path, expected_filename;
 	struct adb tmpdb;
 	struct adb_obj tmpl;
 	int r;
@@ -215,13 +215,18 @@ static int find_package(struct adb_obj *pkgs, apk_blob_t filename, int64_t files
 	adb_w_init_tmp(&tmpdb, 200);
 	adb_wo_alloca(&tmpl, &schema_pkginfo, &tmpdb);
 
-	name_format = pkgname_spec;
-	if (!apk_blob_rsplit(pkgname_spec, '/', NULL, &name_format))
+	if (!apk_blob_rsplit(pkgname_spec, '/', NULL, &name_format)) name_format = pkgname_spec;
 	if (!apk_blob_starts_with(name_format, APK_BLOB_STRLIT("${name}"))) return -APKE_PACKAGE_NAME_SPEC;
 	split_char = name_format.ptr[7];
 
-	// if filename has path separator, assume full relative pkgname_spec
-	if (apk_blob_chr(filename, '/')) name_format = pkgname_spec;
+	if (apk_blob_rsplit(path, '/', NULL, &filename) && apk_blob_chr(pkgname_spec, '/')) {
+		// both spec and path have path name component, so compare full paths
+		expected_filename = path;
+		name_format = pkgname_spec;
+	} else {
+		// work with the filename portion only
+		expected_filename = filename;
+	}
 
 	// apk_pkg_subst_validate enforces pkgname_spec to be /${name} followed by [-._]
 	// enumerate all potential names by walking the potential split points
@@ -239,7 +244,7 @@ static int find_package(struct adb_obj *pkgs, apk_blob_t filename, int64_t files
 
 			r = apk_blob_subst(buf, sizeof buf, name_format, adb_s_field_subst, &pkg);
 			if (r < 0) continue;
-			if (apk_blob_compare(filename, APK_BLOB_PTR_LEN(buf, r)) == 0)
+			if (apk_blob_compare(expected_filename, APK_BLOB_PTR_LEN(buf, r)) == 0)
 				return ndx;
 		}
 	}
