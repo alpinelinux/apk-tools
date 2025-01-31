@@ -106,7 +106,7 @@ int apk_blob_spn(apk_blob_t blob, unsigned char ctype, apk_blob_t *l, apk_blob_t
 
 	for (i = 0; i < blob.len; i++) {
 		uint8_t ch = blob.ptr[i];
-		if (ch < ARRAY_SIZE(apk_ctype) && !(apk_ctype[ch]&mask)) {
+		if (ch >= ARRAY_SIZE(apk_ctype) || !(apk_ctype[ch]&mask)) {
 			ret = 1;
 			break;
 		}
@@ -123,7 +123,7 @@ int apk_blob_cspn(apk_blob_t blob, unsigned char ctype, apk_blob_t *l, apk_blob_
 
 	for (i = 0; i < blob.len; i++) {
 		uint8_t ch = blob.ptr[i];
-		if (ch >= ARRAY_SIZE(apk_ctype) || (apk_ctype[ch]&mask)) {
+		if (ch < ARRAY_SIZE(apk_ctype) && (apk_ctype[ch]&mask)) {
 			ret = 1;
 			break;
 		}
