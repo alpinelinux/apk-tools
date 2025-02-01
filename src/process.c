@@ -48,6 +48,8 @@ static void set_non_blocking(int fd)
 
 int apk_process_init(struct apk_process *p, const char *argv0, struct apk_out *out, struct apk_istream *is)
 {
+	int ret;
+
 	*p = (struct apk_process) {
 		.argv0 = argv0,
 		.is = is,
@@ -55,14 +57,29 @@ int apk_process_init(struct apk_process *p, const char *argv0, struct apk_out *o
 	};
 	if (IS_ERR(is)) return -PTR_ERR(is);
 
-	if (is) pipe2(p->pipe_stdin, O_CLOEXEC);
-	else {
+	if (is) {
+		ret = pipe2(p->pipe_stdin, O_CLOEXEC);
+		if (ret < 0) return errno;
+	} else {
 		p->pipe_stdin[0] = open("/dev/null", O_RDONLY);
+		if (p->pipe_stdin[0] < 0) return errno;
 		p->pipe_stdin[1] = -1;
 	}
 
-	pipe2(p->pipe_stdout, O_CLOEXEC);
-	pipe2(p->pipe_stderr, O_CLOEXEC);
+	ret = pipe2(p->pipe_stdout, O_CLOEXEC);
+	if (ret < 0) {
+		close(p->pipe_stdin[0]);
+		close(p->pipe_stdin[1]);
+		return errno;
+	}
+	ret = pipe2(p->pipe_stderr, O_CLOEXEC);
+	if (ret < 0) {
+		close(p->pipe_stdin[0]);
+		close(p->pipe_stdin[1]);
+		close(p->pipe_stdout[0]);
+		close(p->pipe_stdout[1]);
+		return errno;
+	}
 
 	set_non_blocking(p->pipe_stdin[1]);
 	set_non_blocking(p->pipe_stdout[0]);
