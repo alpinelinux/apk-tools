@@ -13,10 +13,6 @@
 
 #include "apk_crypto.h"
 
-static EVP_MD *sha1 = NULL;
-static EVP_MD *sha256 = NULL;
-static EVP_MD *sha512 = NULL;
-
 // Copmatibility with older openssl
 
 #if OPENSSL_VERSION_NUMBER < 0x1010000fL || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x2070000fL)
@@ -34,6 +30,10 @@ static inline void EVP_MD_CTX_free(EVP_MD_CTX *mdctx)
 #endif
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
+static EVP_MD *sha1 = NULL;
+static EVP_MD *sha256 = NULL;
+static EVP_MD *sha512 = NULL;
+
 static inline void lookup_algorithms(void)
 {
 	sha1 = EVP_MD_fetch(NULL, "sha1", NULL);
@@ -48,6 +48,10 @@ static inline void free_algorithms(void)
 	EVP_MD_free(sha512);
 }
 #else
+static const EVP_MD *sha1 = NULL;
+static const EVP_MD *sha256 = NULL;
+static const EVP_MD *sha512 = NULL;
+
 static inline void lookup_algorithms(void)
 {
 	sha1 = EVP_sha1();
