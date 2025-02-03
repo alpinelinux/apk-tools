@@ -190,7 +190,9 @@ The following options are available for all commands.
 	Do not use cached files (local or from proxy).
 
 *--keys-dir* _KEYSDIR_
-	Override directory of trusted keys. This is treated relative to _ROOT_.
+	Override the default system trusted keys directories. If specified the
+	only this directory is processed. The _KEYSDIR_ is treated relative
+	to _ROOT_.
 
 *--no-cache*
 	Do not use any local cache path.

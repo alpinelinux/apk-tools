@@ -55,7 +55,6 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 	if (ac->flags & APK_ALLOW_UNTRUSTED) ac->trust.allow_untrusted = 1;
 	if (!ac->cache_dir) ac->cache_dir = "etc/apk/cache";
 	else ac->cache_dir_set = 1;
-	if (!ac->keys_dir) ac->keys_dir = "etc/apk/keys";
 	if (!ac->root) ac->root = "/";
 
 	if (!strcmp(ac->root, "/")) {
@@ -128,12 +127,18 @@ static int __apk_ctx_load_pubkey(void *pctx, int dirfd, const char *filename)
 struct apk_trust *apk_ctx_get_trust(struct apk_ctx *ac)
 {
 	if (!ac->keys_loaded) {
-		apk_dir_foreach_config_file(ac->root_fd,
-			__apk_ctx_load_pubkey, &ac->trust,
-			NULL,
-			"etc/apk/keys",
-			"lib/apk/keys",
-			NULL);
+		if (!ac->keys_dir) {
+			apk_dir_foreach_config_file(ac->root_fd,
+				__apk_ctx_load_pubkey, &ac->trust,
+				NULL,
+				"etc/apk/keys",
+				"lib/apk/keys",
+				NULL);
+		} else {
+			apk_dir_foreach_file(
+				openat(ac->root_fd, ac->keys_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
+				__apk_ctx_load_pubkey, &ac->trust);
+		}
 		ac->keys_loaded = 1;
 	}
 	return &ac->trust;
