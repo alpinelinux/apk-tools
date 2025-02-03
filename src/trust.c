@@ -21,33 +21,12 @@ struct apk_trust_key *apk_trust_load_key(int dirfd, const char *filename, int pr
 	return key;
 }
 
-static int __apk_trust_load_pubkey(void *pctx, int dirfd, const char *filename)
-{
-	struct apk_trust *trust = pctx;
-	struct apk_trust_key *key = apk_trust_load_key(dirfd, filename, 0);
-
-	if (!IS_ERR(key))
-		list_add_tail(&key->key_node, &trust->trusted_key_list);
-
-	return 0;
-}
-
 void apk_trust_init(struct apk_trust *trust)
 {
 	*trust = (struct apk_trust){};
 	apk_digest_ctx_init(&trust->dctx, APK_DIGEST_NONE);
 	list_init(&trust->trusted_key_list);
 	list_init(&trust->private_key_list);
-}
-
-int apk_trust_load_keys(struct apk_trust *trust, int dirfd)
-{
-	if (!trust->keys_loaded) {
-		trust->keys_loaded = 1;
-		apk_dir_foreach_file(dirfd, __apk_trust_load_pubkey, trust);
-	}
-
-	return 0;
 }
 
 static void __apk_trust_free_keys(struct list_head *h)

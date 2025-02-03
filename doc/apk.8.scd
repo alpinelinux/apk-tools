@@ -387,18 +387,23 @@ timeout 120
 	If *--no-scripts* or *--no-commit-hooks* option is specified, these
 	hook scripts are not executed.
 
-*/etc/apk/keys*
-	A directory containing trusted signing keys for apk.
+*/etc/apk/keys*++
+*/lib/apk/keys*
+	Directories for trusted signing keys. The directories are enumerated in
+	the above mentioned order. Once a given filename is seen, any file of
+	the same name in subsequent directories is ignored.
 
 */etc/apk/protected_paths.d/\*.list*
 	Configuration files to specify how to treat changes to specified
 	directory or file masks.
 
 */etc/apk/repositories*++
-*/etc/apk/repositories.d/\*.list*
+*/etc/apk/repositories.d/\*.list*++
 */lib/apk/repositories.d/\*.list*
-	Configuration files to specify repositories. See *apk-repositories*(5)
-	for details.
+	Configuration files to specify repositories. The directories are
+	enumerated in the above mentioned order. Once a given filename is seen,
+	any file of the same name in subsequent directories is ignored.
+	See *apk-repositories*(5) for details.
 
 */etc/apk/world*
 	Top level requirements and constraints on what should be installed.

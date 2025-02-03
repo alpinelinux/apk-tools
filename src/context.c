@@ -114,12 +114,27 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 	return 0;
 }
 
+static int __apk_ctx_load_pubkey(void *pctx, int dirfd, const char *filename)
+{
+	struct apk_trust *trust = pctx;
+	struct apk_trust_key *key = apk_trust_load_key(dirfd, filename, 0);
+
+	if (!IS_ERR(key))
+		list_add_tail(&key->key_node, &trust->trusted_key_list);
+
+	return 0;
+}
+
 struct apk_trust *apk_ctx_get_trust(struct apk_ctx *ac)
 {
-	if (!ac->trust.keys_loaded) {
-		int r = apk_trust_load_keys(&ac->trust,
-			openat(ac->root_fd, ac->keys_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC));
-		if (r != 0) apk_err(&ac->out, "Unable to load trust keys: %s", apk_error_str(r));
+	if (!ac->keys_loaded) {
+		apk_dir_foreach_config_file(ac->root_fd,
+			__apk_ctx_load_pubkey, &ac->trust,
+			NULL,
+			"etc/apk/keys",
+			"lib/apk/keys",
+			NULL);
+		ac->keys_loaded = 1;
 	}
 	return &ac->trust;
 }
