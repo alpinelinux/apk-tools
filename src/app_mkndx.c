@@ -27,7 +27,6 @@ struct mkndx_ctx {
 	const char *description;
 	apk_blob_t pkgname_spec;
 	apk_blob_t filter_spec;
-	apk_blob_t rewrite_arch;
 
 	apk_blob_t r;
 	struct adb db;
@@ -88,8 +87,8 @@ static int mkndx_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 		ictx->pkgname_spec_set = 1;
 		break;
 	case OPT_MKNDX_rewrite_arch:
-		ictx->rewrite_arch = APK_BLOB_STR(optarg);
-		break;
+		apk_err(out, "--rewrite-arch is removed, use instead: --pkgspec-name '%s/${name}-${package}.apk'", optarg);
+		return -ENOTSUP;
 	default:
 		return -ENOTSUP;
 	}
@@ -159,9 +158,6 @@ static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *
 		}
 
 		switch (f->ndx) {
-		case ADBI_PI_ARCH:
-			if (!APK_BLOB_IS_NULL(ctx->rewrite_arch)) v = ctx->rewrite_arch;
-			break;
 		case ADBI_PI_DEPENDS:
 			i = 0;
 			goto parse_deps;

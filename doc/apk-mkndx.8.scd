@@ -67,6 +67,3 @@ apk mkndx - create apkv3 repository index file from packages
 
 	The specification writer should ensure that the repository does not contain
 	multiple packages that would expand to same package filename.
-
-*--rewrite-arch* _ARCH_
-	Set all package's architecture to _ARCH_.
