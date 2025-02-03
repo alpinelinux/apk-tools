@@ -10,6 +10,7 @@
 #pragma once
 #include <assert.h>
 #include <endian.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
