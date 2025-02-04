@@ -481,8 +481,15 @@ http_parse_mtime(const char *p, time_t *mtime)
 
 	locale = strdup(setlocale(LC_TIME, NULL));
 	setlocale(LC_TIME, "C");
+	/* RFC2616 §3.3.1 requires compliant client to accept the Internet
+	 * standard, and the two obsolete, date formats:
+	 *  Sun, 06 Nov 1994 08:49:37 GMT  ; RFC 822, updated by RFC 1123
+	 *  Sunday, 06-Nov-94 08:49:37 GMT ; RFC 850, obsoleted by RFC 1036
+	 *  Sun Nov  6 08:49:37 1994       ; ANSI C's asctime() format
+	 */
 	r = strptime(p, "%a, %d %b %Y %H:%M:%S GMT", &tm);
-	/* XXX should add support for date-2 and date-3 */
+	if (!r) r = strptime(p, "%A, %d-%b-%y %H:%M:%S GMT", &tm);
+	if (!r) r = strptime(p, "%a %b %d %H:%M:%S %Y", &tm);
 	setlocale(LC_TIME, locale);
 	free(locale);
 	if (r == NULL)
