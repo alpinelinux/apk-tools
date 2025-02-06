@@ -56,6 +56,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 	if (!ac->cache_dir) ac->cache_dir = "etc/apk/cache";
 	else ac->cache_dir_set = 1;
 	if (!ac->root) ac->root = "/";
+	if (ac->cache_predownload) ac->cache_packages = 1;
 
 	if (!strcmp(ac->root, "/")) {
 		// No chroot needed if using system root

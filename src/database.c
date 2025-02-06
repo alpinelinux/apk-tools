@@ -1834,7 +1834,10 @@ static int setup_cache(struct apk_database *db)
 {
 	db->cache_dir = db->ctx->cache_dir;
 	db->cache_fd = openat(db->root_fd, db->cache_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
-	if (db->cache_fd >= 0) return remount_cache_rw(db);
+	if (db->cache_fd >= 0) {
+		db->ctx->cache_packages = 1;
+		return remount_cache_rw(db);
+	}
 	if (db->ctx->cache_dir_set || errno != ENOENT) return -errno;
 
 	// The default cache does not exists, fallback to static cache directory
@@ -2068,7 +2071,7 @@ int apk_db_open(struct apk_database *db)
 	apk_hash_foreach(&db->available.names, apk_db_name_rdepends, db);
 
 	if (apk_db_cache_active(db) && (ac->open_flags & (APK_OPENF_NO_REPOS|APK_OPENF_NO_INSTALLED)) == 0)
-		apk_db_cache_foreach_item(db, mark_in_cache, 0);
+		apk_db_cache_foreach_item(db, mark_in_cache);
 
 	db->open_complete = 1;
 
@@ -2384,7 +2387,7 @@ int apk_db_run_script(struct apk_database *db, int fd, char **argv)
 
 int apk_db_cache_active(struct apk_database *db)
 {
-	return db->cache_fd > 0 && db->cache_dir != apk_static_cache_dir;
+	return db->cache_fd > 0 && db->ctx->cache_packages;
 }
 
 struct foreach_cache_item_ctx {
@@ -2402,28 +2405,30 @@ static int foreach_cache_file(void *pctx, int dirfd, const char *filename)
 	if (apk_fileinfo_get(dirfd, filename, 0, &fi, NULL) == 0) {
 		ctx->cb(db, ctx->static_cache, dirfd, filename,
 			apk_db_get_pkg_by_name(db, APK_BLOB_STR(filename),
-			fi.size, db->ctx->default_cachename_spec));
+				fi.size, db->ctx->default_cachename_spec));
 	}
 	return 0;
 }
 
-int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb, int static_cache)
+int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb)
 {
-	struct foreach_cache_item_ctx ctx = { db, cb, static_cache };
+	struct foreach_cache_item_ctx ctx = { .db = db, .cb = cb, .static_cache = true };
+	struct stat st1, st2;
 
-	if (static_cache) {
-		struct stat st1, st2;
-		int fd = openat(db->root_fd, apk_static_cache_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
-		if (fd < 0) return fd;
+	int fd = openat(db->root_fd, apk_static_cache_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+	if (fd >= 0) {
 		/* Do not handle static cache as static cache if the explicit
 		 * cache is enabled at the static cache location */
 		if (fstat(fd, &st1) == 0 && fstat(db->cache_fd, &st2) == 0 &&
-		    st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino) {
+		    (st1.st_dev != st2.st_dev || st1.st_ino != st2.st_ino)) {
+			int r = apk_dir_foreach_file(fd, foreach_cache_file, &ctx);
+			if (r) return r;
+		} else {
 			close(fd);
-			return 0;
 		}
-		return apk_dir_foreach_file(fd, foreach_cache_file, &ctx);
 	}
+
+	ctx.static_cache = false;
 	if (db->cache_fd < 0) return db->cache_fd;
 	return apk_dir_foreach_file(dup(db->cache_fd), foreach_cache_file, &ctx);
 }

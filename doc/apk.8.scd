@@ -146,9 +146,13 @@ The following options are available for all commands.
 	Maximum AGE (in minutes) for index in cache before it's refreshed. *0*
 	means always refresh.
 
+*--cache-packages*
+	Store a copy of packages at installation time to cache. Enabled automatically
+	if */etc/apk/cache* symlink exists.
+
 *--cache-predownload*
 	Download needed packages to cache before starting to commit a transtaction.
-	Requires cache to be configured to be functional.
+	Requires cache to be configured to be functional. Implies *--cache-packages*.
 
 *--force-binary-stdout*
 	Continue even if binary data will be printed to the terminal.

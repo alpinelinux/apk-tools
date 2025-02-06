@@ -87,6 +87,7 @@ struct apk_ctx {
 	int root_fd, dest_fd;
 	unsigned int root_set : 1;
 	unsigned int cache_dir_set : 1;
+	unsigned int cache_packages : 1;
 	unsigned int cache_predownload : 1;
 	unsigned int keys_loaded : 1;
 };

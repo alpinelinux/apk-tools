@@ -309,7 +309,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo, str
 typedef void (*apk_cache_item_cb)(struct apk_database *db, int static_cache,
 				  int dirfd, const char *name,
 				  struct apk_package *pkg);
-int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb, int static_cache);
+int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb);
 
 int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg, struct apk_package *newpkg, struct apk_progress *prog);
 

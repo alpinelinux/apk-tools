@@ -106,16 +106,14 @@ static void cache_clean_item(struct apk_database *db, int static_cache, int dirf
 {
 	struct apk_out *out = &db->ctx->out;
 
-	if (!static_cache) {
-		if (strcmp(name, "installed") == 0) return;
-		if (pkg) {
-			if (db->ctx->flags & APK_PURGE) {
-				if (db->permanent || !pkg->ipkg) goto delete;
-			}
-			if (pkg->repos & db->local_repos) goto delete;
-			if (!pkg->ipkg && !apk_db_pkg_available(db, pkg)) goto delete;
-			return;
+	if (strcmp(name, "installed") == 0) return;
+	if (pkg) {
+		if (db->ctx->flags & APK_PURGE) {
+			if (db->permanent || !pkg->ipkg) goto delete;
 		}
+		if (pkg->repos & db->local_repos) goto delete;
+		if (!pkg->ipkg && !apk_db_pkg_available(db, pkg)) goto delete;
+		return;
 	}
 
 	/* Check if this is a valid index */
@@ -134,8 +132,7 @@ delete:
 
 static int cache_clean(struct apk_database *db)
 {
-	if (apk_db_cache_active(db)) apk_db_cache_foreach_item(db, cache_clean_item, 0);
-	apk_db_cache_foreach_item(db, cache_clean_item, 1);
+	apk_db_cache_foreach_item(db, cache_clean_item);
 	return 0;
 }
 
