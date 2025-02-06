@@ -58,10 +58,9 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_no_interactive,		"no-interactive") \
 	OPT(OPT_GLOBAL_no_logfile,		"no-logfile") \
 	OPT(OPT_GLOBAL_no_network,		"no-network") \
-	OPT(OPT_GLOBAL_no_progress,		"no-progress") \
 	OPT(OPT_GLOBAL_preserve_env,		"preserve-env") \
 	OPT(OPT_GLOBAL_print_arch,		"print-arch") \
-	OPT(OPT_GLOBAL_progress,		"progress") \
+	OPT(OPT_GLOBAL_progress,		APK_OPT_BOOL "progress") \
 	OPT(OPT_GLOBAL_progress_fd,		APK_OPT_ARG "progress-fd") \
 	OPT(OPT_GLOBAL_purge,			"purge") \
 	OPT(OPT_GLOBAL_quiet,			APK_OPT_SH("q") "quiet") \
@@ -144,10 +143,7 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 		ac->flags |= APK_PRESERVE_ENV;
 		break;
 	case OPT_GLOBAL_progress:
-		ac->out.progress_disable = 0;
-		break;
-	case OPT_GLOBAL_no_progress:
-		ac->out.progress_disable = 1;
+		ac->out.progress_disable = !APK_OPT_BOOL_VAL(optarg);
 		break;
 	case OPT_GLOBAL_progress_fd:
 		ac->out.progress_fd = atoi(optarg);
@@ -341,10 +337,20 @@ static struct apk_applet *deduce_applet(int argc, char **argv)
 	return NULL;
 }
 
-// Pack and unpack group and option id into one integer (struct option.val)
-#define APK_OPTVAL_PACK(group_id, option_id) ((group_id << 10) + option_id)
-#define APK_OPTVAL_GROUPID(optval) ((optval) >> 10)
-#define APK_OPTVAL_OPTIONID(optval) ((optval) & 0x3ff)
+// Pack and unpack group and option id into one short (struct option.val & struct apk_options.short_option_val)
+#define APK_OPTVAL_BOOL				0x8000
+#define APK_OPTVAL_BOOL_TRUE			0x4000
+
+#define APK_OPTVAL_PACK(group_id, option_id)	((group_id << 10) + option_id)
+#define APK_OPTVAL_GROUPID(optval)		(((optval) >> 10) & 0xf)
+#define APK_OPTVAL_OPTIONID(optval)		((optval) & 0x3ff)
+
+void *apk_optval_arg(int val, void *optarg)
+{
+	if (val & APK_OPTVAL_BOOL_TRUE) return (void*) 1;
+	if (val & APK_OPTVAL_BOOL) return (void*) 0;
+	return optarg;
+}
 
 struct apk_options {
 	struct option options[80];
@@ -369,6 +375,10 @@ static void add_options(struct apk_options *opts, const char *desc, int group_id
 			opt->has_arg = required_argument;
 			d++;
 		}
+		if ((unsigned char)*d == 0xab) {
+			opt->val |= APK_OPTVAL_BOOL;
+			d++;
+		}
 		num_short = 0;
 		if ((unsigned char)*d >= 0xf0)
 			num_short = *d++ & 0x0f;
@@ -382,6 +392,13 @@ static void add_options(struct apk_options *opts, const char *desc, int group_id
 			assert(opts->num_sopts < ARRAY_SIZE(opts->short_options));
 		}
 		opt->name = d;
+		if (opt->val & APK_OPTVAL_BOOL) {
+			struct option *opt2 = &opts->options[opts->num_opts++];
+			assert(opts->num_opts < ARRAY_SIZE(opts->options));
+			*opt2 = *opt;
+			opt2->val |= APK_OPTVAL_BOOL_TRUE;
+			opt2->name += 3; // skip "no-"
+		}
 	}
 }
 
@@ -448,7 +465,7 @@ static int load_config(struct apk_ctx *ac, struct apk_options *opts)
 				break;
 			}
 			assert(APK_OPTVAL_GROUPID(opt->val) == 1);
-			if (r == -1) r = optgroup_global_parse(ac, APK_OPTVAL_OPTIONID(opt->val), str);
+			if (r == -1) r = optgroup_global_parse(ac, APK_OPTVAL_OPTIONID(opt->val), apk_optval_arg(opt->val, str));
 			break;
 		}
 		switch (r) {
@@ -491,12 +508,13 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 
 	while ((p = getopt_long(argc, argv, opts.short_options, opts.options, NULL)) != -1) {
 		if (p >= 64 && p < 128) p = opts.short_option_val[p - 64];
+		void *arg = apk_optval_arg(p, optarg);
 		switch (APK_OPTVAL_GROUPID(p)) {
-		case 1: r = optgroup_global_parse(ac, APK_OPTVAL_OPTIONID(p), optarg); break;
-		case 2: r = optgroup_commit_parse(ac, APK_OPTVAL_OPTIONID(p), optarg); break;
-		case 3: r = optgroup_source_parse(ac, APK_OPTVAL_OPTIONID(p), optarg); break;
-		case 4: r = optgroup_generation_parse(ac, APK_OPTVAL_OPTIONID(p), optarg); break;
-		case 15: r = applet->parse(ctx, ac, APK_OPTVAL_OPTIONID(p), optarg); break;
+		case 1: r = optgroup_global_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
+		case 2: r = optgroup_commit_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
+		case 3: r = optgroup_source_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
+		case 4: r = optgroup_generation_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
+		case 15: r = applet->parse(ctx, ac, APK_OPTVAL_OPTIONID(p), arg); break;
 		default: r = -EINVAL;
 		}
 		if (r == -EINVAL || r == -ENOTSUP) return usage(out, applet);
