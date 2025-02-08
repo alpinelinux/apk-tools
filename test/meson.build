@@ -9,6 +9,7 @@ cur_dir = meson.current_source_dir()
 env = environment()
 env.set('APK', apk_exe.full_path())
 env.set('TESTDIR', cur_dir)
+env.set('APK_CONFIG', '/dev/null')
 
 if shellcheck_sh.found() and shellcheck.found()
 	env.set('SHELLCHECK', shellcheck.full_path())

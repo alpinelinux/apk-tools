@@ -4,8 +4,9 @@
 
 APK		?= $(realpath ../src/apk)
 LD_LIBRARY_PATH	?= $(realpath ../src)
+APK_CONFIG = /dev/null
 
-export APK LD_LIBRARY_PATH
+export APK LD_LIBRARY_PATH APK_CONFIG
 
 all: tests
 
