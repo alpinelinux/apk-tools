@@ -18,8 +18,10 @@ const char *apk_digest_alg_str(uint8_t alg)
 
 uint8_t apk_digest_alg_by_str(const char *algstr)
 {
-	for (uint8_t alg = 0; alg < ARRAY_SIZE(apk_digest_str); alg++)
+	for (uint8_t alg = 0; alg < ARRAY_SIZE(apk_digest_str); alg++) {
+		if (!apk_digest_str[alg]) continue;
 		if (strcmp(apk_digest_str[alg], algstr) == 0) return alg;
+	}
 	return APK_DIGEST_NONE;
 }
 
