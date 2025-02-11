@@ -15,7 +15,7 @@ apk_libdir = get_option('libdir')
 lua_bin = find_program('lua' + get_option('lua_version'), required: get_option('help'))
 lua_dep = dependency('lua' + get_option('lua_version'), required: get_option('lua'))
 python_dep = dependency('python3', required: get_option('python'))
-scdoc_dep = dependency('scdoc', version: '>=1.10', required: get_option('docs'))
+scdoc_dep = dependency('scdoc', version: '>=1.10', required: get_option('docs'), native: true)
 zlib_dep = dependency('zlib')
 libzstd_dep = dependency('libzstd', required: get_option('zstd'))
 
