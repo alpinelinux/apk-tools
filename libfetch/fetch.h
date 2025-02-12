@@ -103,14 +103,10 @@ enum {
 	FETCH_ERR_TLS_HANDSHAKE,
 };
 
-#define fetch_err_make(category, code) ((((unsigned long)category) << 28) + (unsigned long)code)
-
-static inline unsigned char fetch_err_category(unsigned long err) {
-	return (unsigned char)(err >> 28);
-}
-static inline int fetch_err_code(unsigned long err) {
-	return (int)(err & 0xfffffff);
-}
+struct fetch_error {
+	unsigned int category;
+	int code;
+};
 
 #if defined(__cplusplus)
 extern "C" {
@@ -172,7 +168,7 @@ typedef int (*auth_t)(struct url *);
 extern auth_t		 fetchAuthMethod;
 
 /* Last error code */
-extern long		 fetchLastErrCode;
+extern struct fetch_error fetchLastErrCode;
 
 /* I/O timeout */
 extern int		 fetchTimeout;

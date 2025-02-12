@@ -35,7 +35,7 @@ static int fetch_maperr(const struct maperr *map, size_t mapsz, int ec, int defa
 	return default_apkerr;
 }
 
-static int fetch_maperror(long ec)
+static int fetch_maperror(struct fetch_error fe)
 {
 	static const struct maperr fetch_err[] = {
 		{ FETCH_OK,			0, },
@@ -73,19 +73,19 @@ static int fetch_maperror(long ec)
 		{ 504, APKE_HTTP_504_GATEWAY_TIMEOUT },
 	};
 
-	switch (fetch_err_category(ec)) {
+	switch (fe.category) {
 	case FETCH_ERRCAT_FETCH:
-		return fetch_maperr(fetch_err, ARRAY_SIZE(fetch_err), fetch_err_code(ec), EIO);
+		return fetch_maperr(fetch_err, ARRAY_SIZE(fetch_err), fe.code, EIO);
 	case FETCH_ERRCAT_URL:
 		return APKE_URL_FORMAT;
 	case FETCH_ERRCAT_ERRNO:
-		return fetch_err_code(ec);
+		return fe.code;
 	case FETCH_ERRCAT_NETDB:
-		return fetch_maperr(netdb_err, ARRAY_SIZE(netdb_err), fetch_err_code(ec), APKE_DNS_FAIL);
+		return fetch_maperr(netdb_err, ARRAY_SIZE(netdb_err), fe.code, APKE_DNS_FAIL);
 	case FETCH_ERRCAT_HTTP:
-		return fetch_maperr(http_err, ARRAY_SIZE(http_err), fetch_err_code(ec), APKE_HTTP_UNKNOWN);
+		return fetch_maperr(http_err, ARRAY_SIZE(http_err), fe.code, APKE_HTTP_UNKNOWN);
 	case FETCH_ERRCAT_TLS:
-		return fetch_maperr(tls_err, ARRAY_SIZE(tls_err), fetch_err_code(ec), APKE_TLS_ERROR);
+		return fetch_maperr(tls_err, ARRAY_SIZE(tls_err), fe.code, APKE_TLS_ERROR);
 	default:
 		return EIO;
 	}

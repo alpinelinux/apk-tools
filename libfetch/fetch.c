@@ -41,7 +41,7 @@
 
 fetch_redirect_t fetchRedirectMethod;
 auth_t	 fetchAuthMethod;
-long	 fetchLastErrCode;
+struct fetch_error fetchLastErrCode;
 int	 fetchTimeout;
 volatile int	 fetchRestartCalls = 1;
 int	 fetchDebug;

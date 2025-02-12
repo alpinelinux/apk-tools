@@ -103,8 +103,8 @@ int		 fetch_netrc_auth(struct url *url);
 int		 fetch_no_proxy_match(const char *);
 int		 fetch_urlpath_safe(char);
 
-static inline void _fetch_seterr(unsigned char category, int code) {
-	fetchLastErrCode = fetch_err_make(category, code);
+static inline void _fetch_seterr(unsigned int category, int code) {
+	fetchLastErrCode = (struct fetch_error) { .category = category, .code = code };
 }
 static inline void fetch_syserr(void) {
 	_fetch_seterr(FETCH_ERRCAT_ERRNO, errno);
