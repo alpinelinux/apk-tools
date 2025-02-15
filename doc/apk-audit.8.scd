@@ -87,3 +87,7 @@ then the affected path or details. The changes detected are:
 
 *-r, --recursive*
 	Descend into directories and audit them as well.
+
+# SEE ALSO
+
+*apk-protected_paths.d*(5)
