@@ -554,29 +554,15 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 			   apk_progress_cb cb, void *cb_ctx)
 {
 	static void *splice_buffer = NULL;
-	unsigned char *buf, *mmapbase = MAP_FAILED;
+	unsigned char *buf;
 	size_t bufsz, done = 0, togo;
 	ssize_t r;
 
 	bufsz = size;
-	if (size > 128 * 1024) {
-		if (size != APK_IO_ALL) {
-			r = posix_fallocate(fd, 0, size);
-			if (r == 0)
-				mmapbase = mmap(NULL, size, PROT_READ | PROT_WRITE,
-						MAP_SHARED, fd, 0);
-			else if (r == EBADF || r == EFBIG || r == ENOSPC || r == EIO)
-				return -r;
-		}
-		bufsz = min(bufsz, 2*1024*1024);
-		buf = mmapbase;
-	}
-	if (mmapbase == MAP_FAILED) {
-		if (!splice_buffer) splice_buffer = malloc(256*1024);
-		buf = splice_buffer;
-		if (!buf) return -ENOMEM;
-		bufsz = min(bufsz, 256*1024);
-	}
+	if (!splice_buffer) splice_buffer = malloc(256*1024);
+	buf = splice_buffer;
+	if (!buf) return -ENOMEM;
+	bufsz = min(bufsz, 256*1024);
 
 	while (done < size) {
 		if (cb != NULL) cb(cb_ctx, done);
@@ -584,30 +570,22 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 		togo = min(size - done, bufsz);
 		r = apk_istream_read(is, buf, togo);
 		if (r <= 0) {
-			if (r) goto err;
+			if (r) return r;
 			if (size != APK_IO_ALL && done != size) {
-				r = -EBADMSG;
-				goto err;
+				return -EBADMSG;
 			}
 			break;
 		}
 
-		if (mmapbase == MAP_FAILED) {
-			if (write(fd, buf, r) != r) {
-				if (r < 0)
-					r = -errno;
-				goto err;
-			}
-		} else
-			buf += r;
+		if (write(fd, buf, r) != r) {
+			if (r < 0)
+				r = -errno;
+			return r;
+		}
 
 		done += r;
 	}
-	r = done;
-err:
-	if (mmapbase != MAP_FAILED)
-		munmap(mmapbase, size);
-	return r;
+	return done;
 }
 
 int apk_blob_from_istream(struct apk_istream *is, size_t size, apk_blob_t *b)
