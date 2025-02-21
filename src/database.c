@@ -834,9 +834,9 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 
 			if (repo >= 0) {
 				tmpl.pkg.repos |= BIT(repo);
-			} else if (repo == -2) {
+			} else if (repo == APK_REPO_CACHE_INSTALLED) {
 				tmpl.pkg.cached_non_repository = 1;
-			} else if (repo == -1 && ipkg == NULL) {
+			} else if (repo == APK_REPO_DB_INSTALLED && ipkg == NULL) {
 				/* Installed package without files */
 				ipkg = apk_pkg_install(db, &tmpl.pkg);
 			}
@@ -860,14 +860,14 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 		/* Standard index line? */
 		r = apk_pkgtmpl_add_info(db, &tmpl, field, l);
 		if (r == 0) continue;
-		if (r == 1 && repo == -1 && ipkg == NULL) {
+		if (r == 1 && repo == APK_REPO_DB_INSTALLED && ipkg == NULL) {
 			/* Instert to installed database; this needs to
 			 * happen after package name has been read, but
 			 * before first FDB entry. */
 			ipkg = apk_pkg_install(db, &tmpl.pkg);
 			diri_node = hlist_tail_ptr(&ipkg->owned_dirs);
 		}
-		if (repo != -1 || ipkg == NULL) continue;
+		if (repo != APK_REPO_DB_INSTALLED || ipkg == NULL) continue;
 
 		/* Check FDB special entries */
 		switch (field) {
@@ -956,7 +956,7 @@ err_fmt:
 
 int apk_db_index_read(struct apk_database *db, struct apk_istream *is, int repo)
 {
-	return apk_db_fdb_read(db, is, repo, 0);
+	return apk_db_fdb_read(db, is, repo, APK_DB_LAYER_ROOT);
 }
 
 static void apk_blob_push_db_acl(apk_blob_t *b, char field, struct apk_db_acl *acl)
@@ -1222,7 +1222,7 @@ static int apk_db_read_layer(struct apk_database *db, unsigned layer)
 	}
 
 	if (!(flags & APK_OPENF_NO_INSTALLED)) {
-		r = apk_db_fdb_read(db, apk_istream_from_file(fd, "installed"), -1, layer);
+		r = apk_db_fdb_read(db, apk_istream_from_file(fd, "installed"), APK_REPO_DB_INSTALLED, layer);
 		if (!ret && r != -ENOENT) ret = r;
 		r = apk_db_parse_istream(db, apk_istream_from_file(fd, "triggers"), apk_db_add_trigger);
 		if (!ret && r != -ENOENT) ret = r;
@@ -1338,10 +1338,11 @@ struct apkindex_ctx {
 static int load_v2index(struct apk_extract_ctx *ectx, apk_blob_t *desc, struct apk_istream *is)
 {
 	struct apkindex_ctx *ctx = container_of(ectx, struct apkindex_ctx, ectx);
-	struct apk_repository *repo = &ctx->db->repos[ctx->repo];
-
-	if (!repo->v2_allowed) return -APKE_FORMAT_INVALID;
-	repo->description = *apk_atomize_dup(&ctx->db->atoms, *desc);
+	if (ctx->repo >= 0) {
+		struct apk_repository *repo = &ctx->db->repos[ctx->repo];
+		if (!repo->v2_allowed) return -APKE_FORMAT_INVALID;
+		repo->description = *apk_atomize_dup(&ctx->db->atoms, *desc);
+	}
 	return apk_db_index_read(ctx->db, is, ctx->repo);
 }
 
@@ -2016,7 +2017,7 @@ int apk_db_open(struct apk_database *db)
 
 	if (!(ac->open_flags & APK_OPENF_NO_INSTALLED_REPO)) {
 		if (apk_db_cache_active(db)) {
-			apk_db_index_read(db, apk_istream_from_file(db->cache_fd, "installed"), -2);
+			apk_db_index_read(db, apk_istream_from_file(db->cache_fd, "installed"), APK_REPO_CACHE_INSTALLED);
 		}
 	}
 

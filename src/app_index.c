@@ -131,7 +131,7 @@ static int index_read_file(struct apk_database *db, struct index_ctx *ictx)
 		return 0;
 
 	ictx->index_mtime = fi.mtime;
-	return apk_db_index_read_file(db, ictx->index, 0);
+	return apk_db_index_read_file(db, ictx->index, APK_REPO_NONE);
 }
 
 static int warn_if_no_providers(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
