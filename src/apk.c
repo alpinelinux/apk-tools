@@ -367,13 +367,20 @@ struct apk_options {
 	int num_opts, num_sopts;
 };
 
+static bool option_exists(struct apk_options *opts, const char *name)
+{
+	for (struct option *opt = opts->options; opt->name; opt++)
+		if (strcmp(name, opt->name) == 0) return true;
+	return false;
+}
+
 static void add_options(struct apk_options *opts, const char *desc, int group_id)
 {
 	unsigned short option_id = 0;
 	int num_short;
 
 	for (const char *d = desc; *d; d += strlen(d) + 1, option_id++) {
-		struct option *opt = &opts->options[opts->num_opts++];
+		struct option *opt = &opts->options[opts->num_opts];
 		assert(opts->num_opts < ARRAY_SIZE(opts->options));
 
 		opt->val = APK_OPTVAL_PACK(group_id, option_id);
@@ -393,12 +400,14 @@ static void add_options(struct apk_options *opts, const char *desc, int group_id
 		for (; num_short > 0; num_short--) {
 			unsigned char ch = *(unsigned char *)d;
 			assert(ch >= 64 && ch < 128);
+			if (opts->short_option_val[ch-64]) continue;
 			opts->short_option_val[ch-64] = opt->val;
 			opts->short_options[opts->num_sopts++] = *d++;
-			if (opt->has_arg != no_argument)
-				opts->short_options[opts->num_sopts++] = ':';
+			if (opt->has_arg != no_argument) opts->short_options[opts->num_sopts++] = ':';
 			assert(opts->num_sopts < ARRAY_SIZE(opts->short_options));
 		}
+		if (option_exists(opts, d)) continue;
+		opts->num_opts++;
 		opt->name = d;
 		if (opt->val & APK_OPTVAL_BOOL) {
 			struct option *opt2 = &opts->options[opts->num_opts++];
@@ -508,10 +517,10 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 	load_config(ac, &opts);
 
 	if (applet) {
+		if (applet->options_desc) add_options(&opts, applet->options_desc, 15);
 		if (applet->optgroup_commit) add_options(&opts, optgroup_commit_desc, 2);
 		if (applet->optgroup_source) add_options(&opts, optgroup_source_desc, 3);
 		if (applet->optgroup_generation) add_options(&opts, optgroup_generation_desc, 4);
-		if (applet->options_desc) add_options(&opts, applet->options_desc, 15);
 	}
 
 	while ((p = getopt_long(argc, argv, opts.short_options, opts.options, NULL)) != -1) {
