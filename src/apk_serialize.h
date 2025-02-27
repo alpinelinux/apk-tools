@@ -20,7 +20,7 @@ struct apk_serializer_ops {
 	int (*init)(struct apk_serializer *);
 	void (*cleanup)(struct apk_serializer *);
 	int (*start_object)(struct apk_serializer *, uint32_t sechema_id);
-	int (*start_array)(struct apk_serializer *, unsigned int num_items);
+	int (*start_array)(struct apk_serializer *, int num_items);
 	int (*end)(struct apk_serializer *);
 	int (*comment)(struct apk_serializer *, apk_blob_t comment);
 	int (*key)(struct apk_serializer *, apk_blob_t key_name);

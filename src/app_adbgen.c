@@ -87,7 +87,7 @@ static int ser_adb_start_object(struct apk_serializer *ser, uint32_t schema_id)
 	return 0;
 }
 
-static int ser_adb_start_array(struct apk_serializer *ser, unsigned int num)
+static int ser_adb_start_array(struct apk_serializer *ser, int num)
 {
 	return ser_adb_start_object(ser, 0);
 }

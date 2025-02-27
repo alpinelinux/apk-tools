@@ -54,12 +54,14 @@ static int ser_yaml_start_object(struct apk_serializer *ser, uint32_t schema_id)
 	return 0;
 }
 
-static int ser_yaml_start_array(struct apk_serializer *ser, unsigned int num)
+static int ser_yaml_start_array(struct apk_serializer *ser, int num)
 {
 	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
 
-	ser_yaml_indent(dt, true, true);
-	apk_ostream_fmt(dt->ser.os, "# %d items", num);
+	if (num >= 0) {
+		ser_yaml_indent(dt, true, true);
+		apk_ostream_fmt(dt->ser.os, "# %d items", num);
+	}
 	ser_yaml_newline(dt);
 	ser_yaml_start_indent(dt, F_ARRAY);
 	return 0;

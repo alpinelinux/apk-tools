@@ -46,7 +46,7 @@ static int ser_json_start_object(struct apk_serializer *ser, uint32_t schema_id)
 	return 0;
 }
 
-static int ser_json_start_array(struct apk_serializer *ser, unsigned int num)
+static int ser_json_start_array(struct apk_serializer *ser, int num)
 {
 	struct serialize_json *dt = container_of(ser, struct serialize_json, ser);
 
