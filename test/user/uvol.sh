@@ -28,8 +28,7 @@ APK="$APK --allow-untrusted --no-interactive --force-no-chroot --uvol-manager $T
 $APK add --initdb $TEST_USERMODE
 
 reset_uvol_db
-$APK add uvol-data-1.0.apk > apk.log 2>&1 || assert "uvol-data should have succeeded"
-diff -u - apk.log <<EOF || assert "wrong scripts result"
+$APK add uvol-data-1.0.apk 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong scripts result"
 (1/1) Installing uvol-data (1.0)
 uvol(create): uvol-test: create data 13 ro
 uvol(write): uvol-test: write data 13
@@ -39,8 +38,7 @@ OK: 0 MiB in 1 packages
 EOF
 
 reset_uvol_db
-$APK add uvol-scriptfail-1.0.apk > apk.log 2>&1 && assert "uvol-scriptail should have failed"
-diff -u - apk.log <<EOF || assert "wrong scripts result"
+! $APK add uvol-scriptfail-1.0.apk 2>&1 | diff -u - /dev/fd/4 4<<EOF || assert "wrong scripts result"
 (1/1) Installing uvol-scriptfail (1.0)
 uvol(create): uvol-test: create scriptfail 33 ro
 uvol(write): uvol-test: write scriptfail 33

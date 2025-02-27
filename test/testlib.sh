@@ -2,7 +2,7 @@
 
 # shellcheck disable=SC2034 # various variables are not used always
 
-set -e
+set -eo pipefail
 
 assert() {
 	echo "$*"
