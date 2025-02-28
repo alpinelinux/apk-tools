@@ -29,9 +29,7 @@
 
 struct apk_package *apk_pkg_get_installed(struct apk_name *name)
 {
-	struct apk_provider *p;
-
-	foreach_array_item(p, name->providers)
+	apk_array_foreach(p, name->providers)
 		if (p->pkg->name == name && p->pkg->ipkg != NULL)
 			return p->pkg;
 
@@ -67,7 +65,6 @@ struct apk_installed_package *apk_pkg_install(struct apk_database *db,
 void apk_pkg_uninstall(struct apk_database *db, struct apk_package *pkg)
 {
 	struct apk_installed_package *ipkg = pkg->ipkg;
-	char **trigger;
 	int i;
 
 	if (ipkg == NULL)
@@ -84,8 +81,8 @@ void apk_pkg_uninstall(struct apk_database *db, struct apk_package *pkg)
 	if (apk_array_len(ipkg->triggers) != 0) {
 		list_del(&ipkg->trigger_pkgs_list);
 		list_init(&ipkg->trigger_pkgs_list);
-		foreach_array_item(trigger, ipkg->triggers)
-			free(*trigger);
+		apk_array_foreach_item(trigger, ipkg->triggers)
+			free(trigger);
 	}
 	apk_string_array_free(&ipkg->triggers);
 	apk_string_array_free(&ipkg->pending_triggers);
@@ -198,9 +195,7 @@ int apk_deps_balloc(struct apk_dependency_array **deps, uint32_t capacity, struc
 
 void apk_deps_add(struct apk_dependency_array **deps, struct apk_dependency *dep)
 {
-	struct apk_dependency *d0;
-
-	foreach_array_item(d0, *deps) {
+	apk_array_foreach(d0, *deps) {
 		if (d0->name != dep->name) continue;
 		*d0 = *dep;
 		return;
@@ -211,9 +206,8 @@ void apk_deps_add(struct apk_dependency_array **deps, struct apk_dependency *dep
 void apk_deps_del(struct apk_dependency_array **pdeps, struct apk_name *name)
 {
 	struct apk_dependency_array *deps = *pdeps;
-	struct apk_dependency *d0;
 
-	foreach_array_item(d0, deps) {
+	apk_array_foreach(d0, deps) {
 		if (d0->name != name) continue;
 		size_t nlen = apk_array_len(deps) - 1;
 		*d0 = deps->item[nlen];
@@ -318,22 +312,17 @@ int apk_dep_is_materialized(const struct apk_dependency *dep, const struct apk_p
 
 int apk_dep_analyze(const struct apk_package *deppkg, struct apk_dependency *dep, struct apk_package *pkg)
 {
-	struct apk_dependency *p;
 	struct apk_provider provider;
 
-	if (pkg == NULL)
-		return APK_DEP_IRRELEVANT;
-
+	if (!pkg) return APK_DEP_IRRELEVANT;
 	if (dep->name == pkg->name)
 		return apk_dep_is_materialized(dep, pkg) ? APK_DEP_SATISFIES : APK_DEP_CONFLICTS;
 
-	foreach_array_item(p, pkg->provides) {
-		if (p->name != dep->name)
-			continue;
+	apk_array_foreach(p, pkg->provides) {
+		if (p->name != dep->name) continue;
 		provider = APK_PROVIDER_FROM_PROVIDES(pkg, p);
 		return apk_dep_is_provided(deppkg, dep, &provider) ? APK_DEP_SATISFIES : APK_DEP_CONFLICTS;
 	}
-
 	return APK_DEP_IRRELEVANT;
 }
 
@@ -353,11 +342,8 @@ void apk_blob_push_dep(apk_blob_t *to, struct apk_database *db, struct apk_depen
 
 void apk_blob_push_deps(apk_blob_t *to, struct apk_database *db, struct apk_dependency_array *deps)
 {
-	struct apk_dependency *dep;
-
-	if (deps == NULL) return;
-
-	foreach_array_item(dep, deps) {
+	if (!deps) return;
+	apk_array_foreach(dep, deps) {
 		if (dep != &deps->item[0]) apk_blob_push_blob(to, APK_BLOB_PTR_LEN(" ", 1));
 		apk_blob_push_dep(to, db, dep);
 	}
@@ -365,13 +351,12 @@ void apk_blob_push_deps(apk_blob_t *to, struct apk_database *db, struct apk_depe
 
 int apk_deps_write_layer(struct apk_database *db, struct apk_dependency_array *deps, struct apk_ostream *os, apk_blob_t separator, unsigned layer)
 {
-	struct apk_dependency *dep;
 	apk_blob_t blob;
 	char tmp[256];
 	int n = 0;
 
 	if (deps == NULL) return 0;
-	foreach_array_item(dep, deps) {
+	apk_array_foreach(dep, deps) {
 		if (layer != -1 && dep->layer != layer) continue;
 
 		blob = APK_BLOB_BUF(tmp);
@@ -965,7 +950,6 @@ int apk_pkg_replaces_dir(const struct apk_package *a, const struct apk_package *
 
 int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package *b)
 {
-	struct apk_dependency *dep;
 	int a_prio = -1, b_prio = -1;
 
 	/* Overlay file? Replace the ownership, but extraction will keep the overlay file. */
@@ -978,7 +962,7 @@ int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package 
 	if (a->origin && a->origin == b->origin) return APK_PKG_REPLACES_YES;
 
 	/* Does the original package replace the new one? */
-	foreach_array_item(dep, a->ipkg->replaces) {
+	apk_array_foreach(dep, a->ipkg->replaces) {
 		if (apk_dep_is_materialized(dep, b)) {
 			a_prio = a->ipkg->replaces_priority;
 			break;
@@ -986,7 +970,7 @@ int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package 
 	}
 
 	/* Does the new package replace the original one? */
-	foreach_array_item(dep, b->ipkg->replaces) {
+	apk_array_foreach(dep, b->ipkg->replaces) {
 		if (apk_dep_is_materialized(dep, a)) {
 			b_prio = b->ipkg->replaces_priority;
 			break;
@@ -1029,11 +1013,9 @@ void apk_pkg_foreach_matching_dependency(
 		void *ctx)
 {
 	unsigned int one_dep_only = (match & APK_FOREACH_GENID_MASK) && !(match & APK_FOREACH_DEP);
-	struct apk_dependency *d;
 
 	if (apk_pkg_match_genid(pkg, match)) return;
-
-	foreach_array_item(d, deps) {
+	apk_array_foreach(d, deps) {
 		if (apk_dep_analyze(pkg, d, mpkg) & match) {
 			cb(pkg, d, mpkg, ctx);
 			if (one_dep_only) break;
@@ -1051,19 +1033,14 @@ static void foreach_reverse_dependency(
 	unsigned int marked = match & APK_FOREACH_MARKED;
 	unsigned int installed = match & APK_FOREACH_INSTALLED;
 	unsigned int one_dep_only = (match & APK_FOREACH_GENID_MASK) && !(match & APK_FOREACH_DEP);
-	struct apk_name **pname0, *name0;
-	struct apk_provider *p0;
-	struct apk_package *pkg0;
-	struct apk_dependency *d0;
 
-	foreach_array_item(pname0, rdepends) {
-		name0 = *pname0;
-		foreach_array_item(p0, name0->providers) {
-			pkg0 = p0->pkg;
+	apk_array_foreach_item(name0, rdepends) {
+		apk_array_foreach(p0, name0->providers) {
+			struct apk_package *pkg0 = p0->pkg;
 			if (installed && pkg0->ipkg == NULL) continue;
 			if (marked && !pkg0->marked) continue;
 			if (apk_pkg_match_genid(pkg0, match)) continue;
-			foreach_array_item(d0, pkg0->depends) {
+			apk_array_foreach(d0, pkg0->depends) {
 				if (apk_dep_analyze(pkg0, d0, pkg) & match) {
 					cb(pkg0, d0, pkg, ctx);
 					if (one_dep_only) break;
@@ -1078,9 +1055,7 @@ void apk_pkg_foreach_reverse_dependency(
 		void cb(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *ctx),
 		void *ctx)
 {
-	struct apk_dependency *p;
-
 	foreach_reverse_dependency(pkg, pkg->name->rdepends, match, cb, ctx);
-	foreach_array_item(p, pkg->provides)
+	apk_array_foreach(p, pkg->provides)
 		foreach_reverse_dependency(pkg, p->name->rdepends, match, cb, ctx);
 }
