@@ -216,10 +216,10 @@ static inline struct apk_array *_apk_array_truncate(struct apk_array *hdr, size_
 
 APK_ARRAY(apk_string_array, char *);
 
-#define apk_array_foreach(iter, array) \
-	for (typeof((array)->item[0]) *iter = &(array)->item[0]; iter < &(array)->item[(array)->hdr.num]; iter++)
+#define apk_array_foreach(__iter, array) \
+	for (typeof((array)->item[0]) *__iter = &(array)->item[0], *__end = &__iter[(array)->hdr.num]; __iter < __end; __iter++)
 #define apk_array_foreach_item(value, array) \
-	for (typeof((array)->item[0]) *__iter = &(array)->item[0], value; __iter < &(array)->item[(array)->hdr.num] && ({ value = *__iter; 1; }); __iter++)
+	for (typeof((array)->item[0]) *__iter = &(array)->item[0], *__end = &__iter[(array)->hdr.num], value; __iter < __end && ({ value = *__iter; 1; }); __iter++)
 
 #define LIST_HEAD(name) struct list_head name = { &name, &name }
 #define LIST_END (void *) 0xe01
