@@ -321,7 +321,6 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 {
 	struct apk_db_dir *dir;
 	struct apk_protected_path_array *ppaths;
-	struct apk_protected_path *ppath;
 	apk_blob_t bparent;
 	unsigned long hash = apk_hash_from_key(&db->installed.dirs, name);
 	char *relative_name;
@@ -363,7 +362,7 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 		return dir;
 
 	relative_name = strrchr(dir->rooted_name, '/') + 1;
-	foreach_array_item(ppath, ppaths) {
+	apk_array_foreach(ppath, ppaths) {
 		char *slash = strchr(ppath->relative_pattern, '/');
 		if (slash != NULL) {
 			*slash = 0;
@@ -531,28 +530,22 @@ static struct apk_db_file *apk_db_file_get(struct apk_database *db,
 
 static void add_name_to_array(struct apk_name *name, struct apk_name_array **a)
 {
-	struct apk_name **n;
-
-	foreach_array_item(n, *a)
-		if (*n == name) return;
+	apk_array_foreach_item(n, *a) if (n == name) return;
 	apk_name_array_add(a, name);
 }
 
 static void apk_db_pkg_rdepends(struct apk_database *db, struct apk_package *pkg)
 {
-	struct apk_name *rname;
-	struct apk_dependency *d, *p;
-
-	foreach_array_item(d, pkg->depends) {
-		rname = d->name;
+	apk_array_foreach(d, pkg->depends) {
+		struct apk_name *rname = d->name;
 		rname->is_dependency |= !apk_dep_conflict(d);
 		add_name_to_array(pkg->name, &rname->rdepends);
-		foreach_array_item(p, pkg->provides) add_name_to_array(p->name, &rname->rdepends);
+		apk_array_foreach(p, pkg->provides) add_name_to_array(p->name, &rname->rdepends);
 	}
-	foreach_array_item(d, pkg->install_if) {
-		rname = d->name;
+	apk_array_foreach(d, pkg->install_if) {
+		struct apk_name *rname = d->name;
 		add_name_to_array(pkg->name, &rname->rinstall_if);
-		foreach_array_item(p, pkg->provides) add_name_to_array(p->name, &rname->rinstall_if);
+		apk_array_foreach(p, pkg->provides) add_name_to_array(p->name, &rname->rinstall_if);
 	}
 }
 
@@ -574,11 +567,11 @@ static int apk_db_parse_istream(struct apk_database *db, struct apk_istream *is,
 
 static int apk_db_add_arch(struct apk_database *db, apk_blob_t arch)
 {
-	apk_blob_t **item, *atom;
+	apk_blob_t *atom;
 
 	if (arch.len == 0) return 0;
 	atom = apk_atomize_dup(&db->atoms, apk_blob_trim(arch));
-	foreach_array_item(item, db->arches)
+	apk_array_foreach(item, db->arches)
 		if (*item == atom) return 0;
 	apk_blobptr_array_add(&db->arches, atom);
 	return 0;
@@ -586,9 +579,8 @@ static int apk_db_add_arch(struct apk_database *db, apk_blob_t arch)
 
 bool apk_db_arch_compatible(struct apk_database *db, apk_blob_t *arch)
 {
-	apk_blob_t **item;
 	if (arch == &apk_atom_null) return true;
-	foreach_array_item(item, db->arches)
+	apk_array_foreach(item, db->arches)
 		if (*item == arch) return true;
 	return db->noarch == arch;
 }
@@ -609,7 +601,6 @@ const struct apk_package *apk_db_pkg_upgradable(const struct apk_database *db, c
 struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_tmpl *tmpl)
 {
 	struct apk_package *pkg = &tmpl->pkg, *idb;
-	struct apk_dependency *dep;
 	unsigned short old_repos = 0;
 
 	if (!pkg->name || !pkg->version || tmpl->id.len < APK_DIGEST_LENGTH_SHA1) return NULL;
@@ -633,7 +624,7 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 
 		apk_hash_insert(&db->available.packages, idb);
 		apk_provider_array_add(&idb->name->providers, APK_PROVIDER_FROM_PACKAGE(idb));
-		foreach_array_item(dep, idb->provides)
+		apk_array_foreach(dep, idb->provides)
 			apk_provider_array_add(&dep->name->providers, APK_PROVIDER_FROM_PROVIDES(idb, dep));
 		if (db->open_complete)
 			apk_db_pkg_rdepends(db, idb);
@@ -644,7 +635,7 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 	}
 	if (idb->repos && !old_repos) {
 		pkg->name->has_repository_providers = 1;
-		foreach_array_item(dep, idb->provides)
+		apk_array_foreach(dep, idb->provides)
 			dep->name->has_repository_providers = 1;
 	}
 
@@ -1163,7 +1154,6 @@ static int apk_db_triggers_write(struct apk_database *db, struct apk_installed_p
 {
 	char buf[APK_BLOB_DIGEST_BUF];
 	apk_blob_t bfn;
-	char **trigger;
 
 	if (IS_ERR(os)) return PTR_ERR(os);
 	if (apk_array_len(ipkg->triggers) == 0) return 0;
@@ -1173,9 +1163,9 @@ static int apk_db_triggers_write(struct apk_database *db, struct apk_installed_p
 	bfn = apk_blob_pushed(APK_BLOB_BUF(buf), bfn);
 	apk_ostream_write(os, bfn.ptr, bfn.len);
 
-	foreach_array_item(trigger, ipkg->triggers) {
+	apk_array_foreach_item(trigger, ipkg->triggers) {
 		apk_ostream_write(os, " ", 1);
-		apk_ostream_write_string(os, *trigger);
+		apk_ostream_write_string(os, trigger);
 	}
 	apk_ostream_write(os, "\n", 1);
 	return 0;
@@ -1254,7 +1244,6 @@ static int apk_db_read_layer(struct apk_database *db, unsigned layer)
 static int apk_db_index_write_nr_cache(struct apk_database *db)
 {
 	struct apk_package_array *pkgs;
-	struct apk_package **ppkg;
 	struct apk_ostream *os;
 
 	if (!apk_db_cache_active(db)) return 0;
@@ -1265,8 +1254,7 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 	if (IS_ERR(os)) return PTR_ERR(os);
 
 	pkgs = apk_db_sorted_installed_packages(db);
-	foreach_array_item(ppkg, pkgs) {
-		struct apk_package *pkg = *ppkg;
+	apk_array_foreach_item(pkg, pkgs) {
 		if (apk_db_pkg_available(db, pkg)) continue;
 		if (pkg->cached || !pkg->installed_size) {
 			if (apk_pkg_write_index_entry(pkg, os) < 0) break;
@@ -1591,13 +1579,11 @@ static void setup_cache_repository(struct apk_database *db, apk_blob_t cache_dir
 static int apk_db_name_rdepends(apk_hash_item item, void *pctx)
 {
 	struct apk_name *name = item, *rname;
-	struct apk_provider *p;
-	struct apk_dependency *dep;
 	struct apk_name *touched[128];
 	unsigned num_touched = 0;
 
-	foreach_array_item(p, name->providers) {
-		foreach_array_item(dep, p->pkg->depends) {
+	apk_array_foreach(p, name->providers) {
+		apk_array_foreach(dep, p->pkg->depends) {
 			rname = dep->name;
 			rname->is_dependency |= !apk_dep_conflict(dep);
 			if (!(rname->state_int & 1)) {
@@ -1610,7 +1596,7 @@ static int apk_db_name_rdepends(apk_hash_item item, void *pctx)
 				apk_name_array_add(&rname->rdepends, name);
 			}
 		}
-		foreach_array_item(dep, p->pkg->install_if) {
+		apk_array_foreach(dep, p->pkg->install_if) {
 			rname = dep->name;
 			if (!(rname->state_int & 2)) {
 				if (!rname->state_int) {
@@ -1625,10 +1611,10 @@ static int apk_db_name_rdepends(apk_hash_item item, void *pctx)
 	}
 
 	if (num_touched > ARRAY_SIZE(touched)) {
-		foreach_array_item(p, name->providers) {
-			foreach_array_item(dep, p->pkg->depends)
+		apk_array_foreach(p, name->providers) {
+			apk_array_foreach(dep, p->pkg->depends)
 				dep->name->state_int = 0;
-			foreach_array_item(dep, p->pkg->install_if)
+			apk_array_foreach(dep, p->pkg->install_if)
 				dep->name->state_int = 0;
 		}
 	} else for (unsigned i = 0; i < num_touched; i++)
@@ -1937,9 +1923,8 @@ int apk_db_open(struct apk_database *db)
 	setup_uvol_target(db);
 
 	if (apk_array_len(ac->arch_list) && (ac->root_set || (ac->open_flags & APK_OPENF_ALLOW_ARCH))) {
-		char **arch;
-		foreach_array_item(arch, ac->arch_list)
-			apk_db_add_arch(db, APK_BLOB_STR(*arch));
+		apk_array_foreach_item(arch, ac->arch_list)
+			apk_db_add_arch(db, APK_BLOB_STR(arch));
 		db->write_arch = ac->root_set;
 	} else {
 		struct apk_istream *is = apk_istream_from_file(db->root_fd, apk_arch_file);
@@ -2105,7 +2090,6 @@ static int apk_db_write_layers(struct apk_database *db)
 		struct apk_ostream *installed, *scripts, *triggers;
 	} layers[APK_DB_LAYER_NUM] = {0};
 	struct apk_ostream *os;
-	struct apk_package **ppkg;
 	struct apk_package_array *pkgs;
 	int i, r, rr = 0;
 
@@ -2137,8 +2121,7 @@ static int apk_db_write_layers(struct apk_database *db)
 	}
 
 	pkgs = apk_db_sorted_installed_packages(db);
-	foreach_array_item(ppkg, pkgs) {
-		struct apk_package *pkg = *ppkg;
+	apk_array_foreach_item(pkg, pkgs) {
 		struct layer_data *ld = &layers[pkg->layer];
 		if (!ld->fd) continue;
 		apk_db_fdb_write(db, pkg->ipkg, ld->installed);
@@ -2174,13 +2157,12 @@ static int apk_db_write_layers(struct apk_database *db)
 static int apk_db_write_arch(struct apk_database *db)
 {
 	struct apk_ostream *os;
-	apk_blob_t **arch;
 
 	os = apk_ostream_to_file(db->root_fd, apk_arch_file, 0644);
 	if (IS_ERR(os)) return PTR_ERR(os);
 
-	foreach_array_item(arch, db->arches) {
-		apk_ostream_write(os, (*arch)->ptr, (*arch)->len);
+	apk_array_foreach_item(arch, db->arches) {
+		apk_ostream_write(os, arch->ptr, arch->len);
 		apk_ostream_write(os, "\n", 1);
 	}
 	return apk_ostream_close(os);
@@ -2224,7 +2206,6 @@ void apk_db_close(struct apk_database *db)
 {
 	struct apk_installed_package *ipkg, *ipkgn;
 	struct apk_db_dir_instance *diri;
-	struct apk_protected_path *ppath;
 	struct hlist_node *dc, *dn;
 
 	/* Cleaning up the directory tree will cause mode, uid and gid
@@ -2237,7 +2218,7 @@ void apk_db_close(struct apk_database *db)
 		apk_pkg_uninstall(NULL, ipkg->pkg);
 	}
 
-	foreach_array_item(ppath, db->protected_paths)
+	apk_array_foreach(ppath, db->protected_paths)
 		free(ppath->relative_pattern);
 	apk_protected_path_array_free(&db->protected_paths);
 
@@ -2307,13 +2288,11 @@ static int fire_triggers(apk_hash_item item, void *ctx)
 	struct apk_database *db = (struct apk_database *) ctx;
 	struct apk_db_dir *dbd = (struct apk_db_dir *) item;
 	struct apk_installed_package *ipkg;
-	char **triggerptr, *trigger;
 	int only_changed;
 
 	list_for_each_entry(ipkg, &db->installed.triggers, trigger_pkgs_list) {
 		if (!ipkg->run_all_triggers && !dbd->modified) continue;
-		foreach_array_item(triggerptr, ipkg->triggers) {
-			trigger = *triggerptr;
+		apk_array_foreach_item(trigger, ipkg->triggers) {
 			only_changed = trigger[0] == '+';
 			if (only_changed) ++trigger;
 			if (trigger[0] != '/') continue;
@@ -2437,12 +2416,11 @@ int apk_db_permanent(struct apk_database *db)
 int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *world)
 {
 	struct apk_out *out = &db->ctx->out;
-	struct apk_dependency *dep;
 	int bad = 0, tag;
 
 	if (db->ctx->force & APK_FORCE_BROKEN_WORLD) return 0;
 
-	foreach_array_item(dep, world) {
+	apk_array_foreach(dep, world) {
 		tag = dep->repository_tag;
 		if (tag == 0 || db->repo_tags[tag].allowed_repos != 0) continue;
 		if (tag < 0) tag = 0;
@@ -2465,7 +2443,6 @@ struct apk_package *apk_db_get_pkg_by_name(struct apk_database *db, apk_blob_t f
 	char buf[PATH_MAX];
 	apk_blob_t name_format;
 	struct apk_name *name;
-	struct apk_provider *p;
 	char split_char;
 	int r;
 
@@ -2486,7 +2463,7 @@ struct apk_package *apk_db_get_pkg_by_name(struct apk_database *db, apk_blob_t f
 		name = apk_db_get_name(db, APK_BLOB_PTR_LEN(filename.ptr, i));
 		if (!name) continue;
 
-		foreach_array_item(p, name->providers) {
+		apk_array_foreach(p, name->providers) {
 			struct apk_package *pkg = p->pkg;
 
 			if (pkg->name != name) continue;
@@ -3127,11 +3104,9 @@ int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg,
 	ipkg->broken_files = 0;
 	ipkg->broken_xattr = 0;
 	if (apk_array_len(ipkg->triggers) != 0) {
-		char **trigger;
 		list_del(&ipkg->trigger_pkgs_list);
 		list_init(&ipkg->trigger_pkgs_list);
-		foreach_array_item(trigger, ipkg->triggers)
-			free(*trigger);
+		apk_array_foreach_item(trigger, ipkg->triggers) free(trigger);
 		apk_array_truncate(ipkg->triggers, 0);
 	}
 
@@ -3173,11 +3148,9 @@ struct match_ctx {
 
 static int apk_string_match(const char *str, struct apk_string_array *filter, const char **res)
 {
-	char **pmatch;
-
-	foreach_array_item(pmatch, filter) {
-		if (fnmatch(*pmatch, str, FNM_CASEFOLD) == 0) {
-			*res = *pmatch;
+	apk_array_foreach_item(match, filter) {
+		if (fnmatch(match, str, FNM_CASEFOLD) == 0) {
+			*res = match;
 			return 1;
 		}
 	}
@@ -3208,7 +3181,6 @@ int apk_db_foreach_matching_name(
 	struct apk_database *db, struct apk_string_array *filter,
 	apk_db_foreach_name_cb cb, void *ctx)
 {
-	char **pmatch;
 	struct apk_name *name;
 	struct match_ctx mctx = {
 		.db = db,
@@ -3220,13 +3192,13 @@ int apk_db_foreach_matching_name(
 	if (!filter || apk_array_len(filter) == 0) goto all;
 
 	mctx.filter = filter;
-	foreach_array_item(pmatch, filter)
-		if (strchr(*pmatch, '*') != NULL)
+	apk_array_foreach_item(match, filter)
+		if (strchr(match, '*') != NULL)
 			goto all;
 
-	foreach_array_item(pmatch, filter) {
-		name = (struct apk_name *) apk_hash_get(&db->available.names, APK_BLOB_STR(*pmatch));
-		r = cb(db, *pmatch, name, ctx);
+	apk_array_foreach_item(match, filter) {
+		name = (struct apk_name *) apk_hash_get(&db->available.names, APK_BLOB_STR(match));
+		r = cb(db, match, name, ctx);
 		if (r) return r;
 	}
 	return 0;
@@ -3283,21 +3255,19 @@ int apk_db_foreach_sorted_name(struct apk_database *db, struct apk_string_array 
 			       apk_db_foreach_name_cb cb, void *cb_ctx)
 {
 	int r, walk_all = 0;
-	char **pmatch;
-	const char *match;
 	struct apk_name *name;
 	struct apk_name *results[128], **res;
 	size_t i, num_res = 0;
 
 	if (filter && apk_array_len(filter) != 0) {
-		foreach_array_item(pmatch, filter) {
-			name = (struct apk_name *) apk_hash_get(&db->available.names, APK_BLOB_STR(*pmatch));
-			if (strchr(*pmatch, '*')) {
+		apk_array_foreach_item(match, filter) {
+			name = (struct apk_name *) apk_hash_get(&db->available.names, APK_BLOB_STR(match));
+			if (strchr(match, '*')) {
 				walk_all = 1;
 				continue;
 			}
 			if (!name) {
-				cb(db, *pmatch, NULL, cb_ctx);
+				cb(db, match, NULL, cb_ctx);
 				continue;
 			}
 			if (walk_all) continue;
@@ -3322,6 +3292,7 @@ int apk_db_foreach_sorted_name(struct apk_database *db, struct apk_string_array 
 	}
 
 	for (i = 0; i < num_res; i++) {
+		const char *match;
 		name = res[i];
 		if (apk_name_match(name, filter, &match)) {
 			r = cb(db, match, name, cb_ctx);
