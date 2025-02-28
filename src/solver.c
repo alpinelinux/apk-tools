@@ -50,10 +50,8 @@ void apk_solver_set_name_flags(struct apk_name *name,
 			       unsigned short solver_flags,
 			       unsigned short solver_flags_inheritable)
 {
-	struct apk_provider *p;
-
 	name->solver_flags_set = 1;
-	foreach_array_item(p, name->providers) {
+	apk_array_foreach(p, name->providers) {
 		struct apk_package *pkg = p->pkg;
 		dbg_printf("marking '" PKG_VER_FMT "' = 0x%04x / 0x%04x\n",
 			PKG_VER_PRINTF(pkg), solver_flags, solver_flags_inheritable);
@@ -116,10 +114,7 @@ static void queue_unresolved(struct apk_solver_state *ss, struct apk_name *name)
 
 static void reevaluate_reverse_deps(struct apk_solver_state *ss, struct apk_name *name)
 {
-	struct apk_name **pname0, *name0;
-
-	foreach_array_item(pname0, name->rdepends) {
-		name0 = *pname0;
+	apk_array_foreach_item(name0, name->rdepends) {
 		if (!name0->ss.seen) continue;
 		name0->ss.reevaluate_deps = 1;
 		queue_dirty(ss, name0);
@@ -128,10 +123,7 @@ static void reevaluate_reverse_deps(struct apk_solver_state *ss, struct apk_name
 
 static void reevaluate_reverse_installif(struct apk_solver_state *ss, struct apk_name *name)
 {
-	struct apk_name **pname0, *name0;
-
-	foreach_array_item(pname0, name->rinstall_if) {
-		name0 = *pname0;
+	apk_array_foreach_item(name0, name->rinstall_if) {
 		if (!name0->ss.seen) continue;
 		if (name0->ss.no_iif) continue;
 		name0->ss.reevaluate_iif = 1;
@@ -141,20 +133,17 @@ static void reevaluate_reverse_installif(struct apk_solver_state *ss, struct apk
 
 static void reevaluate_reverse_installif_pkg(struct apk_solver_state *ss, struct apk_package *pkg)
 {
-	struct apk_dependency *d;
 	reevaluate_reverse_installif(ss, pkg->name);
-	foreach_array_item(d, pkg->provides)
+	apk_array_foreach(d, pkg->provides)
 		reevaluate_reverse_installif(ss, d->name);
 }
 
 static void disqualify_package(struct apk_solver_state *ss, struct apk_package *pkg, const char *reason)
 {
-	struct apk_dependency *p;
-
 	dbg_printf("disqualify_package: " PKG_VER_FMT " (%s)\n", PKG_VER_PRINTF(pkg), reason);
 	pkg->ss.pkg_selectable = 0;
 	reevaluate_reverse_deps(ss, pkg->name);
-	foreach_array_item(p, pkg->provides)
+	apk_array_foreach(p, pkg->provides)
 		reevaluate_reverse_deps(ss, p->name);
 	reevaluate_reverse_installif_pkg(ss, pkg);
 }
@@ -162,14 +151,13 @@ static void disqualify_package(struct apk_solver_state *ss, struct apk_package *
 static bool dependency_satisfiable(struct apk_solver_state *ss, const struct apk_package *dpkg, struct apk_dependency *dep)
 {
 	struct apk_name *name = dep->name;
-	struct apk_provider *p;
 
 	if (apk_dep_conflict(dep) && ss->ignore_conflict) return true;
 	if (name->ss.locked) return apk_dep_is_provided(dpkg, dep, &name->ss.chosen);
 	if (name->ss.requirers == 0 && apk_dep_is_provided(dpkg, dep, &provider_none))
 		return true;
 
-	foreach_array_item(p, name->providers)
+	apk_array_foreach(p, name->providers)
 		if (p->pkg->ss.pkg_selectable && apk_dep_is_provided(dpkg, dep, p))
 			return true;
 
@@ -179,17 +167,13 @@ static bool dependency_satisfiable(struct apk_solver_state *ss, const struct apk
 static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 {
 	struct apk_database *db = ss->db;
-	struct apk_name **pname0;
-	struct apk_provider *p;
-	struct apk_dependency *dep;
 	unsigned int repos, num_virtual = 0;
 
-	if (name->ss.seen)
-		return;
+	if (name->ss.seen) return;
 
 	name->ss.seen = 1;
 	name->ss.no_iif = 1;
-	foreach_array_item(p, name->providers) {
+	apk_array_foreach(p, name->providers) {
 		struct apk_package *pkg = p->pkg;
 		if (!pkg->ss.seen) {
 			pkg->ss.seen = 1;
@@ -221,7 +205,7 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 				pkg->cached_non_repository ||
 				pkg->ipkg;
 
-			foreach_array_item(dep, pkg->depends)
+			apk_array_foreach(dep, pkg->depends)
 				discover_name(ss, dep->name);
 
 			dbg_printf("discover " PKG_VER_FMT ": tag_ok=%d, tag_pref=%d selectable=%d\n",
@@ -235,15 +219,15 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 		num_virtual += (p->pkg->name != name);
 	}
 
-	foreach_array_item(p, name->providers) {
+	apk_array_foreach(p, name->providers) {
 		struct apk_package *pkg = p->pkg;
-		foreach_array_item(pname0, pkg->name->rinstall_if)
-			discover_name(ss, *pname0);
-		foreach_array_item(dep, pkg->provides) {
+		apk_array_foreach_item(name0, pkg->name->rinstall_if)
+			discover_name(ss, name0);
+		apk_array_foreach(dep, pkg->provides) {
 			if (dep->name->ss.seen) continue;
 			discover_name(ss, dep->name);
-			foreach_array_item(pname0, dep->name->rinstall_if)
-				discover_name(ss, *pname0);
+			apk_array_foreach_item(name0, dep->name->rinstall_if)
+				discover_name(ss, name0);
 		}
 	}
 
@@ -288,7 +272,6 @@ static void inherit_pinning_and_flags(
 static void apply_constraint(struct apk_solver_state *ss, struct apk_package *ppkg, struct apk_dependency *dep)
 {
 	struct apk_name *name = dep->name;
-	struct apk_provider *p0;
 	int is_provided;
 
 	dbg_printf("    apply_constraint: %s%s%s" BLOB_FMT "\n",
@@ -304,7 +287,7 @@ static void apply_constraint(struct apk_solver_state *ss, struct apk_package *pp
 	if (name->ss.requirers == 1 && !apk_dep_conflict(dep))
 		name_requirers_changed(ss, name);
 
-	foreach_array_item(p0, name->providers) {
+	apk_array_foreach(p0, name->providers) {
 		struct apk_package *pkg0 = p0->pkg;
 
 		is_provided = apk_dep_is_provided(ppkg, dep, p0);
@@ -322,19 +305,13 @@ static void apply_constraint(struct apk_solver_state *ss, struct apk_package *pp
 
 static void exclude_non_providers(struct apk_solver_state *ss, struct apk_name *name, struct apk_name *must_provide, int skip_virtuals)
 {
-	struct apk_provider *p;
-	struct apk_dependency *d;
-
-	if (name == must_provide || ss->ignore_conflict)
-		return;
-
+	if (name == must_provide || ss->ignore_conflict) return;
 	dbg_printf("%s must provide %s (skip_virtuals=%d)\n", name->name, must_provide->name, skip_virtuals);
-
-	foreach_array_item(p, name->providers) {
+	apk_array_foreach(p, name->providers) {
 		if (p->pkg->name == must_provide || !p->pkg->ss.pkg_selectable ||
 		    (skip_virtuals && p->version == &apk_atom_null))
 			goto next;
-		foreach_array_item(d, p->pkg->provides)
+		apk_array_foreach(d, p->pkg->provides)
 			if (d->name == must_provide || (skip_virtuals && d->version == &apk_atom_null))
 				goto next;
 		disqualify_package(ss, p->pkg, "provides transitivity");
@@ -370,10 +347,7 @@ static bool is_provider_auto_selectable(struct apk_provider *p)
 
 static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 {
-	struct apk_name *name0, **pname0;
-	struct apk_dependency *dep;
 	struct apk_package *first_candidate = NULL, *pkg;
-	struct apk_provider *p;
 	int reevaluate_deps, reevaluate_iif;
 	int num_options = 0, num_tag_not_ok = 0, has_iif = 0, no_iif = 1;
 
@@ -387,14 +361,14 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 
 	/* propagate down by merging common dependencies and
 	 * applying new constraints */
-	foreach_array_item(p, name->providers) {
+	apk_array_foreach(p, name->providers) {
 		/* check if this pkg's dependencies have become unsatisfiable */
 		pkg = p->pkg;
 		pkg->ss.dependencies_merged = 0;
 		if (reevaluate_deps) {
 			if (!pkg->ss.pkg_selectable)
 				continue;
-			foreach_array_item(dep, pkg->depends) {
+			apk_array_foreach(dep, pkg->depends) {
 				if (!dependency_satisfiable(ss, pkg, dep)) {
 					disqualify_package(ss, pkg, "dependency no longer satisfiable");
 					break;
@@ -409,7 +383,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 		     pkg->ss.iif_failed == 0)) {
 			pkg->ss.iif_triggered = 1;
 			pkg->ss.iif_failed = 0;
-			foreach_array_item(dep, pkg->install_if) {
+			apk_array_foreach(dep, pkg->install_if) {
 				if (!dep->name->ss.locked && !apk_dep_conflict(dep)) {
 					pkg->ss.iif_triggered = 0;
 					pkg->ss.iif_failed = 0;
@@ -423,7 +397,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 			}
 		}
 		if (reevaluate_iif && pkg->ss.iif_triggered) {
-			foreach_array_item(dep, pkg->install_if)
+			apk_array_foreach(dep, pkg->install_if)
 				inherit_pinning_and_flags(ss, pkg, dep->name->ss.chosen.pkg);
 		}
 		has_iif |= pkg->ss.iif_triggered;
@@ -442,13 +416,13 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 			first_candidate = pkg;
 
 		/* FIXME: can merge also conflicts */
-		foreach_array_item(dep, pkg->depends)
+		apk_array_foreach(dep, pkg->depends)
 			if (!apk_dep_conflict(dep))
 				merge_index(&dep->name->ss.merge_depends, num_options);
 
 		if (merge_index(&pkg->name->ss.merge_provides, num_options))
 			pkg->name->ss.has_virtual_provides |= (p->version == &apk_atom_null);
-		foreach_array_item(dep, pkg->provides)
+		apk_array_foreach(dep, pkg->provides)
 			if (merge_index(&dep->name->ss.merge_provides, num_options))
 				dep->name->ss.has_virtual_provides |= (dep->version == &apk_atom_null);
 
@@ -464,19 +438,19 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 
 	if (first_candidate != NULL) {
 		pkg = first_candidate;
-		foreach_array_item(p, name->providers)
+		apk_array_foreach(p, name->providers)
 			p->pkg->ss.dependencies_used = p->pkg->ss.dependencies_merged;
 
 		/* propagate down common dependencies */
 		if (num_options == 1) {
 			/* FIXME: keeps increasing counts, use bit fields instead? */
-			foreach_array_item(dep, pkg->depends)
+			apk_array_foreach(dep, pkg->depends)
 				if (merge_index_complete(&dep->name->ss.merge_depends, num_options))
 					apply_constraint(ss, pkg, dep);
 		} else {
 			/* FIXME: could merge versioning bits too */
-			foreach_array_item(dep, pkg->depends) {
-				name0 = dep->name;
+			apk_array_foreach(dep, pkg->depends) {
+				struct apk_name *name0 = dep->name;
 				if (merge_index_complete(&name0->ss.merge_depends, num_options) &&
 				    name0->ss.requirers == 0) {
 					/* common dependency name with all */
@@ -484,7 +458,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 						   name->name, name0->name);
 					name0->ss.requirers++;
 					name_requirers_changed(ss, name0);
-					foreach_array_item(p, name0->providers)
+					apk_array_foreach(p, name0->providers)
 						inherit_pinning_and_flags(ss, p->pkg, pkg);
 				}
 			}
@@ -493,18 +467,17 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 		/* provides transitivity */
 		if (merge_index_complete(&pkg->name->ss.merge_provides, num_options))
 			exclude_non_providers(ss, pkg->name, name, pkg->name->ss.has_virtual_provides);
-		foreach_array_item(dep, pkg->provides)
+		apk_array_foreach(dep, pkg->provides)
 			if (merge_index_complete(&dep->name->ss.merge_provides, num_options))
 				exclude_non_providers(ss, dep->name, name, dep->name->ss.has_virtual_provides);
 
 		pkg->name->ss.has_virtual_provides = 0;
-		foreach_array_item(dep, pkg->provides)
+		apk_array_foreach(dep, pkg->provides)
 			dep->name->ss.has_virtual_provides = 0;
 	}
 
 	name->ss.reverse_deps_done = 1;
-	foreach_array_item(pname0, name->rdepends) {
-		name0 = *pname0;
+	apk_array_foreach_item(name0, name->rdepends) {
 		if (name0->ss.seen && !name0->ss.locked) {
 			name->ss.reverse_deps_done = 0;
 			break;
@@ -677,9 +650,6 @@ static int compare_providers(struct apk_solver_state *ss,
 
 static void assign_name(struct apk_solver_state *ss, struct apk_name *name, struct apk_provider p)
 {
-	struct apk_provider *p0;
-	struct apk_dependency *dep;
-
 	if (name->ss.locked) {
 		/* If both are providing this name without version, it's ok */
 		if (p.version == &apk_atom_null &&
@@ -704,13 +674,13 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 		list_del(&name->ss.dirty_list);
 
 	if (p.pkg && p.pkg->ss.iif_triggered) {
-		foreach_array_item(dep, p.pkg->install_if)
+		apk_array_foreach(dep, p.pkg->install_if)
 			if (!dep->name->ss.locked) apply_constraint(ss, p.pkg, dep);
 	}
 
 	/* disqualify all conflicting packages */
 	if (!ss->ignore_conflict) {
-		foreach_array_item(p0, name->providers) {
+		apk_array_foreach(p0, name->providers) {
 			if (p0->pkg == p.pkg) continue;
 			if (p.version == &apk_atom_null &&
 			    p0->version == &apk_atom_null)
@@ -727,14 +697,13 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 
 static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 {
-	struct apk_provider chosen = { NULL, &apk_atom_null }, *p;
+	struct apk_provider chosen = { NULL, &apk_atom_null };
 	struct apk_package *pkg = NULL;
-	struct apk_dependency *d;
 
 	dbg_printf("select_package: %s (requirers=%d, autosel=%d, iif=%d)\n", name->name, name->ss.requirers, name->ss.has_auto_selectable, name->ss.has_iif);
 
 	if (name->ss.requirers || name->ss.has_iif) {
-		foreach_array_item(p, name->providers) {
+		apk_array_foreach(p, name->providers) {
 			dbg_printf("  consider "PKG_VER_FMT" iif_triggered=%d, tag_ok=%d, selectable=%d, available=%d, flags=0x%x, provider_priority=%d, installed=%d\n",
 				PKG_VER_PRINTF(p->pkg),
 				p->pkg->ss.iif_triggered, p->pkg->ss.tag_ok,
@@ -769,10 +738,10 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 		dbg_printf("selecting: " PKG_VER_FMT ", available: %d\n", PKG_VER_PRINTF(pkg), pkg->ss.pkg_selectable);
 
 		assign_name(ss, pkg->name, APK_PROVIDER_FROM_PACKAGE(pkg));
-		foreach_array_item(d, pkg->provides)
+		apk_array_foreach(d, pkg->provides)
 			assign_name(ss, d->name, APK_PROVIDER_FROM_PROVIDES(pkg, d));
 
-		foreach_array_item(d, pkg->depends)
+		apk_array_foreach(d, pkg->depends)
 			apply_constraint(ss, pkg, d);
 	} else {
 		dbg_printf("selecting: %s [unassigned]\n", name->name);
@@ -810,21 +779,17 @@ static void cset_gen_dep(struct apk_solver_state *ss, struct apk_package *ppkg, 
 
 static void cset_track_deps_added(struct apk_package *pkg)
 {
-	struct apk_dependency *d;
-
-	foreach_array_item(d, pkg->depends) {
-		if (apk_dep_conflict(d) || !d->name->ss.installed_name)
-			continue;
+	apk_array_foreach(d, pkg->depends) {
+		if (apk_dep_conflict(d) || !d->name->ss.installed_name) continue;
 		d->name->ss.installed_name->ss.requirers++;
 	}
 }
 
 static void cset_track_deps_removed(struct apk_solver_state *ss, struct apk_package *pkg)
 {
-	struct apk_dependency *d;
 	struct apk_package *pkg0;
 
-	foreach_array_item(d, pkg->depends) {
+	apk_array_foreach(d, pkg->depends) {
 		if (apk_dep_conflict(d) || !d->name->ss.installed_name)
 			continue;
 		if (--d->name->ss.installed_name->ss.requirers > 0)
@@ -849,12 +814,11 @@ static void cset_check_removal_by_deps(struct apk_solver_state *ss, struct apk_p
 static void cset_check_install_by_iif(struct apk_solver_state *ss, struct apk_name *name)
 {
 	struct apk_package *pkg = name->ss.chosen.pkg;
-	struct apk_dependency *dep0;
 
 	if (pkg == NULL || !name->ss.seen || name->ss.in_changeset)
 		return;
 
-	foreach_array_item(dep0, pkg->install_if) {
+	apk_array_foreach(dep0, pkg->install_if) {
 		struct apk_name *name0 = dep0->name;
 		if (!apk_dep_conflict(dep0) == !name0->ss.in_changeset) return;
 		if (!apk_dep_is_provided(pkg, dep0, &name0->ss.chosen)) return;
@@ -865,12 +829,11 @@ static void cset_check_install_by_iif(struct apk_solver_state *ss, struct apk_na
 static void cset_check_removal_by_iif(struct apk_solver_state *ss, struct apk_name *name)
 {
 	struct apk_package *pkg = name->ss.installed_pkg;
-	struct apk_dependency *dep0;
 
 	if (pkg == NULL || name->ss.in_changeset || name->ss.chosen.pkg != NULL)
 		return;
 
-	foreach_array_item(dep0, pkg->install_if) {
+	apk_array_foreach(dep0, pkg->install_if) {
 		if (dep0->name->ss.in_changeset &&
 		    dep0->name->ss.chosen.pkg == NULL) {
 			cset_check_removal_by_deps(ss, pkg);
@@ -881,21 +844,14 @@ static void cset_check_removal_by_iif(struct apk_solver_state *ss, struct apk_na
 
 static void cset_check_by_reverse_iif(struct apk_solver_state *ss, struct apk_package *pkg, void (*cb)(struct apk_solver_state *ss, struct apk_name *))
 {
-	struct apk_name **pname;
-	struct apk_dependency *d;
-
 	if (!pkg) return;
-	foreach_array_item(pname, pkg->name->rinstall_if)
-		cb(ss, *pname);
-	foreach_array_item(d, pkg->provides)
-		foreach_array_item(pname, d->name->rinstall_if)
-			cb(ss, *pname);
+	apk_array_foreach_item(name, pkg->name->rinstall_if) cb(ss, name);
+	apk_array_foreach(d, pkg->provides)
+		apk_array_foreach_item(name, d->name->rinstall_if) cb(ss, name);
 }
 
 static void cset_gen_name_remove_orphan(struct apk_solver_state *ss, struct apk_name *name)
 {
-	struct apk_provider *p;
-
 	if (name->ss.in_changeset) return;
 	name->ss.in_changeset = 1;
 
@@ -907,7 +863,7 @@ static void cset_gen_name_remove_orphan(struct apk_solver_state *ss, struct apk_
 		cset_gen_name_remove(ss, name->ss.installed_pkg);
 
 	/* Remove any package that provides this name and is due to be deleted */
-	foreach_array_item(p, name->providers) {
+	apk_array_foreach(p, name->providers) {
 		struct apk_package *pkg0 = p->pkg;
 		struct apk_name *name0 = pkg0->name;
 		if (name0->ss.installed_pkg == pkg0 && name0->ss.chosen.pkg == NULL)
@@ -918,7 +874,6 @@ static void cset_gen_name_remove_orphan(struct apk_solver_state *ss, struct apk_
 static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *name)
 {
 	struct apk_package *pkg, *opkg;
-	struct apk_dependency *d;
 
 	if (name->ss.in_changeset) return;
 
@@ -930,13 +885,13 @@ static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *n
 	pkg->ss.in_changeset = 1;
 
 	cset_gen_name_remove_orphan(ss, pkg->name);
-	foreach_array_item(d, pkg->provides)
+	apk_array_foreach(d, pkg->provides)
 		cset_gen_name_remove_orphan(ss, d->name);
 
 	opkg = pkg->name->ss.installed_pkg;
 	cset_check_by_reverse_iif(ss, opkg, cset_check_removal_by_iif);
 
-	foreach_array_item(d, pkg->depends)
+	apk_array_foreach(d, pkg->depends)
 		cset_gen_dep(ss, pkg, d);
 
 	dbg_printf("cset_gen: selecting: "PKG_VER_FMT"%s\n", PKG_VER_PRINTF(pkg), pkg->ss.pkg_selectable ? "" : " [NOT SELECTABLE]");
@@ -1003,7 +958,6 @@ static void generate_changeset(struct apk_solver_state *ss, struct apk_dependenc
 	struct apk_changeset *changeset = ss->changeset;
 	struct apk_package *pkg;
 	struct apk_installed_package *ipkg;
-	struct apk_dependency *d;
 
 	apk_array_truncate(changeset->changes, 0);
 
@@ -1012,7 +966,7 @@ static void generate_changeset(struct apk_solver_state *ss, struct apk_dependenc
 		pkg = ipkg->pkg;
 		pkg->name->ss.installed_pkg = pkg;
 		pkg->name->ss.installed_name = pkg->name;
-		foreach_array_item(d, pkg->provides)
+		apk_array_foreach(d, pkg->provides)
 			if (d->version != &apk_atom_null)
 				d->name->ss.installed_name = pkg->name;
 	}
@@ -1021,7 +975,7 @@ static void generate_changeset(struct apk_solver_state *ss, struct apk_dependenc
 	list_for_each_entry(ipkg, &ss->db->installed.packages, installed_pkgs_list)
 		cset_check_removal_by_deps(ss, ipkg->pkg);
 
-	foreach_array_item(d, world)
+	apk_array_foreach(d, world)
 		cset_gen_dep(ss, NULL, d);
 
 	/* NOTE: We used to call cset_gen_name_remove() directly here.  While slightly faster, this clobbered
@@ -1076,7 +1030,6 @@ int apk_solver_solve(struct apk_database *db,
 	struct apk_name *name, *name0;
 	struct apk_package *pkg;
 	struct apk_solver_state ss_data, *ss = &ss_data;
-	struct apk_dependency *d;
 
 	apk_array_qsort(world, cmp_pkgname);
 
@@ -1091,12 +1044,12 @@ restart:
 
 	dbg_printf("discovering world\n");
 	ss->solver_flags_inherit = solver_flags;
-	foreach_array_item(d, world) {
+	apk_array_foreach(d, world) {
 		if (!d->broken)
 			discover_name(ss, d->name);
 	}
 	dbg_printf("applying world\n");
-	foreach_array_item(d, world) {
+	apk_array_foreach(d, world) {
 		if (!d->broken) {
 			ss->pinning_inherit = BIT(d->repository_tag);
 			apply_constraint(ss, NULL, d);
@@ -1132,7 +1085,7 @@ restart:
 	generate_changeset(ss, world);
 
 	if (ss->errors && (db->ctx->force & APK_FORCE_BROKEN_WORLD)) {
-		foreach_array_item(d, world) {
+		apk_array_foreach(d, world) {
 			name = d->name;
 			pkg = name->ss.chosen.pkg;
 			if (pkg == NULL || pkg->ss.error) {
@@ -1145,7 +1098,7 @@ restart:
 		goto restart;
 	}
 
-	foreach_array_item(d, world) {
+	apk_array_foreach(d, world) {
 		if (!d->name->ss.chosen.pkg) continue;
 		d->layer = d->name->ss.chosen.pkg->layer;
 	}
