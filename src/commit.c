@@ -121,13 +121,12 @@ static int dump_packages(struct apk_database *db, struct apk_change_array *chang
 			 bool details, const char *msg)
 {
 	struct apk_out *out = &db->ctx->out;
-	struct apk_change *change;
 	struct apk_name *name;
 	struct apk_indent indent;
 	int match = 0;
 
 	apk_print_indented_init(&indent, out, 0);
-	foreach_array_item(change, changes) {
+	apk_array_foreach(change, changes) {
 		if (!cmp(change)) continue;
 		if (!match) apk_print_indented_group(&indent, 2, "%s:\n", msg);
 		if (change->new_pkg != NULL)
@@ -216,14 +215,13 @@ static int cmp_upgrade(struct apk_change *change)
 
 static int run_triggers(struct apk_database *db, struct apk_changeset *changeset)
 {
-	struct apk_change *change;
 	struct apk_installed_package *ipkg;
 	int errors = 0;
 
 	if (apk_db_fire_triggers(db) == 0)
 		return 0;
 
-	foreach_array_item(change, changeset->changes) {
+	apk_array_foreach(change, changeset->changes) {
 		struct apk_package *pkg = change->new_pkg;
 		if (pkg == NULL)
 			continue;
@@ -293,12 +291,11 @@ int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset 
 {
 	struct progress prog = { 0 };
 	struct apk_out *out = &db->ctx->out;
-	struct apk_change *change;
 	struct apk_package *pkg;
 	struct apk_repository *repo;
 	int r, errors = 0;
 
-	foreach_array_item(change, changeset->changes) {
+	apk_array_foreach(change, changeset->changes) {
 		pkg = change->new_pkg;
 		if (changes_only && pkg == change->old_pkg) continue;
 		if (!pkg || (pkg->repos & db->local_repos) || !pkg->installed_size) continue;
@@ -313,7 +310,7 @@ int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset 
 	apk_msg(out, "Downloading %d packages...", prog.total.packages);
 
 	apk_progress_start(&prog.prog, out, "download", apk_progress_weight(prog.total.bytes, prog.total.packages));
-	foreach_array_item(change, changeset->changes) {
+	apk_array_foreach(change, changeset->changes) {
 		pkg = change->new_pkg;
 		if (changes_only && pkg == change->old_pkg) continue;
 		if (!pkg || (pkg->repos & db->local_repos) || !pkg->installed_size) continue;
@@ -347,7 +344,6 @@ int apk_solver_commit_changeset(struct apk_database *db,
 {
 	struct apk_out *out = &db->ctx->out;
 	struct progress prog = { 0 };
-	struct apk_change *change;
 	const char *size_unit;
 	uint64_t humanized, size_diff = 0, download_size = 0;
 	int r, errors = 0, pkg_diff = 0;
@@ -363,7 +359,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		goto all_done;
 
 	/* Count what needs to be done */
-	foreach_array_item(change, changeset->changes) {
+	apk_array_foreach(change, changeset->changes) {
 		count_change(change, &prog.total);
 		if (change->new_pkg) {
 			size_diff += change->new_pkg->installed_size;
@@ -435,7 +431,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 
 	/* Go through changes */
 	apk_progress_start(&prog.prog, out, "install", apk_progress_weight(prog.total.bytes, prog.total.packages));
-	foreach_array_item(change, changeset->changes) {
+	apk_array_foreach(change, changeset->changes) {
 		r = change->old_pkg &&
 			(change->old_pkg->ipkg->broken_files ||
 			 change->old_pkg->ipkg->broken_script);
@@ -560,19 +556,17 @@ static void print_pinning_errors(struct print_state *ps, struct apk_package *pkg
 
 static void print_conflicts(struct print_state *ps, struct apk_package *pkg)
 {
-	struct apk_provider *p;
-	struct apk_dependency *d;
 	int once;
 
-	foreach_array_item(p, pkg->name->providers) {
+	apk_array_foreach(p, pkg->name->providers) {
 		if (p->pkg == pkg || !p->pkg->marked)
 			continue;
 		label_start(ps, "conflicts:");
 		apk_print_indented_fmt(&ps->i, PKG_VER_FMT, PKG_VER_PRINTF(p->pkg));
 	}
-	foreach_array_item(d, pkg->provides) {
+	apk_array_foreach(d, pkg->provides) {
 		once = 1;
-		foreach_array_item(p, d->name->providers) {
+		apk_array_foreach(p, d->name->providers) {
 			if (!p->pkg->marked)
 				continue;
 			if (d->version == &apk_atom_null &&
@@ -623,13 +617,12 @@ static int matched_dep_sort(const void *p1, const void *p2)
 static void print_mdeps(struct print_state *ps, const char *label, struct matched_dep_array *deps)
 {
 	struct apk_database *db = ps->db;
-	const struct matched_dep *dep;
 
 	if (apk_array_len(deps) == 0) return;
 
 	label_start(ps, label);
 	apk_array_qsort(deps, matched_dep_sort);
-	foreach_array_item(dep, deps) {
+	apk_array_foreach(dep, deps) {
 		if (dep->pkg == NULL)
 			apk_print_indented_fmt(&ps->i, "world[" DEP_FMT BLOB_FMT "]", DEP_PRINTF(dep->dep),
 				BLOB_PRINTF(db->repo_tags[dep->dep->repository_tag].tag));
@@ -661,9 +654,7 @@ static void print_deps(struct print_state *ps, struct apk_package *pkg, int matc
 
 static void print_broken_deps(struct print_state *ps, struct apk_dependency_array *deps, const char *label)
 {
-	struct apk_dependency *dep;
-
-	foreach_array_item(dep, deps) {
+	apk_array_foreach(dep, deps) {
 		if (!dep->broken) continue;
 		label_start(ps, label);
 		apk_print_indented_fmt(&ps->i, DEP_FMT, DEP_PRINTF(dep));
@@ -701,9 +692,6 @@ static void analyze_package(struct print_state *ps, struct apk_package *pkg, uns
 static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 {
 	struct apk_database *db = ps->db;
-	struct apk_name **pname0, *name0;
-	struct apk_provider *p0;
-	struct apk_dependency *d0;
 	char label[256];
 	unsigned int genid;
 	int refs;
@@ -716,10 +704,10 @@ static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 		label_end(ps);
 
 		label_start(ps, "provided by:");
-		foreach_array_item(p0, name->providers)
+		apk_array_foreach(p0, name->providers)
 			p0->pkg->name->state_int++;
-		foreach_array_item(p0, name->providers) {
-			name0 = p0->pkg->name;
+		apk_array_foreach(p0, name->providers) {
+			struct apk_name *name0 = p0->pkg->name;
 			refs = (name0->state_int & STATE_COUNT_MASK);
 			if (refs == apk_array_len(name0->providers)) {
 				/* name only */
@@ -737,45 +725,36 @@ static void analyze_missing_name(struct print_state *ps, struct apk_name *name)
 	}
 
 	label_start(ps, "required by:");
-	foreach_array_item(d0, ps->world) {
-		if (d0->name != name || apk_dep_conflict(d0))
-			continue;
+	apk_array_foreach(d0, ps->world) {
+		if (d0->name != name || apk_dep_conflict(d0)) continue;
 		apk_print_indented_fmt(&ps->i, "world[" DEP_FMT BLOB_FMT "]",
 			DEP_PRINTF(d0),
 			BLOB_PRINTF(db->repo_tags[d0->repository_tag].tag));
 	}
 	genid = apk_foreach_genid();
-	foreach_array_item(pname0, name->rdepends) {
-		name0 = *pname0;
-		foreach_array_item(p0, name0->providers) {
-			if (!p0->pkg->marked)
-				continue;
-			if (p0->pkg->foreach_genid == genid)
-				continue;
+	apk_array_foreach_item(name0, name->rdepends) {
+		apk_array_foreach(p0, name0->providers) {
+			if (!p0->pkg->marked) continue;
+			if (p0->pkg->foreach_genid == genid) continue;
 			p0->pkg->foreach_genid = genid;
-			foreach_array_item(d0, p0->pkg->depends) {
-				if (d0->name != name || apk_dep_conflict(d0))
-					continue;
+			apk_array_foreach(d0, p0->pkg->depends) {
+				if (d0->name != name || apk_dep_conflict(d0)) continue;
 				apk_print_indented_fmt(&ps->i,
 					PKG_VER_FMT "[" DEP_FMT "]",
 					PKG_VER_PRINTF(p0->pkg),
 					DEP_PRINTF(d0));
-				break;
+				goto next_name;
 			}
-			if (d0 != NULL)
-				break;
 		}
+		next_name:;
 	}
 	label_end(ps);
 }
 
 static void analyze_deps(struct print_state *ps, struct apk_dependency_array *deps)
 {
-	struct apk_dependency *d0;
-	struct apk_name *name0;
-
-	foreach_array_item(d0, deps) {
-		name0 = d0->name;
+	apk_array_foreach(d0, deps) {
+		struct apk_name *name0 = d0->name;
 		if (apk_dep_conflict(d0)) continue;
 		if ((name0->state_int & (STATE_INSTALLIF | STATE_PRESENT | STATE_MISSING)) != 0)
 			continue;
@@ -789,18 +768,12 @@ static void discover_name(struct apk_name *name, int pkg_state);
 
 static void discover_reverse_iif(struct apk_name *name)
 {
-	struct apk_name **pname0, *name0;
-	struct apk_dependency *d;
-	struct apk_provider *p;
-
-	foreach_array_item(pname0, name->rinstall_if) {
-		name0 = *pname0;
-
-		foreach_array_item(p, name0->providers) {
+	apk_array_foreach_item(name0, name->rinstall_if) {
+		apk_array_foreach(p, name0->providers) {
 			int ok = 1;
 			if (!p->pkg->marked) continue;
 			if (apk_array_len(p->pkg->install_if) == 0) continue;
-			foreach_array_item(d, p->pkg->install_if) {
+			apk_array_foreach(d, p->pkg->install_if) {
 				if (apk_dep_conflict(d) == !!(d->name->state_int & (STATE_PRESENT|STATE_INSTALLIF))) {
 					ok = 0;
 					break;
@@ -808,7 +781,7 @@ static void discover_reverse_iif(struct apk_name *name)
 			}
 			if (ok) {
 				discover_name(p->pkg->name, STATE_INSTALLIF);
-				foreach_array_item(d, p->pkg->provides)
+				apk_array_foreach(d, p->pkg->provides)
 					discover_name(d->name, STATE_INSTALLIF);
 			}
 		}
@@ -817,9 +790,8 @@ static void discover_reverse_iif(struct apk_name *name)
 
 static int is_name_concrete(struct apk_package *pkg, struct apk_name *name)
 {
-	struct apk_dependency *d;
 	if (pkg->name == name) return 1;
-	foreach_array_item(d, pkg->provides) {
+	apk_array_foreach(d, pkg->provides) {
 		if (d->name != name) continue;
 		if (d->version == &apk_atom_null) continue;
 		return 1;
@@ -829,10 +801,7 @@ static int is_name_concrete(struct apk_package *pkg, struct apk_name *name)
 
 static void discover_name(struct apk_name *name, int pkg_state)
 {
-	struct apk_provider *p;
-	struct apk_dependency *d;
-
-	foreach_array_item(p, name->providers) {
+	apk_array_foreach(p, name->providers) {
 		int state = pkg_state;
 		if (!p->pkg->marked) continue;
 		if ((state == STATE_PRESENT || state == STATE_INSTALLIF) &&
@@ -842,7 +811,7 @@ static void discover_name(struct apk_name *name, int pkg_state)
 		p->pkg->state_int |= state;
 
 		p->pkg->name->state_int |= state;
-		foreach_array_item(d, p->pkg->provides) {
+		apk_array_foreach(d, p->pkg->provides) {
 			int dep_state = state;
 			if (dep_state == STATE_INSTALLIF && d->version == &apk_atom_null)
 				dep_state = STATE_VIRTUAL_ONLY;
@@ -852,7 +821,7 @@ static void discover_name(struct apk_name *name, int pkg_state)
 		discover_deps(p->pkg->depends);
 		if (state == STATE_PRESENT || state == STATE_INSTALLIF) {
 			discover_reverse_iif(p->pkg->name);
-			foreach_array_item(d, p->pkg->provides)
+			apk_array_foreach(d, p->pkg->provides)
 				discover_reverse_iif(d->name);
 		}
 	}
@@ -860,9 +829,7 @@ static void discover_name(struct apk_name *name, int pkg_state)
 
 static void discover_deps(struct apk_dependency_array *deps)
 {
-	struct apk_dependency *d;
-
-	foreach_array_item(d, deps) {
+	apk_array_foreach(d, deps) {
 		if (apk_dep_conflict(d)) continue;
 		discover_name(d->name, STATE_PRESENT);
 	}
@@ -874,7 +841,6 @@ void apk_solver_print_errors(struct apk_database *db,
 {
 	struct apk_out *out = &db->ctx->out;
 	struct print_state ps;
-	struct apk_change *change;
 
 	/* ERROR: unsatisfiable dependencies:
 	 *   name:
@@ -914,7 +880,7 @@ void apk_solver_print_errors(struct apk_database *db,
 	 */
  
 	/* Construct information about names */
-	foreach_array_item(change, changeset->changes) {
+	apk_array_foreach(change, changeset->changes) {
 		struct apk_package *pkg = change->new_pkg;
 		if (pkg) pkg->marked = 1;
 	}
@@ -928,7 +894,7 @@ void apk_solver_print_errors(struct apk_database *db,
 	apk_err(out, "unable to select packages:");
 	apk_print_indented_init(&ps.i, out, 1);
 	analyze_deps(&ps, world);
-	foreach_array_item(change, changeset->changes) {
+	apk_array_foreach(change, changeset->changes) {
 		struct apk_package *pkg = change->new_pkg;
 		if (!pkg) continue;
 		analyze_package(&ps, pkg, change->new_repository_tag);
