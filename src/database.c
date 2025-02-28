@@ -1297,9 +1297,8 @@ no_mode_char:
 	/* skip leading and trailing path separators */
 	blob = apk_blob_trim_start(blob, '/');
 	blob = apk_blob_trim_end(blob, '/');
-
 	apk_protected_path_array_add(&db->protected_paths, (struct apk_protected_path) {
-		.relative_pattern = apk_blob_cstr(blob),
+		.relative_pattern = apk_balloc_cstr(&db->ctx->ba, blob),
 		.protect_mode = protect_mode,
 	});
 	return 0;
@@ -2217,11 +2216,7 @@ void apk_db_close(struct apk_database *db)
 		}
 		apk_pkg_uninstall(NULL, ipkg->pkg);
 	}
-
-	apk_array_foreach(ppath, db->protected_paths)
-		free(ppath->relative_pattern);
 	apk_protected_path_array_free(&db->protected_paths);
-
 	apk_blobptr_array_free(&db->arches);
 	apk_string_array_free(&db->filename_array);
 	apk_pkgtmpl_free(&db->overlay_tmpl);
