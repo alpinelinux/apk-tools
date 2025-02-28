@@ -173,7 +173,6 @@ static void info_print_required_by(struct apk_database *db, struct apk_package *
 
 static void info_print_rinstall_if(struct apk_database *db, struct apk_package *pkg)
 {
-	struct apk_dependency *dep;
 	char *separator = verbosity > 1 ? " " : "\n";
 
 	if (verbosity == 1) printf(PKG_VER_FMT " affects auto-installation of:\n", PKG_VER_PRINTF(pkg));
@@ -184,7 +183,7 @@ static void info_print_rinstall_if(struct apk_database *db, struct apk_package *
 		 * it actually has this package in install_if. */
 		struct apk_package *pkg0 = apk_pkg_get_installed(name0);
 		if (pkg0 == NULL) continue;
-		foreach_array_item(dep, pkg0->install_if) {
+		apk_array_foreach(dep, pkg0->install_if) {
 			if (dep->name != pkg->name) continue;
 			printf(PKG_VER_FMT "%s", PKG_VER_PRINTF(pkg0), separator);
 			break;
