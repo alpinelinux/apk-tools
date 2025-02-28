@@ -111,13 +111,11 @@ Unfortunately it is not possible to deduce if a given string is of format
 	- x86
 	- x86_64
 
-	APK currently uses the architecture to construct the package download
-	URL from a repository base path.
+	The arch field can be part of the repository download URL. See
+	*apk-mkndx*(8) *--pkgname-spec* for additional details.
 
-	The APK does not currently validate package architecture against the
-	running system or the database's architecture. However, this will be
-	soon changed that APK will consider only compatible packages for
-	installation.
+	Package is not eligible for installation unless the arch matches
+	one of the values in *etc/apk/arch*.
 
 *license* (*license*, *L*)
 	Package license. This is informative field for the user and APK does
