@@ -48,4 +48,5 @@ void apk_io_url_set_redirect_callback(void (*cb)(int, const char *))
 
 void apk_io_url_init(struct apk_out *out)
 {
+	wget_out = out;
 }
