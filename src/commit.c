@@ -423,7 +423,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	if (db->ctx->cache_predownload && apk_db_cache_active(db)) {
 		r = apk_solver_precache_changeset(db, changeset, true);
 		if (r < 0) return -1;
-		if (r > 0) apk_msg(out, "Proceeding with ugprade...");
+		if (r > 0) apk_msg(out, "Proceeding with upgrade...");
 	}
 
 	if (run_commit_hooks(db, PRE_COMMIT_HOOK) == -2)
@@ -862,7 +862,7 @@ void apk_solver_print_errors(struct apk_database *db,
 	 *   b-1:
 	 *     satisfies: world[b]
 	 *     conflicts: a-1[foo]
-	 * 
+	 *
 	 *   c-1:
 	 *     satisfies: world[a]
 	 *     conflicts: c-1[foo]  (self-conflict by providing foo twice)
@@ -878,7 +878,7 @@ void apk_solver_print_errors(struct apk_database *db,
 	 * satisfies lists all dependencies that is not satisfiable by
 	 * any other selected version. or all of them with -v.
 	 */
- 
+
 	/* Construct information about names */
 	apk_array_foreach(change, changeset->changes) {
 		struct apk_package *pkg = change->new_pkg;
