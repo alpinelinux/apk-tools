@@ -155,7 +155,7 @@ static int fetch_package(struct fetch_ctx *ctx, struct apk_package *pkg)
 	if (!(ctx->flags & FETCH_STDOUT)) {
 		if (apk_fileinfo_get(ctx->outdir_fd, filename, 0, &fi, &db->atoms) == 0 &&
 		    fi.size == pkg->size)
-			return 0;
+			goto done;
 	}
 
 	r = apk_repo_package_url(db, repo, pkg, &pkg_fd, pkg_url, sizeof pkg_url);
