@@ -27,6 +27,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 	ac->out.verbosity = 1;
 	ac->out.progress_char = "#";
 	ac->cache_max_age = 4*60*60; /* 4 hours default */
+	apk_id_cache_init(&ac->id_cache, -1);
 	ac->root_fd = -1;
 	ac->apknew_suffix = ".apk-new";
 	ac->default_pkgname_spec = APK_BLOB_STRLIT("${name}-${version}.apk");
@@ -151,7 +152,7 @@ struct apk_trust *apk_ctx_get_trust(struct apk_ctx *ac)
 
 struct apk_id_cache *apk_ctx_get_id_cache(struct apk_ctx *ac)
 {
-	if (!ac->id_cache.root_fd)
-		apk_id_cache_init(&ac->id_cache, apk_ctx_fd_root(ac));
+	if (ac->id_cache.root_fd < 0)
+		apk_id_cache_reset_rootfd(&ac->id_cache, apk_ctx_fd_root(ac));
 	return &ac->id_cache;
 }

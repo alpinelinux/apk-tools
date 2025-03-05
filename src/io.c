@@ -1235,10 +1235,15 @@ void apk_id_cache_reset(struct apk_id_cache *idc)
 	idhash_reset(&idc->gid_cache);
 }
 
-void apk_id_cache_free(struct apk_id_cache *idc)
+void apk_id_cache_reset_rootfd(struct apk_id_cache *idc, int root_fd)
 {
 	apk_id_cache_reset(idc);
-	idc->root_fd = 0;
+	idc->root_fd = root_fd;
+}
+
+void apk_id_cache_free(struct apk_id_cache *idc)
+{
+	apk_id_cache_reset_rootfd(idc, -1);
 }
 
 static FILE *fopenat(int dirfd, const char *pathname)

@@ -215,6 +215,7 @@ const char *apk_url_local_file(const char *url, size_t maxlen);
 void apk_id_cache_init(struct apk_id_cache *idc, int root_fd);
 void apk_id_cache_free(struct apk_id_cache *idc);
 void apk_id_cache_reset(struct apk_id_cache *idc);
+void apk_id_cache_reset_rootfd(struct apk_id_cache *idc, int root_fd);
 uid_t apk_id_cache_resolve_uid(struct apk_id_cache *idc, apk_blob_t username, uid_t default_uid);
 gid_t apk_id_cache_resolve_gid(struct apk_id_cache *idc, apk_blob_t groupname, gid_t default_gid);
 apk_blob_t apk_id_cache_resolve_user(struct apk_id_cache *idc, uid_t uid);
