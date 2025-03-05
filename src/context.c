@@ -27,6 +27,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 	ac->out.verbosity = 1;
 	ac->out.progress_char = "#";
 	ac->cache_max_age = 4*60*60; /* 4 hours default */
+	ac->root_fd = -1;
 	ac->apknew_suffix = ".apk-new";
 	ac->default_pkgname_spec = APK_BLOB_STRLIT("${name}-${version}.apk");
 	ac->default_reponame_spec = APK_BLOB_STRLIT("${arch}/${name}-${version}.apk");;
@@ -43,7 +44,7 @@ void apk_ctx_free(struct apk_ctx *ac)
 	apk_string_array_free(&ac->repository_config_list);
 	apk_string_array_free(&ac->repository_list);
 	apk_string_array_free(&ac->arch_list);
-	if (ac->root_fd) close(ac->root_fd);
+	if (ac->root_fd >= 0) close(ac->root_fd);
 	if (ac->out.log) fclose(ac->out.log);
 	apk_balloc_destroy(&ac->ba);
 }
