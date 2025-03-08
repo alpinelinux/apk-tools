@@ -958,9 +958,6 @@ int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package 
 	/* Upgrading package? */
 	if (a->name == b->name) return APK_PKG_REPLACES_YES;
 
-	/* Or same source package? */
-	if (a->origin && a->origin == b->origin) return APK_PKG_REPLACES_YES;
-
 	/* Does the original package replace the new one? */
 	apk_array_foreach(dep, a->ipkg->replaces) {
 		if (apk_dep_is_materialized(dep, b)) {
@@ -983,6 +980,9 @@ int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package 
 	/* If the new package has valid 'replaces', we will overwrite
 	 * the file without warnings. */
 	if (b_prio >= 0) return APK_PKG_REPLACES_YES;
+
+	/* Or same source package? */
+	if (a->origin && a->origin == b->origin) return APK_PKG_REPLACES_YES;
 
 	/* Both ship same file, but metadata is inconclusive. */
 	return APK_PKG_REPLACES_CONFLICT;
