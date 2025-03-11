@@ -27,7 +27,7 @@ scdocs-y += \
 	apk-mkndx.8 \
 	apk-mkpkg.8 \
 	apk-policy.8 \
-	apk-protected_paths.d.5 \
+	apk-protected_paths.5 \
 	apk-query.8 \
 	apk-stats.8 \
 	apk-update.8 \

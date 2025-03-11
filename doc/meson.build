@@ -23,7 +23,7 @@ man_filenames = [
     'apk-mkpkg.8.scd',
     'apk-package.5.scd',
     'apk-policy.8.scd',
-    'apk-protected_paths.d.5.scd',
+    'apk-protected_paths.5.scd',
     'apk-query.8.scd',
     'apk-repositories.5.scd',
     'apk-search.8.scd',

@@ -1,8 +1,8 @@
-apk-protected_paths.d(5)
+apk-protected_paths(5)
 
 # NAME
 
-apk-protected_paths.d - paths with special treatement by apk
+*/etc/apk/protected_paths.d/\*.list* - paths with special treatement by apk
 
 # DESCRIPTION
 

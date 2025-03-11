@@ -90,4 +90,4 @@ then the affected path or details. The changes detected are:
 
 # SEE ALSO
 
-*apk-protected_paths.d*(5)
+*apk-protected_paths*(5)

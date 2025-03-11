@@ -407,7 +407,7 @@ timeout 120
 */etc/apk/protected_paths.d/\*.list*
 	Configuration files to specify how to treat changes to specified
 	directory or file masks. The file format is further documented in
-	*apk-protected_paths.d*(5).
+	*apk-protected_paths*(5).
 
 */etc/apk/repositories*++
 */etc/apk/repositories.d/\*.list*++
