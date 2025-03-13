@@ -152,11 +152,8 @@ static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *
 		f = bsearch(&key, fields, ARRAY_SIZE(fields), sizeof(fields[0]), cmpfield);
 		if (!f || f->ndx == 0) continue;
 
-		if (adb_ro_val(&ctx->pkginfo, f->ndx) != ADB_NULL) {
-			/* Workaround abuild bug that emitted multiple license lines */
-			if (f->ndx == ADBI_PI_LICENSE) continue;
+		if (adb_ro_val(&ctx->pkginfo, f->ndx) != ADB_NULL)
 			return -APKE_ADB_PACKAGE_FORMAT;
-		}
 
 		switch (f->ndx) {
 		case ADBI_PI_DEPENDS:
