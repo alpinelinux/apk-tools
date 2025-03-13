@@ -182,6 +182,10 @@ static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *
 	adb_wo_arr(&ctx->pkginfo, ADBI_PI_PROVIDES, &deps[1]);
 	adb_wo_arr(&ctx->pkginfo, ADBI_PI_REPLACES, &deps[2]);
 
+	adb_wo_free(&deps[0]);
+	adb_wo_free(&deps[1]);
+	adb_wo_free(&deps[2]);
+
 	return 0;
 }
 
