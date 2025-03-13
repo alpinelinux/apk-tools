@@ -155,7 +155,7 @@ static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *
 		if (adb_ro_val(&ctx->pkginfo, f->ndx) != ADB_NULL) {
 			/* Workaround abuild bug that emitted multiple license lines */
 			if (f->ndx == ADBI_PI_LICENSE) continue;
-			return ADB_ERROR(APKE_ADB_PACKAGE_FORMAT);
+			return -APKE_ADB_PACKAGE_FORMAT;
 		}
 
 		switch (f->ndx) {
@@ -170,13 +170,13 @@ static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *
 		parse_deps:
 			while (apk_dep_split(&v, &bdep)) {
 				e = adb_wa_append_fromstring(&deps[i], bdep);
-				if (ADB_IS_ERROR(e)) return e;
+				if (ADB_IS_ERROR(e)) return -ADB_VAL_VALUE(e);
 			}
 			continue;
 		}
 		adb_wo_pkginfo(&ctx->pkginfo, f->ndx, v);
 	}
-	if (r != -APKE_EOF) return ADB_ERROR(-r);
+	if (r != -APKE_EOF) return r;
 
 	adb_wo_arr(&ctx->pkginfo, ADBI_PI_DEPENDS, &deps[0]);
 	adb_wo_arr(&ctx->pkginfo, ADBI_PI_PROVIDES, &deps[1]);
