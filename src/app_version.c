@@ -30,7 +30,7 @@ static int ver_indexes(struct apk_ctx *ac, struct apk_string_array *args)
 		if (!repo->available) continue;
 		apk_out(out, BLOB_FMT " [" BLOB_FMT "]",
 			BLOB_PRINTF(repo->description),
-			BLOB_PRINTF(repo->url_base_printable));
+			BLOB_PRINTF(repo->url_printable));
 	}
 	return 0;
 }

@@ -149,7 +149,7 @@ struct apk_repository {
 
 	apk_blob_t description;
 	apk_blob_t url_base;
-	apk_blob_t url_base_printable;
+	apk_blob_t url_printable;
 	apk_blob_t url_index;
 	apk_blob_t url_index_printable;
 	apk_blob_t pkgname_spec;

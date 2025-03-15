@@ -40,7 +40,7 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 		if (!repo->available) continue;
 		apk_msg(out, BLOB_FMT " [" BLOB_FMT "]",
 			BLOB_PRINTF(repo->description),
-			BLOB_PRINTF(repo->url_base_printable));
+			BLOB_PRINTF(repo->url_printable));
 	}
 
 	if (db->repositories.unavailable || db->repositories.stale)

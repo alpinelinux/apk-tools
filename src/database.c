@@ -1425,7 +1425,7 @@ static int add_repository_component(struct apk_repoparser *rp, apk_blob_t url, c
 {
 	struct apk_database *db = container_of(rp, struct apk_database, repoparser);
 	struct apk_repository *repo;
-	apk_blob_t url_base, url_index, url_base_printable, url_index_printable;
+	apk_blob_t url_base, url_index, url_printable, url_index_printable;
 	apk_blob_t pkgname_spec, dot = APK_BLOB_STRLIT(".");
 	char buf[PATH_MAX];
 	int tag_id = apk_db_get_tag_id(db, tag);
@@ -1437,10 +1437,12 @@ static int add_repository_component(struct apk_repoparser *rp, apk_blob_t url, c
 			BLOB_PRINTF(*db->arches->item[0]),
 			index_file);
 		url_base = APK_BLOB_PTR_LEN(url_index.ptr, url_base.len);
+		url_printable = url_base;
 		pkgname_spec = db->ctx->default_reponame_spec;
 	} else {
 		if (!apk_blob_rsplit(url, '/', &url_base, NULL)) url_base = dot;
 		url_index = url;
+		url_printable = url;
 		pkgname_spec = db->ctx->default_pkgname_spec;
 	}
 
@@ -1452,19 +1454,18 @@ static int add_repository_component(struct apk_repoparser *rp, apk_blob_t url, c
 	}
 	url_index = apk_balloc_dup(&db->ctx->ba, url_index);
 	url_index_printable = apk_url_sanitize(url_index, &db->ctx->ba);
-	url_base_printable = url_base;
 	if (url_base.ptr != dot.ptr) {
 		// url base is a prefix of url index
 		url_base = APK_BLOB_PTR_LEN(url_index.ptr, url_base.len);
-		url_base_printable = APK_BLOB_PTR_LEN(url_index_printable.ptr,
-			url_index_printable.len + url_base.len - url_index.len);
 	}
+	url_printable = APK_BLOB_PTR_LEN(url_index_printable.ptr,
+		url_index_printable.len + (url_printable.len - url_index.len));
 
 	if (db->num_repos >= APK_MAX_REPOS) return -1;
 	repo = &db->repos[db->num_repos++];
 	*repo = (struct apk_repository) {
 		.url_base = url_base,
-		.url_base_printable = url_base_printable,
+		.url_printable = url_printable,
 		.url_index = url_index,
 		.url_index_printable = url_index_printable,
 		.pkgname_spec = pkgname_spec,
@@ -1568,7 +1569,7 @@ static void setup_cache_repository(struct apk_database *db, apk_blob_t cache_dir
 {
 	db->cache_repository = (struct apk_repository) {
 		.url_base = cache_dir,
-		.url_base_printable = cache_dir,
+		.url_printable = cache_dir,
 		.pkgname_spec = db->ctx->default_cachename_spec,
 		.absolute_pkgname = 1,
 	};

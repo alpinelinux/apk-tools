@@ -278,7 +278,7 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 		if (pkg->ipkg) apk_ser_string(ser, apk_blob_fmt(buf, sizeof buf, "%s/installed", apk_db_layer_name(pkg->layer)));
 		for (int i = 0; i < db->num_repos; i++) {
 			if (!(BIT(i) & pkg->repos)) continue;
-			apk_ser_string(ser, db->repos[i].url_base_printable);
+			apk_ser_string(ser, db->repos[i].url_printable);
 		}
 		apk_ser_end(ser);
 	}

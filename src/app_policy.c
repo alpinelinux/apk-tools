@@ -58,7 +58,7 @@ static int policy_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 					apk_out(out, "    " BLOB_FMT "%s" BLOB_FMT,
 						BLOB_PRINTF(db->repo_tags[j].tag),
 						j == 0 ? "" : " ",
-						BLOB_PRINTF(db->repos[i].url_base_printable));
+						BLOB_PRINTF(db->repos[i].url_printable));
 			}
 		}
 	}
