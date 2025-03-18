@@ -633,7 +633,6 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 		       struct apk_package *pkg, int verify, int autoupdate,
 		       apk_progress_cb cb, void *cb_ctx)
 {
-	struct stat st = {0};
 	struct apk_url_print urlp;
 	struct apk_istream *is;
 	struct apk_sign_ctx sctx;
@@ -641,7 +640,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 	char tmpcacheitem[128], *cacheitem = &tmpcacheitem[tmpprefix.len];
 	apk_blob_t b = APK_BLOB_BUF(tmpcacheitem);
 	int r;
-	time_t now = time(NULL);
+	time_t mtime = 0, now = time(NULL);
 
 	apk_blob_push_blob(&b, tmpprefix);
 	if (pkg != NULL)
@@ -654,9 +653,12 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 	if (r < 0) return r;
 
 	if (autoupdate && db->cache_max_age > 0 && !(apk_force & APK_FORCE_REFRESH)) {
-		if (fstatat(db->cache_fd, cacheitem, &st, 0) == 0 &&
-		    now - st.st_mtime <= db->cache_max_age)
-			return -EALREADY;
+		struct stat st;
+		if (fstatat(db->cache_fd, cacheitem, &st, 0) == 0) {
+			if (now - st.st_mtime <= db->cache_max_age)
+				return -EALREADY;
+			mtime = st.st_mtime;
+		}
 	}
 	apk_message("fetch " URL_FMT, URL_PRINTF(urlp));
 
@@ -664,7 +666,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo,
 	if (cb) cb(cb_ctx, 0);
 
 	apk_sign_ctx_init(&sctx, verify, pkg ? &pkg->csum : NULL, db->keys_fd);
-	is = apk_istream_from_url_if_modified(url, st.st_mtime);
+	is = apk_istream_from_url_if_modified(url, mtime);
 	is = apk_istream_tee(is, db->cache_fd, tmpcacheitem, autoupdate ? 0 : APK_ISTREAM_TEE_COPY_META, cb, cb_ctx);
 	is = apk_istream_gunzip_mpart(is, apk_sign_ctx_mpart_cb, &sctx);
 	r = apk_tar_parse(is, apk_sign_ctx_verify_tar, &sctx, &db->id_cache);
