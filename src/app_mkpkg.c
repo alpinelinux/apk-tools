@@ -99,7 +99,7 @@ static int parse_info(struct mkpkg_ctx *ictx, struct apk_out *out, const char *o
 		break;
 	case ADBI_PI_FILE_SIZE:
 	case ADBI_PI_INSTALLED_SIZE:
-		return -EINVAL;
+		goto inval;
 	default:
 		ictx->info[i] = r;
 		return 0;
