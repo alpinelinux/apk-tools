@@ -83,8 +83,8 @@ struct apk_package {
 		int state_int;
 	};
 	unsigned int foreach_genid;
+	uint32_t repos;
 	unsigned short provider_priority;
-	unsigned short repos;
 	unsigned short filename_ndx;
 
 	unsigned char seen : 1;
