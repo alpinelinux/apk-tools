@@ -95,7 +95,7 @@ static int adbsign_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	ctx->ac = ac;
 	apk_array_foreach_item(arg, args) {
 		struct apk_istream *is = adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, arg), &spec);
-		if (ac->compspec.alg && ac->compspec.level) spec = ac->compspec;
+		if (ac->compspec.alg || ac->compspec.level) spec = ac->compspec;
 		struct apk_ostream *os = adb_compress(apk_ostream_to_file(AT_FDCWD, arg, 0644), &spec);
 		r = adbsign_resign(ctx, is, os);
 		if (r) apk_err(out, "%s: %s", arg, apk_error_str(r));
