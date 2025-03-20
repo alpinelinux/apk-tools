@@ -88,8 +88,10 @@ static int parse_info(struct mkpkg_ctx *ictx, struct apk_out *out, const char *o
 	apk_blob_t l, r;
 	int i;
 
-	if (!apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r))
-		goto inval;
+	if (!apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r)) {
+		apk_err(out, "missing key or value: %s", optarg);
+		return -EINVAL;
+	}
 
 	i = adb_s_field_by_name_blob(&schema_pkginfo, l);
 	switch (i) {
@@ -146,7 +148,10 @@ static int mkpkg_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 		ictx->rootnode = 0;
 		break;
 	case OPT_MKPKG_script:
-		apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r);
+		if (!apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r)) {
+			apk_err(out, "missing script type: %s", optarg);
+			return -EINVAL;
+		}
 		i = adb_s_field_by_name_blob(&schema_scripts, l);
 		if (!i) {
 			apk_err(out, "invalid script type: " BLOB_FMT, BLOB_PRINTF(l));
