@@ -212,7 +212,7 @@ static int fetch_match_package(void *pctx, struct apk_query_match *qm)
 	struct apk_package *pkg = qm->pkg;
 
 	if (pkg == NULL) {
-		if (!apk_blob_contains(qm->query, APK_BLOB_STRLIT('*'))) {
+		if (!apk_blob_contains(qm->query, APK_BLOB_STRLIT("*"))) {
 			apk_msg(out, BLOB_FMT ": unable to select package (or its dependencies)",
 				BLOB_PRINTF(qm->query));
 			ctx->errors++;
