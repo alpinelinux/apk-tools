@@ -4,7 +4,7 @@ apk-v3(5)
 
 apk v3 - overview of apk v3 format
 
-# DECRIPTION
+# DESCRIPTION
 
 A v3 .apk file contains a single package's contents, some metadata, and
 some signatures. The .apk file contains a tree of objects, represented
