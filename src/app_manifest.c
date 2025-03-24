@@ -45,13 +45,14 @@ static void process_package(struct apk_database *db, struct apk_package *pkg)
 		hlist_for_each_entry_safe(file, fc, fn, &diri->owned_files,
 					  diri_files_list) {
 			apk_blob_t csum_blob = APK_BLOB_BUF(csum_buf);
-			memset(csum_buf, '\0', sizeof(csum_buf));
 			apk_blob_push_hexdump(&csum_blob, apk_dbf_digest_blob(file));
+			csum_blob = apk_blob_pushed(APK_BLOB_BUF(csum_buf), csum_blob);
 
-			apk_out(out, "%s%s%s:%s  " DIR_FILE_FMT,
+			apk_out(out, "%s%s%s:" BLOB_FMT "  " DIR_FILE_FMT,
 				prefix1, prefix2,
 				apk_digest_alg_str(file->digest_alg),
-				csum_buf, DIR_FILE_PRINTF(diri->dir, file));
+				BLOB_PRINTF(csum_blob),
+				DIR_FILE_PRINTF(diri->dir, file));
 		}
 	}
 }
@@ -71,12 +72,13 @@ static int process_pkg_file(struct apk_extract_ctx *ectx, const struct apk_file_
 
 	if ((fi->mode & S_IFMT) != S_IFREG) return 0;
 
-	memset(csum_buf, '\0', sizeof(csum_buf));
 	apk_blob_push_hexdump(&csum_blob, APK_DIGEST_BLOB(fi->digest));
+	csum_blob = apk_blob_pushed(APK_BLOB_BUF(csum_buf), csum_blob);
 
-	apk_out(out, "%s%s%s:%s  %s",
+	apk_out(out, "%s%s%s:" BLOB_FMT "  %s",
 		mctx->prefix1, mctx->prefix2,
-		apk_digest_alg_str(fi->digest.alg), csum_buf,
+		apk_digest_alg_str(fi->digest.alg),
+		BLOB_PRINTF(csum_blob),
 		fi->name);
 
 	return 0;
