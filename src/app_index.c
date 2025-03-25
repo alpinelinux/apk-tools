@@ -181,7 +181,9 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		}
 
 		if (ictx->index && ictx->index_mtime >= fi.mtime) {
-			pkg = apk_db_get_pkg_by_name(db, APK_BLOB_STR(arg), fi.size, APK_BLOB_NULL);
+			apk_blob_t fname = APK_BLOB_STR(arg);
+			apk_blob_rsplit(fname, '/', NULL, &fname);
+			pkg = apk_db_get_pkg_by_name(db, fname, fi.size, APK_BLOB_NULL);
 			if (pkg) {
 				apk_dbg(out, "%s: indexed from old index", arg);
 				index_mark_package(db, pkg, rewrite_arch);
