@@ -30,12 +30,8 @@ APK_OPTIONS(dot_options_desc, DOT_OPTIONS);
 static int dot_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct dot_ctx *ctx = (struct dot_ctx *) pctx;
-	struct apk_query_spec *qs = &ac->query;
 
 	switch (opt) {
-	case APK_OPTIONS_INIT:
-		qs->mode.empty_matches_all = 1;
-		break;
 	case OPT_DOT_errors:
 		ctx->errors_only = 1;
 		break;
