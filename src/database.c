@@ -2444,8 +2444,7 @@ struct apk_package *apk_db_get_pkg_by_name(struct apk_database *db, apk_blob_t f
 
 	if (APK_BLOB_IS_NULL(pkgname_spec)) pkgname_spec = db->ctx->default_pkgname_spec;
 
-	name_format = pkgname_spec;
-	if (!apk_blob_rsplit(pkgname_spec, '/', NULL, &name_format))
+	if (!apk_blob_rsplit(pkgname_spec, '/', NULL, &name_format)) name_format = pkgname_spec;
 	if (!apk_blob_starts_with(name_format, APK_BLOB_STRLIT("${name}"))) return NULL;
 	split_char = name_format.ptr[7];
 
