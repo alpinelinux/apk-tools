@@ -100,6 +100,9 @@ static int fetch_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char
 	struct fetch_ctx *fctx = (struct fetch_ctx *) ctx;
 
 	switch (opt) {
+	case APK_OPTIONS_INIT:
+		fctx->outdir_fd = AT_FDCWD;
+		break;
 	case OPT_FETCH_built_after:
 		fctx->built_after = parse_time(optarg);
 		if (!fctx->built_after) return -EINVAL;
@@ -256,9 +259,6 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		db->ctx->out.progress_disable = 1;
 		db->ctx->out.verbosity = 0;
 	}
-
-	if (ctx->outdir_fd == 0)
-		ctx->outdir_fd = AT_FDCWD;
 
 	if ((apk_array_len(args) == 1) && (strcmp(args->item[0], "coffee") == 0)) {
 		if (db->ctx->force) return cup();
