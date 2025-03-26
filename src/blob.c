@@ -417,7 +417,7 @@ void apk_blob_pull_char(apk_blob_t *b, int expected)
 
 uint64_t apk_blob_pull_uint(apk_blob_t *b, int radix)
 {
-	unsigned int val;
+	uint64_t val;
 	int ch;
 
 	val = 0;

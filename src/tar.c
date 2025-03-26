@@ -38,10 +38,10 @@ struct tar_header {
 #define GET_OCTAL(s,r)		get_octal(s, sizeof(s), r)
 #define PUT_OCTAL(s,v,hz)	put_octal(s, sizeof(s), v, hz)
 
-static unsigned int get_octal(char *s, size_t l, int *r)
+static uint64_t get_octal(char *s, size_t l, int *r)
 {
 	apk_blob_t b = APK_BLOB_PTR_LEN(s, l);
-	unsigned int val = apk_blob_pull_uint(&b, 8);
+	uint64_t val = apk_blob_pull_uint(&b, 8);
 	while (b.len >= 1 && (b.ptr[0] == 0 || b.ptr[0] == 0x20)) b.ptr++, b.len--;
 	if (b.len != 0) *r = -APKE_V2PKG_FORMAT;
 	return val;

@@ -238,7 +238,7 @@ static apk_blob_t int_tostring(struct adb *db, adb_val_t val, char *buf, size_t 
 
 static adb_val_t int_fromstring(struct adb *db, apk_blob_t val)
 {
-	uint32_t n = apk_blob_pull_uint(&val, 10);
+	uint64_t n = apk_blob_pull_uint(&val, 10);
 	if (val.len) return ADB_ERROR(EINVAL);
 	return adb_w_int(db, n);
 }
@@ -266,7 +266,7 @@ static apk_blob_t oct_tostring(struct adb *db, adb_val_t val, char *buf, size_t 
 
 static adb_val_t oct_fromstring(struct adb *db, apk_blob_t val)
 {
-	uint32_t n = apk_blob_pull_uint(&val, 8);
+	uint64_t n = apk_blob_pull_uint(&val, 8);
 	if (val.len) return ADB_ERROR(EINVAL);
 	return adb_w_int(db, n);
 }
