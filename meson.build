@@ -12,8 +12,13 @@ pkgc = import('pkgconfig')
 apk_confdir = get_option('sysconfdir') / 'apk'
 apk_libdir = get_option('libdir')
 
-lua_bin = find_program('lua' + get_option('lua_version'), required: get_option('help'), native: true)
-lua_dep = dependency('lua' + get_option('lua_version'), required: get_option('lua'))
+lua_name = 'lua' + get_option('lua_version')
+lua_bin_name = get_option('lua_bin')
+lua_pc_name = get_option('lua_pc')
+
+lua_bin = find_program(lua_bin_name != '' ? lua_bin_name : lua_name, required: get_option('help'), native: true)
+lua_dep = dependency(lua_pc_name != '' ? lua_pc_name : lua_name, required: get_option('lua'))
+
 python_dep = dependency('python3', required: get_option('python'))
 scdoc_dep = dependency('scdoc', version: '>=1.10', required: get_option('docs'), native: true)
 zlib_dep = dependency('zlib')
