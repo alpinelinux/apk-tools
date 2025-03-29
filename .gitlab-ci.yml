@@ -92,6 +92,17 @@ test:debian:
     - docker-alpine
     - x86_64
 
+test:fedora:
+  image: registry.fedoraproject.org/fedora:latest
+  stage: test
+  script:
+    - dnf -y install meson gcc git-core lua-zlib 'pkgconfig(cmocka)' 'pkgconfig(libzstd)' 'pkgconfig(lua)' 'pkgconfig(openssl)' 'pkgconfig(python3)' 'pkgconfig(scdoc)' 'pkgconfig(zlib)'
+    - meson setup build -Dlua_version=5.4 -Dlua_bin=lua -Dlua_pc=lua
+    - ninja -C build
+  tags:
+    - docker-alpine
+    - x86_64
+
 build-static:
   stage: build
   image: alpinelinux/build-base:latest-$ARCH
