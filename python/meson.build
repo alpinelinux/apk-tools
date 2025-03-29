@@ -1,7 +1,8 @@
 py_mod = import('python')
-py_inst = py_mod.find_installation('python3')
 
-py_ext = shared_module(
+py_inst = py_mod.find_installation('python3', pure: false)
+
+py_ext = py_inst.extension_module(
 	'apk',
 	sources: files('apk_module.c'),
 	dependencies: [
@@ -12,10 +13,7 @@ py_ext = shared_module(
 	],
 	install: true,
 	gnu_symbol_visibility: 'hidden',
-	name_prefix: '',
-	name_suffix: py_inst.get_variable('EXT_SUFFIX').strip('.'),
 	c_args: apk_cargs,
-	install_dir: py_inst.get_install_dir(),
 )
 
 env = environment()

@@ -59,9 +59,9 @@ test:alpine-muon:
   script:
     - echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories
     - apk add -u muon $ALPINE_DEPS $ALPINE_STATIC_DEPS zstd-dev zstd-static
-    - muon setup build
+    - muon setup -Dpython=disabled build
     - ninja -C build
-    - muon setup -Dc_link_args="-static" -Dprefer_static=true -Ddefault_library=static build-static
+    - muon setup -Dpython=disabled -Dc_link_args="-static" -Dprefer_static=true -Ddefault_library=static build-static
     - ninja -C build-static src/apk
   tags:
     - docker-alpine
