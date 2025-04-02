@@ -51,6 +51,8 @@
 #define APK_DEFAULT_BASE_ARCH	"sh3"
 #elif defined(__sh__) && defined(__SH4__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define APK_DEFAULT_BASE_ARCH	"sh4"
+#elif defined(__wasi__)
+#define APK_DEFAULT_BASE_ARCH	"wasi32"
 #elif !defined(APK_CONFIG_ARCH)
 #error APK_DEFAULT_BASE_ARCH not detected for this architecture
 #endif
