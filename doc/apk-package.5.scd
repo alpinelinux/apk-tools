@@ -108,6 +108,8 @@ Unfortunately it is not possible to deduce if a given string is of format
 	- sh4
 	- loongarchx32
 	- loongarch64
+	- wasi32
+	- wasi64
 	- x86
 	- x86_64
 
