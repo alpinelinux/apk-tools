@@ -145,7 +145,6 @@ void apk_deps_from_adb(struct apk_dependency_array **deps, struct apk_database *
 
 int apk_dep_parse(apk_blob_t spec, apk_blob_t *name, int *op, apk_blob_t *version);
 struct apk_dependency_array *apk_deps_bclone(struct apk_dependency_array *deps, struct apk_balloc *ba);
-int apk_deps_balloc(struct apk_dependency_array **deps, uint32_t capacity, struct apk_balloc *ba);
 void apk_deps_add(struct apk_dependency_array **deps, struct apk_dependency *dep);
 void apk_deps_del(struct apk_dependency_array **deps, struct apk_name *name);
 int apk_script_type(const char *name);

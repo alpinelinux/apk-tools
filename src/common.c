@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "apk_defines.h"
+#include "apk_balloc.h"
 
 const struct apk_array _apk_array_empty = { .num = 0 };
 
@@ -54,6 +55,19 @@ void *_apk_array_grow(const struct apk_array *array, size_t item_size)
 void _apk_array__free(const struct apk_array *array)
 {
 	free((void*) array);
+}
+
+void *_apk_array_balloc(const struct apk_array *array, size_t item_size, size_t capacity, struct apk_balloc *ba)
+{
+	_apk_array_free(array);
+
+	struct apk_array *n = apk_balloc_new_extra(ba, struct apk_array, capacity * item_size);
+	if (!n) return (void*) &_apk_array_empty;
+	*n = (struct apk_array) {
+		.num = 0,
+		.capacity = capacity,
+	};
+	return n;
 }
 
 time_t apk_get_build_time(void)

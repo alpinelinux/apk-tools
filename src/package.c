@@ -179,20 +179,6 @@ struct apk_dependency_array *apk_deps_bclone(struct apk_dependency_array *deps, 
 	return ndeps;
 }
 
-int apk_deps_balloc(struct apk_dependency_array **deps, uint32_t capacity, struct apk_balloc *ba)
-{
-	struct apk_dependency_array *ndeps;
-
-	apk_dependency_array_free(deps);
-	ndeps = *deps = apk_balloc_new_extra(ba, struct apk_dependency_array, capacity * sizeof(struct apk_dependency));
-	if (!ndeps) return -ENOMEM;
-	ndeps->hdr = (struct apk_array) {
-		.num = 0,
-		.capacity = capacity,
-	};
-	return 0;
-}
-
 void apk_deps_add(struct apk_dependency_array **deps, struct apk_dependency *dep)
 {
 	apk_array_foreach(d0, *deps) {
@@ -400,7 +386,7 @@ void apk_deps_from_adb(struct apk_dependency_array **deps, struct apk_database *
 	struct apk_dependency d;
 	int i, num = adb_ra_num(da);
 
-	apk_deps_balloc(deps, num, &db->ba_deps);
+	apk_array_balloc(*deps, num, &db->ba_deps);
 	for (i = ADBI_FIRST; i <= adb_ra_num(da); i++) {
 		adb_ro_obj(da, i, &obj);
 		apk_dep_from_adb(&d, db, &obj);
