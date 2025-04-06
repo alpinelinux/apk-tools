@@ -74,6 +74,7 @@ struct apk_package {
 	struct apk_name *name;
 	struct apk_installed_package *ipkg;
 	struct apk_dependency_array *depends, *install_if, *provides, *recommends;
+	struct apk_blobptr_array *tags;
 	apk_blob_t *version;
 	apk_blob_t *arch, *license, *origin, *maintainer, *url, *description, *commit;
 	uint64_t installed_size, size;

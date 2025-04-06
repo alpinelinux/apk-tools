@@ -8,9 +8,12 @@ TESTDIR=$(realpath "${TESTDIR:-"$(dirname "$0")"/..}")
 setup_apkroot
 APK="$APK --allow-untrusted --no-interactive --no-cache"
 
-$APK mkpkg -I name:test-a -I version:1.0 -o test-a-1.0.apk
-$APK mkpkg -I name:test-b -I version:1.0 -o test-b-1.0.apk
+$APK mkpkg -I name:test-a -I version:1.0 -I tags:"tagA tagC=1" -o test-a-1.0.apk
+$APK mkpkg -I name:test-b -I version:1.0 -I tags:"tagB tagC=2" -o test-b-1.0.apk
 $APK mkpkg -I name:test-c -I version:1.0 -I "recommends:test-a" -o test-c-1.0.apk
+
+$APK mkpkg -I name:bad-a -I version:1.0 -I tags:"lost&found" -o bad-a-1.0.apk 2>/dev/null && assert "invalid tag allowed"
+[ -e bad-a-1.0.apk ] && assert "bad-a should not exist"
 
 $APK mkndx -q -o index.adb test-a-1.0.apk
 $APK mkndx -vv -o index-reindex.adb -x index.adb test-a-1.0.apk test-b-1.0.apk | diff -u /dev/fd/4 4<<EOF - || assert "wrong mkndx result"
@@ -47,4 +50,24 @@ $APK query --format=yaml --repository index.adb --fields name,recommends "test-c
 - name: test-c
   recommends: # 1 items
     - test-a
+EOF
+
+$APK query --format yaml --repository index.adb --fields name,tags --match tags tagA 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong query tags result"
+# 1 items
+- name: test-a
+  tags: # 2 items
+    - tagA
+    - tagC=1
+EOF
+
+$APK query --format yaml --repository index.adb --fields name,tags --match tags "tagC=*" 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong query tags result"
+# 2 items
+- name: test-a
+  tags: # 2 items
+    - tagA
+    - tagC=1
+- name: test-b
+  tags: # 2 items
+    - tagB
+    - tagC=2
 EOF

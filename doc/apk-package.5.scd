@@ -248,6 +248,15 @@ Unfortunately it is not possible to deduce if a given string is of format
 	affects the installad database where the metadata of these packages
 	go. Each layer has a separate installed database.
 
+*tags*
+	List of tags that this package will match against. Apk does not do
+	anything with the tags, but the distribution vendors can define their
+	own tags to associate custom metadata with the package. The tags can
+	be queried and dumped using the *apk-query*(8) applet.
+	Each tag consists of the following characters [a-zA-Z0-9.\_+-,:/\[\]=].
+	Custom tags should contain a distribution or vendor specific prefix
+	such as e.g. "alpine:".
+
 # PACKAGE METADATA
 
 *info*

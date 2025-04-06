@@ -15,23 +15,19 @@
 #define VERSUF	BIT(APK_CTYPE_VERSION_SUFFIX)
 #define DEPNAME	BIT(APK_CTYPE_DEPENDENCY_NAME)
 #define DEPCOMP	BIT(APK_CTYPE_DEPENDENCY_COMPARER)
-#define DEPSEP	BIT(APK_CTYPE_DEPENDENCY_SEPARATOR)
-#define REPOSEP	BIT(APK_CTYPE_REPOSITORY_SEPARATOR)
-#define VARNAME	BIT(APK_CTYPE_VARIABLE_NAME)
+#define VARNAME	BIT(APK_CTYPE_VARIABLE_NAME)|BIT(APK_CTYPE_TAG_NAME)
+#define TAGNAME	BIT(APK_CTYPE_TAG_NAME)
 
-static uint8_t apk_ctype[128] = {
-	['\t'] = REPOSEP,
-	['\n'] = DEPSEP,
-	[' '] = REPOSEP|DEPSEP,
-	['+'] = PKGNAME,
-	[','] = DEPNAME,
-	['-'] = PKGNAME,
-	['.'] = PKGNAME,
-	[':'] = DEPNAME,
+static const uint8_t apk_ctype1[] = {
+	['+'] = PKGNAME|TAGNAME,
+	[','] = DEPNAME|TAGNAME,
+	['-'] = PKGNAME|TAGNAME,
+	['.'] = PKGNAME|TAGNAME,
+	[':'] = DEPNAME|TAGNAME,
 	['<'] = DEPCOMP,
-	['='] = DEPCOMP,
+	['='] = DEPCOMP|TAGNAME,
 	['>'] = DEPCOMP,
-	['/'] = DEPNAME,
+	['/'] = DEPNAME|TAGNAME,
 	['0'] = HEXDGT|PKGNAME|VARNAME,
 	['1'] = HEXDGT|PKGNAME|VARNAME,
 	['2'] = HEXDGT|PKGNAME|VARNAME,
@@ -68,8 +64,8 @@ static uint8_t apk_ctype[128] = {
 	['X'] = PKGNAME|VARNAME,
 	['Y'] = PKGNAME|VARNAME,
 	['Z'] = PKGNAME|VARNAME,
-	['['] = DEPNAME,
-	[']'] = DEPNAME,
+	['['] = DEPNAME|TAGNAME,
+	[']'] = DEPNAME|TAGNAME,
 	['_'] = PKGNAME|VARNAME,
 	['a'] = HEXDGT|VERSUF|PKGNAME|VARNAME,
 	['b'] = HEXDGT|VERSUF|PKGNAME|VARNAME,
@@ -100,14 +96,38 @@ static uint8_t apk_ctype[128] = {
 	['~'] = DEPCOMP,
 };
 
+#define DEPSEP	BIT(APK_CTYPE_DEPENDENCY_SEPARATOR-8)
+#define REPOSEP	BIT(APK_CTYPE_REPOSITORY_SEPARATOR-8)
+
+static const uint8_t apk_ctype2[] = {
+	['\t'] = REPOSEP,
+	['\n'] = DEPSEP,
+	[' '] = REPOSEP|DEPSEP,
+};
+
+static const uint8_t *get_array(unsigned char ctype, uint8_t *mask, size_t *sz)
+{
+	if (ctype >= 8) {
+		*mask = BIT(ctype - 8);
+		*sz = ARRAY_SIZE(apk_ctype2);
+		return apk_ctype2;
+	} else {
+		*mask = BIT(ctype);
+		*sz = ARRAY_SIZE(apk_ctype1);
+		return apk_ctype1;
+	}
+}
+
 int apk_blob_spn(apk_blob_t blob, unsigned char ctype, apk_blob_t *l, apk_blob_t *r)
 {
-	uint8_t mask = BIT(ctype);
+	uint8_t mask;
+	size_t ctype_sz;
+	const uint8_t *ctype_data = get_array(ctype, &mask, &ctype_sz);
 	int i, ret = 0;
 
 	for (i = 0; i < blob.len; i++) {
 		uint8_t ch = blob.ptr[i];
-		if (ch >= ARRAY_SIZE(apk_ctype) || !(apk_ctype[ch]&mask)) {
+		if (ch >= ctype_sz || !(ctype_data[ch]&mask)) {
 			ret = 1;
 			break;
 		}
@@ -119,12 +139,14 @@ int apk_blob_spn(apk_blob_t blob, unsigned char ctype, apk_blob_t *l, apk_blob_t
 
 int apk_blob_cspn(apk_blob_t blob, unsigned char ctype, apk_blob_t *l, apk_blob_t *r)
 {
-	uint8_t mask = BIT(ctype);
+	uint8_t mask;
+	size_t ctype_sz;
+	const uint8_t *ctype_data = get_array(ctype, &mask, &ctype_sz);
 	int i, ret = 0;
 
 	for (i = 0; i < blob.len; i++) {
 		uint8_t ch = blob.ptr[i];
-		if (ch < ARRAY_SIZE(apk_ctype) && (apk_ctype[ch]&mask)) {
+		if (ch < ctype_sz && (ctype_data[ch]&mask)) {
 			ret = 1;
 			break;
 		}

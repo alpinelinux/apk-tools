@@ -23,7 +23,7 @@ check_content() {
 setup_apkroot
 APK="$APK --allow-untrusted --no-interactive"
 
-create_pkg a
+create_pkg a  -I "tags:tagA tagB"
 create_pkg b
 create_pkg c -I "replaces:a"
 
@@ -32,6 +32,16 @@ create_pkg d-b -I "origin:d"
 
 $APK add --initdb $TEST_USERMODE a-1.0.apk
 check_content "a"
+$APK query --format yaml --fields name,tags,repositories a  | diff -u /dev/fd/4 4<<EOF - || assert "wrong scripts result"
+# 1 items
+- name: a
+  tags: # 2 items
+    - tagA
+    - tagB
+  repositories:
+    - lib/apk/db/installed
+EOF
+
 $APK add b-1.0.apk && assert "should error with conflicting file"
 check_content "a"
 $APK del b

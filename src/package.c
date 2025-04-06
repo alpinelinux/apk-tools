@@ -409,6 +409,7 @@ void apk_pkgtmpl_init(struct apk_package_tmpl *tmpl)
 	apk_dependency_array_init(&tmpl->pkg.install_if);
 	apk_dependency_array_init(&tmpl->pkg.provides);
 	apk_dependency_array_init(&tmpl->pkg.recommends);
+	apk_blobptr_array_init(&tmpl->pkg.tags);
 	apk_pkgtmpl_reset(tmpl);
 }
 
@@ -418,6 +419,7 @@ void apk_pkgtmpl_free(struct apk_package_tmpl *tmpl)
 	apk_dependency_array_free(&tmpl->pkg.install_if);
 	apk_dependency_array_free(&tmpl->pkg.provides);
 	apk_dependency_array_free(&tmpl->pkg.recommends);
+	apk_blobptr_array_free(&tmpl->pkg.tags);
 }
 
 void apk_pkgtmpl_reset(struct apk_package_tmpl *tmpl)
@@ -428,6 +430,7 @@ void apk_pkgtmpl_reset(struct apk_package_tmpl *tmpl)
 			.install_if = apk_array_reset(tmpl->pkg.install_if),
 			.provides = apk_array_reset(tmpl->pkg.provides),
 			.recommends = apk_array_reset(tmpl->pkg.recommends),
+			.tags = apk_array_reset(tmpl->pkg.tags),
 			.arch = &apk_atom_null,
 			.license = &apk_atom_null,
 			.origin = &apk_atom_null,
@@ -515,7 +518,7 @@ int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl,
 		pkg->provider_priority = apk_blob_pull_uint(&value, 10);
 		break;
 	case 'F': case 'M': case 'R': case 'Z': case 'r': case 'q':
-	case 'a': case 's': case 'f':
+	case 'a': case 's': case 'f': case 'g':
 		/* installed db entries which are handled in database.c */
 		return 1;
 	default:
@@ -538,6 +541,13 @@ static apk_blob_t *commit_id(struct apk_atom_pool *atoms, apk_blob_t b)
 	to = apk_blob_pushed(APK_BLOB_BUF(buf), to);
 	if (APK_BLOB_IS_NULL(to)) return &apk_atom_null;
 	return apk_atomize_dup(atoms, to);
+}
+
+static void apk_blobs_from_adb(struct apk_blobptr_array **arr, struct apk_database *db, struct adb_obj *da)
+{
+	apk_array_balloc(*arr, adb_ra_num(da), &db->ba_deps);
+	for (int i = ADBI_FIRST; i <= adb_ra_num(da); i++)
+		apk_blobptr_array_add(arr, apk_atomize_dup(&db->atoms, adb_ro_blob(da, i)));
 }
 
 void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl, struct adb_obj *pkginfo)
@@ -568,6 +578,7 @@ void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl
 	apk_deps_from_adb(&pkg->provides, db, adb_ro_obj(pkginfo, ADBI_PI_PROVIDES, &obj));
 	apk_deps_from_adb(&pkg->install_if, db, adb_ro_obj(pkginfo, ADBI_PI_INSTALL_IF, &obj));
 	apk_deps_from_adb(&pkg->recommends, db, adb_ro_obj(pkginfo, ADBI_PI_RECOMMENDS, &obj));
+	apk_blobs_from_adb(&pkg->tags, db, adb_ro_obj(pkginfo, ADBI_PI_TAGS, &obj));
 }
 
 static int read_info_line(struct read_info_ctx *ri, apk_blob_t line)

@@ -44,6 +44,7 @@
 	func(APK_Q_FIELD_INSTALL_IF,	"install-if",		"Install-If") \
 	func(APK_Q_FIELD_RECOMMENDS,	"recommends",		"Recommends") \
 	func(APK_Q_FIELD_LAYER,		"layer",		"Layer") \
+	func(APK_Q_FIELD_TAGS,		"tags",			"Tags") \
 	\
 	func(APK_Q_FIELD_CONTENTS,	"contents",		"Contents") \
 	func(APK_Q_FIELD_TRIGGERS,	"triggers",		"Triggers") \
@@ -213,6 +214,13 @@ static int serialize_deps(struct apk_serializer *ser, struct apk_dependency_arra
 	return apk_ser_end(ser);
 }
 
+static int serialize_blobptr_array(struct apk_serializer *ser, struct apk_blobptr_array *a, bool provides)
+{
+	apk_ser_start_array(ser, apk_array_len(a));
+	apk_array_foreach_item(item, a) apk_ser_string(ser, *item);
+	return apk_ser_end(ser);
+}
+
 #define FIELD_SERIALIZE_BLOB(_f, _val, _fields, _ser)		\
 	do { if ((_fields & BIT(_f))) {				\
 		apk_blob_t val = _val;				\
@@ -228,7 +236,7 @@ static int serialize_deps(struct apk_serializer *ser, struct apk_dependency_arra
 		apk_ser_numeric(_ser, _val, 0);			\
 	} } while (0)
 
-#define FIELD_SERIALIZE_DEPS(_f, _val, _fields, _action, _provides, _ser) \
+#define FIELD_SERIALIZE_ARRAY(_f, _val, _fields, _action, _provides, _ser) \
 	do { if (apk_array_len(_val) && (_fields & BIT(_f))) {	\
 		apk_ser_key(_ser, apk_query_field(_f));		\
 		_action(_ser, _val, _provides);			\
@@ -260,11 +268,12 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_INSTALLED_SIZE, pkg->installed_size, fields, ser);
 	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_FILE_SIZE, pkg->size, fields, ser);
 	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_PROVIDER_PRIORITY, pkg->provider_priority, fields, ser);
-	FIELD_SERIALIZE_DEPS(APK_Q_FIELD_DEPENDS, pkg->depends, fields, ser_deps, false, ser);
-	FIELD_SERIALIZE_DEPS(APK_Q_FIELD_PROVIDES, pkg->provides, fields, ser_deps, true, ser);
-	FIELD_SERIALIZE_DEPS(APK_Q_FIELD_INSTALL_IF, pkg->install_if, fields, ser_deps, false, ser);
-	FIELD_SERIALIZE_DEPS(APK_Q_FIELD_RECOMMENDS, pkg->recommends, fields, ser_deps, false, ser);
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_DEPENDS, pkg->depends, fields, ser_deps, false, ser);
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_PROVIDES, pkg->provides, fields, ser_deps, true, ser);
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_INSTALL_IF, pkg->install_if, fields, ser_deps, false, ser);
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_RECOMMENDS, pkg->recommends, fields, ser_deps, false, ser);
 	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_LAYER, pkg->layer, fields, ser);
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_TAGS, pkg->tags, fields, serialize_blobptr_array, false, ser);
 
 	// synthetic/repositories fields
 	if (BIT(APK_Q_FIELD_REPOSITORIES) & fields) {
@@ -327,7 +336,7 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 		}
 
 		FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_REPLACES_PRIORITY, ipkg->replaces_priority, fields, ser);
-		FIELD_SERIALIZE_DEPS(APK_Q_FIELD_REPLACES, ipkg->replaces, fields, ser_deps, false, ser);
+		FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_REPLACES, ipkg->replaces, fields, ser_deps, false, ser);
 		if (BIT(APK_Q_FIELD_STATUS) & fields) {
 			apk_ser_key(ser, apk_query_field(APK_Q_FIELD_STATUS));
 			apk_ser_start_array(ser, -1);
@@ -658,7 +667,6 @@ int apk_query_matches(struct apk_ctx *ac, struct apk_query_spec *qs, struct apk_
 			if (m.dep.name) r = match_name(m.dep.name, &m);
 		} else {
 			// do full scan
-			if (!qs->mode.search) m.match = apk_fmts(buf, sizeof buf, BLOB_FMT, BLOB_PRINTF(m.q));
 			r = apk_hash_foreach(&db->available.names, match_name, &m);
 			if (r) break;
 		}

@@ -66,6 +66,7 @@ unsigned int adb_pkg_field_index(char f)
 		MAP('m', ADBI_PI_MAINTAINER),
 		MAP('t', ADBI_PI_BUILD_TIME),
 		MAP('c', ADBI_PI_REPO_COMMIT),
+		MAP('g', ADBI_PI_TAGS),
 		MAP('r', ADBI_PI_REPLACES),
 	};
 	if (f < 'A' || f-'A' >= ARRAY_SIZE(map)) return 0;
@@ -102,6 +103,23 @@ static struct adb_scalar_schema scalar_mstring = {
 	.tostring = string_tostring,
 	.fromstring = string_fromstring,
 	.compare = string_compare,
+};
+
+static int tags_fromstring(struct adb_obj *obj, apk_blob_t str)
+{
+	apk_blob_foreach_word(word, str) {
+		if (apk_blob_spn(word, APK_CTYPE_TAG_NAME, NULL, NULL))
+			return -APKE_ADB_PACKAGE_FORMAT;
+		adb_wa_append_fromstring(obj, word);
+	}
+	return 0;
+}
+
+const struct adb_object_schema schema_tags_array = {
+	.kind = ADB_KIND_ARRAY,
+	.num_fields = 32,
+	.fromstring = tags_fromstring,
+	.fields = ADB_ARRAY_ITEM(scalar_string),
 };
 
 const struct adb_object_schema schema_string_array = {
@@ -415,6 +433,7 @@ const struct adb_object_schema schema_pkginfo = {
 		ADB_FIELD(ADBI_PI_INSTALL_IF,	"install-if",	schema_dependency_array),
 		ADB_FIELD(ADBI_PI_RECOMMENDS,	"recommends",	schema_dependency_array),
 		ADB_FIELD(ADBI_PI_LAYER,	"layer",	scalar_int),
+		ADB_FIELD(ADBI_PI_TAGS,		"tags",		schema_tags_array),
 	},
 };
 

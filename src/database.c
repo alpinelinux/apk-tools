@@ -618,6 +618,7 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 		idb->depends = apk_array_bclone(pkg->depends, &db->ba_deps);
 		idb->install_if = apk_array_bclone(pkg->install_if, &db->ba_deps);
 		idb->provides = apk_array_bclone(pkg->provides, &db->ba_deps);
+		idb->tags = apk_array_bclone(pkg->tags, &db->ba_deps);
 
 		apk_hash_insert(&db->available.packages, idb);
 		apk_provider_array_add(&idb->name->providers, APK_PROVIDER_FROM_PACKAGE(idb));
@@ -878,6 +879,10 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 
 		/* Check FDB special entries */
 		switch (field) {
+		case 'g':
+			apk_blob_foreach_word(tag, l)
+				apk_blobptr_array_add(&tmpl.pkg.tags, apk_atomize_dup(&db->atoms, tag));
+			break;
 		case 'F':
 			if (diri) apk_db_dir_apply_diri_permissions(db, diri);
 			if (tmpl.pkg.name == NULL) goto bad_entry;
@@ -983,6 +988,20 @@ static void apk_blob_push_db_acl(apk_blob_t *b, char field, struct apk_db_acl *a
 	apk_blob_push_blob(b, APK_BLOB_STR("\n"));
 }
 
+static int write_blobs(struct apk_ostream *os, const char *field, struct apk_blobptr_array *blobs)
+{
+	apk_blob_t separator = APK_BLOB_STR(field);
+	if (apk_array_len(blobs) == 0) return 0;
+	apk_array_foreach_item(blob, blobs) {
+		if (apk_ostream_write_blob(os, separator) < 0) goto err;
+		if (apk_ostream_write_blob(os, *blob) < 0) goto err;
+		separator = APK_BLOB_STRLIT(" ");
+	}
+	apk_ostream_write(os, "\n", 1);
+err:
+	return apk_ostream_error(os);
+}
+
 static int apk_db_fdb_write(struct apk_database *db, struct apk_installed_package *ipkg, struct apk_ostream *os)
 {
 	struct apk_package *pkg = ipkg->pkg;
@@ -996,6 +1015,9 @@ static int apk_db_fdb_write(struct apk_database *db, struct apk_installed_packag
 	if (IS_ERR(os)) return PTR_ERR(os);
 
 	r = apk_pkg_write_index_header(pkg, os);
+	if (r < 0) goto err;
+
+	r = write_blobs(os, "g:", pkg->tags);
 	if (r < 0) goto err;
 
 	if (apk_array_len(ipkg->replaces) != 0) {

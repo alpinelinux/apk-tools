@@ -80,8 +80,8 @@ default format the fields are capilaized.
 The following package metadata fields are available:
 *name*, *version*, *description*, *arch*, *license*, *origin*, *maintainer*,
 *url*, *commit*, *build-time*, *installed-size*, *file-size*, *provider-priority*,
-*depends*, *provides*, *replaces*, *install-if*, *layer*, *triggers*, *scripts*,
-and *replaces-priority*.
+*depends*, *provides*, *replaces*, *install-if*, *layer*, *tags*, *triggers*,
+*scripts*, and *replaces-priority*.
 See *apk-package*(8) *package info metadata* and *package metadata* sections
 for the description of these fields.
 
