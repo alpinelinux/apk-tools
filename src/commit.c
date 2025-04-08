@@ -369,6 +369,8 @@ int apk_solver_commit_changeset(struct apk_database *db,
 				download_size += change->new_pkg->size;
 		}
 		if (change->old_pkg) {
+			if (change->old_pkg != change->new_pkg)
+				change->old_pkg->ipkg->to_be_removed = 1;
 			size_diff -= change->old_pkg->installed_size;
 			pkg_diff--;
 		}

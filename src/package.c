@@ -930,6 +930,10 @@ int apk_pkg_replaces_dir(const struct apk_package *a, const struct apk_package *
 	/* Upgrading package? */
 	if (a->name == b->name) return APK_PKG_REPLACES_YES;
 
+	/* Replace files on removal */
+	if (a->ipkg->to_be_removed) return APK_PKG_REPLACES_YES;
+	if (b->ipkg->to_be_removed) return APK_PKG_REPLACES_NO;
+
 	/* Highest replaces_priority wins */
 	if (ai->replaces_priority > bi->replaces_priority) return APK_PKG_REPLACES_NO;
 	if (ai->replaces_priority < bi->replaces_priority) return APK_PKG_REPLACES_YES;
@@ -957,6 +961,10 @@ int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package 
 
 	/* Upgrading package? */
 	if (a->name == b->name) return APK_PKG_REPLACES_YES;
+
+	/* Replace files on removal */
+	if (a->ipkg->to_be_removed) return APK_PKG_REPLACES_YES;
+	if (b->ipkg->to_be_removed) return APK_PKG_REPLACES_NO;
 
 	/* Does the original package replace the new one? */
 	apk_array_foreach(dep, a->ipkg->replaces) {

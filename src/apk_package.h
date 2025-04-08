@@ -66,6 +66,7 @@ struct apk_installed_package {
 	unsigned broken_script : 1;
 	unsigned broken_xattr : 1;
 	unsigned sha256_160 : 1;
+	unsigned to_be_removed : 1;
 };
 
 struct apk_package {
