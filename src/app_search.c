@@ -127,7 +127,7 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 	ac->query.match |= BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_PROVIDES);
 	apk_package_array_init(&pkgs);
 	r = apk_query_packages(ac, &ac->query, args, &pkgs);
-	if (r == 0) {
+	if (r >= 0) {
 		apk_array_foreach_item(pkg, pkgs) ctx->print_result(ctx, pkg);
 	} else {
 		apk_err(out, "query failed: %s", apk_error_str(r));
