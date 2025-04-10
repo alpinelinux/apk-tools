@@ -61,6 +61,7 @@ libapk_headers = [
 	'apk_print.h',
 	'apk_provider_data.h',
 	'apk_query.h',
+	'apk_repoparser.h',
 	'apk_serialize.h',
 	'apk_solver_data.h',
 	'apk_solver.h',
