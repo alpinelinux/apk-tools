@@ -25,6 +25,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 	ac->out.out = stdout;
 	ac->out.err = stderr;
 	ac->out.verbosity = 1;
+	ac->out.progress_char = "#";
 	ac->cache_max_age = 4*60*60; /* 4 hours default */
 	ac->apknew_suffix = ".apk-new";
 	ac->default_pkgname_spec = APK_BLOB_STRLIT("${name}-${version}.apk");

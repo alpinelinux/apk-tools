@@ -398,8 +398,6 @@ static void setup_automatic_flags(struct apk_ctx *ac)
 		ac->out.progress_char = tmp;
 	else if ((tmp = getenv("LANG")) != NULL && strstr(tmp, "UTF-8") != NULL)
 		ac->out.progress_char = "\u2588";
-	else
-		ac->out.progress_char = "#";
 
 	if (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
 		ac->out.progress_disable = 1;
