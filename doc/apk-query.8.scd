@@ -62,13 +62,13 @@ The applets supporting query specifiers recognize the following options:
 *--recursive*
 	Run solver algorithm with given _constraints_ to select packages.
 
-*--ugpradable*
+*--upgradable*
 	Filter selection to upgradable packages.
 
 *--world*
 	Include *apk-world*(5) dependencies in constraints. Implies *--recursive*.
 
-*--oprhaned*
+*--orphaned*
 	Filter selection to orphaned packages.
 
 # FIELDS
