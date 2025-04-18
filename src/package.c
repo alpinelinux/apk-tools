@@ -921,7 +921,7 @@ int apk_pkg_cmp_display(const struct apk_package *a, const struct apk_package *b
 
 int apk_pkg_replaces_dir(const struct apk_package *a, const struct apk_package *b)
 {
-	struct apk_installed_package *ai = a->ipkg, *bi = b->ipkg;
+	const struct apk_installed_package *ai = a->ipkg, *bi = b->ipkg;
 
 	/* Prefer overlay */
 	if (a->name == NULL) return APK_PKG_REPLACES_NO;
@@ -931,8 +931,8 @@ int apk_pkg_replaces_dir(const struct apk_package *a, const struct apk_package *
 	if (a->name == b->name) return APK_PKG_REPLACES_YES;
 
 	/* Replace files on removal */
-	if (a->ipkg->to_be_removed) return APK_PKG_REPLACES_YES;
-	if (b->ipkg->to_be_removed) return APK_PKG_REPLACES_NO;
+	if (ai->to_be_removed) return APK_PKG_REPLACES_YES;
+	if (bi->to_be_removed) return APK_PKG_REPLACES_NO;
 
 	/* Highest replaces_priority wins */
 	if (ai->replaces_priority > bi->replaces_priority) return APK_PKG_REPLACES_NO;
@@ -954,6 +954,7 @@ int apk_pkg_replaces_dir(const struct apk_package *a, const struct apk_package *
 
 int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package *b)
 {
+	const struct apk_installed_package *ai = a->ipkg, *bi = b->ipkg;
 	int a_prio = -1, b_prio = -1;
 
 	/* Overlay file? Replace the ownership, but extraction will keep the overlay file. */
@@ -963,21 +964,21 @@ int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package 
 	if (a->name == b->name) return APK_PKG_REPLACES_YES;
 
 	/* Replace files on removal */
-	if (a->ipkg->to_be_removed) return APK_PKG_REPLACES_YES;
-	if (b->ipkg->to_be_removed) return APK_PKG_REPLACES_NO;
+	if (ai->to_be_removed) return APK_PKG_REPLACES_YES;
+	if (bi->to_be_removed) return APK_PKG_REPLACES_NO;
 
 	/* Does the original package replace the new one? */
-	apk_array_foreach(dep, a->ipkg->replaces) {
+	apk_array_foreach(dep, ai->replaces) {
 		if (apk_dep_is_materialized(dep, b)) {
-			a_prio = a->ipkg->replaces_priority;
+			a_prio = ai->replaces_priority;
 			break;
 		}
 	}
 
 	/* Does the new package replace the original one? */
-	apk_array_foreach(dep, b->ipkg->replaces) {
+	apk_array_foreach(dep, bi->replaces) {
 		if (apk_dep_is_materialized(dep, a)) {
-			b_prio = b->ipkg->replaces_priority;
+			b_prio = bi->replaces_priority;
 			break;
 		}
 	}
