@@ -191,29 +191,33 @@ int apk_istream_get_max(struct apk_istream *is, size_t max, apk_blob_t *data)
 
 int apk_istream_get_delim(struct apk_istream *is, apk_blob_t token, apk_blob_t *data)
 {
-	apk_blob_t ret = APK_BLOB_NULL, left = APK_BLOB_NULL;
-	int r = 0;
+	int r;
+
+	if (is->err && is->ptr == is->end) {
+		*data = APK_BLOB_NULL;
+		return is->err < 0 ? is->err : -APKE_EOF;
+	}
 
 	do {
-		if (apk_blob_split(APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr), token, &ret, &left))
-			break;
+		apk_blob_t left;
+		if (apk_blob_split(APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr), token, data, &left)) {
+			is->ptr = (uint8_t*)left.ptr;
+			is->end = (uint8_t*)left.ptr + left.len;
+			return 0;
+		}
 		r = __apk_istream_fill(is);
 	} while (r == 0);
 
-	/* Last segment before end-of-file. Return also zero length non-null
-	 * blob if eof comes immediately after the delimiter. */
-	if (is->ptr && r > 0)
-		ret = APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr);
-
-	if (!APK_BLOB_IS_NULL(ret)) {
-		is->ptr = (uint8_t*)left.ptr;
-		is->end = (uint8_t*)left.ptr + left.len;
-		*data = ret;
-		return 0;
+	if (r < 0) {
+		*data = APK_BLOB_NULL;
+		return apk_istream_error(is, r);
 	}
-	if (r < 0) apk_istream_error(is, r);
-	*data = APK_BLOB_NULL;
-	return r < 0 ? r : -APKE_EOF;
+
+	/* EOF received. Return the last buffered data or an empty
+	 * blob if EOF came directly after last separator. */
+	*data = APK_BLOB_PTR_LEN((char*)is->ptr, is->end - is->ptr);
+	is->ptr = is->end = is->buf;
+	return 0;
 }
 
 static void blob_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
