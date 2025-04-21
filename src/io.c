@@ -915,7 +915,7 @@ int apk_dir_foreach_config_file(int dirfd, apk_dir_file_cb cb, void *cbctx, bool
 	const char *path;
 	int path_fd[8], num_paths = 0;
 	va_list va;
-	int r, i;
+	int r = 0, i;
 
 	va_start(va, filter);
 	apk_atfile_array_init(&ctx.files);
