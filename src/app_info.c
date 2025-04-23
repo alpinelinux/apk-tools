@@ -324,8 +324,7 @@ static int info_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char
 		qs->fields |= BIT(APK_Q_FIELD_LICENSE);
 		break;
 	case OPT_INFO_all:
-		qs->fields |= BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_VERSION) |
-			BIT(APK_Q_FIELD_URL) | BIT(APK_Q_FIELD_DEPENDS) |
+		qs->fields |= BIT(APK_Q_FIELD_URL) | BIT(APK_Q_FIELD_DEPENDS) |
 			BIT(APK_Q_FIELD_PROVIDES) | BIT(APK_Q_FIELD_REVDEPS_PKGNAME) |
 			BIT(APK_Q_FIELD_INSTALL_IF) | BIT(APK_Q_FIELD_RINSTALL_IF) |
 			BIT(APK_Q_FIELD_INSTALLED_SIZE) | BIT(APK_Q_FIELD_DESCRIPTION) |
@@ -359,8 +358,9 @@ static int info_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *arg
 		qs->mode.empty_matches_all = 1;
 		oneline = 1;
 	}
-	if (!qs->fields) qs->fields = BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_VERSION) |
-		BIT(APK_Q_FIELD_DESCRIPTION) | BIT(APK_Q_FIELD_URL) | BIT(APK_Q_FIELD_INSTALLED_SIZE);
+	if (!qs->fields) qs->fields = BIT(APK_Q_FIELD_DESCRIPTION) | BIT(APK_Q_FIELD_URL) |
+		BIT(APK_Q_FIELD_INSTALLED_SIZE);
+	qs->fields |= BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_VERSION);
 	if (!qs->match) qs->match = BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_PROVIDES);
 	if (qs->ser == &apk_serializer_query && (oneline || ac->legacy_info)) {
 		apk_package_array_init(&pkgs);
