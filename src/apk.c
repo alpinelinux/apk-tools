@@ -85,7 +85,7 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 	struct apk_out *out = &ac->out;
 	switch (opt) {
 	case OPT_GLOBAL_help:
-		return -EINVAL;
+		return -ENOTSUP;
 	case OPT_GLOBAL_root:
 		ac->root = optarg;
 		break;
@@ -265,10 +265,8 @@ int optgroup_generation_parse(struct apk_ctx *ac, int optch, const char *optarg)
 
 	switch (optch) {
 	case OPT_GENERATION_compression:
-		if (adb_parse_compression(optarg, &ac->compspec) != 0) {
-			apk_err(out, "invalid compression type: %s", optarg);
+		if (adb_parse_compression(optarg, &ac->compspec) != 0)
 			return -EINVAL;
-		}
 		break;
 	case OPT_GENERATION_sign_key:
 		key = apk_trust_load_key(AT_FDCWD, optarg, 1);
@@ -387,6 +385,7 @@ static void add_options(struct apk_options *opts, const char *desc, int group_id
 			opt2->val |= APK_OPTVAL_BOOL_TRUE;
 			opt2->name += 3; // skip "no-"
 		}
+		assert(opt->val != '?');
 	}
 }
 
@@ -494,6 +493,7 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 	}
 
 	while ((p = getopt_long(argc, argv, opts.short_options, opts.options, NULL)) != -1) {
+		if (p == '?') return 1;
 		if (p >= 64 && p < 128) p = opts.short_option_val[p - 64];
 		void *arg = apk_optval_arg(p, optarg);
 		switch (APK_OPTVAL_GROUPID(p)) {
@@ -502,9 +502,18 @@ static int parse_options(int argc, char **argv, struct apk_applet *applet, void 
 		case 3: r = apk_query_parse_option(ac, APK_OPTVAL_OPTIONID(p), arg); break;
 		case 4: r = optgroup_generation_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
 		case 15: r = applet->parse(ctx, ac, APK_OPTVAL_OPTIONID(p), arg); break;
-		default: r = -EINVAL;
+		default: r = -ENOTSUP;
 		}
-		if (r == -EINVAL || r == -ENOTSUP) return usage(out, applet);
+		if (r == -ENOTSUP) return usage(out, applet);
+		if (r == -EINVAL) {
+			struct option *opt = opts.options;
+			for (; opt->name; opt++)
+				if (opt->val == p) break;
+			assert(opt->val == p);
+			assert(optarg);
+			apk_err(out, "invalid argument for --%s: %s", opt->name, optarg);
+			return 1;
+		}
 		if (r != 0) return r;
 	}
 

@@ -136,7 +136,6 @@ APK_OPTIONS_EXT(optgroup_query_desc, QUERY_OPTIONS);
 int apk_query_parse_option(struct apk_ctx *ac, int opt, const char *optarg)
 {
 	const unsigned long all_flags = APK_OPENF_NO_SYS_REPOS | APK_OPENF_NO_INSTALLED_REPO | APK_OPENF_NO_INSTALLED;
-	struct apk_out *out = &ac->out;
 	struct apk_query_spec *qs = &ac->query;
 	unsigned long flags;
 
@@ -149,10 +148,7 @@ int apk_query_parse_option(struct apk_ctx *ac, int opt, const char *optarg)
 		break;
 	case OPT_QUERY_fields:
 		qs->fields = apk_query_fields(APK_BLOB_STR(optarg), APK_Q_FIELDS_ALL, &ac->out);
-		if (!qs->fields) {
-			apk_err(out, "invalid --fields '%s'", optarg);
-			return -EINVAL;
-		}
+		if (!qs->fields) return -EINVAL;
 		break;
 	case OPT_QUERY_format:
 		qs->ser = apk_serializer_lookup(optarg);
@@ -166,10 +162,7 @@ int apk_query_parse_option(struct apk_ctx *ac, int opt, const char *optarg)
 		break;
 	case OPT_QUERY_match:
 		qs->match = apk_query_fields(APK_BLOB_STR(optarg), APK_Q_FIELDS_MATCHABLE, &ac->out);
-		if (!qs->match) {
-			apk_err(out, "invalid --match '%s'", optarg);
-			return -EINVAL;
-		}
+		if (!qs->match) return -EINVAL;
 		break;
 	case OPT_QUERY_recursive:
 		qs->mode.recursive = 1;
@@ -195,7 +188,7 @@ int apk_query_parse_option(struct apk_ctx *ac, int opt, const char *optarg)
 		} else if (strcmp(optarg, "system") == 0) {
 			flags = 0;
 		} else
-			return -ENOTSUP;
+			return -EINVAL;
 
 		ac->open_flags &= ~all_flags;
 		ac->open_flags |= flags;
