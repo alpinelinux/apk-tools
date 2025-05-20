@@ -48,7 +48,6 @@ libapk_headers = [
 	'apk_blob.h',
 	'apk_context.h',
 	'apk_crypto.h',
-	'apk_crypto_@0@.h'.format(crypto_backend),
 	'apk_ctype.h',
 	'apk_database.h',
 	'apk_defines.h',
@@ -106,7 +105,6 @@ apk_src = [
 apk_cargs = [
 	'-D_ATFILE_SOURCE',
 	'-DAPK_VERSION="' + meson.project_version() + '"',
-	'-DCRYPTO_USE_@0@'.format(crypto_backend.to_upper()),
 ]
 
 if lua_bin.found()

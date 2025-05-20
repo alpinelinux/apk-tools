@@ -11,14 +11,6 @@
 #include "apk_defines.h"
 #include "apk_blob.h"
 
-#if defined(CRYPTO_USE_OPENSSL)
-#include "apk_crypto_openssl.h"
-#elif defined(CRYPTO_USE_MBEDTLS)
-#include "apk_crypto_mbedtls.h"
-#else
-#error Crypto backend not selected
-#endif
-
 // Digest
 
 #define APK_DIGEST_NONE		0x00
@@ -82,6 +74,13 @@ static inline void apk_digest_push_hex(apk_blob_t *to, struct apk_digest *digest
 	return apk_blob_push_hash_hex(to, APK_DIGEST_BLOB(*digest));
 }
 
+// Digest context
+
+struct apk_digest_ctx {
+	uint8_t alg;
+	void *priv;
+};
+
 int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg);
 int apk_digest_ctx_reset(struct apk_digest_ctx *dctx);
 int apk_digest_ctx_reset_alg(struct apk_digest_ctx *dctx, uint8_t alg);
@@ -90,6 +89,11 @@ int apk_digest_ctx_update(struct apk_digest_ctx *dctx, const void *ptr, size_t s
 int apk_digest_ctx_final(struct apk_digest_ctx *dctx, struct apk_digest *d);
 
 // Asymmetric keys
+
+struct apk_pkey {
+	uint8_t id[16];
+	void *priv;
+};
 
 void apk_pkey_free(struct apk_pkey *pkey);
 int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn, int priv);

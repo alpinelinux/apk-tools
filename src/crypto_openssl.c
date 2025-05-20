@@ -29,6 +29,22 @@ static inline void EVP_MD_CTX_free(EVP_MD_CTX *mdctx)
 
 #endif
 
+// OpenSSL opaque types mapped directly to the priv
+
+static EVP_MD_CTX *ossl_mdctx(struct apk_digest_ctx *dctx) { return dctx->priv; }
+static void apk_digest_set_mdctx(struct apk_digest_ctx *dctx, EVP_MD_CTX *mdctx)
+{
+	EVP_MD_CTX_free(dctx->priv);
+	dctx->priv = mdctx;
+}
+
+static EVP_PKEY *ossl_pkey(struct apk_pkey *pkey) { return pkey->priv; }
+static void apk_pkey_set_pkey(struct apk_pkey *pkey, EVP_PKEY *pk)
+{
+	EVP_PKEY_free(pkey->priv);
+	pkey->priv = pk;
+}
+
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 static EVP_MD *sha1 = NULL;
 static EVP_MD *sha256 = NULL;
@@ -92,13 +108,15 @@ int apk_digest_calc(struct apk_digest *d, uint8_t alg, const void *ptr, size_t s
 int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg)
 {
 	dctx->alg = alg;
-	dctx->mdctx = EVP_MD_CTX_new();
-	if (!dctx->mdctx) return -ENOMEM;
+	dctx->priv = NULL;
+
+	apk_digest_set_mdctx(dctx, EVP_MD_CTX_new());
+	if (!ossl_mdctx(dctx)) return -ENOMEM;
 #ifdef EVP_MD_CTX_FLAG_FINALISE
-	EVP_MD_CTX_set_flags(dctx->mdctx, EVP_MD_CTX_FLAG_FINALISE);
+	EVP_MD_CTX_set_flags(ossl_mdctx(dctx), EVP_MD_CTX_FLAG_FINALISE);
 #endif
 	if (dctx->alg == APK_DIGEST_NONE) return 0;
-	if (EVP_DigestInit_ex(dctx->mdctx, apk_digest_alg_to_evp(alg), 0) != 1)
+	if (EVP_DigestInit_ex(ossl_mdctx(dctx), apk_digest_alg_to_evp(alg), 0) != 1)
 		return -APKE_CRYPTO_ERROR;
 	return 0;
 }
@@ -106,15 +124,15 @@ int apk_digest_ctx_init(struct apk_digest_ctx *dctx, uint8_t alg)
 int apk_digest_ctx_reset(struct apk_digest_ctx *dctx)
 {
 	if (dctx->alg == APK_DIGEST_NONE) return 0;
-	if (EVP_DigestInit_ex(dctx->mdctx, NULL, 0) != 1) return -APKE_CRYPTO_ERROR;
+	if (EVP_DigestInit_ex(ossl_mdctx(dctx), NULL, 0) != 1) return -APKE_CRYPTO_ERROR;
 	return 0;
 }
 
 int apk_digest_ctx_reset_alg(struct apk_digest_ctx *dctx, uint8_t alg)
 {
 	assert(alg != APK_DIGEST_NONE);
-	if (EVP_MD_CTX_reset(dctx->mdctx) != 1 ||
-	    EVP_DigestInit_ex(dctx->mdctx, apk_digest_alg_to_evp(alg), 0) != 1)
+	if (EVP_MD_CTX_reset(ossl_mdctx(dctx)) != 1 ||
+	    EVP_DigestInit_ex(ossl_mdctx(dctx), apk_digest_alg_to_evp(alg), 0) != 1)
 		return -APKE_CRYPTO_ERROR;
 	dctx->alg = alg;
 	return 0;
@@ -122,14 +140,13 @@ int apk_digest_ctx_reset_alg(struct apk_digest_ctx *dctx, uint8_t alg)
 
 void apk_digest_ctx_free(struct apk_digest_ctx *dctx)
 {
-	EVP_MD_CTX_free(dctx->mdctx);
-	dctx->mdctx = 0;
+	apk_digest_set_mdctx(dctx, NULL);
 }
 
 int apk_digest_ctx_update(struct apk_digest_ctx *dctx, const void *ptr, size_t sz)
 {
 	assert(dctx->alg != APK_DIGEST_NONE);
-	return EVP_DigestUpdate(dctx->mdctx, ptr, sz) == 1 ? 0 : -APKE_CRYPTO_ERROR;
+	return EVP_DigestUpdate(ossl_mdctx(dctx), ptr, sz) == 1 ? 0 : -APKE_CRYPTO_ERROR;
 }
 
 int apk_digest_ctx_final(struct apk_digest_ctx *dctx, struct apk_digest *d)
@@ -138,7 +155,7 @@ int apk_digest_ctx_final(struct apk_digest_ctx *dctx, struct apk_digest *d)
 
 	assert(dctx->alg != APK_DIGEST_NONE);
 
-	if (EVP_DigestFinal_ex(dctx->mdctx, d->data, &mdlen) != 1) {
+	if (EVP_DigestFinal_ex(ossl_mdctx(dctx), d->data, &mdlen) != 1) {
 		apk_digest_reset(d);
 		return -APKE_CRYPTO_ERROR;
 	}
@@ -153,20 +170,21 @@ static int apk_pkey_init(struct apk_pkey *pkey, EVP_PKEY *key)
 	unsigned int dlen = sizeof dig;
 	int len, r = -APKE_CRYPTO_ERROR;
 
+	pkey->priv = NULL;
 	if ((len = i2d_PublicKey(key, &pub)) < 0) return -APKE_CRYPTO_ERROR;
 	if (EVP_Digest(pub, len, dig, &dlen, EVP_sha512(), NULL) == 1) {
 		memcpy(pkey->id, dig, sizeof pkey->id);
 		r = 0;
 	}
 	OPENSSL_free(pub);
-	pkey->key = key;
+	apk_pkey_set_pkey(pkey, key);
 
 	return r;
 }
 
 void apk_pkey_free(struct apk_pkey *pkey)
 {
-	EVP_PKEY_free(pkey->key);
+	apk_pkey_set_pkey(pkey, NULL);
 }
 
 int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn, int priv)
@@ -192,8 +210,8 @@ int apk_pkey_load(struct apk_pkey *pkey, int dirfd, const char *fn, int priv)
 
 int apk_sign_start(struct apk_digest_ctx *dctx, uint8_t alg, struct apk_pkey *pkey)
 {
-	if (EVP_MD_CTX_reset(dctx->mdctx) != 1 ||
-	    EVP_DigestSignInit(dctx->mdctx, NULL, apk_digest_alg_to_evp(alg), NULL, pkey->key) != 1)
+	if (EVP_MD_CTX_reset(ossl_mdctx(dctx)) != 1 ||
+	    EVP_DigestSignInit(ossl_mdctx(dctx), NULL, apk_digest_alg_to_evp(alg), NULL, ossl_pkey(pkey)) != 1)
 		return -APKE_CRYPTO_ERROR;
 	dctx->alg = alg;
 	return 0;
@@ -201,15 +219,15 @@ int apk_sign_start(struct apk_digest_ctx *dctx, uint8_t alg, struct apk_pkey *pk
 
 int apk_sign(struct apk_digest_ctx *dctx, void *sig, size_t *len)
 {
-	if (EVP_DigestSignFinal(dctx->mdctx, sig, len) != 1)
+	if (EVP_DigestSignFinal(ossl_mdctx(dctx), sig, len) != 1)
 		return -APKE_SIGNATURE_GEN_FAILURE;
 	return 0;
 }
 
 int apk_verify_start(struct apk_digest_ctx *dctx, uint8_t alg, struct apk_pkey *pkey)
 {
-	if (EVP_MD_CTX_reset(dctx->mdctx) != 1 ||
-	    EVP_DigestVerifyInit(dctx->mdctx, NULL, apk_digest_alg_to_evp(alg), NULL, pkey->key) != 1)
+	if (EVP_MD_CTX_reset(ossl_mdctx(dctx)) != 1 ||
+	    EVP_DigestVerifyInit(ossl_mdctx(dctx), NULL, apk_digest_alg_to_evp(alg), NULL, ossl_pkey(pkey)) != 1)
 		return -APKE_CRYPTO_ERROR;
 	dctx->alg = alg;
 	return 0;
@@ -217,7 +235,7 @@ int apk_verify_start(struct apk_digest_ctx *dctx, uint8_t alg, struct apk_pkey *
 
 int apk_verify(struct apk_digest_ctx *dctx, void *sig, size_t len)
 {
-	if (EVP_DigestVerifyFinal(dctx->mdctx, sig, len) != 1)
+	if (EVP_DigestVerifyFinal(ossl_mdctx(dctx), sig, len) != 1)
 		return -APKE_SIGNATURE_INVALID;
 	return 0;
 }
