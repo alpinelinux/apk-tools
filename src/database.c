@@ -2043,6 +2043,7 @@ int apk_db_open(struct apk_database *db)
 		}
 	}
 	for (i = 0; i < db->num_repos; i++) open_repository(db, i);
+	apk_out_progress_note(out, NULL);
 
 	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS) && db->repositories.updated > 0)
 		apk_db_index_write_nr_cache(db);

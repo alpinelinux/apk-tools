@@ -222,6 +222,13 @@ void apk_out_progress_note(struct apk_out *out, const char *format, ...)
 	FILE *f = out->out;
 
 	if (out->progress_disable) return;
+	if (!format) {
+		if (out->need_flush) {
+			fflush(f);
+			out->need_flush = 0;
+		}
+		return;
+	}
 
 	va_start(va, format);
 	n = vsnprintf(buf, sizeof buf, format, va);
