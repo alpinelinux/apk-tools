@@ -40,8 +40,6 @@ URL_BACKEND	?= libfetch
 CRYPTO		?= openssl
 export URL_BACKEND CRYPTO
 
-CFLAGS_ALL	+= -DCRYPTO_USE_$(shell echo $(CRYPTO) | tr '[:lower:]' '[:upper:]')
-
 ##
 # Top-level targets
 
