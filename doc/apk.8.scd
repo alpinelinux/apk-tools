@@ -105,8 +105,8 @@ The following options are available for all commands.
 *-f, --force*
 	Enable selected --force-\* options (deprecated).
 
-*-i, --interactive*
-	Ask confirmation before performing certain operations.
+*-i, --interactive, --no-interactive*
+	Ask or don't ask for confirmation before performing certain operations.
 	Interactive mode can be made the default when running on a tty,
 	by creating /etc/apk/interactive as an empty file.
 
@@ -150,11 +150,11 @@ The following options are available for all commands.
 	Maximum AGE (in minutes) for index in cache before it's refreshed. *0*
 	means always refresh.
 
-*--cache-packages*
+*--cache-packages, --no-cache-packages*
 	Store a copy of packages at installation time to cache. Enabled automatically
 	if */etc/apk/cache* symlink exists.
 
-*--cache-predownload*
+*--cache-predownload, --no-cache-predownload*
 	Download needed packages to cache before starting to commit a transtaction.
 	Requires cache to be configured to be functional. Implies *--cache-packages*.
 
@@ -202,9 +202,9 @@ The following options are available for all commands.
 	only this directory is processed. The _KEYSDIR_ is treated relative
 	to _ROOT_.
 
-*--legacy-info*
-	Print output from "info" applet in legacy format. Defaults to yes if
-	output is not a tty.
+*--legacy-info, --no-legacy-info*
+	Print output from "info" applet in legacy format or new "query" format.
+	Defaults to yes if output is not a tty.
 
 *--no-cache*
 	Do not use any local cache path.
@@ -212,20 +212,11 @@ The following options are available for all commands.
 *--no-check-certificate*
 	Do not validate the HTTPS server certificates.
 
-*--no-interactive*
-	Disable interactive mode.
-
-*--no-legacy-info*
-	Print output from "info" applet in same format as "query" applet.
-
 *--no-logfile*
 	Disable writing to the log file.
 
 *--no-network*
 	Do not use the network. The cache is still used when possible.
-
-*--no-progress*
-	Disable progress bar even for TTYs.
 
 *--preserve-env*
 	Pass user environment down to scripts.
@@ -233,8 +224,8 @@ The following options are available for all commands.
 *--print-arch*
 	Print default arch and exit.
 
-*--progress*
-	Show progress.
+*--progress, --no-progress*
+	Enable or disable progress bar. Defaults to yes for TTYs.
 
 *--progress-fd* _FD_
 	Write progress to the specified file descriptor.
