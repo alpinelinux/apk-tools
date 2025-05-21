@@ -76,8 +76,7 @@ struct mkpkg_ctx {
 	OPT(OPT_MKPKG_files,		APK_OPT_ARG APK_OPT_SH("F") "files") \
 	OPT(OPT_MKPKG_info,		APK_OPT_ARG APK_OPT_SH("I") "info") \
 	OPT(OPT_MKPKG_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
-	OPT(OPT_MKPKG_rootnode,		"rootnode") \
-	OPT(OPT_MKPKG_no_rootnode,	"no-rootnode") \
+	OPT(OPT_MKPKG_rootnode,		APK_OPT_BOOL "rootnode") \
 	OPT(OPT_MKPKG_script,		APK_OPT_ARG APK_OPT_SH("s") "script") \
 	OPT(OPT_MKPKG_trigger,		APK_OPT_ARG APK_OPT_SH("t") "trigger") \
 
@@ -142,10 +141,7 @@ static int mkpkg_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 		ictx->output = optarg;
 		break;
 	case OPT_MKPKG_rootnode:
-		ictx->rootnode = 1;
-		break;
-	case OPT_MKPKG_no_rootnode:
-		ictx->rootnode = 0;
+		ictx->rootnode = APK_OPT_BOOL_VAL(optarg);
 		break;
 	case OPT_MKPKG_script:
 		if (!apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r)) {
