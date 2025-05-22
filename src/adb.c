@@ -509,6 +509,8 @@ const uint8_t *adb_ro_kind(const struct adb_obj *o, unsigned i)
 	if (o->schema->kind == ADB_KIND_ADB ||
 	    o->schema->kind == ADB_KIND_ARRAY)
 		i = 1;
+	else
+		assert(i > 0 && i < o->schema->num_fields);
 	return o->schema->fields[i-1].kind;
 }
 
@@ -533,11 +535,8 @@ struct adb_obj *adb_ro_obj(const struct adb_obj *o, unsigned i, struct adb_obj *
 	const struct adb_object_schema *schema = NULL;
 
 	if (o->schema) {
-		if (o->schema->kind == ADB_KIND_ARRAY)
-			schema = container_of(o->schema->fields[0].kind, struct adb_object_schema, kind);
-		else if (i > 0 && i < o->schema->num_fields)
-			schema = container_of(o->schema->fields[i-1].kind, struct adb_object_schema, kind);
-		assert(schema && (schema->kind == ADB_KIND_OBJECT || schema->kind == ADB_KIND_ARRAY));
+		schema = container_of(adb_ro_kind(o, i), struct adb_object_schema, kind);
+		assert((schema->kind == ADB_KIND_OBJECT || schema->kind == ADB_KIND_ARRAY));
 	}
 
 	return adb_r_obj(o->db, adb_ro_val(o, i), no, schema);
@@ -548,10 +547,11 @@ int adb_ro_cmpobj(const struct adb_obj *tmpl, const struct adb_obj *obj, unsigne
 	const struct adb_object_schema *schema = obj->schema;
 	int is_set, r = 0;
 
-	assert(schema->kind == ADB_KIND_OBJECT);
+	assert(schema->kind == ADB_KIND_OBJECT || schema->kind == ADB_KIND_ARRAY);
 	assert(schema == tmpl->schema);
 
-	for (int i = ADBI_FIRST; i < adb_ro_num(tmpl); i++) {
+	uint32_t num_fields = max(adb_ro_num(tmpl), adb_ro_num(obj));
+	for (int i = ADBI_FIRST; i < num_fields; i++) {
 		is_set = adb_ro_val(tmpl, i) != ADB_VAL_NULL;
 		if (mode == ADB_OBJCMP_EXACT || is_set) {
 			r = adb_ro_cmp(tmpl, obj, i, mode);
@@ -569,17 +569,18 @@ int adb_ro_cmp(const struct adb_obj *tmpl, const struct adb_obj *obj, unsigned i
 {
 	const struct adb_object_schema *schema = obj->schema;
 
-	assert(schema->kind == ADB_KIND_OBJECT);
+	assert(schema->kind == ADB_KIND_OBJECT || schema->kind == ADB_KIND_ARRAY);
 	assert(schema == tmpl->schema);
-	assert(i > 0 && i < schema->num_fields);
 
-	switch (*schema->fields[i-1].kind) {
+	const uint8_t *kind = adb_ro_kind(obj, i);
+	switch (*kind) {
 	case ADB_KIND_BLOB:
 	case ADB_KIND_NUMERIC:
 	case ADB_KIND_OCTAL:
-		return container_of(schema->fields[i-1].kind, struct adb_scalar_schema, kind)->compare(
+		return container_of(kind, struct adb_scalar_schema, kind)->compare(
 			tmpl->db, adb_ro_val(tmpl, i),
 			obj->db, adb_ro_val(obj, i));
+	case ADB_KIND_ARRAY:
 	case ADB_KIND_OBJECT: {
 		struct adb_obj stmpl, sobj;
 		adb_ro_obj(tmpl, i, &stmpl);
@@ -996,7 +997,7 @@ adb_val_t adb_wo_val_fromstring(struct adb_obj *o, unsigned i, apk_blob_t val)
 {
 	if (i >= o->obj[ADBI_NUM_ENTRIES]) return adb_w_error(o->db, E2BIG);
 	if (i >= o->num) o->num = i + 1;
-	return o->obj[i] = adb_w_fromstring(o->db, o->schema->fields[i-1].kind, val);
+	return o->obj[i] = adb_w_fromstring(o->db, adb_ro_kind(o, i), val);
 }
 
 adb_val_t adb_wo_int(struct adb_obj *o, unsigned i, uint64_t v)
