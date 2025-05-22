@@ -155,7 +155,7 @@ static int __adb_m_parse(struct adb *db, apk_blob_t data,
 		switch (type) {
 		case ADB_BLOCK_ADB:
 			allowed = BIT(ADB_BLOCK_SIG) | BIT(ADB_BLOCK_DATA);
-			if (b.len < 16) {
+			if (b.len < sizeof(struct adb_hdr)) {
 				r = -APKE_ADB_BLOCK;
 				goto err;
 			}
