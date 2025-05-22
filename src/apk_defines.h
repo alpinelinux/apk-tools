@@ -19,7 +19,7 @@
 #include <time.h>
 
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
-#define BIT(x)		(1UL << (x))
+#define BIT(x)		(1ULL << (x))
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #define max(a, b)	((a) > (b) ? (a) : (b))
 
