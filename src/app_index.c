@@ -94,7 +94,7 @@ static int index_write(struct index_ctx *ictx, struct apk_database *db, struct a
 			case APK_INDEXF_MERGE:
 				break;
 			case APK_INDEXF_MERGE|APK_INDEXF_PRUNE_ORIGIN:
-				if (!pkg->marked && pkg->origin) {
+				if (!pkg->marked && pkg->origin->len) {
 					struct apk_name *n = apk_db_query_name(db, *pkg->origin);
 					if (n && n->state_int) continue;
 				}
@@ -143,7 +143,7 @@ static void index_mark_package(struct apk_database *db, struct apk_package *pkg,
 {
 	if (rewrite_arch) pkg->arch = rewrite_arch;
 	pkg->marked = 1;
-	if (pkg->origin) apk_db_get_name(db, *pkg->origin)->state_int = 1;
+	if (pkg->origin->len) apk_db_get_name(db, *pkg->origin)->state_int = 1;
 }
 
 static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)

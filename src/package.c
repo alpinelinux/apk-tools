@@ -843,7 +843,7 @@ int apk_pkg_write_index_header(struct apk_package *info, struct apk_ostream *os)
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR(info->name->name));
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nV:"));
 	apk_blob_push_blob(&bbuf, *info->version);
-	if (info->arch != NULL) {
+	if (info->arch->len) {
 		apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nA:"));
 		apk_blob_push_blob(&bbuf, *info->arch);
 	}
@@ -857,11 +857,11 @@ int apk_pkg_write_index_header(struct apk_package *info, struct apk_ostream *os)
 	apk_blob_push_blob(&bbuf, *info->url);
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nL:"));
 	apk_blob_push_blob(&bbuf, *info->license);
-	if (info->origin) {
+	if (info->origin->len) {
 		apk_blob_push_blob(&bbuf, APK_BLOB_STR("\no:"));
 		apk_blob_push_blob(&bbuf, *info->origin);
 	}
-	if (info->maintainer) {
+	if (info->maintainer->len) {
 		apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nm:"));
 		apk_blob_push_blob(&bbuf, *info->maintainer);
 	}
@@ -869,7 +869,7 @@ int apk_pkg_write_index_header(struct apk_package *info, struct apk_ostream *os)
 		apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nt:"));
 		apk_blob_push_uint(&bbuf, info->build_time, 10);
 	}
-	if (!APK_BLOB_IS_NULL(*info->commit)) {
+	if (info->commit->len) {
 		apk_blob_push_blob(&bbuf, APK_BLOB_STR("\nc:"));
 		apk_blob_push_blob(&bbuf, *info->commit);
 	}
@@ -939,7 +939,7 @@ int apk_pkg_replaces_dir(const struct apk_package *a, const struct apk_package *
 	if (ai->replaces_priority < bi->replaces_priority) return APK_PKG_REPLACES_YES;
 
 	/* If both have the same origin... */
-	if (a->origin && a->origin == b->origin) {
+	if (a->origin->len && a->origin == b->origin) {
 		/* .. and either has origin equal to package name, prefer it. */
 		if (apk_blob_compare(*a->origin, APK_BLOB_STR(a->name->name)) == 0)
 			return APK_PKG_REPLACES_NO;
@@ -991,7 +991,7 @@ int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package 
 	if (b_prio >= 0) return APK_PKG_REPLACES_YES;
 
 	/* Or same source package? */
-	if (a->origin && a->origin == b->origin) return APK_PKG_REPLACES_YES;
+	if (a->origin->len && a->origin == b->origin) return APK_PKG_REPLACES_YES;
 
 	/* Both ship same file, but metadata is inconclusive. */
 	return APK_PKG_REPLACES_CONFLICT;
