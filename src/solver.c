@@ -99,17 +99,11 @@ static void queue_dirty(struct apk_solver_state *ss, struct apk_name *name)
 
 static void queue_unresolved(struct apk_solver_state *ss, struct apk_name *name)
 {
-	int want;
+	if (name->ss.locked) return;
+	if (list_hashed(&name->ss.unresolved_list)) return;
 
-	if (name->ss.locked)
-		return;
-
-	want = (name->ss.requirers > 0) || (name->ss.has_iif);
-	dbg_printf("queue_unresolved: %s, want=%d (requirers=%d, has_iif=%d)\n", name->name, want, name->ss.requirers, name->ss.has_iif);
-	if (want && !list_hashed(&name->ss.unresolved_list))
-		list_add(&name->ss.unresolved_list, &ss->unresolved_head);
-	else if (!want && list_hashed(&name->ss.unresolved_list))
-		list_del_init(&name->ss.unresolved_list);
+	dbg_printf("queue_unresolved: %s, requirers=%d, has_iif=%d\n", name->name, name->ss.requirers, name->ss.has_iif);
+	list_add(&name->ss.unresolved_list, &ss->unresolved_head);
 }
 
 static void reevaluate_reverse_deps(struct apk_solver_state *ss, struct apk_name *name)
@@ -219,19 +213,23 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 		num_virtual += (p->pkg->name != name);
 	}
 
+	apk_array_foreach_item(name0, name->rinstall_if)
+		discover_name(ss, name0);
+
 	apk_array_foreach(p, name->providers) {
 		struct apk_package *pkg = p->pkg;
 		apk_array_foreach_item(name0, pkg->name->rinstall_if)
 			discover_name(ss, name0);
-		apk_array_foreach(dep, pkg->provides) {
-			if (dep->name->ss.seen) continue;
+		apk_array_foreach(dep, pkg->provides)
 			discover_name(ss, dep->name);
-			apk_array_foreach_item(name0, dep->name->rinstall_if)
-				discover_name(ss, name0);
-		}
 	}
 
 	name->ss.order_id = ++ss->order_id;
+
+	apk_array_foreach(p, name->providers) {
+		apk_array_foreach(dep, p->pkg->install_if)
+			discover_name(ss, dep->name);
+	}
 
 	dbg_printf("discover %s: no_iif=%d num_virtual=%d, order_id=%d\n",
 		name->name, name->ss.no_iif, num_virtual, name->ss.order_id);
@@ -384,7 +382,8 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 			pkg->ss.iif_triggered = 1;
 			pkg->ss.iif_failed = 0;
 			apk_array_foreach(dep, pkg->install_if) {
-				if (!dep->name->ss.locked && !apk_dep_conflict(dep)) {
+				if (!dep->name->ss.locked) {
+					if (apk_dep_conflict(dep)) queue_unresolved(ss, dep->name);
 					pkg->ss.iif_triggered = 0;
 					pkg->ss.iif_failed = 0;
 					break;
@@ -673,7 +672,7 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 	if (list_hashed(&name->ss.dirty_list))
 		list_del(&name->ss.dirty_list);
 
-	if (p.pkg && p.pkg->ss.iif_triggered) {
+	if (p.pkg && !name->ss.requirers && p.pkg->ss.iif_triggered) {
 		apk_array_foreach(dep, p.pkg->install_if)
 			if (!dep->name->ss.locked) apply_constraint(ss, p.pkg, dep);
 	}
@@ -1019,7 +1018,7 @@ static int compare_name_dequeue(const struct apk_name *a, const struct apk_name 
 	r = !!a->solver_flags_set - !!b->solver_flags_set;
 	if (r) return -r;
 
-	return b->ss.order_id - a->ss.order_id;
+	return (int)b->ss.order_id - (int)a->ss.order_id;
 }
 
 int apk_solver_solve(struct apk_database *db,

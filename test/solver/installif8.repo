@@ -3,7 +3,7 @@ P:foo
 V:1
 S:1
 I:1
-i:bar=1 !baz
+i:bar=1 !baz !nonexistent
 
 C:Q1eVpkasfqZAukAXFYbgwt4xAMZWU=
 P:bar
