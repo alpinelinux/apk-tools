@@ -141,15 +141,27 @@ static inline uint64_t apk_calc_installed_size(uint64_t size)
 	return ROUND_UP(size, 4096ULL);
 }
 
-static inline uint32_t get_unaligned32(const void *ptr)
-{
 #if defined(__x86_64__) || defined(__i386__)
+static inline uint32_t apk_unaligned_u32(const void *ptr)
+{
 	return *(const uint32_t *)ptr;
+}
+static inline uint64_t apk_unaligned_u64a32(const void *ptr)
+{
+	return *(const uint64_t *)ptr;
+}
 #else
+static inline uint32_t apk_unaligned_u32(const void *ptr)
+{
 	const uint8_t *p = ptr;
 	return p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
-#endif
 }
+static inline uint64_t apk_unaligned_u64a32(const void *ptr)
+{
+	const uint32_t *p = ptr;
+	return p[0] | (uint64_t)p[1] << 32;
+}
+#endif
 
 time_t apk_get_build_time(void);
 

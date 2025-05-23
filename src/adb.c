@@ -424,20 +424,19 @@ adb_val_t adb_r_root(const struct adb *db)
 
 uint64_t adb_r_int(const struct adb *db, adb_val_t v)
 {
-	uint32_t *int4;
-	uint64_t *int8;
+	void *ptr;
 
 	switch (ADB_VAL_TYPE(v)) {
 	case ADB_TYPE_INT:
 		return ADB_VAL_VALUE(v);
 	case ADB_TYPE_INT_32:
-		int4 = adb_r_deref(db, v, 0, sizeof int4);
-		if (!int4) return 0;
-		return le32toh(*int4);
+		ptr = adb_r_deref(db, v, 0, sizeof(uint32_t));
+		if (!ptr) return 0;
+		return le32toh(*(uint32_t*)ptr);
 	case ADB_TYPE_INT_64:
-		int8 = adb_r_deref(db, v, 0, sizeof int8);
-		if (!int8) return 0;
-		return le64toh(*int8);
+		ptr = adb_r_deref(db, v, 0, sizeof(uint64_t));
+		if (!ptr) return 0;
+		return le64toh(apk_unaligned_u64a32(ptr));
 	default:
 		return 0;
 	}
@@ -781,11 +780,11 @@ adb_val_t adb_w_int(struct adb *db, uint64_t val)
 {
 	if (val >= 0x100000000) {
 		val = htole64(val);
-		return ADB_VAL(ADB_TYPE_INT_64, adb_w_data1(db, &val, sizeof val, sizeof val));
+		return ADB_VAL(ADB_TYPE_INT_64, adb_w_data1(db, &val, sizeof val, sizeof(uint32_t)));
 	}
 	if (val >= 0x10000000) {
 		uint32_t val32 = htole32(val);
-		return ADB_VAL(ADB_TYPE_INT_32, adb_w_data1(db, &val32, sizeof val32, sizeof val32));
+		return ADB_VAL(ADB_TYPE_INT_32, adb_w_data1(db, &val32, sizeof val32, sizeof(uint32_t)));
 	}
 	return ADB_VAL(ADB_TYPE_INT, val);
 }
