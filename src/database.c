@@ -604,9 +604,6 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 	unsigned short old_repos = 0;
 
 	if (!pkg->name || !pkg->version || tmpl->id.len < APK_DIGEST_LENGTH_SHA1) return NULL;
-
-	// Set as "cached" if installing from specified file
-	if (pkg->filename_ndx) pkg->cached = 1;
 	if (!apk_db_arch_compatible(db, tmpl->pkg.arch)) tmpl->pkg.uninstallable = 1;
 
 	idb = apk_hash_get(&db->available.packages, APK_BLOB_PTR_LEN((char*)tmpl->id.data, APK_DIGEST_LENGTH_SHA1));
@@ -685,6 +682,12 @@ int apk_repo_package_url(struct apk_database *db, struct apk_repository *repo, s
 {
 	int r = apk_repo_fd(db, repo, fd);
 	if (r < 0) return r;
+
+	if (repo == &db->filename_repository) {
+		if (strlcpy(buf, db->filename_array->item[pkg->filename_ndx-1], len) >= len)
+			return -ENAMETOOLONG;
+		return 0;
+	}
 
 	r = 0;
 	if (!repo->absolute_pkgname) {
@@ -1256,7 +1259,7 @@ static int apk_db_index_write_nr_cache(struct apk_database *db)
 	pkgs = apk_db_sorted_installed_packages(db);
 	apk_array_foreach_item(pkg, pkgs) {
 		if (apk_db_pkg_available(db, pkg)) continue;
-		if (pkg->cached || !pkg->installed_size) {
+		if (pkg->cached || pkg->filename_ndx || !pkg->installed_size) {
 			if (apk_pkg_write_index_entry(pkg, os) < 0) break;
 		}
 	}
@@ -1567,6 +1570,7 @@ static int add_repos_from_file(void *ctx, int dirfd, const char *file)
 
 static void setup_cache_repository(struct apk_database *db, apk_blob_t cache_dir)
 {
+	db->filename_repository = (struct apk_repository) {};
 	db->cache_repository = (struct apk_repository) {
 		.url_base = cache_dir,
 		.url_printable = cache_dir,
@@ -2509,6 +2513,7 @@ struct apk_repository *apk_db_select_repo(struct apk_database *db,
 					  struct apk_package *pkg)
 {
 	if (pkg->cached) return &db->cache_repository;
+	if (pkg->filename_ndx) return &db->filename_repository;
 
 	/* Pick first repository providing this package */
 	unsigned int repos = pkg->repos & db->available_repos;
@@ -3008,22 +3013,14 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	int r, file_fd = AT_FDCWD, cache_fd = AT_FDCWD;
 	bool need_copy = false;
 
-	if (!pkg->filename_ndx) {
-		repo = apk_db_select_repo(db, pkg);
-		if (repo == NULL) {
-			r = -APKE_PACKAGE_NOT_FOUND;
-			goto err_msg;
-		}
-		r = apk_repo_package_url(db, repo, pkg, &file_fd, file_url, sizeof file_url);
-		if (r < 0) goto err_msg;
-		if (!(pkg->repos & db->local_repos)) need_copy = true;
-	} else {
-		if (strlcpy(file_url, db->filename_array->item[pkg->filename_ndx-1], sizeof file_url) >= sizeof file_url) {
-			r = -ENAMETOOLONG;
-			goto err_msg;
-		}
-		need_copy = true;
+	repo = apk_db_select_repo(db, pkg);
+	if (repo == NULL) {
+		r = -APKE_PACKAGE_NOT_FOUND;
+		goto err_msg;
 	}
+	r = apk_repo_package_url(db, repo, pkg, &file_fd, file_url, sizeof file_url);
+	if (r < 0) goto err_msg;
+	if (!(pkg->repos & db->local_repos)) need_copy = true;
 	if (!apk_db_cache_active(db)) need_copy = false;
 
 	is = apk_istream_from_fd_url(file_fd, file_url, apk_db_url_since(db, 0));

@@ -208,6 +208,7 @@ struct apk_database {
 	struct apk_protected_path_array *protected_paths;
 	struct apk_blobptr_array *arches;
 	struct apk_repoparser repoparser;
+	struct apk_repository filename_repository;
 	struct apk_repository cache_repository;
 	struct apk_repository repos[APK_MAX_REPOS];
 	struct apk_repository_tag repo_tags[APK_MAX_TAGS];

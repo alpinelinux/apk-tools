@@ -179,7 +179,8 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 			pkg->ss.pkg_selectable = !pkg->uninstallable &&
 				(BIT(pkg->layer) & db->active_layers) &&
 				(pkg->ss.pkg_available ||
-				 pkg->cached || pkg->cached_non_repository ||
+				 pkg->cached || pkg->filename_ndx ||
+				 pkg->cached_non_repository ||
 				 pkg->installed_size == 0 ||  pkg->ipkg);
 
 			/* Prune install_if packages that are no longer available,

@@ -32,7 +32,7 @@ struct progress {
 
 static inline bool pkg_available(struct apk_database *db, struct apk_package *pkg)
 {
-	return (pkg->cached || apk_db_pkg_available(db, pkg)) ? true : false;
+	return (pkg->cached || pkg->filename_ndx || apk_db_pkg_available(db, pkg)) ? true : false;
 }
 
 static bool print_change(struct apk_database *db, struct apk_change *change, struct progress *prog)
@@ -534,13 +534,13 @@ static void print_pinning_errors(struct print_state *ps, struct apk_package *pkg
 	if (pkg->ipkg != NULL)
 		return;
 
-	if (!apk_db_pkg_available(db, pkg) && !pkg->cached) {
+	if (!apk_db_pkg_available(db, pkg) && !pkg->cached && !pkg->filename_ndx) {
 		label_start(ps, "masked in:");
 		apk_print_indented_fmt(&ps->i, "--no-network");
 	} else if (!(BIT(pkg->layer) & db->active_layers)) {
 		label_start(ps, "masked in:");
 		apk_print_indented_fmt(&ps->i, "layer");
-	} else if (!pkg->repos && pkg->cached && !pkg->filename_ndx) {
+	} else if (!pkg->repos && pkg->cached) {
 		label_start(ps, "masked in:");
 		apk_print_indented_fmt(&ps->i, "cache");
 	} else {
