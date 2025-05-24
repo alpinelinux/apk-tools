@@ -615,9 +615,9 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 		if (idb->digest_alg == APK_DIGEST_SHA1 && idb->ipkg && idb->ipkg->sha256_160)
 			idb->digest_alg = APK_DIGEST_SHA256_160;
 		idb->ipkg = NULL;
-		idb->depends = apk_deps_bclone(pkg->depends, &db->ba_deps);
-		idb->install_if = apk_deps_bclone(pkg->install_if, &db->ba_deps);
-		idb->provides = apk_deps_bclone(pkg->provides, &db->ba_deps);
+		idb->depends = apk_array_bclone(pkg->depends, &db->ba_deps);
+		idb->install_if = apk_array_bclone(pkg->install_if, &db->ba_deps);
+		idb->provides = apk_array_bclone(pkg->provides, &db->ba_deps);
 
 		apk_hash_insert(&db->available.packages, idb);
 		apk_provider_array_add(&idb->name->providers, APK_PROVIDER_FROM_PACKAGE(idb));

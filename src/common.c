@@ -70,6 +70,20 @@ void *_apk_array_balloc(const struct apk_array *array, size_t item_size, size_t 
 	return n;
 }
 
+void *_apk_array_bclone(struct apk_array *array, size_t item_size, struct apk_balloc *ba)
+{
+	if (!array->allocated) return array;
+	uint32_t num = array->num;
+	size_t sz = num * item_size;
+	struct apk_array *n = apk_balloc_new_extra(ba, struct apk_array, sz);
+	*n = (struct apk_array) {
+		.capacity = num,
+		.num = num,
+	};
+	memcpy((uint8_t*)n + sizeof *n, (const uint8_t *)array + sizeof *array, sz);
+	return n;
+}
+
 time_t apk_get_build_time(void)
 {
 	static int initialized = 0;

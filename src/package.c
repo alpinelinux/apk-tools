@@ -165,20 +165,6 @@ fail:
 	return -APKE_DEPENDENCY_FORMAT;
 }
 
-struct apk_dependency_array *apk_deps_bclone(struct apk_dependency_array *deps, struct apk_balloc *ba)
-{
-	if (!deps->hdr.allocated) return deps;
-	uint32_t num = apk_array_len(deps);
-	size_t sz = num * sizeof(struct apk_dependency);
-	struct apk_dependency_array *ndeps = apk_balloc_new_extra(ba, struct apk_dependency_array, sz);
-	ndeps->hdr = (struct apk_array) {
-		.capacity = num,
-		.num = num,
-	};
-	memcpy(ndeps->item, deps->item, sz);
-	return ndeps;
-}
-
 void apk_deps_add(struct apk_dependency_array **deps, struct apk_dependency *dep)
 {
 	apk_array_foreach(d0, *deps) {

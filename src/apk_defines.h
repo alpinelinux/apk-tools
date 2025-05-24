@@ -180,6 +180,7 @@ void _apk_array__free(const struct apk_array *hdr);
 
 struct apk_balloc;
 void *_apk_array_balloc(const struct apk_array *hdr, size_t item_size, size_t cap, struct apk_balloc *ba);
+void *_apk_array_bclone(struct apk_array *hdr, size_t item_size, struct apk_balloc *ba);
 
 static inline uint32_t _apk_array_len(const struct apk_array *hdr) { return hdr->num; }
 static inline void _apk_array_free(const struct apk_array *hdr) {
@@ -192,6 +193,7 @@ static inline struct apk_array *_apk_array_truncate(struct apk_array *hdr, size_
 }
 
 #define apk_array_balloc(array, cap, ba) do { (array) = _apk_array_balloc(&(array)->hdr, apk_array_item_size(array), cap, ba); } while (0)
+#define apk_array_bclone(array, ba)	_apk_array_bclone(&(array)->hdr, apk_array_item_size(array), ba)
 #define apk_array_len(array)		_apk_array_len(&(array)->hdr)
 #define apk_array_truncate(array, num)	_apk_array_truncate(&(array)->hdr, num)
 #define apk_array_reset(array)		(typeof(array))((array)->hdr.allocated ? apk_array_truncate(array, 0) : &_apk_array_empty)
