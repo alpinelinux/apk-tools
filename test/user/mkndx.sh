@@ -10,6 +10,7 @@ APK="$APK --allow-untrusted --no-interactive --no-cache"
 
 $APK mkpkg -I name:test-a -I version:1.0 -o test-a-1.0.apk
 $APK mkpkg -I name:test-b -I version:1.0 -o test-b-1.0.apk
+$APK mkpkg -I name:test-c -I version:1.0 -I "recommends:test-a" -o test-c-1.0.apk
 
 $APK mkndx -q -o index.adb test-a-1.0.apk
 $APK mkndx -vv -o index-reindex.adb -x index.adb test-a-1.0.apk test-b-1.0.apk | diff -u /dev/fd/4 4<<EOF - || assert "wrong mkndx result"
@@ -30,7 +31,7 @@ test:/$PWD/tes/test-a-1.0.apk
 test:/$PWD/tes/test-b-1.0.apk
 EOF
 
-$APK mkndx --pkgname-spec '${name:3}/${name}-${version}.apk' -o index.adb test-a-1.0.apk test-b-1.0.apk
+$APK mkndx --pkgname-spec '${name:3}/${name}-${version}.apk' -o index.adb test-a-1.0.apk test-b-1.0.apk test-c-1.0.apk
 $APK fetch --url --simulate --from none --repository index.adb --pkgname-spec '${name}_${version}.pkg' test-a test-b 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong fetch result"
 ./tes/test-a-1.0.apk
 ./tes/test-b-1.0.apk
@@ -39,4 +40,11 @@ EOF
 $APK mkndx -vv --filter-spec '${name}-${version}' --pkgname-spec 'http://test/${name}-${version}.apk' -x index.adb -o index-filtered.adb test-a-1.0
 $APK fetch --url --simulate --from none --repository index-filtered.adb --pkgname-spec '${name}_${version}.pkg' test-a 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong fetch result"
 http://test/test-a-1.0.apk
+EOF
+
+$APK query --format=yaml --repository index.adb --fields name,recommends "test-c" 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong fetch result"
+# 1 items
+- name: test-c
+  recommends: # 1 items
+    - test-a
 EOF

@@ -42,6 +42,7 @@
 	func(APK_Q_FIELD_PROVIDES,	"provides",		"Provides") \
 	func(APK_Q_FIELD_REPLACES,	"replaces",		"Replaces") \
 	func(APK_Q_FIELD_INSTALL_IF,	"install-if",		"Install-If") \
+	func(APK_Q_FIELD_RECOMMENDS,	"recommends",		"Recommends") \
 	func(APK_Q_FIELD_LAYER,		"layer",		"Layer") \
 	\
 	func(APK_Q_FIELD_CONTENTS,	"contents",		"Contents") \
@@ -262,6 +263,7 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 	FIELD_SERIALIZE_DEPS(APK_Q_FIELD_DEPENDS, pkg->depends, fields, ser_deps, false, ser);
 	FIELD_SERIALIZE_DEPS(APK_Q_FIELD_PROVIDES, pkg->provides, fields, ser_deps, true, ser);
 	FIELD_SERIALIZE_DEPS(APK_Q_FIELD_INSTALL_IF, pkg->install_if, fields, ser_deps, false, ser);
+	FIELD_SERIALIZE_DEPS(APK_Q_FIELD_RECOMMENDS, pkg->recommends, fields, ser_deps, false, ser);
 	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_LAYER, pkg->layer, fields, ser);
 
 	// synthetic/repositories fields

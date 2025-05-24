@@ -422,6 +422,7 @@ void apk_pkgtmpl_init(struct apk_package_tmpl *tmpl)
 	apk_dependency_array_init(&tmpl->pkg.depends);
 	apk_dependency_array_init(&tmpl->pkg.install_if);
 	apk_dependency_array_init(&tmpl->pkg.provides);
+	apk_dependency_array_init(&tmpl->pkg.recommends);
 	apk_pkgtmpl_reset(tmpl);
 }
 
@@ -430,6 +431,7 @@ void apk_pkgtmpl_free(struct apk_package_tmpl *tmpl)
 	apk_dependency_array_free(&tmpl->pkg.depends);
 	apk_dependency_array_free(&tmpl->pkg.install_if);
 	apk_dependency_array_free(&tmpl->pkg.provides);
+	apk_dependency_array_free(&tmpl->pkg.recommends);
 }
 
 void apk_pkgtmpl_reset(struct apk_package_tmpl *tmpl)
@@ -439,6 +441,7 @@ void apk_pkgtmpl_reset(struct apk_package_tmpl *tmpl)
 			.depends = apk_array_reset(tmpl->pkg.depends),
 			.install_if = apk_array_reset(tmpl->pkg.install_if),
 			.provides = apk_array_reset(tmpl->pkg.provides),
+			.recommends = apk_array_reset(tmpl->pkg.recommends),
 			.arch = &apk_atom_null,
 			.license = &apk_atom_null,
 			.origin = &apk_atom_null,
@@ -578,6 +581,7 @@ void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl
 	apk_deps_from_adb(&pkg->depends, db, adb_ro_obj(pkginfo, ADBI_PI_DEPENDS, &obj));
 	apk_deps_from_adb(&pkg->provides, db, adb_ro_obj(pkginfo, ADBI_PI_PROVIDES, &obj));
 	apk_deps_from_adb(&pkg->install_if, db, adb_ro_obj(pkginfo, ADBI_PI_INSTALL_IF, &obj));
+	apk_deps_from_adb(&pkg->recommends, db, adb_ro_obj(pkginfo, ADBI_PI_RECOMMENDS, &obj));
 }
 
 static int read_info_line(struct read_info_ctx *ri, apk_blob_t line)

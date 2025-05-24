@@ -233,6 +233,11 @@ Unfortunately it is not possible to deduce if a given string is of format
 	to install the documentation package automatically if the main package
 	and the documentation meta package is installed.
 
+*recommends*
+	List of dependencies recommended to install along with this package.
+	This is currently not used by APK for anything, but is stored, dumped
+	and queryable.
+
 *layer*
 	An integer specifying the database layer this package installs to:
 	- *root* (0) is the default and indicates the normal file system
