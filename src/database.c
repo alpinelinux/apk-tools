@@ -2349,13 +2349,11 @@ static void script_panic(const char *reason)
 	exit(127);
 }
 
-int apk_db_run_script(struct apk_database *db, int fd, char **argv)
+int apk_db_run_script(struct apk_database *db, const char *hook_type, int fd, char **argv)
 {
-	struct apk_out *out = &db->ctx->out;
-	static char * const clean_environment[] = {
-		"PATH=/usr/sbin:/usr/bin:/sbin:/bin",
-		NULL
-	};
+	char script_type_var[64];
+	struct apk_ctx *ac = db->ctx;
+	struct apk_out *out = &ac->out;
 	const char *argv0 = apk_last_path_segment(argv[0]);
 	struct apk_process p;
 	int r;
@@ -2369,15 +2367,18 @@ int apk_db_run_script(struct apk_database *db, int fd, char **argv)
 		return -2;
 	}
 	if (pid == 0) {
-		char *const *env = (db->ctx->flags & APK_PRESERVE_ENV) ? environ : clean_environment;
 		umask(0022);
 		if (fchdir(db->root_fd) != 0) script_panic("fchdir");
-		if (!(db->ctx->flags & APK_NO_CHROOT)) {
+		if (!(ac->flags & APK_NO_CHROOT)) {
 			if (db->usermode && unshare_mount_namepsace() < 0) script_panic("unshare");
 			if (chroot(".") != 0) script_panic("chroot");
 		}
-		if (fd >= 0) fexecve(fd, argv, env);
-		execve(argv[0], argv, env);
+
+		char **envp = &ac->script_environment->item[0];
+		envp[0] = apk_fmts(script_type_var, sizeof script_type_var, "%s%s", envp[0], hook_type);
+
+		if (fd >= 0) fexecve(fd, argv, envp);
+		execve(argv[0], argv, envp);
 		script_panic("execve");
 	}
 	return apk_process_run(&p);

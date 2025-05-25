@@ -20,6 +20,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 	apk_string_array_init(&ac->repository_list);
 	apk_string_array_init(&ac->repository_config_list);
 	apk_string_array_init(&ac->arch_list);
+	apk_string_array_init(&ac->script_environment);
 	apk_trust_init(&ac->trust);
 	apk_out_reset(&ac->out);
 	ac->out.out = stdout;
@@ -116,6 +117,17 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		}
 		ac->out.log = fdopen(fd, "a");
 	}
+
+	apk_string_array_add(&ac->script_environment, "APK_SCRIPT=");
+	if (ac->flags & APK_PRESERVE_ENV) {
+		for (int i = 0; environ[i]; i++)
+			if (strncmp(environ[i], "APK_", 4) != 0)
+				apk_string_array_add(&ac->script_environment, environ[i]);
+	} else {
+		apk_string_array_add(&ac->script_environment, "PATH=/usr/sbin:/usr/bin:/sbin:/bin");
+	}
+	apk_string_array_add(&ac->script_environment, NULL);
+
 	return 0;
 }
 

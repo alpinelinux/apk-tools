@@ -264,7 +264,7 @@ static int run_commit_hook(void *ctx, int dirfd, const char *file)
 	}
 	apk_dbg(out, "Executing: %s %s", fn, commit_hook_str[hook->type]);
 
-	if (apk_db_run_script(db, -1, argv) < 0 && hook->type == PRE_COMMIT_HOOK)
+	if (apk_db_run_script(db, commit_hook_str[hook->type], -1, argv) < 0 && hook->type == PRE_COMMIT_HOOK)
 		ret = -2;
 
 	return ret;

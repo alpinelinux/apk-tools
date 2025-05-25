@@ -272,14 +272,16 @@ Unfortunately it is not possible to deduce if a given string is of format
 	are executed before or after package installation, removal, upgrade
 	as well as to handle trigger conditions.
 
-	Currently defined script types:
-	- trigger
-	- pre-install
-	- post-install
-	- pre-deinstall
-	- post-deinstall
-	- pre-upgrade
-	- post-upgrade
+	Currently defined script types and their arguments:
+	- trigger <matched-trigger>...
+	- pre-install <new-version>
+	- post-install <new-version>
+	- pre-deinstall <old-version>
+	- post-deinstall <old-version>
+	- pre-upgrade <new-version> <old-version>
+	- post-upgrade <new-version> <old-version>
+
+	See also the ENVIRONMENT section in *apk*(8) for the environment variables.
 
 *triggers*
 	List of directory globs. APK will execute the trigger script with

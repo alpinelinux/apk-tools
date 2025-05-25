@@ -787,7 +787,7 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	}
 
 	apk_msg(out, PKG_VER_FMT ".%s: Executing script...", PKG_VER_PRINTF(pkg), apk_script_types[type]);
-	if (apk_db_run_script(db, fd, argv) < 0)
+	if (apk_db_run_script(db, apk_script_types[type], fd, argv) < 0)
 		goto err;
 
 	/* Script may have done something that changes id cache contents */

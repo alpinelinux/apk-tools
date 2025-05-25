@@ -219,7 +219,8 @@ The following options are available for all commands.
 	Do not use the network. The cache is still used when possible.
 
 *--preserve-env*
-	Pass user environment down to scripts.
+	Pass user environment down to scripts (excluding variables starting
+	APK_ which are reserved).
 
 *--print-arch*
 	Print default arch and exit.
@@ -351,6 +352,23 @@ The following options are available for all commands which generate APKv3 files.
 *SSL_NO_VERIFY_HOSTNAME*
 	If set to anything, disables the server certificate name verification.
 
+## Environment for the scripts APK executes
+
+Normally *apk* will execute scripts with a sanitized, minimal environment
+containing only *PATH*. See also *--preserve-env* to pass additional
+environment variables.
+
+Before executing a script, apk will set working directory as _ROOT_ and
+performs a chroot unless *--force-no-chroot* is specified. In either case,
+the script working directory should be treated as the system root.
+
+The environment variables defined by APK are the following:
+
+*APK_SCRIPT*
+	Set to one of the package or commit script types. Use this to determine
+	the script hook type if needed. The filename (\$0) is not reliable since
+	apk prefers to execute package scripts from a memfd file.
+
 # FILES
 
 ## Configuration files
@@ -385,6 +403,8 @@ timeout 120
 	committed. The script executed gets as an argument the stage name
 	(*pre-commit* or *post-commit*). If the script returns failure during
 	*pre-commit* stage, the commit is aborted.
+
+	See also the ENVIRONMENT section for the environment variables.
 
 	If *--no-scripts* or *--no-commit-hooks* option is specified, these
 	hook scripts are not executed.
