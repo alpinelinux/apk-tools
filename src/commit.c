@@ -351,8 +351,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 
 	assert(world);
 	if (apk_db_check_world(db, world) != 0) {
-		apk_err(out, "Not committing changes due to missing repository tags. "
-			"Use --force-broken-world to override.");
+		apk_err(out, "Not committing changes due to missing repository tags.");
 		return -1;
 	}
 
@@ -917,8 +916,7 @@ int apk_solver_commit(struct apk_database *db,
 	int r;
 
 	if (apk_db_check_world(db, world) != 0) {
-		apk_err(out, "Not committing changes due to missing repository tags. "
-			"Use --force-broken-world to override.");
+		apk_err(out, "Not committing changes due to missing repository tags.");
 		return -1;
 	}
 
