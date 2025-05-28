@@ -345,7 +345,8 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	struct apk_out *out = &db->ctx->out;
 	struct progress prog = { 0 };
 	const char *size_unit;
-	uint64_t humanized, size_diff = 0, download_size = 0;
+	uint64_t humanized, download_size = 0;
+	int64_t size_diff = 0;
 	int r, errors = 0, pkg_diff = 0;
 
 	assert(world);
