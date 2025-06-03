@@ -197,9 +197,9 @@ function scdoc:render_options(out, options)
 	end
 end
 
-function scdoc:render_optgroups(out)
+function scdoc:render_optgroups(out, groups)
 	for _, options in ipairs(self.optgroup) do
-		if #options > 0 then
+		if #options > 0 and (options.name == self.applet) ~= groups then
 			table.insert(out, options.name .. "\0")
 			self:render_options(out, options)
 			if options.name == self.applet then
@@ -318,7 +318,8 @@ function scapp:main(arg)
 
 	local out = {}
 	for _, doc in ipairs(f) do doc:render(out) end
-	for _, doc in ipairs(f) do doc:render_optgroups(out) end
+	for _, doc in ipairs(f) do doc:render_optgroups(out, true) end
+	for _, doc in ipairs(f) do doc:render_optgroups(out, false) end
 
 	table.insert(out, "\0")
 
