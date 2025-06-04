@@ -77,7 +77,7 @@ static inline struct adb_block adb_block_init(uint32_t type, uint64_t length) {
 		.x_size = htole64(sizeof(struct adb_block) + length),
 	};
 }
-static inline uint32_t adb_block_is_ext(struct adb_block *b) {
+static inline bool adb_block_is_ext(struct adb_block *b) {
 	return (le32toh((b)->type_size) >> 30) == ADB_BLOCK_EXT;
 }
 static inline uint32_t adb_block_type(struct adb_block *b) {
