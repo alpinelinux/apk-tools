@@ -1366,8 +1366,9 @@ int adb_trust_verify_signature(struct apk_trust *trust, struct adb *db, struct a
 	if (sigb.len < sizeof(struct adb_sign_hdr)) return -APKE_ADB_SIGNATURE;
 
 	sig  = (struct adb_sign_hdr *) sigb.ptr;
-	sig0 = (struct adb_sign_v0 *) sigb.ptr;
 	if (sig->sign_ver != 0) return -APKE_ADB_SIGNATURE;
+	if (sigb.len < sizeof(struct adb_sign_v0)) return -APKE_ADB_SIGNATURE;
+	sig0 = (struct adb_sign_v0 *) sigb.ptr;
 
 	list_for_each_entry(tkey, &trust->trusted_key_list, key_node) {
 		if (memcmp(sig0->id, tkey->key.id, sizeof sig0->id) != 0) continue;
