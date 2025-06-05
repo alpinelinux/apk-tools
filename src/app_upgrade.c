@@ -82,19 +82,21 @@ static int upgrade_parse_option(void *ctx, struct apk_ctx *ac, int opt, const ch
 int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, unsigned int self_upgrade_only)
 {
 	struct apk_out *out = &db->ctx->out;
-	struct apk_name *name;
-	struct apk_package *pkg;
 	struct apk_changeset changeset = {};
+	struct apk_query_match qm;
+	const char *executable = getenv("APK_SELFUPGRADE_EXECUTABLE") ?: "/proc/self/exe";
+	char buf[PATH_MAX];
 	int r;
 
 	apk_change_array_init(&changeset.changes);
-	name = apk_db_get_name(db, APK_BLOB_STR("apk-tools"));
+
+	apk_query_who_owns(db, executable, &qm, buf, sizeof buf);
+	if (!qm.pkg) goto ret;
 
 	/* First check if new version is even available */
+	struct apk_package *pkg = qm.pkg;
+	struct apk_name *name = pkg->name;
 	r = 0;
-	pkg = apk_pkg_get_installed(name);
-	if (!pkg) goto ret;
-
 	apk_array_foreach(p0, name->providers) {
 		struct apk_package *pkg0 = p0->pkg;
 		if (pkg0->name != name || pkg0->repos == 0)
@@ -104,7 +106,6 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 			break;
 		}
 	}
-
 	if (r == 0) goto ret;
 
 	/* Create new commit upgrading apk-tools only with minimal other changes */

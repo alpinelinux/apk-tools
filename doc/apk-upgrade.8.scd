@@ -40,11 +40,13 @@ following options:
 	dependencies cannot be satisfied.
 
 *--no-self-upgrade*
-	Do not do an early upgrade of the 'apk-tools' package.
+	Do not do an early upgrade of the package containing the currently
+	running apk executable.
 
 *--prune*
 	Prune the _world_ by removing packages which are no longer available
 	from any configured repository.
 
 *--self-upgrade-only*
-	Only perform a self-upgrade of the 'apk-tools' package.
+	Only perform a self-upgrade of the package containing the currently
+	running apk executable.

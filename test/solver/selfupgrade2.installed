@@ -4,6 +4,8 @@ V:2
 S:1
 I:1
 D:libcrypto>=2
+F:sbin
+R:apk
 
 C:Q1eVpka78qZAukAXFYbgwt4xAEFFe=
 P:libcrypto

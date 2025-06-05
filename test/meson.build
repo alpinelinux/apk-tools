@@ -10,6 +10,7 @@ env = environment()
 env.set('APK', apk_exe.full_path())
 env.set('TESTDIR', cur_dir)
 env.set('APK_CONFIG', '/dev/null')
+env.set('APK_SELFUPGRADE_EXECUTABLE', '/sbin/apk')
 
 if shellcheck_sh.found() and shellcheck.found()
 	env.set('SHELLCHECK', shellcheck.full_path())
