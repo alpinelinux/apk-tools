@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <unistd.h>
-#include <limits.h>
 
 #include "apk_defines.h"
 #include "apk_applet.h"

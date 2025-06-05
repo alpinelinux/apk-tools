@@ -13,7 +13,6 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <limits.h>
 #include <sys/stat.h>
 
 #include "apk_adb.h"

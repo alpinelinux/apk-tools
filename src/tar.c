@@ -9,7 +9,6 @@
 
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
-#include <limits.h>
 
 #include "apk_defines.h"
 #include "apk_tar.h"

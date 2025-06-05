@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 #include <fcntl.h>
-#include <limits.h>
 #include <unistd.h>
 #include <errno.h>
 #include <zlib.h>

@@ -10,7 +10,6 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <limits.h>
 #include "apk_defines.h"
 #include "apk_applet.h"
 #include "apk_package.h"

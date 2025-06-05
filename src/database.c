@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <libgen.h>
-#include <limits.h>
 #include <unistd.h>
 #include <sched.h>
 #include <string.h>

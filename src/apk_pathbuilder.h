@@ -7,7 +7,7 @@
  */
 
 #pragma once
-#include <limits.h>
+#include "apk_defines.h"
 #include "apk_blob.h"
 
 struct apk_pathbuilder {
