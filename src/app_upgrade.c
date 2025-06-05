@@ -16,6 +16,11 @@
 #include "apk_print.h"
 #include "apk_solver.h"
 
+// APK_SELFUPGRADE_TOKEN is used to determine if APK version changed
+// so much after self-upgrade that a repository autoupdate should be
+// enabled. Mainly needed if the index cache name changes.
+#define APK_SELFUPGRADE_TOKEN	"laiNgeiThu6ip1Te"
+
 extern char **apk_argv;
 
 struct upgrade_ctx {
@@ -40,10 +45,12 @@ APK_OPTIONS(upgrade_options_desc, UPGRADE_OPTIONS);
 static int upgrade_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
 {
 	struct upgrade_ctx *uctx = (struct upgrade_ctx *) ctx;
+	const char *token;
 
 	switch (opt) {
 	case APK_OPTIONS_INIT:
-		if (getenv("APK_SELF_UPGRADE_DONE") != NULL) {
+		token = getenv("APK_SELFUPGRADE_TOKEN");
+		if (token != NULL && strcmp(token, APK_SELFUPGRADE_TOKEN) == 0) {
 			uctx->no_self_upgrade = 1;
 			ac->open_flags |= APK_OPENF_NO_AUTOUPDATE;
 		}
@@ -126,7 +133,7 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	apk_db_close(db);
 
 	apk_msg(out, "Continuing the upgrade transaction with new apk-tools:");
-	putenv("APK_SELF_UPGRADE_DONE=yes");
+	putenv("APK_SELFUPGRADE_TOKEN=" APK_SELFUPGRADE_TOKEN);
 
 	for (r = 0; apk_argv[r] != NULL; r++)
 		;
