@@ -2442,7 +2442,7 @@ int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb)
 		 * cache is enabled at the static cache location */
 		if (fstat(fd, &st1) == 0 && fstat(db->cache_fd, &st2) == 0 &&
 		    (st1.st_dev != st2.st_dev || st1.st_ino != st2.st_ino)) {
-			int r = apk_dir_foreach_file(fd, foreach_cache_file, &ctx);
+			int r = apk_dir_foreach_file_all(fd, foreach_cache_file, &ctx, true);
 			if (r) return r;
 		} else {
 			close(fd);
@@ -2451,7 +2451,7 @@ int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb)
 
 	ctx.static_cache = false;
 	if (db->cache_fd < 0) return db->cache_fd;
-	return apk_dir_foreach_file(dup(db->cache_fd), foreach_cache_file, &ctx);
+	return apk_dir_foreach_file_all(dup(db->cache_fd), foreach_cache_file, &ctx, true);
 }
 
 int apk_db_permanent(struct apk_database *db)

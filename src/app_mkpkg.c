@@ -230,7 +230,7 @@ static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int dirfd, struct apk_
 	adb_wo_alloca(&files, &schema_file_array, &ctx->db);
 	prev_files = ctx->files;
 	ctx->files = &files;
-	r = apk_dir_foreach_file(dirfd, mkpkg_process_dirent, ctx);
+	r = apk_dir_foreach_file_all(dirfd, mkpkg_process_dirent, ctx, true);
 	ctx->files = prev_files;
 	if (r) {
 		apk_err(out, "failed to process directory '%s': %d",

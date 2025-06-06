@@ -310,9 +310,9 @@ recurse_check:
 		report_audit(actx, reason, bfull, child, NULL, &fi);
 		if (reason != 'D' && recurse) {
 			atctx->dir = child;
-			apk_dir_foreach_file(
+			apk_dir_foreach_file_all(
 				openat(dirfd, name, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
-				audit_directory_tree_item, atctx);
+				audit_directory_tree_item, atctx, true);
 			atctx->dir = dir;
 		}
 		bfull.len--;
@@ -392,7 +392,7 @@ static int audit_directory_tree(struct audit_tree_ctx *atctx, int dirfd)
 
 	atctx->dir = apk_db_dir_get(atctx->db, path);
 	atctx->dir->modified = 1;
-	r = apk_dir_foreach_file(dirfd, audit_directory_tree_item, atctx);
+	r = apk_dir_foreach_file_all(dirfd, audit_directory_tree_item, atctx, true);
 	apk_db_dir_unref(atctx->db, atctx->dir, APK_DIR_FREE);
 
 	return r;

@@ -846,14 +846,13 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 	return 0;
 }
 
-int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx)
+int apk_dir_foreach_file_all(int dirfd, apk_dir_file_cb cb, void *ctx, bool dotfiles)
 {
 	struct dirent *de;
 	DIR *dir;
 	int ret = 0;
 
-	if (dirfd < 0)
-		return -1;
+	if (dirfd < 0) return -1;
 
 	dir = fdopendir(dirfd);
 	if (!dir) {
@@ -866,16 +865,21 @@ int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx)
 	rewinddir(dir);
 
 	while ((de = readdir(dir)) != NULL) {
-		if (de->d_name[0] == '.') {
-			if (de->d_name[1] == 0 ||
-			    (de->d_name[1] == '.' && de->d_name[2] == 0))
-				continue;
+		const char *name = de->d_name;
+		if (name[0] == '.') {
+			if (!dotfiles) continue;
+			if (name[1] == 0 || (name[1] == '.' && name[2] == 0)) continue;
 		}
-		ret = cb(ctx, dirfd, de->d_name);
+		ret = cb(ctx, dirfd, name);
 		if (ret) break;
 	}
 	closedir(dir);
 	return ret;
+}
+
+int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx)
+{
+	return apk_dir_foreach_file_all(dirfd, cb, ctx, false);
 }
 
 struct apk_atfile {
