@@ -59,6 +59,7 @@ struct adb_file_header {
 #define ADB_BLOCK_SIG		1
 #define ADB_BLOCK_DATA		2
 #define ADB_BLOCK_EXT		3
+#define ADB_BLOCK_MAX		4
 
 struct adb_block {
 	uint32_t type_size;

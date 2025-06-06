@@ -148,7 +148,7 @@ static int __adb_m_parse(struct adb *db, apk_blob_t data,
 	adb_foreach_block(blk, data) {
 		apk_blob_t b = adb_block_blob(blk);
 		type = adb_block_type(blk);
-		if (!(BIT(type) & allowed)) {
+		if (type >= ADB_BLOCK_MAX || !(BIT(type) & allowed)) {
 			r = -APKE_ADB_BLOCK;
 			break;
 		}
@@ -261,7 +261,7 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 		if (r != hdrsize) break;
 
 		type = adb_block_type(&blk);
-		if (!(BIT(type) & allowed)) {
+		if (type >= ADB_BLOCK_MAX || !(BIT(type) & allowed)) {
 			r = -APKE_ADB_BLOCK;
 			break;
 		}
