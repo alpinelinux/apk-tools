@@ -118,7 +118,6 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		ac->out.log = fdopen(fd, "a");
 	}
 
-	apk_string_array_add(&ac->script_environment, "APK_SCRIPT=");
 	if (ac->flags & APK_PRESERVE_ENV) {
 		for (int i = 0; environ[i]; i++)
 			if (strncmp(environ[i], "APK_", 4) != 0)
@@ -126,7 +125,6 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 	} else {
 		apk_string_array_add(&ac->script_environment, "PATH=/usr/sbin:/usr/bin:/sbin:/bin");
 	}
-	apk_string_array_add(&ac->script_environment, NULL);
 
 	return 0;
 }

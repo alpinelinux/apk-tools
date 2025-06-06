@@ -274,7 +274,7 @@ int apk_db_write_config(struct apk_database *db);
 int apk_db_permanent(struct apk_database *db);
 int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *world);
 int apk_db_fire_triggers(struct apk_database *db);
-int apk_db_run_script(struct apk_database *db, const char *hook_type, int fd, char **argv);
+int apk_db_run_script(struct apk_database *db, const char *hook_type, const char *package_name, int fd, char **argv);
 int apk_db_cache_active(struct apk_database *db);
 static inline time_t apk_db_url_since(struct apk_database *db, time_t since) {
 	return apk_ctx_since(db->ctx, since);

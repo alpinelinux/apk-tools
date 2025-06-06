@@ -364,6 +364,9 @@ the script working directory should be treated as the system root.
 
 The environment variables defined by APK are the following:
 
+*APK_PACKAGE*
+	Package name (package scripts only).
+
 *APK_SCRIPT*
 	Set to one of the package or commit script types. Use this to determine
 	the script hook type if needed. The filename (\$0) is not reliable since

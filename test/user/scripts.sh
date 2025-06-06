@@ -10,7 +10,7 @@ export TEST_VARIABLE="test"
 
 cat <<'EOF' > pre.sh
 #!/bin/sh
-echo Hello from pre-install / ${APK_SCRIPT:-unset} / ${TEST_VARIABLE:-unset}
+echo Hello from pre-install / ${APK_SCRIPT:-unset} / ${APK_PACKAGE:-noname} / ${TEST_VARIABLE:-unset}
 echo Error hello >&2
 EOF
 cat <<'EOF' > post.sh
@@ -24,7 +24,7 @@ $APK add --initdb $TEST_USERMODE scripts-1.0.apk > apk-stdout.log 2> apk-stderr.
 diff -u - apk-stdout.log <<EOF || assert "wrong scripts result"
 (1/1) Installing scripts (1.0)
 scripts-1.0.pre-install: Executing script...
-scripts-1.0.pre-install: Hello from pre-install / pre-install / unset
+scripts-1.0.pre-install: Hello from pre-install / pre-install / scripts / unset
 scripts-1.0.post-install: Executing script...
 scripts-1.0.post-install: Hello from post-install / post-install / unset
 OK: 0 MiB in 1 packages
@@ -39,7 +39,7 @@ $APK del scripts
 $APK add --preserve-env $TEST_USERMODE scripts-1.0.apk | diff -u /dev/fd/4 4<<EOF - || assert "wrong scripts result"
 (1/1) Installing scripts (1.0)
 scripts-1.0.pre-install: Executing script...
-scripts-1.0.pre-install: Hello from pre-install / pre-install / test
+scripts-1.0.pre-install: Hello from pre-install / pre-install / scripts / test
 scripts-1.0.post-install: Executing script...
 scripts-1.0.post-install: Hello from post-install / post-install / test
 OK: 0 MiB in 1 packages

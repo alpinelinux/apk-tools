@@ -2348,22 +2348,43 @@ static void script_panic(const char *reason)
 	exit(127);
 }
 
-int apk_db_run_script(struct apk_database *db, const char *hook_type, int fd, char **argv)
+struct env_buf {
+	struct apk_string_array **arr;
+	char data[1024];
+	int pos;
+};
+
+static void env_buf_add(struct env_buf *enb, const char *key, const char *val)
 {
-	char script_type_var[64];
+	int n = snprintf(&enb->data[enb->pos], sizeof enb->data - enb->pos, "%s=%s", key, val);
+	if (n >= sizeof enb->data - enb->pos) return;
+	apk_string_array_add(enb->arr, &enb->data[enb->pos]);
+	enb->pos += n + 1;
+}
+
+int apk_db_run_script(struct apk_database *db, const char *hook_type, const char *package_name, int fd, char **argv)
+{
+	struct env_buf enb;
 	struct apk_ctx *ac = db->ctx;
 	struct apk_out *out = &ac->out;
-	const char *argv0 = apk_last_path_segment(argv[0]);
 	struct apk_process p;
-	int r;
+	int r, env_size_save = apk_array_len(ac->script_environment);
+	const char *argv0 = apk_last_path_segment(argv[0]);
 
 	r = apk_process_init(&p, argv0, out, NULL);
-	if (r != 0) return r;
+	if (r != 0) goto err;
+
+	enb.arr = &ac->script_environment;
+	enb.pos = 0;
+	env_buf_add(&enb, "APK_SCRIPT", hook_type);
+	if (package_name) env_buf_add(&enb, "APK_PACKAGE", package_name);
+	apk_string_array_add(&ac->script_environment, NULL);
 
 	pid_t pid = apk_process_fork(&p);
 	if (pid == -1) {
-		apk_err(out, "%s: fork: %s", argv0, strerror(errno));
-		return -2;
+		r = -errno;
+		apk_err(out, "%s: fork: %s", argv0, apk_error_str(r));
+		goto err;
 	}
 	if (pid == 0) {
 		umask(0022);
@@ -2374,13 +2395,15 @@ int apk_db_run_script(struct apk_database *db, const char *hook_type, int fd, ch
 		}
 
 		char **envp = &ac->script_environment->item[0];
-		envp[0] = apk_fmts(script_type_var, sizeof script_type_var, "%s%s", envp[0], hook_type);
 
 		if (fd >= 0) fexecve(fd, argv, envp);
 		execve(argv[0], argv, envp);
 		script_panic("execve");
 	}
-	return apk_process_run(&p);
+	r = apk_process_run(&p);
+err:
+	apk_array_truncate(ac->script_environment, env_size_save);
+	return r;
 }
 
 int apk_db_cache_active(struct apk_database *db)
