@@ -400,7 +400,6 @@ static void setup_automatic_flags(struct apk_ctx *ac)
 
 	if (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
 		ac->out.progress_disable = 1;
-		ac->legacy_info = 1;
 		return;
 	}
 

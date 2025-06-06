@@ -30,6 +30,7 @@ void apk_ctx_init(struct apk_ctx *ac)
 	ac->cache_max_age = 4*60*60; /* 4 hours default */
 	apk_id_cache_init(&ac->id_cache, -1);
 	ac->root_fd = -1;
+	ac->legacy_info = 1;
 	ac->apknew_suffix = ".apk-new";
 	ac->default_pkgname_spec = APK_BLOB_STRLIT("${name}-${version}.apk");
 	ac->default_reponame_spec = APK_BLOB_STRLIT("${arch}/${name}-${version}.apk");;

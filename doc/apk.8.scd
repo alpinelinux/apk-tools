@@ -204,7 +204,8 @@ The following options are available for all commands.
 
 *--legacy-info, --no-legacy-info*
 	Print output from "info" applet in legacy format or new "query" format.
-	Defaults to yes if output is not a tty.
+	Defaults to no currently, but the default is subject to change to yes
+	in a future release.
 
 *--no-cache*
 	Do not use any local cache path.
