@@ -129,18 +129,26 @@ type and 30 bits of size. The two type bits are:
 |  0x3
 :  DATAX
 
-The adb file must begin with one ADB block, then optionally one SIG
-block, then one or more DATA blocks. The ADB block must begin with a
+The adb file must begin with one ADB block, then optionally one or more
+SIG blocks, then one or more DATA blocks. The ADB block must begin with a
 magic number indicating the schema for the entire ADB block's root
 object. The ADB block also contains, outside the root object, some
 metadata describing the version of the adb format in use.
 
-The SIG block contains a signature of the ADB block. Unlike the v2
-format, the key used for the signature is not explicitly specified, so
-verifiers must try all trusted keys until they find one. Also unlike the
-v2 format, the only supported hash algorithm is SHA512, and the
-signature scheme is implied by the signing key in use rather than being
-derived from the signature block.
+The SIG block contains one or more signatures of the ADB block. Signatures
+of the same version should be in the same SIG block. If in future, a new
+signature version is specified, and package should contain for compatibility
+reasons two different versions of signature during transiton time, then there
+should be two signature blocks, one of each version.
+
+Unlike the v2 format, the key name used for the signature is not
+explicitly specified. Instead an intrisic ID of the key is used for the
+lookup, so verifiers must find the key based in the key ID. Also unlike
+the v2 format, the ADB block is not signed directly, but it is hashed
+first by a secure digest (currently SHA512). After this a small payload
+with this pre-calculated digest is signed by given algorithm (usually
+the payload is then hashed again by the signing process with a secure
+digest based on the signature algorithm).
 
 The DATA blocks are used to store package file data only; all file
 metadata, including content hashes, is stored in the ADB block instead.
