@@ -7,4 +7,4 @@
 @EXPECT
 (1/2) Upgrading a@testing (3 -> 3.1)
 (2/2) Upgrading c@testing (3 -> 3.1)
-OK: 0 MiB in 3 packages
+OK: 3 B in 3 packages

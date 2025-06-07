@@ -2,4 +2,4 @@
 @REPO provides-prio.repo
 @EXPECT
 (1/1) Installing busybox-binsh (1.37.0-r23)
-OK: 0 MiB in 1 packages
+OK: 1 B in 1 packages

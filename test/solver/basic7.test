@@ -3,4 +3,4 @@
 @INSTALLED basic.installed
 @WORLD a
 @EXPECT
-OK: 0 MiB in 2 packages
+OK: 2 B in 2 packages

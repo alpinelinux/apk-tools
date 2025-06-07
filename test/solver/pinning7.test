@@ -7,4 +7,4 @@
 @EXPECT
 (1/2) Updating pinning a@testing2 (3)
 (2/2) Updating pinning c@testing2 (3)
-OK: 0 MiB in 3 packages
+OK: 3 B in 3 packages

@@ -3,4 +3,4 @@
 @EXPECT
 (1/2) Installing testp (0.1-r0)
 (2/2) Installing testr (0.1-r0)
-OK: 0 MiB in 2 packages
+OK: 2 B in 2 packages

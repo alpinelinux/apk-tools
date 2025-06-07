@@ -5,4 +5,4 @@
 @EXPECT
 (1/2) Purging dash-binsh (0.5.12-r3)
 (2/2) Installing busybox-binsh (1.37.0-r23)
-OK: 0 MiB in 1 packages
+OK: 1 B in 1 packages

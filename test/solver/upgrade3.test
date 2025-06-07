@@ -4,4 +4,4 @@
 @WORLD app b
 @EXPECT
 (1/1) Upgrading b (1 -> 2)
-OK: 0 MiB in 3 packages
+OK: 3 B in 3 packages

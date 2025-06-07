@@ -3,4 +3,4 @@
 @INSTALLED provides-swap.installed
 @WORLD mail-reader
 @EXPECT
-OK: 0 MiB in 1 packages
+OK: 1 B in 1 packages

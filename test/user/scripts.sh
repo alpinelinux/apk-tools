@@ -27,7 +27,7 @@ diff -u - apk-stdout.log <<EOF || assert "wrong scripts result"
   * Hello from pre-install / pre-install / scripts / unset
   Executing scripts-1.0.post-install
   * Hello from post-install / post-install / unset
-OK: 0 MiB in 1 packages
+OK: 1 B in 1 packages
 EOF
 
 diff -u - apk-stderr.log <<EOF || assert "wrong scripts result"
@@ -42,5 +42,5 @@ $APK add --preserve-env $TEST_USERMODE scripts-1.0.apk 2> /dev/null | diff -u /d
   * Hello from pre-install / pre-install / scripts / test
   Executing scripts-1.0.post-install
   * Hello from post-install / post-install / test
-OK: 0 MiB in 1 packages
+OK: 1 B in 1 packages
 EOF

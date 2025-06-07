@@ -2,4 +2,4 @@
 @REPO provides-prio.repo
 @EXPECT
 (1/1) Installing dash-binsh (0.5.12-r3)
-OK: 0 MiB in 1 packages
+OK: 1 B in 1 packages

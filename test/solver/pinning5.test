@@ -5,4 +5,4 @@
 @INSTALLED pinning.installed
 @WORLD c@testing
 @EXPECT
-OK: 0 MiB in 3 packages
+OK: 3 B in 3 packages

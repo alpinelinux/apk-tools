@@ -34,7 +34,7 @@ uvol(create): uvol-test: create data 13 ro
 uvol(write): uvol-test: write data 13
 uvol(write): uvol-test: drained input
 uvol(up): uvol-test: up data
-OK: 0 MiB in 1 packages
+OK: 13 B in 1 packages
 EOF
 
 reset_uvol_db
@@ -45,7 +45,7 @@ uvol(write): uvol-test: write scriptfail 33
 ERROR: uvol(write): exited with error 2
 uvol(remove): uvol-test: remove scriptfail
 ERROR: uvol-scriptfail-1.0: failed to extract uvol/scriptfail: uvol error
-1 error; 0 MiB in 1 packages
+1 error; 33 B in 1 packages
 EOF
 
 exit 0
