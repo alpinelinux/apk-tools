@@ -84,13 +84,12 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	struct apk_out *out = &db->ctx->out;
 	struct apk_changeset changeset = {};
 	struct apk_query_match qm;
-	const char *executable = getenv("APK_SELFUPGRADE_EXECUTABLE") ?: "/proc/self/exe";
 	char buf[PATH_MAX];
 	int r;
 
 	apk_change_array_init(&changeset.changes);
 
-	apk_query_who_owns(db, executable, &qm, buf, sizeof buf);
+	apk_query_who_owns(db, "/proc/self/exe", &qm, buf, sizeof buf);
 	if (!qm.pkg) goto ret;
 
 	/* First check if new version is even available */

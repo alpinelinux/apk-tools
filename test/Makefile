@@ -5,9 +5,8 @@
 APK		?= $(realpath ../src/apk)
 LD_LIBRARY_PATH	?= $(realpath ../src)
 APK_CONFIG = /dev/null
-APK_SELFUPGRADE_EXECUTABLE = /sbin/apk
 
-export APK APK_SELFUPGRADE_EXECUTABLE LD_LIBRARY_PATH APK_CONFIG
+export APK LD_LIBRARY_PATH APK_CONFIG
 
 all: tests
 

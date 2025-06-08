@@ -4,8 +4,9 @@ V:1
 S:1
 I:1
 D:libcrypto
-F:sbin
-R:apk
+F:proc
+F:proc/self
+R:exe
 
 C:Q1eVpk56fqZAukAXFYbgwt4xAEEEe=
 P:libcrypto
