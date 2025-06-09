@@ -82,19 +82,16 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 static int dump_object(struct adb_walk_ctx *ctx, const struct adb_object_schema *schema, adb_val_t v)
 {
 	struct apk_serializer *ser = ctx->ser;
-	size_t schema_len = 0;
+	size_t schema_len = schema->num_fields;
 	struct adb_obj o;
 	char tmp[256];
 	apk_blob_t b;
 
 	adb_r_obj(&ctx->db, v, &o, schema);
-	if (schema) {
-		if (schema->tostring) {
-			b = schema->tostring(&o, tmp, sizeof tmp);
-			apk_ser_string(ser, b);
-			return 0;
-		}
-		schema_len = schema->num_fields;
+	if (schema->tostring) {
+		b = schema->tostring(&o, tmp, sizeof tmp);
+		apk_ser_string(ser, b);
+		return 0;
 	}
 
 	for (size_t i = ADBI_FIRST; i < adb_ro_num(&o); i++) {
