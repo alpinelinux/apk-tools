@@ -109,7 +109,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 		const char *log_path = "var/log/apk.log";
 		const int lflags = O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC;
 		int fd = openat(ac->root_fd, log_path, lflags, 0644);
-		if (fd < 0 && (ac->open_flags & APK_OPENF_CREATE)) {
+		if (fd < 0) {
 			apk_make_dirs(ac->root_fd, "var/log", 0755, 0755);
 			fd = openat(ac->root_fd, log_path, lflags, 0644);
 		}
