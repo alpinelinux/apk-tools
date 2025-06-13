@@ -450,14 +450,17 @@ apk_blob_t adb_r_blob(const struct adb *db, adb_val_t v)
 	switch (ADB_VAL_TYPE(v)) {
 	case ADB_TYPE_BLOB_8:
 		blob = adb_r_deref(db, v, 0, 1);
+		if (!blob) return APK_BLOB_NULL;
 		len = *(uint8_t*) blob;
 		return APK_BLOB_PTR_LEN(adb_r_deref(db, v, 1, len), len);
 	case ADB_TYPE_BLOB_16:
 		blob = adb_r_deref(db, v, 0, 2);
+		if (!blob) return APK_BLOB_NULL;
 		len = le16toh(*(uint16_t*) blob);
 		return APK_BLOB_PTR_LEN(adb_r_deref(db, v, 2, len), len);
 	case ADB_TYPE_BLOB_32:
 		blob = adb_r_deref(db, v, 0, 4);
+		if (!blob) return APK_BLOB_NULL;
 		len = le32toh(*(uint32_t*) blob);
 		return APK_BLOB_PTR_LEN(adb_r_deref(db, v, 4, len), len);
 	default:
@@ -808,16 +811,19 @@ adb_val_t adb_w_copy(struct adb *db, struct adb *srcdb, adb_val_t v)
 		goto copy;
 	case ADB_TYPE_BLOB_8:
 		ptr = adb_r_deref(srcdb, v, 0, 1);
+		if (!ptr) return adb_w_error(db, EINVAL);
 		align = sizeof(uint8_t);
 		sz = align + *(uint8_t*) ptr;
 		goto copy;
 	case ADB_TYPE_BLOB_16:
 		ptr = adb_r_deref(srcdb, v, 0, 2);
+		if (!ptr) return adb_w_error(db, EINVAL);
 		align = sizeof(uint16_t);
 		sz = align + *(uint16_t*) ptr;
 		goto copy;
 	case ADB_TYPE_BLOB_32:
 		ptr = adb_r_deref(srcdb, v, 0, 4);
+		if (!ptr) return adb_w_error(db, EINVAL);
 		align = sizeof(uint32_t);
 		sz = align + *(uint32_t*) ptr;
 		goto copy;
