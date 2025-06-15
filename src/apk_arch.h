@@ -21,6 +21,8 @@
 #define APK_DEFAULT_BASE_ARCH	"armeb"
 #elif defined(__aarch64__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define APK_DEFAULT_BASE_ARCH	"aarch64"
+#elif defined(__aarch64__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define APK_DEFAULT_BASE_ARCH	"aarch64_be"
 #elif defined(__s390x__)
 #define APK_DEFAULT_BASE_ARCH	"s390x"
 #elif defined(__mips64) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
