@@ -375,7 +375,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	}
 	prog.total_changes_digits = calc_precision(prog.total.changes);
 
-	if (apk_out_verbosity(out) > 1 || ((db->ctx->flags & APK_INTERACTIVE) && !(db->ctx->flags & APK_SIMULATE))) {
+	if (apk_out_verbosity(out) > 1 || (db->ctx->flags & APK_INTERACTIVE)) {
 		struct apk_change_array *sorted;
 		bool details = apk_out_verbosity(out) >= 2;
 
@@ -411,7 +411,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		}
 		apk_change_array_free(&sorted);
 
-		if (r > 0 && (db->ctx->flags & APK_INTERACTIVE)) {
+		if (r > 0 && (db->ctx->flags & APK_INTERACTIVE) && !(db->ctx->flags & APK_SIMULATE)) {
 			printf("Do you want to continue [Y/n]? ");
 			fflush(stdout);
 			r = fgetc(stdin);
