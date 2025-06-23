@@ -3,9 +3,9 @@
 TESTDIR=$(realpath "${TESTDIR:-"$(dirname "$0")"/..}")
 . "$TESTDIR"/testlib.sh
 
-query_db="$(realpath "$(dirname "$0")/query-db.targz.data")"
+installed_db="$(realpath "$(dirname "$0")/query-installed.data")"
 setup_apkroot
-tar xzf "$query_db" -C "$TEST_ROOT"
+cp "$installed_db" "$TEST_ROOT"/lib/apk/db/installed
 
 APK="$APK --no-network"
 
@@ -174,13 +174,12 @@ $APK query --format json --installed "musl*" 2>&1 | diff -u /dev/fd/4 4<<EOF - |
 ]
 EOF
 
-$APK search apk-tools 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong result"
-acf-apk-tools-0.11.0-r3
-apk-tools-2.14.6-r3
-apk-tools-dbg-2.14.6-r3
-apk-tools-dev-2.14.6-r3
-apk-tools-doc-2.14.6-r3
-apk-tools-static-2.14.6-r3
-apk-tools-zsh-completion-2.14.6-r3
+$APK search --installed alpine 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong result"
+alpine-base-3.21.3-r0
+alpine-baselayout-3.6.8-r1
+alpine-baselayout-data-3.6.8-r1
+alpine-conf-3.19.2-r0
+alpine-keys-2.5-r0
+alpine-release-3.21.3-r0
 EOF
 
