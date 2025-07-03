@@ -85,7 +85,7 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	struct apk_changeset changeset = {};
 	struct apk_query_match qm;
 	char buf[PATH_MAX];
-	int r;
+	int r = 0;
 
 	apk_change_array_init(&changeset.changes);
 
@@ -95,7 +95,6 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	/* First check if new version is even available */
 	struct apk_package *pkg = qm.pkg;
 	struct apk_name *name = pkg->name;
-	r = 0;
 	apk_array_foreach(p0, name->providers) {
 		struct apk_package *pkg0 = p0->pkg;
 		if (pkg0->name != name || pkg0->repos == 0)
