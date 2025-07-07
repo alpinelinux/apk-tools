@@ -398,7 +398,7 @@ static struct apk_db_dir_instance *apk_db_diri_new(struct apk_database *db,
 	if (diri != NULL) {
 		struct apk_db_dir *dir = apk_db_dir_get(db, name);
 		list_init(&diri->dir_diri_list);
-		list_add(&diri->dir_diri_list, &dir->diris);
+		list_add_tail(&diri->dir_diri_list, &dir->diris);
 		hlist_add_after(&diri->pkg_dirs_list, *after);
 		*after = &diri->pkg_dirs_list.next;
 		diri->dir = dir;

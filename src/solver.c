@@ -33,6 +33,8 @@ struct apk_solver_state {
 	struct apk_changeset *changeset;
 	struct list_head dirty_head;
 	struct list_head unresolved_head;
+	struct list_head selectable_head;
+	struct list_head resolvenow_head;
 	unsigned int errors;
 	unsigned int solver_flags_inherit;
 	unsigned int pinning_inherit;
@@ -97,13 +99,46 @@ static void queue_dirty(struct apk_solver_state *ss, struct apk_name *name)
 	list_add_tail(&name->ss.dirty_list, &ss->dirty_head);
 }
 
-static void queue_unresolved(struct apk_solver_state *ss, struct apk_name *name)
+static bool queue_resolvenow(struct apk_name *name)
+{
+	return name->ss.reverse_deps_done && name->ss.requirers &&
+		name->ss.has_auto_selectable && !name->ss.has_options;
+}
+
+static void queue_insert(struct list_head *head, struct apk_name *name)
+{
+	struct apk_name *name0;
+
+	list_for_each_entry(name0, head, ss.unresolved_list) {
+		if (name->ss.order_id < name0->ss.order_id) continue;
+		list_add_before(&name->ss.unresolved_list, &name0->ss.unresolved_list);
+		return;
+	}
+	list_add_tail(&name->ss.unresolved_list, head);
+}
+
+static void queue_unresolved(struct apk_solver_state *ss, struct apk_name *name, bool reevaluate)
 {
 	if (name->ss.locked) return;
-	if (list_hashed(&name->ss.unresolved_list)) return;
+	if (list_hashed(&name->ss.unresolved_list)) {
+		if (name->ss.resolvenow) return;
+		if (queue_resolvenow(name) == 1)
+			name->ss.resolvenow = 1;
+		else if (!reevaluate)
+			return;
+		list_del_init(&name->ss.unresolved_list);
+	} else {
+		if (name->ss.requirers == 0 && !name->ss.has_iif && !name->ss.iif_needed) return;
+		name->ss.resolvenow = queue_resolvenow(name);
+	}
 
-	dbg_printf("queue_unresolved: %s, requirers=%d, has_iif=%d\n", name->name, name->ss.requirers, name->ss.has_iif);
-	list_add(&name->ss.unresolved_list, &ss->unresolved_head);
+	dbg_printf("queue_unresolved: %s, requirers=%d, has_iif=%d, resolvenow=%d\n",
+		name->name, name->ss.requirers, name->ss.has_iif, name->ss.resolvenow);
+	if (name->ss.resolvenow) {
+		list_add_tail(&name->ss.unresolved_list, &ss->resolvenow_head);
+		return;
+	}
+	queue_insert(name->ss.has_auto_selectable ? &ss->selectable_head : &ss->unresolved_head, name);
 }
 
 static void reevaluate_reverse_deps(struct apk_solver_state *ss, struct apk_name *name)
@@ -225,7 +260,7 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 			discover_name(ss, dep->name);
 	}
 
-	name->ss.order_id = ++ss->order_id;
+	name->ss.order_id = ((unsigned int)(1-name->solver_flags_set) << 31) | ++ss->order_id;
 
 	apk_array_foreach(p, name->providers) {
 		apk_array_foreach(dep, p->pkg->install_if)
@@ -238,7 +273,7 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 
 static void name_requirers_changed(struct apk_solver_state *ss, struct apk_name *name)
 {
-	queue_unresolved(ss, name);
+	queue_unresolved(ss, name, false);
 	reevaluate_reverse_installif(ss, name);
 	queue_dirty(ss, name);
 }
@@ -349,6 +384,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 	struct apk_package *first_candidate = NULL, *pkg;
 	int reevaluate_deps, reevaluate_iif;
 	int num_options = 0, num_tag_not_ok = 0, has_iif = 0, no_iif = 1;
+	bool reevaluate = false;
 
 	dbg_printf("reconsider_name: %s\n", name->name);
 
@@ -356,10 +392,10 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 	reevaluate_iif = name->ss.reevaluate_iif;
 	name->ss.reevaluate_deps = 0;
 	name->ss.reevaluate_iif = 0;
-	name->ss.has_auto_selectable = 0;
 
 	/* propagate down by merging common dependencies and
 	 * applying new constraints */
+	unsigned int has_auto_selectable = 0;
 	apk_array_foreach(p, name->providers) {
 		/* check if this pkg's dependencies have become unsatisfiable */
 		pkg = p->pkg;
@@ -384,7 +420,10 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 			pkg->ss.iif_failed = 0;
 			apk_array_foreach(dep, pkg->install_if) {
 				if (!dep->name->ss.locked) {
-					if (apk_dep_conflict(dep)) queue_unresolved(ss, dep->name);
+					if (apk_dep_conflict(dep)) {
+						dep->name->ss.iif_needed = true;
+						queue_unresolved(ss, dep->name, false);
+					}
 					pkg->ss.iif_triggered = 0;
 					pkg->ss.iif_failed = 0;
 					break;
@@ -405,7 +444,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 		dbg_printf("  "PKG_VER_FMT": iif_triggered=%d iif_failed=%d, no_iif=%d\n",
 			PKG_VER_PRINTF(pkg), pkg->ss.iif_triggered, pkg->ss.iif_failed,
 			no_iif);
-		name->ss.has_auto_selectable |= pkg->ss.iif_triggered;
+		has_auto_selectable |= pkg->ss.iif_triggered;
 
 		if (name->ss.requirers == 0)
 			continue;
@@ -428,13 +467,16 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 
 		num_tag_not_ok += !pkg->ss.tag_ok;
 		num_options++;
-		if (!name->ss.has_auto_selectable && is_provider_auto_selectable(p))
-			name->ss.has_auto_selectable = 1;
+		if (!has_auto_selectable && is_provider_auto_selectable(p))
+			has_auto_selectable = 1;
 	}
 	name->ss.has_options = (num_options > 1 || num_tag_not_ok > 0);
 	name->ss.has_iif = has_iif;
 	name->ss.no_iif = no_iif;
-	queue_unresolved(ss, name);
+	if (has_auto_selectable != name->ss.has_auto_selectable) {
+		name->ss.has_auto_selectable = has_auto_selectable;
+		reevaluate = true;
+	}
 
 	if (first_candidate != NULL) {
 		pkg = first_candidate;
@@ -483,6 +525,7 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 			break;
 		}
 	}
+	queue_unresolved(ss, name, reevaluate);
 
 	dbg_printf("reconsider_name: %s [finished], has_options=%d, has_autoselectable=%d, reverse_deps_done=%d\n",
 		name->name, name->ss.has_options, name->ss.has_auto_selectable, name->ss.reverse_deps_done);
@@ -700,7 +743,8 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 	struct apk_provider chosen = { NULL, &apk_atom_null };
 	struct apk_package *pkg = NULL;
 
-	dbg_printf("select_package: %s (requirers=%d, autosel=%d, iif=%d)\n", name->name, name->ss.requirers, name->ss.has_auto_selectable, name->ss.has_iif);
+	dbg_printf("select_package: %s (requirers=%d, autosel=%d, iif=%d, order_id=%d)\n",
+		name->name, name->ss.requirers, name->ss.has_auto_selectable, name->ss.has_iif, name->ss.order_id);
 
 	if (name->ss.requirers || name->ss.has_iif) {
 		apk_array_foreach(p, name->providers) {
@@ -1011,15 +1055,24 @@ static int cmp_pkgname(const void *p1, const void *p2)
 	return apk_name_cmp_display(d1->name, d2->name);
 }
 
-static int compare_name_dequeue(const struct apk_name *a, const struct apk_name *b)
+static struct apk_name *dequeue_next_name(struct apk_solver_state *ss)
 {
-	int r = (int)b->ss.has_auto_selectable - (int)a->ss.has_auto_selectable;
-	if (r) return r;
-
-	r = !!a->solver_flags_set - !!b->solver_flags_set;
-	if (r) return -r;
-
-	return (int)b->ss.order_id - (int)a->ss.order_id;
+	if (!list_empty(&ss->resolvenow_head)) {
+		struct apk_name *name = list_pop(&ss->resolvenow_head, struct apk_name, ss.unresolved_list);
+		dbg_printf("name <%s> selected from resolvenow list\n", name->name);
+		return name;
+	}
+	if (!list_empty(&ss->selectable_head)) {
+		struct apk_name *name = list_pop(&ss->selectable_head, struct apk_name, ss.unresolved_list);
+		dbg_printf("name <%s> selected from selectable list\n", name->name);
+		return name;
+	}
+	if (!list_empty(&ss->unresolved_head)) {
+		struct apk_name *name = list_pop(&ss->unresolved_head, struct apk_name, ss.unresolved_list);
+		dbg_printf("name <%s> selected from unresolved list\n", name->name);
+		return name;
+	}
+	return NULL;
 }
 
 int apk_solver_solve(struct apk_database *db,
@@ -1027,7 +1080,7 @@ int apk_solver_solve(struct apk_database *db,
 		     struct apk_dependency_array *world,
 		     struct apk_changeset *changeset)
 {
-	struct apk_name *name, *name0;
+	struct apk_name *name;
 	struct apk_package *pkg;
 	struct apk_solver_state ss_data, *ss = &ss_data;
 
@@ -1041,6 +1094,8 @@ restart:
 	ss->ignore_conflict = !!(solver_flags & APK_SOLVERF_IGNORE_CONFLICT);
 	list_init(&ss->dirty_head);
 	list_init(&ss->unresolved_head);
+	list_init(&ss->selectable_head);
+	list_init(&ss->resolvenow_head);
 
 	dbg_printf("discovering world\n");
 	ss->solver_flags_inherit = solver_flags;
@@ -1064,21 +1119,9 @@ restart:
 			name = list_pop(&ss->dirty_head, struct apk_name, ss.dirty_list);
 			reconsider_name(ss, name);
 		}
-
-		name = NULL;
-		list_for_each_entry(name0, &ss->unresolved_head, ss.unresolved_list) {
-			if (name0->ss.reverse_deps_done && name0->ss.requirers &&
-			    name0->ss.has_auto_selectable && !name0->ss.has_options) {
-				name = name0;
-				dbg_printf("name <%s> fast selected\n", name->name);
-				break;
-			}
-			if (!name || compare_name_dequeue(name0, name) < 0)
-				name = name0;
-		}
+		name = dequeue_next_name(ss);
 		if (name == NULL)
 			break;
-
 		select_package(ss, name);
 	} while (1);
 
