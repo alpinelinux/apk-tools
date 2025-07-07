@@ -42,7 +42,6 @@ libapk_src = [
 
 libapk_headers = [
 	'adb.h',
-	'apk_applet.h',
 	'apk_atom.h',
 	'apk_balloc.h',
 	'apk_blob.h',

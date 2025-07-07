@@ -33,7 +33,6 @@
 #include "apk_arch.h"
 #include "apk_package.h"
 #include "apk_database.h"
-#include "apk_applet.h"
 #include "apk_ctype.h"
 #include "apk_extract.h"
 #include "apk_process.h"
