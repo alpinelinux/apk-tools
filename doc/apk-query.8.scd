@@ -20,9 +20,9 @@ In the default mode, _query_ specifiers are interpreted as follows:
 	*text*
 		Select packages by selected fields matching *text*.
 
-In the *--recursive* mode, the _constraints_ specify a lsit of dependencies
+In the *--recursive* mode, the _constraints_ specify a list of dependencies
 to satisfy and the solver algorithm is used to determine a list of packages
-that fullfil these constraints.
+that fullfill these constraints.
 
 The query executes in the following steps:
 . Each _query_ string is executed independently to select candidate packages
@@ -75,7 +75,7 @@ The applets supporting query specifiers recognize the following options:
 
 The field names are all small letters for *--match* and *--fields* options
 and for the machine parseable output (json and yaml). For the human readable
-default format the fields are capilaized.
+default format the fields are capitalized.
 
 The following package metadata fields are available:
 *name*, *version*, *description*, *arch*, *license*, *origin*, *maintainer*,
