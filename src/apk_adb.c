@@ -264,7 +264,7 @@ static adb_val_t int_fromstring(struct adb *db, apk_blob_t val)
 static int int_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2)
 {
 	uint64_t r1 = adb_r_int(db1, v1);
-	uint64_t r2 = adb_r_int(db1, v2);
+	uint64_t r2 = adb_r_int(db2, v2);
 	if (r1 < r2) return -1;
 	if (r1 > r2) return 1;
 	return 0;
