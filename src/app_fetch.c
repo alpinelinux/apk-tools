@@ -85,10 +85,10 @@ static time_t parse_time(const char *timestr)
 	char *p;
 	time_t t;
 
-	p = strptime(optarg, "%Y-%m-%d %H:%M:%S", &tm);
+	p = strptime(timestr, "%Y-%m-%d %H:%M:%S", &tm);
 	if (p && *p == 0) return mktime(&tm);
 
-	t = strtoul(optarg, &p, 10);
+	t = strtoul(timestr, &p, 10);
 	if (p && *p == 0) return t;
 
 	return 0;
