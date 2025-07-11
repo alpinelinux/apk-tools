@@ -318,7 +318,7 @@ void apk_progress_end(struct apk_progress *p)
 
 void apk_progress_item_start(struct apk_progress *p, uint64_t base_progress, uint64_t max_item_progress)
 {
-	p->item_base_progress = p->cur_progress;
+	p->item_base_progress = base_progress;
 	p->item_max_progress = max_item_progress;
 	apk_progress_update(p, 0);
 }

@@ -98,20 +98,20 @@ static bool print_change(struct apk_database *db, struct apk_change *change, str
 	return true;
 }
 
+static uint64_t change_size(struct apk_change *change)
+{
+	if (change->new_pkg) return change->new_pkg->size;
+	return change->old_pkg->size / 16;
+}
+
 static void count_change(struct apk_change *change, struct apk_stats *stats)
 {
-	if (change->new_pkg != change->old_pkg || change->reinstall) {
-		if (change->new_pkg != NULL) {
-			stats->bytes += change->new_pkg->size;
-			stats->packages++;
-		}
-		if (change->old_pkg != NULL)
-			stats->packages++;
-		stats->changes++;
-	} else if (change->new_repository_tag != change->old_repository_tag) {
-		stats->packages++;
-		stats->changes++;
-	}
+	if (change->new_pkg != change->old_pkg || change->reinstall)
+		stats->bytes += change_size(change);
+	else if (change->new_repository_tag == change->old_repository_tag)
+		return;
+	stats->packages++;
+	stats->changes++;
 }
 
 static int dump_packages(struct apk_database *db, struct apk_change_array *changes,
@@ -436,16 +436,14 @@ int apk_solver_commit_changeset(struct apk_database *db,
 			(change->old_pkg->ipkg->broken_files ||
 			 change->old_pkg->ipkg->broken_script);
 		if (print_change(db, change, &prog)) {
-			prog.pkg = change->new_pkg;
-
-			if (!(db->ctx->flags & APK_SIMULATE) &&
-			    ((change->old_pkg != change->new_pkg) ||
-			     (change->reinstall && pkg_available(db, change->new_pkg)))) {
-				apk_progress_item_start(&prog.prog, apk_progress_weight(prog.done.bytes, prog.done.packages), prog.pkg ? prog.pkg->size : 0);
-				r = apk_db_install_pkg(db, change->old_pkg, change->new_pkg, &prog.prog) != 0;
+			prog.pkg = change->new_pkg ?: change->old_pkg;
+			if (change->old_pkg != change->new_pkg || (change->reinstall && pkg_available(db, change->new_pkg))) {
+				apk_progress_item_start(&prog.prog, apk_progress_weight(prog.done.bytes, prog.done.packages), change_size(change));
+				if (!(db->ctx->flags & APK_SIMULATE))
+					r = apk_db_install_pkg(db, change->old_pkg, change->new_pkg, &prog.prog) != 0;
 				apk_progress_item_end(&prog.prog);
 			}
-			if (r == 0 && change->new_pkg && change->new_pkg->ipkg)
+			if (change->new_pkg && change->new_pkg->ipkg)
 				change->new_pkg->ipkg->repository_tag = change->new_repository_tag;
 		}
 		errors += r;
