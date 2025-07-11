@@ -47,6 +47,7 @@ void apk_ctx_free(struct apk_ctx *ac)
 	apk_string_array_free(&ac->repository_config_list);
 	apk_string_array_free(&ac->repository_list);
 	apk_string_array_free(&ac->arch_list);
+	apk_string_array_free(&ac->script_environment);
 	if (ac->root_fd >= 0) close(ac->root_fd);
 	if (ac->out.log) fclose(ac->out.log);
 	apk_balloc_destroy(&ac->ba);
