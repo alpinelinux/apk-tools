@@ -112,12 +112,12 @@ struct apk_db_dir {
 
 struct apk_db_dir_instance {
 	struct list_head dir_diri_list;
-	struct hlist_node pkg_dirs_list;
 	struct hlist_head owned_files;
 	struct apk_package *pkg;
 	struct apk_db_dir *dir;
 	struct apk_db_acl *acl;
 };
+APK_ARRAY(apk_db_dir_instance_array, struct apk_db_dir_instance *);
 
 struct apk_name {
 	apk_hash_node hash_node;
@@ -171,6 +171,13 @@ struct apk_repository_tag {
 	apk_blob_t tag, plain_name;
 };
 
+struct apk_ipkg_creator {
+	struct apk_db_dir_instance *diri;
+	struct apk_db_dir_instance_array *diris;
+	struct hlist_node **file_diri_node;
+	int num_unsorted_diris;
+};
+
 struct apk_database {
 	struct apk_ctx *ctx;
 	struct apk_balloc ba_names;
@@ -215,6 +222,7 @@ struct apk_database {
 	struct apk_atom_pool atoms;
 	struct apk_string_array *filename_array;
 	struct apk_package_tmpl overlay_tmpl;
+	struct apk_ipkg_creator ic;
 
 	struct {
 		unsigned stale, updated, unavailable;

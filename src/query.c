@@ -301,14 +301,14 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 	if (pkg->ipkg) {
 		struct apk_installed_package *ipkg = pkg->ipkg;
 		if (BIT(APK_Q_FIELD_CONTENTS) & fields) {
-			struct apk_db_dir_instance *diri;
-			struct apk_db_file *file;
-			struct hlist_node *dc, *fc;
 			struct apk_pathbuilder pb;
 
 			apk_ser_key(ser, apk_query_field(APK_Q_FIELD_CONTENTS));
 			apk_ser_start_array(ser, -1);
-			hlist_for_each_entry(diri, dc, &ipkg->owned_dirs, pkg_dirs_list) {
+			apk_array_foreach_item(diri, ipkg->diris) {
+				struct apk_db_file *file;
+				struct hlist_node *fc;
+
 				apk_pathbuilder_setb(&pb, APK_BLOB_PTR_LEN(diri->dir->name, diri->dir->namelen));
 				hlist_for_each_entry(file, fc, &diri->owned_files, diri_files_list) {
 					int n = apk_pathbuilder_pushb(&pb, APK_BLOB_PTR_LEN(file->name, file->namelen));

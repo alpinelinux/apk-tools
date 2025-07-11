@@ -15,6 +15,7 @@
 
 struct adb_obj;
 struct apk_database;
+struct apk_db_dir_instance_array;
 struct apk_balloc;
 struct apk_name;
 struct apk_provider;
@@ -53,7 +54,7 @@ struct apk_installed_package {
 	struct apk_package *pkg;
 	struct list_head installed_pkgs_list;
 	struct list_head trigger_pkgs_list;
-	struct hlist_head owned_dirs;
+	struct apk_db_dir_instance_array *diris;
 	apk_blob_t script[APK_SCRIPT_MAX];
 	struct apk_string_array *triggers;
 	struct apk_string_array *pending_triggers;

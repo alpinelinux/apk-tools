@@ -192,16 +192,13 @@ static void info_print_rinstall_if(struct apk_database *db, struct apk_package *
 static void info_print_contents(struct apk_database *db, struct apk_package *pkg)
 {
 	struct apk_installed_package *ipkg = pkg->ipkg;
-	struct apk_db_dir_instance *diri;
-	struct apk_db_file *file;
-	struct hlist_node *dc, *dn, *fc, *fn;
 
 	if (verbosity == 1) printf(PKG_VER_FMT " contains:\n", PKG_VER_PRINTF(pkg));
 
-	hlist_for_each_entry_safe(diri, dc, dn, &ipkg->owned_dirs,
-				  pkg_dirs_list) {
-		hlist_for_each_entry_safe(file, fc, fn, &diri->owned_files,
-					  diri_files_list) {
+	apk_array_foreach_item(diri, ipkg->diris) {
+		struct apk_db_file *file;
+		struct hlist_node *fc;
+		hlist_for_each_entry(file, fc, &diri->owned_files, diri_files_list) {
 			if (verbosity > 1)
 				printf("%s: ", pkg->name->name);
 			printf(DIR_FILE_FMT "\n", DIR_FILE_PRINTF(diri->dir, file));

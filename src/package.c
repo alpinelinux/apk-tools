@@ -48,6 +48,7 @@ struct apk_installed_package *apk_pkg_install(struct apk_database *db,
 	apk_string_array_init(&ipkg->triggers);
 	apk_string_array_init(&ipkg->pending_triggers);
 	apk_dependency_array_init(&ipkg->replaces);
+	apk_db_dir_instance_array_init(&ipkg->diris);
 
 	/* Overlay override information resides in a nameless package */
 	if (pkg->name != NULL) {
@@ -83,6 +84,7 @@ void apk_pkg_uninstall(struct apk_database *db, struct apk_package *pkg)
 		apk_array_foreach_item(trigger, ipkg->triggers)
 			free(trigger);
 	}
+	apk_db_dir_instance_array_free(&ipkg->diris);
 	apk_string_array_free(&ipkg->triggers);
 	apk_string_array_free(&ipkg->pending_triggers);
 	apk_dependency_array_free(&ipkg->replaces);
