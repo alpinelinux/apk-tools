@@ -73,6 +73,7 @@ void *_apk_array_balloc(const struct apk_array *array, size_t item_size, size_t 
 void *_apk_array_bclone(struct apk_array *array, size_t item_size, struct apk_balloc *ba)
 {
 	if (!array->allocated) return array;
+	if (array->num == 0) return (void*) &_apk_array_empty;
 	uint32_t num = array->num;
 	size_t sz = num * item_size;
 	struct apk_array *n = apk_balloc_new_extra(ba, struct apk_array, sz);
@@ -80,7 +81,7 @@ void *_apk_array_bclone(struct apk_array *array, size_t item_size, struct apk_ba
 		.capacity = num,
 		.num = num,
 	};
-	memcpy((uint8_t*)n + sizeof *n, (const uint8_t *)array + sizeof *array, sz);
+	memcpy(n+1, array+1, sz);
 	return n;
 }
 
