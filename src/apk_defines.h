@@ -277,22 +277,6 @@ static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
 	h->first = n;
 }
 
-static inline void hlist_add_after(struct hlist_node *n, struct hlist_node **prev)
-{
-	n->next = *prev ? *prev : LIST_END;
-	*prev = n;
-}
-
-static inline struct hlist_node **hlist_tail_ptr(struct hlist_head *h)
-{
-	struct hlist_node *n = h->first;
-	if (n == NULL || n == LIST_END)
-		return &h->first;
-	while (n->next != NULL && n->next != LIST_END)
-		n = n->next;
-	return &n->next;
-}
-
 #define hlist_entry(ptr, type, member) container_of(ptr,type,member)
 
 #define hlist_for_each(pos, head) \

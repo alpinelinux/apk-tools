@@ -306,11 +306,8 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 			apk_ser_key(ser, apk_query_field(APK_Q_FIELD_CONTENTS));
 			apk_ser_start_array(ser, -1);
 			apk_array_foreach_item(diri, ipkg->diris) {
-				struct apk_db_file *file;
-				struct hlist_node *fc;
-
 				apk_pathbuilder_setb(&pb, APK_BLOB_PTR_LEN(diri->dir->name, diri->dir->namelen));
-				hlist_for_each_entry(file, fc, &diri->owned_files, diri_files_list) {
+				apk_array_foreach_item(file, diri->files) {
 					int n = apk_pathbuilder_pushb(&pb, APK_BLOB_PTR_LEN(file->name, file->namelen));
 					apk_ser_string(ser, apk_pathbuilder_get(&pb));
 					apk_pathbuilder_pop(&pb, n);

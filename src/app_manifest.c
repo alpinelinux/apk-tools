@@ -38,9 +38,7 @@ static void process_package(struct apk_database *db, struct apk_package *pkg)
 	}
 
 	apk_array_foreach_item(diri, ipkg->diris) {
-		struct apk_db_file *file;
-		struct hlist_node *fc;
-		hlist_for_each_entry(file, fc, &diri->owned_files, diri_files_list) {
+		apk_array_foreach_item(file, diri->files) {
 			apk_blob_t csum_blob = APK_BLOB_BUF(csum_buf);
 			apk_blob_push_hexdump(&csum_blob, apk_dbf_digest_blob(file));
 			csum_blob = apk_blob_pushed(APK_BLOB_BUF(csum_buf), csum_blob);

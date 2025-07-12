@@ -196,11 +196,8 @@ static void info_print_contents(struct apk_database *db, struct apk_package *pkg
 	if (verbosity == 1) printf(PKG_VER_FMT " contains:\n", PKG_VER_PRINTF(pkg));
 
 	apk_array_foreach_item(diri, ipkg->diris) {
-		struct apk_db_file *file;
-		struct hlist_node *fc;
-		hlist_for_each_entry(file, fc, &diri->owned_files, diri_files_list) {
-			if (verbosity > 1)
-				printf("%s: ", pkg->name->name);
+		apk_array_foreach_item(file, diri->files) {
+			if (verbosity > 1) printf("%s: ", pkg->name->name);
 			printf(DIR_FILE_FMT "\n", DIR_FILE_PRINTF(diri->dir, file));
 		}
 	}

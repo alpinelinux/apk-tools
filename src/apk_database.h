@@ -39,8 +39,6 @@ static inline apk_blob_t apk_acl_digest_blob(struct apk_db_acl *acl) {
 
 struct apk_db_file {
 	struct hlist_node hash_node;
-	struct hlist_node diri_files_list;
-
 	struct apk_db_dir_instance *diri;
 	struct apk_db_acl *acl;
 
@@ -51,6 +49,7 @@ struct apk_db_file {
 	uint8_t digest[20]; // sha1 length
 	char name[];
 };
+APK_ARRAY(apk_db_file_array, struct apk_db_file *);
 
 static inline apk_blob_t apk_dbf_digest_blob(struct apk_db_file *file) {
 	return APK_BLOB_PTR_LEN((char*) file->digest, apk_digest_alg_len(file->digest_alg));
@@ -112,7 +111,7 @@ struct apk_db_dir {
 
 struct apk_db_dir_instance {
 	struct list_head dir_diri_list;
-	struct hlist_head owned_files;
+	struct apk_db_file_array *files;
 	struct apk_package *pkg;
 	struct apk_db_dir *dir;
 	struct apk_db_acl *acl;
@@ -174,9 +173,10 @@ struct apk_repository_tag {
 struct apk_ipkg_creator {
 	struct apk_db_dir_instance *diri;
 	struct apk_db_dir_instance_array *diris;
+	struct apk_db_file_array *files;
 	struct apk_protected_path_array *ppaths;
-	struct hlist_node **file_diri_node;
 	int num_unsorted_diris;
+	int files_unsorted;
 };
 
 struct apk_database {
