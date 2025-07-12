@@ -174,6 +174,7 @@ struct apk_repository_tag {
 struct apk_ipkg_creator {
 	struct apk_db_dir_instance *diri;
 	struct apk_db_dir_instance_array *diris;
+	struct apk_protected_path_array *ppaths;
 	struct hlist_node **file_diri_node;
 	int num_unsorted_diris;
 };

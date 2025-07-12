@@ -267,7 +267,6 @@ void apk_db_dir_unref(struct apk_database *db, struct apk_db_dir *dir, int rmdir
 {
 	if (--dir->refs > 0) return;
 	db->installed.stats.dirs--;
-	apk_protected_path_array_free(&dir->protected_paths);
 	list_del(&dir->diris);
 	if (dir->namelen != 0) {
 		if (rmdir_mode == APK_DIR_REMOVE) {
@@ -341,6 +340,7 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 	if (ppaths == NULL)
 		return dir;
 
+	apk_array_reset(db->ic.ppaths);
 	relative_name = strrchr(dir->rooted_name, '/') + 1;
 	apk_array_foreach(ppath, ppaths) {
 		char *slash = strchr(ppath->relative_pattern, '/');
@@ -352,7 +352,7 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 			}
 			*slash = '/';
 
-			apk_protected_path_array_add(&dir->protected_paths, (struct apk_protected_path) {
+			apk_protected_path_array_add(&db->ic.ppaths, (struct apk_protected_path) {
 				.relative_pattern = slash + 1,
 				.protect_mode = ppath->protect_mode,
 			});
@@ -364,6 +364,7 @@ struct apk_db_dir *apk_db_dir_get(struct apk_database *db, apk_blob_t name)
 		}
 		dir->has_protected_children |= !apk_protect_mode_none(ppath->protect_mode);
 	}
+	dir->protected_paths = apk_array_bclone(db->ic.ppaths, &db->ba_files);
 
 	return dir;
 }
@@ -401,12 +402,10 @@ static void apk_db_dir_apply_diri_permissions(struct apk_database *db, struct ap
 	dir->owner = diri;
 }
 
-static void apk_db_diri_free(struct apk_database *db,
-			     struct apk_db_dir_instance *diri,
-			     int rmdir_mode)
+static void apk_db_diri_remove(struct apk_database *db, struct apk_db_dir_instance *diri)
 {
 	list_del(&diri->dir_diri_list);
-	if (rmdir_mode == APK_DIR_REMOVE && diri->dir->owner == diri) {
+	if (diri->dir->owner == diri) {
 		// Walk the directory instance to determine new owner
 		struct apk_db_dir *dir = diri->dir;
 		struct apk_db_dir_instance *di;
@@ -418,7 +417,7 @@ static void apk_db_diri_free(struct apk_database *db,
 		}
 		if (dir->owner) apk_db_dir_update_permissions(db, dir->owner);
 	}
-	apk_db_dir_unref(db, diri->dir, rmdir_mode);
+	apk_db_dir_unref(db, diri->dir, APK_DIR_REMOVE);
 }
 
 struct apk_db_file *apk_db_file_query(struct apk_database *db,
@@ -1929,6 +1928,7 @@ void apk_db_init(struct apk_database *db, struct apk_ctx *ac)
 	apk_dependency_array_init(&db->world);
 	apk_pkgtmpl_init(&db->overlay_tmpl);
 	apk_db_dir_instance_array_init(&db->ic.diris);
+	apk_protected_path_array_init(&db->ic.ppaths);
 	list_init(&db->installed.packages);
 	list_init(&db->installed.triggers);
 	apk_protected_path_array_init(&db->protected_paths);
@@ -2038,6 +2038,7 @@ int apk_db_open(struct apk_database *db)
 			add_protected_paths_from_file, db,
 			file_not_dot_list);
 	}
+	apk_protected_path_array_resize(&db->ic.ppaths, 0, apk_array_len(db->protected_paths));
 
 	/* figure out where to have the cache */
 	if (!(db->ctx->flags & APK_NO_CACHE)) {
@@ -2263,19 +2264,14 @@ void apk_db_close(struct apk_database *db)
 {
 	struct apk_installed_package *ipkg, *ipkgn;
 
-	/* Cleaning up the directory tree will cause mode, uid and gid
-	 * of all modified (package providing that directory got removed)
-	 * directories to be reset. */
-	list_for_each_entry_safe(ipkg, ipkgn, &db->installed.packages, installed_pkgs_list) {
-		apk_array_foreach_item(diri, ipkg->diris)
-			apk_db_diri_free(db, diri, APK_DIR_FREE);
+	list_for_each_entry_safe(ipkg, ipkgn, &db->installed.packages, installed_pkgs_list)
 		apk_pkg_uninstall(NULL, ipkg->pkg);
-	}
 	apk_protected_path_array_free(&db->protected_paths);
 	apk_blobptr_array_free(&db->arches);
 	apk_string_array_free(&db->filename_array);
 	apk_pkgtmpl_free(&db->overlay_tmpl);
 	apk_db_dir_instance_array_free(&db->ic.diris);
+	apk_protected_path_array_free(&db->ic.ppaths);
 	apk_dependency_array_free(&db->world);
 
 	apk_repoparser_free(&db->repoparser);
@@ -2954,7 +2950,7 @@ static void apk_db_purge_pkg(struct apk_database *db, struct apk_installed_packa
 				db->installed.stats.files--;
 			}
 		}
-		apk_db_diri_free(db, diri, APK_DIR_REMOVE);
+		apk_db_diri_remove(db, diri);
 	}
 	apk_db_dir_instance_array_free(&ipkg->diris);
 }
