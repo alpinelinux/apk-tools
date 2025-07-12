@@ -14,10 +14,9 @@
 
 const struct apk_array _apk_array_empty = { .num = 0 };
 
-void *_apk_array_resize(const struct apk_array *array, size_t item_size, size_t num, size_t cap)
+void *_apk_array_resize(struct apk_array *array, size_t item_size, size_t num, size_t cap)
 {
 	uint32_t old_num;
-	struct apk_array *tmp;
 
 	if (cap == 0) {
 		_apk_array_free(array);
@@ -26,28 +25,31 @@ void *_apk_array_resize(const struct apk_array *array, size_t item_size, size_t 
 	if (num > cap) num = cap;
 	old_num = array->num;
 
-	if (!array->allocated) array = NULL;
-	tmp = realloc((void *) array, sizeof(struct apk_array) + cap * item_size);
-	*tmp = (struct apk_array) {
+	if (!array->allocated || cap != array->capacity) {
+		if (!array->allocated) array = NULL;
+		array = realloc(array, sizeof(struct apk_array) + cap * item_size);
+	}
+	*array = (struct apk_array) {
 		.num = num,
 		.capacity = cap,
 		.allocated = 1,
 	};
-	if (unlikely(old_num < num)) memset(((void*)(tmp+1)) + item_size * old_num, 0, item_size * (num - old_num));
-	return tmp;
+	if (unlikely(old_num < num)) memset(((void*)(array+1)) + item_size * old_num, 0, item_size * (num - old_num));
+	return array;
 }
 
-void *_apk_array_copy(const struct apk_array *array, size_t item_size)
+void *_apk_array_copy(struct apk_array *dst, const struct apk_array *src, size_t item_size)
 {
-	struct apk_array *copy = _apk_array_resize(&_apk_array_empty, item_size, 0, array->num);
-	if (array->num != 0) {
-		memcpy(copy+1, array+1, item_size * array->num);
-		copy->num = array->num;
+	if (dst == src) return dst;
+	struct apk_array *copy = _apk_array_resize(dst, item_size, 0, max(src->num, dst->capacity));
+	if (src->num != 0) {
+		memcpy(copy+1, src+1, item_size * src->num);
+		copy->num = src->num;
 	}
 	return copy;
 }
 
-void *_apk_array_grow(const struct apk_array *array, size_t item_size)
+void *_apk_array_grow(struct apk_array *array, size_t item_size)
 {
 	return _apk_array_resize(array, item_size, array->num, array->capacity + min(array->capacity + 2, 64));
 }

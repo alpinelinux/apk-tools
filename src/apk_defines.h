@@ -174,9 +174,9 @@ struct apk_array {
 
 extern const struct apk_array _apk_array_empty;
 
-void *_apk_array_resize(const struct apk_array *hdr, size_t item_size, size_t num, size_t cap);
-void *_apk_array_copy(const struct apk_array *hdr, size_t item_size);
-void *_apk_array_grow(const struct apk_array *hdr, size_t item_size);
+void *_apk_array_resize(struct apk_array *hdr, size_t item_size, size_t num, size_t cap);
+void *_apk_array_copy(struct apk_array *dst, const struct apk_array *src, size_t item_size);
+void *_apk_array_grow(struct apk_array *hdr, size_t item_size);
 void _apk_array__free(const struct apk_array *hdr);
 
 struct apk_balloc;
@@ -221,9 +221,7 @@ static inline struct apk_array *_apk_array_truncate(struct apk_array *hdr, size_
 	}								\
 	static inline void						\
 	array_type_name##_copy(struct array_type_name **dst, struct array_type_name *src) { \
-		if (*dst == src) return;				\
-		_apk_array_free(&(*dst)->hdr);				\
-		*dst = _apk_array_copy(&src->hdr, apk_array_item_size(src)); \
+		*dst = _apk_array_copy(&(*dst)->hdr, &src->hdr, apk_array_item_size(src)); \
 	}								\
 	static inline item_type_name *					\
 	array_type_name##_add(struct array_type_name **a, item_type_name item) {\
@@ -252,16 +250,6 @@ struct hlist_node {
 struct hlist_head {
 	struct hlist_node *first;
 };
-
-static inline int hlist_empty(const struct hlist_head *h)
-{
-	return !h->first;
-}
-
-static inline int hlist_hashed(const struct hlist_node *n)
-{
-	return n->next != NULL;
-}
 
 static inline void __hlist_del(struct hlist_node *n, struct hlist_node **pprev)
 {
