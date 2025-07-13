@@ -2577,7 +2577,7 @@ int apk_db_repository_check(struct apk_database *db)
 	if (db->ctx->force & APK_FORCE_MISSING_REPOSITORIES) return 0;
 	if (!db->repositories.stale && !db->repositories.unavailable) return 0;
 	apk_err(&db->ctx->out,
-		"Not continuing due to stale/unavailable repositories."
+		"Not continuing due to stale/unavailable repositories. "
 		"Use --force-missing-repositories to continue.");
 	return -1;
 }
