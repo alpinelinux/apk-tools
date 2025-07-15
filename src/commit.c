@@ -296,7 +296,7 @@ int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset 
 	apk_array_foreach(change, changeset->changes) {
 		pkg = change->new_pkg;
 		if (changes_only && pkg == change->old_pkg) continue;
-		if (!pkg || (pkg->repos & db->local_repos) || !pkg->installed_size) continue;
+		if (!pkg || pkg->cached || (pkg->repos & db->local_repos) || !pkg->installed_size) continue;
 		if (!apk_db_select_repo(db, pkg)) continue;
 		prog.total.bytes += pkg->size;
 		prog.total.packages++;
@@ -311,7 +311,7 @@ int apk_solver_precache_changeset(struct apk_database *db, struct apk_changeset 
 	apk_array_foreach(change, changeset->changes) {
 		pkg = change->new_pkg;
 		if (changes_only && pkg == change->old_pkg) continue;
-		if (!pkg || (pkg->repos & db->local_repos) || !pkg->installed_size) continue;
+		if (!pkg || pkg->cached || (pkg->repos & db->local_repos) || !pkg->installed_size) continue;
 		if (!(repo = apk_db_select_repo(db, pkg))) continue;
 
 		apk_msg(out, "(%*i/%i) Downloading " PKG_VER_FMT,
