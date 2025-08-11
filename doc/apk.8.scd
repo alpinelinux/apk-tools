@@ -403,10 +403,11 @@ timeout 120
 	as package cache. See also *apk-cache*(5) and *apk-cache*(8).
 
 */etc/apk/commit_hooks.d/\**
-	Hook scripts which are executed before or after changes to database are
-	committed. The script executed gets as an argument the stage name
-	(*pre-commit* or *post-commit*). If the script returns failure during
-	*pre-commit* stage, the commit is aborted.
+	Hook scripts which are executed before anything has been written to the
+	filesystem and after all the changes have been commited. The script
+	executed gets as an argument the stage name (*pre-commit* or
+	*post-commit*). If the script returns failure during *pre-commit* stage,
+	the commit is aborted.
 
 	See also the ENVIRONMENT section for the environment variables.
 
