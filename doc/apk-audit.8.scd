@@ -59,10 +59,9 @@ then the affected path or details. The changes detected are:
 	Enable reporting of detail records.
 
 *--full*
-	Audit all system files. Same as *--system*, but in addition reports
-	all added directories and files. A built-in default override for
-	protected paths is used, unless a *--protected-paths* is explicitly
-	specified.
+	Same as *--system*, but in addition reports all added directories and
+	files. A built-in default override for protected paths is used, unless
+	a *--protected-paths* is explicitly specified.
 
 *--ignore-busybox-symlinks*
 	Ignore symlinks whose target is the busybox binary.
