@@ -682,7 +682,7 @@ static size_t adb_w_data(struct adb *db, struct iovec *vec, size_t nvec, size_t 
 			if (entry->len == 0) goto add;
 			if (entry->hash != hash) continue;
 			if (entry->len == len && iovec_memcmp(vec, nvec, &((uint8_t*)db->adb.ptr)[entry->offs]) == 0) {
-				if ((entry->offs & alignment) != 0) goto add;
+				if ((entry->offs & (alignment-1)) != 0) goto add;
 				return entry->offs;
 			}
 		}
