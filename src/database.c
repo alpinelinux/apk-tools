@@ -3064,8 +3064,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	}
 	r = apk_repo_package_url(db, repo, pkg, &file_fd, file_url, sizeof file_url);
 	if (r < 0) goto err_msg;
-	if (!(pkg->repos & db->local_repos)) need_copy = true;
-	if (!apk_db_cache_active(db)) need_copy = false;
+	if (apk_db_cache_active(db) && !pkg->cached && !(pkg->repos & db->local_repos)) need_copy = true;
 
 	is = apk_istream_from_fd_url(file_fd, file_url, apk_db_url_since(db, 0));
 	if (IS_ERR(is)) {
