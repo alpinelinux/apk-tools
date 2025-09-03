@@ -477,7 +477,7 @@ struct adb_obj *adb_r_obj(struct adb *db, adb_val_t v, struct adb_obj *obj, cons
 	    ADB_VAL_TYPE(v) != ADB_TYPE_OBJECT)
 		goto err;
 
-	o = adb_r_deref(db, v, 0, sizeof(adb_val_t[ADBI_NUM_ENTRIES]));
+	o = adb_r_deref(db, v, 0, sizeof(adb_val_t[ADBI_NUM_ENTRIES+1]));
 	if (!o) goto err;
 
 	num = le32toh(o[ADBI_NUM_ENTRIES]);
