@@ -546,15 +546,6 @@ static int compare_providers(struct apk_solver_state *ss,
 	}
 	solver_flags = pkgA->ss.solver_flags | pkgB->ss.solver_flags;
 
-	/* Honor removal preference */
-	if (solver_flags & APK_SOLVERF_REMOVE) {
-		r = (int)(pkgB->ss.solver_flags&APK_SOLVERF_REMOVE) - (int)(pkgA->ss.solver_flags&APK_SOLVERF_REMOVE);
-		if (r) {
-			dbg_printf("    prefer removal hint\n");
-			return r;
-		}
-	}
-
 	/* Latest version required? */
 	if ((solver_flags & APK_SOLVERF_LATEST) &&
 	    (pkgA->ss.pinning_allowed == APK_DEFAULT_PINNING_MASK) &&
@@ -634,7 +625,7 @@ static int compare_providers(struct apk_solver_state *ss,
 		}
 
 		/* Prefer installed */
-		if (!(solver_flags & APK_SOLVERF_UPGRADE)) {
+		if (!(solver_flags & (APK_SOLVERF_REMOVE|APK_SOLVERF_UPGRADE))) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r) {
 				dbg_printf("    prefer installed\n");
@@ -665,18 +656,20 @@ static int compare_providers(struct apk_solver_state *ss,
 		}
 	}
 
-	/* Prefer installed (matches here if upgrading) */
-	r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
-	if (r) {
-		dbg_printf("    prefer installed (upgrading)\n");
-		return r;
-	}
-
 	/* Prefer highest declared provider priority. */
 	r = pkgA->provider_priority - pkgB->provider_priority;
 	if (r) {
 		dbg_printf("    prefer highest declared provider priority\n");
 		return r;
+	}
+
+	/* Prefer installed (matches here if upgrading) */
+	if (!(solver_flags & APK_SOLVERF_REMOVE)) {
+		r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
+		if (r) {
+			dbg_printf("    prefer installed (upgrading)\n");
+			return r;
+		}
 	}
 
 	/* Prefer without errors (mostly if --latest used, and different provider) */
