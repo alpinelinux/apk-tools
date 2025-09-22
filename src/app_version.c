@@ -41,7 +41,12 @@ static int ver_test(struct apk_ctx *ac, struct apk_string_array *args)
 	int r;
 
 	if (apk_array_len(args) != 2) return 1;
-	r = apk_version_compare(APK_BLOB_STR(args->item[0]), APK_BLOB_STR(args->item[1]));
+	apk_blob_t a = APK_BLOB_STR(args->item[0]);
+	apk_blob_t b = APK_BLOB_STR(args->item[1]);
+
+	if (!apk_version_validate(a)) return 1;
+	if (!apk_version_validate(b)) return 1;
+	r = apk_version_compare(a, b);
 	apk_out(out, "%s", apk_version_op_string(r));
 	return 0;
 }
