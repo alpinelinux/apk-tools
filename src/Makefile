@@ -90,7 +90,7 @@ LIBS			:= -Wl,--as-needed \
 # Help generation
 quiet_cmd_genhelp = GENHELP $@
 ifneq ($(LUA),no)
-      cmd_genhelp = $(LUA) $(src)/genhelp.lua $(filter %.scd, $^) > $@
+      cmd_genhelp = LUA_PATH="$(LUA_PATH);$(src)/?.lua" $(LUA) $(src)/genhelp.lua $(filter %.scd, $^) > $@
 else
       cmd_genhelp = echo \\\#define NO_HELP > $@
 endif
