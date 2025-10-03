@@ -13,7 +13,7 @@ all: tests
 test tests check:
 	@echo "== Testing `$(APK) --version` =="
 	@for i in $(wildcard user/*.sh solver.sh); do \
-		./$$i >& test.log || { echo "FAIL: $$i"; cat test.log; rm -f test.log; exit 1; }; \
+		./$$i > test.log 2>&1 || { echo "FAIL: $$i"; cat test.log; rm -f test.log; exit 1; }; \
 		echo "OK: $$i"; \
 	done
 	@rm -f test.log
