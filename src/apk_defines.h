@@ -164,7 +164,7 @@ static inline uint64_t apk_unaligned_u64a32(const void *ptr)
 }
 #endif
 
-time_t apk_get_build_time(void);
+time_t apk_get_build_time(time_t);
 
 struct apk_array {
 	uint32_t num;

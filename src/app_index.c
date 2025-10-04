@@ -210,7 +210,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		os = apk_ostream_to_fd(STDOUT_FILENO);
 	if (IS_ERR(os)) return PTR_ERR(os);
 
-	time_t mtime = apk_get_build_time() ?: time(NULL);
+	time_t mtime = apk_get_build_time(time(NULL));
 	memset(&fi, 0, sizeof(fi));
 	fi.mode = 0644 | S_IFREG;
 	fi.name = "APKINDEX";

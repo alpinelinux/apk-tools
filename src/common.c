@@ -87,16 +87,19 @@ void *_apk_array_bclone(struct apk_array *array, size_t item_size, struct apk_ba
 	return n;
 }
 
-time_t apk_get_build_time(void)
+time_t apk_get_build_time(time_t mtime)
 {
 	static int initialized = 0;
 	static time_t timestamp = 0;
-	char *source_date_epoch;
 
-	if (initialized) return timestamp;
-	source_date_epoch = getenv("SOURCE_DATE_EPOCH");
-	if (source_date_epoch && *source_date_epoch)
-		timestamp = strtoull(source_date_epoch, NULL, 10);
-	initialized = 1;
-	return timestamp;
+	if (!initialized) {
+		char *source_date_epoch = getenv("SOURCE_DATE_EPOCH");
+		initialized = 1;
+		if (source_date_epoch && *source_date_epoch) {
+			timestamp = strtoull(source_date_epoch, NULL, 10);
+			initialized = 2;
+		}
+	}
+	if (initialized == 2) return timestamp;
+	return mtime;
 }
