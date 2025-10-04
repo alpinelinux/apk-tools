@@ -97,7 +97,6 @@ time_t apk_get_build_time(void)
 	source_date_epoch = getenv("SOURCE_DATE_EPOCH");
 	if (source_date_epoch && *source_date_epoch)
 		timestamp = strtoull(source_date_epoch, NULL, 10);
-	else	timestamp = time(NULL);
 	initialized = 1;
 	return timestamp;
 }

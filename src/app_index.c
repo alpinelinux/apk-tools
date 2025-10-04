@@ -210,10 +210,11 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		os = apk_ostream_to_fd(STDOUT_FILENO);
 	if (IS_ERR(os)) return PTR_ERR(os);
 
+	time_t mtime = apk_get_build_time() ?: time(NULL);
 	memset(&fi, 0, sizeof(fi));
 	fi.mode = 0644 | S_IFREG;
 	fi.name = "APKINDEX";
-	fi.mtime = apk_get_build_time();
+	fi.mtime = mtime;
 	counter = apk_ostream_counter(&fi.size);
 	index_write(ictx, db, counter);
 	apk_ostream_close(counter);
@@ -225,7 +226,7 @@ static int index_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		fi_desc.mode = 0644 | S_IFREG;
 		fi_desc.name = "DESCRIPTION";
 		fi_desc.size = strlen(ictx->description);
-		fi_desc.mtime = apk_get_build_time();
+		fi_desc.mtime = mtime;
 		apk_tar_write_entry(os, &fi_desc, ictx->description);
 	}
 

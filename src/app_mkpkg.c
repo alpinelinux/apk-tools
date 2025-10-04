@@ -327,7 +327,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 		adb_wo_blob(&fio, ADBI_FI_TARGET, target);
 	else if (link)
 		adb_wo_val(&fio, ADBI_FI_TARGET, link->val);
-	adb_wo_int(&fio, ADBI_FI_MTIME, fi.mtime);
+	adb_wo_int(&fio, ADBI_FI_MTIME, apk_get_build_time() ?: fi.mtime);
 	adb_wo_int(&fio, ADBI_FI_SIZE, fi.size);
 
 	adb_wo_int(&acl, ADBI_ACL_MODE, fi.mode & 07777);
