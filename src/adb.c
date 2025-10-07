@@ -382,18 +382,15 @@ int adb_w_init_dynamic(struct adb *db, uint32_t schema, void *buckets, size_t nu
 {
 	struct adb_hdr hdr = { .adb_compat_ver = 0, .adb_ver = 0 };
 	struct iovec vec = { .iov_base = &hdr, .iov_len = sizeof hdr };
-	size_t i;
 
 	*db = (struct adb) {
 		.schema = schema,
 		.num_buckets = num_buckets,
+		.no_cache = num_buckets == 0,
 		.bucket = buckets,
 	};
-
-	if (num_buckets) {
-		for (i = 0; i < db->num_buckets; i++)
-			list_init(&db->bucket[i]);
-	}
+	for (size_t i = 0; i < num_buckets; i++)
+		list_init(&db->bucket[i]);
 
 	adb_w_raw(db, &vec, 1, vec.iov_len, sizeof hdr);
 	return 0;
@@ -404,6 +401,7 @@ int adb_w_init_static(struct adb *db, void *buf, size_t bufsz)
 	*db = (struct adb) {
 		.adb.ptr = buf,
 		.alloc_len = bufsz,
+		.no_cache = 1,
 	};
 	return 0;
 }
@@ -675,7 +673,7 @@ static size_t adb_w_data(struct adb *db, struct iovec *vec, size_t nvec, size_t 
 	struct adb_w_bucket *bucket;
 	struct adb_w_bucket_entry *entry = 0;
 
-	if (!db->num_buckets) return adb_w_raw(db, vec, nvec, iovec_len(vec, nvec), alignment);
+	if (db->no_cache) return adb_w_raw(db, vec, nvec, iovec_len(vec, nvec), alignment);
 
 	hash = iovec_hash(vec, nvec, &len);
 	bucketno = hash % db->num_buckets;
@@ -771,13 +769,9 @@ adb_val_t adb_w_blob(struct adb *db, apk_blob_t b)
 
 static adb_val_t adb_w_blob_raw(struct adb *db, apk_blob_t b)
 {
-	adb_val_t val;
-	size_t num_buckets;
-
-	num_buckets = db->num_buckets;
-	db->num_buckets = 0;
-	val = adb_w_blob(db, b);
-	db->num_buckets = num_buckets;
+	db->no_cache++;
+	adb_val_t val = adb_w_blob(db, b);
+	db->no_cache--;
 	return val;
 }
 

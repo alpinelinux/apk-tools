@@ -179,7 +179,8 @@ struct adb {
 	apk_blob_t adb;
 	uint32_t schema;
 	uint32_t num_buckets;
-	size_t alloc_len;
+	uint32_t alloc_len;
+	uint8_t no_cache;
 	struct list_head *bucket;
 };
 
