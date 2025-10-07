@@ -882,6 +882,48 @@ int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx)
 	return apk_dir_foreach_file_all(dirfd, cb, ctx, false);
 }
 
+int apk_dir_foreach_file_sorted(int dirfd, apk_dir_file_cb cb, void *ctx)
+{
+	struct apk_string_array *entries;
+	struct dirent *de;
+	DIR *dir;
+	int ret = 0;
+
+	if (dirfd < 0) return -1;
+	dir = fdopendir(dirfd);
+	if (!dir) {
+		close(dirfd);
+		return -1;
+	}
+
+	/* We get called here with dup():ed fd. Since they all refer to
+	 * same object, we need to rewind so subsequent calls work. */
+	rewinddir(dir);
+	apk_string_array_init(&entries);
+	while ((de = readdir(dir)) != NULL) {
+		const char *name = de->d_name;
+		if (name[0] == '.') {
+			if (name[1] == 0 || (name[1] == '.' && name[2] == 0)) continue;
+		}
+		char *entry = strdup(name);
+		if (!entry) {
+			ret = -ENOMEM;
+			goto cleanup;
+		}
+		apk_string_array_add(&entries, entry);
+	}
+	apk_array_qsort(entries, apk_string_array_qsort);
+	for (int i = 0; i < apk_array_len(entries); i++) {
+		ret = cb(ctx, dirfd, entries->item[i]);
+		if (ret) break;
+	}
+cleanup:
+	for (int i = 0; i < apk_array_len(entries); i++) free(entries->item[i]);
+	apk_string_array_free(&entries);
+	closedir(dir);
+	return ret;
+}
+
 struct apk_atfile {
 	int atfd;
 	const char *name;

@@ -87,6 +87,11 @@ void *_apk_array_bclone(struct apk_array *array, size_t item_size, struct apk_ba
 	return n;
 }
 
+int apk_string_array_qsort(const void *a, const void *b)
+{
+	return strcmp(*(const char **)a, *(const char **)b);
+}
+
 time_t apk_get_build_time(time_t mtime)
 {
 	static int initialized = 0;

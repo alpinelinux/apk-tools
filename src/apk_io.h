@@ -210,6 +210,7 @@ void apk_fileinfo_hash_xattr(struct apk_file_info *fi, uint8_t alg);
 typedef int apk_dir_file_cb(void *ctx, int dirfd, const char *entry);
 int apk_dir_foreach_file_all(int dirfd, apk_dir_file_cb cb, void *ctx, bool dotfiles);
 int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx);
+int apk_dir_foreach_file_sorted(int dirfd, apk_dir_file_cb cb, void *ctx);
 int apk_dir_foreach_config_file(int dirfd, apk_dir_file_cb cb, void *cbctx, bool (*filter)(const char*), ...);
 const char *apk_url_local_file(const char *url, size_t maxlen);
 

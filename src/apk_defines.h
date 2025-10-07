@@ -232,6 +232,7 @@ static inline struct apk_array *_apk_array_truncate(struct apk_array *hdr, size_
 	}
 
 APK_ARRAY(apk_string_array, char *);
+int apk_string_array_qsort(const void *a, const void *b);
 
 #define apk_array_foreach(__iter, array) \
 	for (typeof((array)->item[0]) *__iter = &(array)->item[0], *__end = &__iter[(array)->hdr.num]; __iter < __end; __iter++)
