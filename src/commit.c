@@ -271,8 +271,11 @@ static int run_commit_hook(void *ctx, int dirfd, const char *file)
 static int run_commit_hooks(struct apk_database *db, int type)
 {
 	struct apk_commit_hook hook = { .db = db, .type = type };
-	return apk_dir_foreach_file(openat(db->root_fd, "etc/apk/commit_hooks.d", O_DIRECTORY | O_RDONLY | O_CLOEXEC),
-				    run_commit_hook, &hook);
+	return apk_dir_foreach_config_file(db->root_fd,
+	    	run_commit_hook, &hook, NULL,
+		"etc/apk/commit_hooks.d",
+		"lib/apk/commit_hooks.d",
+		NULL);
 }
 
 static int calc_precision(unsigned int num)

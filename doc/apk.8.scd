@@ -402,7 +402,8 @@ timeout 120
 	This is expected to be a symlink to directory what apk will use
 	as package cache. See also *apk-cache*(5) and *apk-cache*(8).
 
-*/etc/apk/commit_hooks.d/\**
+*/etc/apk/commit_hooks.d/\**++
+*/lib/apk/commit_hooks.d/\**
 	Hook scripts which are executed before anything has been written to the
 	filesystem and after all the changes have been commited. The script
 	executed gets as an argument the stage name (*pre-commit* or
