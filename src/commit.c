@@ -249,21 +249,26 @@ static int run_commit_hook(void *ctx, int dirfd, const char *file)
 	struct apk_commit_hook *hook = (struct apk_commit_hook *) ctx;
 	struct apk_database *db = hook->db;
 	struct apk_out *out = &db->ctx->out;
-	char fn[PATH_MAX], *argv[] = { fn, (char *) commit_hook_str[hook->type], NULL };
-	int ret = 0;
+	char *argv[] = { (char *) file, (char *) commit_hook_str[hook->type], NULL };
+	int ret = 0, hookfd;
 
 	if (file[0] == '.') return 0;
 	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
-	if (apk_fmt(fn, sizeof fn, "etc/apk/commit_hooks.d/%s", file) < 0) return 0;
 
 	if ((db->ctx->flags & APK_NO_COMMIT_HOOKS) != 0) {
-		apk_msg(out, "Skipping: %s %s", fn, commit_hook_str[hook->type]);
+		apk_msg(out, "Skipping: %s %s", file, commit_hook_str[hook->type]);
 		return 0;
 	}
-	apk_dbg(out, "Executing: %s %s", fn, commit_hook_str[hook->type]);
+	apk_dbg(out, "Executing: %s %s", file, commit_hook_str[hook->type]);
 
-	if (apk_db_run_script(db, commit_hook_str[hook->type], NULL, -1, argv) < 0 && hook->type == PRE_COMMIT_HOOK)
+	hookfd = openat(dirfd, file, O_RDONLY);
+	if (hookfd == -1)
+		return -1;
+
+	if (apk_db_run_script(db, commit_hook_str[hook->type], NULL, hookfd, argv) < 0 && hook->type == PRE_COMMIT_HOOK)
 		ret = -2;
+
+	close(hookfd);
 
 	return ret;
 }
