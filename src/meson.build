@@ -33,6 +33,7 @@ libapk_src = [
 	'repoparser.c',
 	'serialize.c',
 	'serialize_json.c',
+	'serialize_query.c',
 	'serialize_yaml.c',
 	'solver.c',
 	'tar.c',
@@ -98,7 +99,6 @@ apk_src = [
 	'app_verify.c',
 	'app_version.c',
 	'applet.c',
-	'serialize_query.c',
 ]
 
 apk_cargs = [

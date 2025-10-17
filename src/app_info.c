@@ -15,8 +15,6 @@
 #include "apk_database.h"
 #include "apk_print.h"
 
-extern const struct apk_serializer_ops apk_serializer_query;
-
 struct info_ctx {
 	struct apk_database *db;
 	unsigned int who_owns : 1;

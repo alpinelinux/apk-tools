@@ -153,7 +153,7 @@ int apk_query_parse_option(struct apk_ctx *ac, int opt, const char *optarg)
 		if (!qs->fields) return -EINVAL;
 		break;
 	case OPT_QUERY_format:
-		qs->ser = apk_serializer_lookup(optarg);
+		qs->ser = apk_serializer_lookup(optarg, &apk_serializer_query);
 		if (IS_ERR(qs->ser)) return -EINVAL;
 		break;
 	case OPT_QUERY_installed:

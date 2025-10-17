@@ -19,7 +19,7 @@ static int adbdump_parse_option(void *pctx, struct apk_ctx *ac, int opt, const c
 
 	switch (opt) {
 	case OPT_ADBDUMP_format:
-		ctx->ser = apk_serializer_lookup(optarg);
+		ctx->ser = apk_serializer_lookup(optarg, &apk_serializer_yaml);
 		if (IS_ERR(ctx->ser)) return -EINVAL;
 		break;
 	default:

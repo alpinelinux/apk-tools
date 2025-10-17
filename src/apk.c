@@ -577,7 +577,6 @@ int main(int argc, char **argv)
 
 	applet = deduce_applet(argc, argv);
 	if (applet != NULL) {
-		extern const struct apk_serializer_ops apk_serializer_query;
 		ctx.query.ser = &apk_serializer_query;
 		ctx.open_flags = applet->open_flags;
 		if (applet->context_size) applet_ctx = calloc(1, applet->context_size);
