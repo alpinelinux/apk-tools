@@ -38,6 +38,9 @@ apk mkpkg - create apkv3 package files
 	*PACKAGE METADATA* / *scripts* for list of scripts types and when
 	they are executed.
 
+*--stdout*
+	Output resulting package to stdout.
+
 *-t, --trigger* _TRIGGER_
 	Append _TRIGGER_ path specification to list triggers which affect
 	when the *trigger* script is executed.

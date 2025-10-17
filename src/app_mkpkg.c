@@ -70,6 +70,7 @@ struct mkpkg_ctx {
 	unsigned int hardlink_id;
 	unsigned has_scripts : 1;
 	unsigned rootnode : 1;
+	unsigned output_stdout : 1;
 };
 
 #define MKPKG_OPTIONS(OPT) \
@@ -78,6 +79,7 @@ struct mkpkg_ctx {
 	OPT(OPT_MKPKG_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
 	OPT(OPT_MKPKG_rootnode,		APK_OPT_BOOL "rootnode") \
 	OPT(OPT_MKPKG_script,		APK_OPT_ARG APK_OPT_SH("s") "script") \
+	OPT(OPT_MKPKG_stdout,		"stdout") \
 	OPT(OPT_MKPKG_trigger,		APK_OPT_ARG APK_OPT_SH("t") "trigger") \
 
 APK_OPTIONS(mkpkg_options_desc, MKPKG_OPTIONS);
@@ -160,6 +162,9 @@ static int mkpkg_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 			return ret;
 		}
 		ictx->has_scripts = 1;
+		break;
+	case OPT_MKPKG_stdout:
+		ictx->output_stdout = 1;
 		break;
 	case OPT_MKPKG_trigger:
 		apk_string_array_add(&ictx->triggers, (char*) optarg);
@@ -488,15 +493,20 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	uid = adb_ro_blob(&pkgi, ADBI_PI_HASHES);
 	memcpy(uid.ptr, d.data, uid.len);
 
-	if (!ctx->output) {
-		r = apk_blob_subst(outbuf, sizeof outbuf, ac->default_pkgname_spec, adb_s_field_subst, &pkgi);
-		if (r < 0) goto err;
-		ctx->output = outbuf;
+	if (ctx->output_stdout) {
+		os = apk_ostream_to_fd(STDOUT_FILENO);
+	} else {
+		if (!ctx->output) {
+			r = apk_blob_subst(outbuf, sizeof outbuf, ac->default_pkgname_spec, adb_s_field_subst, &pkgi);
+			if (r < 0) goto err;
+			ctx->output = outbuf;
+		}
+		os = apk_ostream_to_file(AT_FDCWD, ctx->output, 0644);
 	}
 
 	// construct package with ADB as header, and the file data in
 	// concatenated data blocks
-	os = adb_compress(apk_ostream_to_file(AT_FDCWD, ctx->output, 0644), &ac->compspec);
+	os = adb_compress(os, &ac->compspec);
 	if (IS_ERR(os)) {
 		r = PTR_ERR(os);
 		goto err;
