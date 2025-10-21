@@ -205,16 +205,22 @@ static adb_val_t create_xattrs_closefd(struct adb *db, int fd)
 	return val;
 }
 
-static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry);
+static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const char *entry);
 
-static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int dirfd, struct apk_file_info *fi)
+static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int atfd, const char *path, struct apk_file_info *fi)
 {
 	struct apk_ctx *ac = ctx->ac;
 	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
 	struct apk_out *out = &ac->out;
 	struct adb_obj acl, fio, files, *prev_files;
 	apk_blob_t dirname = apk_pathbuilder_get(&ctx->pb);
-	int r;
+	int r, dirfd;
+
+	dirfd = openat(atfd, path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+	if (dirfd < 0) {
+		r = -errno;
+		goto done;
+	}
 
 	adb_wo_alloca(&fio, &schema_dir, &ctx->db);
 	adb_wo_alloca(&acl, &schema_acl, &ctx->db);
@@ -230,24 +236,23 @@ static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int dirfd, struct apk_
 	adb_wo_alloca(&files, &schema_file_array, &ctx->db);
 	prev_files = ctx->files;
 	ctx->files = &files;
-	r = apk_dir_foreach_file_sorted(dirfd, mkpkg_process_dirent, ctx);
+	r = apk_dir_foreach_file_sorted(dirfd, NULL, mkpkg_process_dirent, ctx, NULL);
 	ctx->files = prev_files;
-	if (r) {
-		apk_err(out, "failed to process directory '%s': %d",
-			apk_pathbuilder_cstr(&ctx->pb), r);
-		goto done;
-	}
+	if (r) goto done;
+
 	// no need to record root folder if its empty
 	if (dirname.len == 0 && !ctx->rootnode && adb_ra_num(&files) == 0) goto done;
 
 	adb_wo_obj(&fio, ADBI_DI_FILES, &files);
 	adb_wa_append_obj(&ctx->paths, &fio);
 done:
+	if (r) apk_err(out, "failed to process directory '%s': %d", apk_pathbuilder_cstr(&ctx->pb), r);
 	adb_wo_free(&files);
+	close(dirfd);
 	return r;
 }
 
-static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
+static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const char *entry)
 {
 	struct mkpkg_ctx *ctx = pctx;
 	struct apk_ctx *ac = ctx->ac;
@@ -308,7 +313,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *entry)
 		break;
 	case S_IFDIR:
 		n = apk_pathbuilder_push(&ctx->pb, entry);
-		r = mkpkg_process_directory(ctx, openat(dirfd, entry, O_RDONLY | O_CLOEXEC), &fi);
+		r = mkpkg_process_directory(ctx, dirfd, entry, &fi);
 		apk_pathbuilder_pop(&ctx->pb, n);
 		return r;
 	default:
@@ -430,7 +435,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 				ctx->files_dir, apk_error_str(r));
 			goto err;
 		}
-		r = mkpkg_process_directory(ctx, openat(AT_FDCWD, ctx->files_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC), &fi);
+		r = mkpkg_process_directory(ctx, AT_FDCWD, ctx->files_dir, &fi);
 		if (r) goto err;
 		if (!ctx->installed_size) ctx->installed_size = BLOCK_SIZE;
 	}

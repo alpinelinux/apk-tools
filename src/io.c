@@ -846,86 +846,72 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 	return 0;
 }
 
-int apk_dir_foreach_file_all(int dirfd, apk_dir_file_cb cb, void *ctx, bool dotfiles)
+bool apk_filename_is_hidden(const char *file)
+{
+	return file[0] == '.';
+}
+
+int apk_dir_foreach_file(int atfd, const char *path, apk_dir_file_cb cb, void *ctx, bool (*filter)(const char *))
 {
 	struct dirent *de;
 	DIR *dir;
-	int ret = 0;
+	int dirfd, ret = 0;
 
-	if (dirfd < 0) return -1;
+	if (atfd_error(atfd)) return atfd;
+
+	if (path) {
+		dirfd = openat(atfd, path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+	} else {
+		dirfd = dup(atfd);
+		/* The duplicated fd shared the pos, reset it in case the same
+		 * atfd was given without path multiple times. */
+		lseek(dirfd, 0, SEEK_SET);
+	}
 
 	dir = fdopendir(dirfd);
 	if (!dir) {
 		close(dirfd);
-		return -1;
+		return -errno;
 	}
-
-	/* We get called here with dup():ed fd. Since they all refer to
-	 * same object, we need to rewind so subsequent calls work. */
-	rewinddir(dir);
 
 	while ((de = readdir(dir)) != NULL) {
 		const char *name = de->d_name;
-		if (name[0] == '.') {
-			if (!dotfiles) continue;
-			if (name[1] == 0 || (name[1] == '.' && name[2] == 0)) continue;
-		}
-		ret = cb(ctx, dirfd, name);
+		if (name[0] == '.' &&  (name[1] == 0 || (name[1] == '.' && name[2] == 0))) continue;
+		if (filter && filter(name)) continue;
+		ret = cb(ctx, dirfd, NULL, name);
 		if (ret) break;
 	}
 	closedir(dir);
 	return ret;
 }
 
-int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx)
+static int apk_dir_amend_file(void *pctx, int atfd, const char *path, const char *name)
 {
-	return apk_dir_foreach_file_all(dirfd, cb, ctx, false);
+	apk_string_array_add((struct apk_string_array **) pctx, strdup(name));
+	return 0;
 }
 
-int apk_dir_foreach_file_sorted(int dirfd, apk_dir_file_cb cb, void *ctx)
+int apk_dir_foreach_file_sorted(int atfd, const char *path, apk_dir_file_cb cb, void *ctx, bool (*filter)(const char*))
 {
-	struct apk_string_array *entries;
-	struct dirent *de;
-	DIR *dir;
-	int ret = 0;
+	struct apk_string_array *names;
+	int r;
 
-	if (dirfd < 0) return -1;
-	dir = fdopendir(dirfd);
-	if (!dir) {
-		close(dirfd);
-		return -1;
-	}
-
-	/* We get called here with dup():ed fd. Since they all refer to
-	 * same object, we need to rewind so subsequent calls work. */
-	rewinddir(dir);
-	apk_string_array_init(&entries);
-	while ((de = readdir(dir)) != NULL) {
-		const char *name = de->d_name;
-		if (name[0] == '.') {
-			if (name[1] == 0 || (name[1] == '.' && name[2] == 0)) continue;
+	apk_string_array_init(&names);
+	r = apk_dir_foreach_file(atfd, path, apk_dir_amend_file, &names, filter);
+	if (r == 0) {
+		apk_array_qsort(names, apk_string_array_qsort);
+		for (int i = 0; i < apk_array_len(names); i++) {
+			r = cb(ctx, atfd, path, names->item[i]);
+			if (r) break;
 		}
-		char *entry = strdup(name);
-		if (!entry) {
-			ret = -ENOMEM;
-			goto cleanup;
-		}
-		apk_string_array_add(&entries, entry);
 	}
-	apk_array_qsort(entries, apk_string_array_qsort);
-	for (int i = 0; i < apk_array_len(entries); i++) {
-		ret = cb(ctx, dirfd, entries->item[i]);
-		if (ret) break;
-	}
-cleanup:
-	for (int i = 0; i < apk_array_len(entries); i++) free(entries->item[i]);
-	apk_string_array_free(&entries);
-	closedir(dir);
-	return ret;
+	for (int i = 0; i < apk_array_len(names); i++) free(names->item[i]);
+	apk_string_array_free(&names);
+	return r;
 }
 
 struct apk_atfile {
-	int atfd;
+	int index;
 	const char *name;
 };
 APK_ARRAY(apk_atfile_array, struct apk_atfile);
@@ -937,19 +923,17 @@ static int apk_atfile_cmp(const void *pa, const void *pb)
 }
 
 struct apk_dir_config {
-	int num, atfd;
-	bool (*filter)(const char *filename);
+	int num, atfd, index;
 	struct apk_atfile_array *files;
 };
 
-static int apk_dir_config_file_amend(void *pctx, int atfd, const char *name)
+static int apk_dir_config_file_amend(void *pctx, int atfd, const char *path, const char *name)
 {
 	struct apk_dir_config *ctx = pctx;
 	struct apk_atfile key = {
-		.atfd = ctx->atfd,
+		.index = ctx->index,
 		.name = name,
 	};
-	if (ctx->filter && !ctx->filter(name)) return 0;
 	if (bsearch(&key, ctx->files->item, ctx->num, apk_array_item_size(ctx->files), apk_atfile_cmp)) return 0;
 	key.name = strdup(key.name);
 	apk_atfile_array_add(&ctx->files, key);
@@ -958,34 +942,38 @@ static int apk_dir_config_file_amend(void *pctx, int atfd, const char *name)
 
 int apk_dir_foreach_config_file(int dirfd, apk_dir_file_cb cb, void *cbctx, bool (*filter)(const char*), ...)
 {
-	struct apk_dir_config ctx = {
-		.filter = filter,
-	};
+	struct apk_dir_config ctx = { 0 };
 	const char *path;
-	int path_fd[8], num_paths = 0;
+	struct {
+		int fd;
+		const char *path;
+	} source[8];
 	va_list va;
 	int r = 0, i;
 
 	va_start(va, filter);
 	apk_atfile_array_init(&ctx.files);
 	while ((path = va_arg(va, const char *)) != 0) {
-		assert(num_paths < ARRAY_SIZE(path_fd));
+		assert(ctx.index < ARRAY_SIZE(source));
 		ctx.num = apk_array_len(ctx.files);
 		ctx.atfd = openat(dirfd, path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 		if (ctx.atfd < 0) continue;
-		path_fd[num_paths++] = ctx.atfd;
-		r = apk_dir_foreach_file(dup(ctx.atfd), apk_dir_config_file_amend, &ctx);
+		source[ctx.index].fd = ctx.atfd;
+		source[ctx.index].path = path;
+		r = apk_dir_foreach_file(ctx.atfd, NULL, apk_dir_config_file_amend, &ctx, filter);
+		ctx.index++;
 		if (r) break;
 		apk_array_qsort(ctx.files, apk_atfile_cmp);
 	}
 	if (r == 0) {
 		apk_array_foreach(atf, ctx.files) {
-			r = cb(cbctx, atf->atfd, atf->name);
+			int index = atf->index;
+			r = cb(cbctx, source[index].fd, source[index].path, atf->name);
 			if (r) break;
 		}
 	}
 	apk_array_foreach(atf, ctx.files) free((void*) atf->name);
-	for (i = 0; i < num_paths; i++) close(path_fd[i]);
+	for (i = 0; i < ctx.index; i++) close(source[i].fd);
 	apk_atfile_array_free(&ctx.files);
 	va_end(va);
 

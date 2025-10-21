@@ -207,11 +207,12 @@ int apk_fileinfo_get(int atfd, const char *filename, unsigned int flags,
 		     struct apk_file_info *fi, struct apk_atom_pool *atoms);
 void apk_fileinfo_hash_xattr(struct apk_file_info *fi, uint8_t alg);
 
-typedef int apk_dir_file_cb(void *ctx, int dirfd, const char *entry);
-int apk_dir_foreach_file_all(int dirfd, apk_dir_file_cb cb, void *ctx, bool dotfiles);
-int apk_dir_foreach_file(int dirfd, apk_dir_file_cb cb, void *ctx);
-int apk_dir_foreach_file_sorted(int dirfd, apk_dir_file_cb cb, void *ctx);
-int apk_dir_foreach_config_file(int dirfd, apk_dir_file_cb cb, void *cbctx, bool (*filter)(const char*), ...);
+typedef int apk_dir_file_cb(void *ctx, int dirfd, const char *path, const char *entry);
+bool apk_filename_is_hidden(const char *);
+
+int apk_dir_foreach_file(int atfd, const char *path, apk_dir_file_cb cb, void *ctx, bool (*filter)(const char*));
+int apk_dir_foreach_file_sorted(int atfd, const char *path, apk_dir_file_cb cb, void *ctx, bool (*filter)(const char*));
+int apk_dir_foreach_config_file(int atfd, apk_dir_file_cb cb, void *cbctx, bool (*filter)(const char*), ...);
 const char *apk_url_local_file(const char *url, size_t maxlen);
 
 void apk_id_cache_init(struct apk_id_cache *idc, int root_fd);

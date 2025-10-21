@@ -255,7 +255,7 @@ static int determine_file_protect_mode(struct apk_db_dir *dir, const char *name)
 	return protect_mode;
 }
 
-static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
+static int audit_directory_tree_item(void *ctx, int dirfd, const char *path, const char *name)
 {
 	struct audit_tree_ctx *atctx = (struct audit_tree_ctx *) ctx;
 	apk_blob_t bdir = APK_BLOB_PTR_LEN(atctx->path, atctx->pathlen);
@@ -310,9 +310,7 @@ recurse_check:
 		report_audit(actx, reason, bfull, child, NULL, &fi);
 		if (reason != 'D' && recurse) {
 			atctx->dir = child;
-			apk_dir_foreach_file_all(
-				openat(dirfd, name, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
-				audit_directory_tree_item, atctx, true);
+			apk_dir_foreach_file(dirfd, name, audit_directory_tree_item, atctx, NULL);
 			atctx->dir = dir;
 		}
 		bfull.len--;
@@ -382,7 +380,7 @@ done:
 	return 0;
 }
 
-static int audit_directory_tree(struct audit_tree_ctx *atctx, int dirfd)
+static int audit_directory_tree(struct audit_tree_ctx *atctx, int atfd, const char *entry)
 {
 	apk_blob_t path;
 	int r;
@@ -392,7 +390,7 @@ static int audit_directory_tree(struct audit_tree_ctx *atctx, int dirfd)
 
 	atctx->dir = apk_db_dir_get(atctx->db, path);
 	atctx->dir->modified = 1;
-	r = apk_dir_foreach_file_all(dirfd, audit_directory_tree_item, atctx, true);
+	r = apk_dir_foreach_file(atfd, entry, audit_directory_tree_item, atctx, NULL);
 	apk_db_dir_unref(atctx->db, atctx->dir, APK_DIR_FREE);
 
 	return r;
@@ -438,7 +436,7 @@ static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	atctx.path[0] = 0;
 
 	if (apk_array_len(args) == 0) {
-		r |= audit_directory_tree(&atctx, dup(db->root_fd));
+		r |= audit_directory_tree(&atctx, db->root_fd, NULL);
 	} else {
 		apk_array_foreach_item(arg, args) {
 			if (arg[0] != '/') {
@@ -451,7 +449,7 @@ static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 			if (atctx.path[atctx.pathlen-1] != '/')
 				atctx.path[atctx.pathlen++] = '/';
 
-			r |= audit_directory_tree(&atctx, openat(db->root_fd, arg, O_DIRECTORY | O_RDONLY | O_CLOEXEC));
+			r |= audit_directory_tree(&atctx, db->root_fd, arg);
 		}
 	}
 	if (actx->mode == MODE_SYSTEM || actx->mode == MODE_FULL)

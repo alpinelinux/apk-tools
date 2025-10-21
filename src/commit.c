@@ -243,7 +243,7 @@ struct apk_commit_hook {
 	int type;
 };
 
-static int run_commit_hook(void *ctx, int dirfd, const char *file)
+static int run_commit_hook(void *ctx, int dirfd, const char *path, const char *file)
 {
 	static char *const commit_hook_str[] = { "pre-commit", "post-commit" };
 	struct apk_commit_hook *hook = (struct apk_commit_hook *) ctx;
@@ -277,7 +277,7 @@ static int run_commit_hooks(struct apk_database *db, int type)
 {
 	struct apk_commit_hook hook = { .db = db, .type = type };
 	return apk_dir_foreach_config_file(db->root_fd,
-	    	run_commit_hook, &hook, NULL,
+		run_commit_hook, &hook, apk_filename_is_hidden,
 		"etc/apk/commit_hooks.d",
 		"lib/apk/commit_hooks.d",
 		NULL);

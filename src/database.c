@@ -1327,18 +1327,16 @@ no_mode_char:
 	return 0;
 }
 
-static bool file_ends_with_dot_list(const char *file)
+static bool file_not_dot_list(const char *file)
 {
+	if (apk_filename_is_hidden(file)) return true;
 	const char *ext = strrchr(file, '.');
-	return (ext && strcmp(ext, ".list") == 0) ? true : false;
+	return (ext && strcmp(ext, ".list") == 0) ? false : true;
 }
 
-static int add_protected_paths_from_file(void *ctx, int dirfd, const char *file)
+static int add_protected_paths_from_file(void *ctx, int dirfd, const char *path, const char *file)
 {
-	struct apk_database *db = (struct apk_database *) ctx;
-
-	if (!file_ends_with_dot_list(file)) return 0;
-	apk_db_parse_istream(db, apk_istream_from_file(dirfd, file), apk_db_add_protected_path);
+	apk_db_parse_istream((struct apk_database *) ctx, apk_istream_from_file(dirfd, file), apk_db_add_protected_path);
 	return 0;
 }
 
@@ -1572,7 +1570,7 @@ static int add_repository(struct apk_database *db, apk_blob_t line)
 	return apk_repoparser_parse(&db->repoparser, line, true);
 }
 
-static int add_repos_from_file(void *ctx, int dirfd, const char *file)
+static int add_repos_from_file(void *ctx, int dirfd, const char *path, const char *file)
 {
 	struct apk_database *db = (struct apk_database *) ctx;
 	struct apk_out *out = &db->ctx->out;
@@ -2002,9 +2000,10 @@ int apk_db_open(struct apk_database *db)
 		apk_db_add_protected_path(db, APK_BLOB_STR("+etc"));
 		apk_db_add_protected_path(db, APK_BLOB_STR("@etc/init.d"));
 		apk_db_add_protected_path(db, APK_BLOB_STR("!etc/apk"));
-
-		apk_dir_foreach_file(openat(db->root_fd, "etc/apk/protected_paths.d", O_DIRECTORY | O_RDONLY | O_CLOEXEC),
-				     add_protected_paths_from_file, db);
+		apk_dir_foreach_file(
+			db->root_fd, "etc/apk/protected_paths.d",
+			add_protected_paths_from_file, db,
+			file_not_dot_list);
 	}
 
 	/* figure out where to have the cache */
@@ -2055,15 +2054,15 @@ int apk_db_open(struct apk_database *db)
 
 	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS)) {
 		if (ac->repositories_file == NULL) {
-			add_repos_from_file(db, db->root_fd, "etc/apk/repositories");
+			add_repos_from_file(db, db->root_fd, NULL, "etc/apk/repositories");
 			apk_dir_foreach_config_file(db->root_fd,
 				add_repos_from_file, db,
-				file_ends_with_dot_list,
+				file_not_dot_list,
 				"etc/apk/repositories.d",
 				"lib/apk/repositories.d",
 				NULL);
 		} else {
-			add_repos_from_file(db, AT_FDCWD, ac->repositories_file);
+			add_repos_from_file(db, AT_FDCWD, NULL, ac->repositories_file);
 		}
 	}
 	for (i = 0; i < db->num_repos; i++) open_repository(db, i);
@@ -2416,7 +2415,7 @@ struct foreach_cache_item_ctx {
 	int static_cache;
 };
 
-static int foreach_cache_file(void *pctx, int dirfd, const char *filename)
+static int foreach_cache_file(void *pctx, int dirfd, const char *path, const char *filename)
 {
 	struct foreach_cache_item_ctx *ctx = (struct foreach_cache_item_ctx *) pctx;
 	struct apk_database *db = ctx->db;
@@ -2439,18 +2438,17 @@ int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb)
 	if (fd >= 0) {
 		/* Do not handle static cache as static cache if the explicit
 		 * cache is enabled at the static cache location */
+		int r = 0;
 		if (fstat(fd, &st1) == 0 && fstat(db->cache_fd, &st2) == 0 &&
-		    (st1.st_dev != st2.st_dev || st1.st_ino != st2.st_ino)) {
-			int r = apk_dir_foreach_file_all(fd, foreach_cache_file, &ctx, true);
-			if (r) return r;
-		} else {
-			close(fd);
-		}
+		    (st1.st_dev != st2.st_dev || st1.st_ino != st2.st_ino))
+			r = apk_dir_foreach_file(fd, NULL, foreach_cache_file, &ctx, NULL);
+		close(fd);
+		if (r) return r;
 	}
 
 	ctx.static_cache = false;
 	if (db->cache_fd < 0) return db->cache_fd;
-	return apk_dir_foreach_file_all(dup(db->cache_fd), foreach_cache_file, &ctx, true);
+	return apk_dir_foreach_file(db->cache_fd, NULL, foreach_cache_file, &ctx, NULL);
 }
 
 int apk_db_permanent(struct apk_database *db)

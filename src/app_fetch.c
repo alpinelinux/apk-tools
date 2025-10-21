@@ -227,7 +227,7 @@ static int fetch_match_package(void *pctx, struct apk_query_match *qm)
 	return 0;
 }
 
-static int purge_package(void *pctx, int dirfd, const char *filename)
+static int purge_package(void *pctx, int dirfd, const char *path, const char *filename)
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
 	struct apk_database *db = ctx->ac->db;
@@ -277,7 +277,7 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		/* Remove packages not matching download spec from the output directory */
 		if (!ctx->errors && (db->ctx->flags & APK_PURGE) &&
 		    !(ctx->flags & FETCH_STDOUT) && ctx->outdir_fd > 0)
-			apk_dir_foreach_file(ctx->outdir_fd, purge_package, ctx);
+			apk_dir_foreach_file(ctx->outdir_fd, NULL, purge_package, ctx, apk_filename_is_hidden);
 	}
 	apk_package_array_free(&ctx->pkgs);
 	return ctx->errors;
