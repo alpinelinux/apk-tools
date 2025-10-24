@@ -4,6 +4,7 @@ if cmocka_dep.found()
 
 unit_test_src = [
 	'blob_test.c',
+	'io_test.c',
 	'package_test.c',
 	'process_test.c',
 	'repoparser_test.c',
