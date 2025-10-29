@@ -108,10 +108,10 @@ apk_cargs = [
 
 if lua_bin.found()
 	genhelp_script = files('genhelp.lua')
-	genhelp_args = [lua_bin, genhelp_script, '@INPUT@']
 	lua_env = environment()
 	lua_env.append('LUA_PATH', meson.current_source_dir() / '?.lua', separator: ';')
 
+	genhelp_args = [lua_bin, genhelp_script, '@INPUT@']
 	if not get_option('compressed-help')
 		genhelp_args += ['--no-zlib']
 	endif
@@ -122,18 +122,17 @@ if lua_bin.found()
 		output: 'help.h',
 		input: man_files,
 		command: genhelp_args,
+		depend_files: 'genhelp_apk.lua',
 		env: lua_env,
 	)
-
-	genbash_script = files('genbash.lua')
-	genbash_args = [lua_bin, genbash_script, '@INPUT@']
 
 	generated_bash_completion = custom_target(
 		'apk.bash-completion',
 		capture: true,
 		output: '_apk',
 		input: man_files,
-		command: genbash_args,
+		command: [lua_bin, genhelp_script, '--format=bash', '@INPUT@'],
+		depend_files: 'genhelp_bash.lua',
 		env: lua_env,
 		install: true,
 		install_dir: join_paths(get_option('datadir'), 'bash-completion', 'completions')
