@@ -10,6 +10,7 @@ create_pkg() {
 	mkdir -p "$pkgdir"/etc "$pkgdir"/data
 	echo "test file v${ver}" > "$pkgdir"/etc/test
 	echo "data file v${ver}" > "$pkgdir"/data/test
+	echo "version file v${ver}" > "$pkgdir/data/version-${ver}"
 
 	$APK mkpkg -I name:test-a -I "version:${ver}" -F "$pkgdir" -o "test-a-${ver}.apk"
 }
@@ -22,13 +23,17 @@ create_pkg 2.0
 create_pkg 3.0
 
 $APK add --initdb $TEST_USERMODE test-a-1.0.apk
-
-echo "modified" > "$TEST_ROOT"/etc/test
-echo "modified" > "$TEST_ROOT"/data/test
+cd "$TEST_ROOT"
+[ -e data/version-1.0 ] || assert "new file not installed"
+echo "modified" > etc/test
+echo "modified" > data/test
+cd -
 
 $APK add test-a-2.0.apk
 cd "$TEST_ROOT"
 [ -e etc/test.apk-new ] || assert ".apk-new not found"
+[ -e data/version-1.0 ] && assert "old file not removed"
+[ -e data/version-2.0 ] || assert "new file not installed"
 [ "$(cat etc/test)" = "modified" ] || assert "etc updated unexpectedly"
 [ "$(cat data/test)" = "data file v2.0" ] || assert "data not update"
 cd -
