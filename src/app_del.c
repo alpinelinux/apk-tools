@@ -39,6 +39,10 @@ static int del_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char 
 	return 0;
 }
 
+/* struct apk_name.state_int flags */
+#define NAME_WAS_WORLD_CONFLICT		BIT(0)
+#define NAME_IS_WORLD_DEPENDENCY	BIT(1)
+
 struct not_deleted_ctx {
 	struct apk_out *out;
 	struct apk_indent indent;
@@ -46,11 +50,6 @@ struct not_deleted_ctx {
 	unsigned int matches;
 	int header;
 };
-
-static inline int name_in_world(struct apk_name *n)
-{
-	return n->state_int == 1;
-}
 
 static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependency *dep0,
 				  struct apk_package *pkg, void *pctx)
@@ -64,10 +63,10 @@ static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependenc
 	}
 	if (!ctx->indent.indent)
 		apk_print_indented_group(&ctx->indent, 0, "  %s:", ctx->name->name);
-	if (name_in_world(pkg0->name))
+	if (pkg0->name->state_int & NAME_IS_WORLD_DEPENDENCY)
 		apk_print_indented(&ctx->indent, APK_BLOB_STR(pkg0->name->name));
 	apk_array_foreach(d, pkg0->provides) {
-		if (!name_in_world(d->name)) continue;
+		if (!(d->name->state_int & NAME_IS_WORLD_DEPENDENCY)) continue;
 		apk_print_indented(&ctx->indent, APK_BLOB_STR(d->name->name));
 	}
 
@@ -87,7 +86,7 @@ static int print_not_deleted_name(struct apk_database *db, const char *match,
 	struct apk_out *out = &db->ctx->out;
 	struct not_deleted_ctx *ctx = (struct not_deleted_ctx *) pctx;
 
-	if (!name) return 0;
+	if (!name || (name->state_int & NAME_WAS_WORLD_CONFLICT)) return 0;
 
 	ctx->name = name;
 	ctx->matches = apk_foreach_genid() | APK_FOREACH_MARKED | APK_DEP_SATISFIES;
@@ -144,6 +143,7 @@ static int del_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 	struct del_ctx *ctx = (struct del_ctx *) pctx;
 	struct not_deleted_ctx ndctx = { .out = &db->ctx->out };
 	struct apk_changeset changeset = {};
+	struct apk_dependency_array *orig_world = apk_array_bclone(db->world, &db->ba_deps);
 	int r = 0;
 
 	apk_change_array_init(&changeset.changes);
@@ -156,12 +156,16 @@ static int del_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 	r = apk_solver_solve(db, 0, ctx->world, &changeset);
 	if (r == 0) {
 		if (apk_out_verbosity(&db->ctx->out) >= 1) {
+			apk_array_foreach(d, orig_world)
+				if (d->op & APK_VERSION_CONFLICT)
+					d->name->state_int |= NAME_WAS_WORLD_CONFLICT;
+			apk_array_foreach(d, ctx->world)
+				if (!(d->op & APK_VERSION_CONFLICT))
+					d->name->state_int |= NAME_IS_WORLD_DEPENDENCY;
 			/* check for non-deleted package names */
 			apk_array_foreach(change, changeset.changes)
 				if (change->new_pkg != NULL)
 					change->new_pkg->marked = 1;
-			apk_array_foreach(d, ctx->world)
-				d->name->state_int = 1;
 			if (apk_array_len(args))
 				apk_db_foreach_sorted_name(db, args, print_not_deleted_name, &ndctx);
 			if (ndctx.header)
