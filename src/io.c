@@ -861,8 +861,10 @@ int apk_dir_foreach_file(int atfd, const char *path, apk_dir_file_cb cb, void *c
 
 	if (path) {
 		dirfd = openat(atfd, path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+		if (dirfd < 0) return -errno;
 	} else {
 		dirfd = dup(atfd);
+		if (dirfd < 0) return -errno;
 		/* The duplicated fd shared the pos, reset it in case the same
 		 * atfd was given without path multiple times. */
 		lseek(dirfd, 0, SEEK_SET);
