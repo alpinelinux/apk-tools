@@ -200,6 +200,7 @@ static inline struct apk_array *_apk_array_truncate(struct apk_array *hdr, size_
 #define apk_array_reset(array)		(typeof(array))((array)->hdr.allocated ? apk_array_truncate(array, 0) : &_apk_array_empty)
 #define apk_array_item_size(array)	sizeof((array)->item[0])
 #define apk_array_qsort(array, compare)	qsort((array)->item, (array)->hdr.num, apk_array_item_size(array), compare)
+#define apk_array_bsearch(array, compare, key)	bsearch(key, (array)->item, (array)->hdr.num, apk_array_item_size(array), compare)
 
 #define APK_ARRAY(array_type_name, item_type_name)			\
 	struct array_type_name {					\

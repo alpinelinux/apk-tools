@@ -27,7 +27,7 @@ cd "$TEST_ROOT"
 [ -e data/version-1.0 ] || assert "new file not installed"
 echo "modified" > etc/test
 echo "modified" > data/test
-cd -
+cd - > /dev/null
 
 $APK add test-a-2.0.apk
 cd "$TEST_ROOT"
@@ -36,7 +36,7 @@ cd "$TEST_ROOT"
 [ -e data/version-2.0 ] || assert "new file not installed"
 [ "$(cat etc/test)" = "modified" ] || assert "etc updated unexpectedly"
 [ "$(cat data/test)" = "data file v2.0" ] || assert "data not update"
-cd -
+cd - > /dev/null
 
 rm -rf "$TEST_ROOT"/data/test
 mkdir -p "$TEST_ROOT"/data/test

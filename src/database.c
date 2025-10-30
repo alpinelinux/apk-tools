@@ -863,7 +863,7 @@ static struct apk_db_file *apk_db_ipkg_find_file(struct apk_database *db, apk_bl
 		}
 	}
 
-	struct apk_db_file **entry = bsearch(&file, files->item, apk_array_len(files), apk_array_item_size(files), files_bsearch_cmp);
+	struct apk_db_file **entry = apk_array_bsearch(files, files_bsearch_cmp, &file);
 	return entry ? *entry : NULL;
 }
 
@@ -2943,12 +2943,41 @@ static int apk_db_audit_file(struct apk_fsdir *d, apk_blob_t filename, struct ap
 	return 0;
 }
 
-static void apk_db_purge_pkg(struct apk_database *db, struct apk_installed_package *ipkg, bool is_installed)
+
+struct fileid {
+	dev_t dev;
+	ino_t ino;
+};
+APK_ARRAY(fileid_array, struct fileid);
+
+static bool fileid_get(struct apk_fsdir *fs, apk_blob_t filename, struct fileid *id)
+{
+	struct apk_file_info fi;
+	if (apk_fsdir_file_info(fs, filename, APK_FI_NOFOLLOW, &fi) != 0) return false;
+	*id = (struct fileid) {
+		.dev = fi.data_device,
+		.ino = fi.data_inode,
+	};
+	return true;
+}
+
+static int fileid_cmp(const void *a, const void *b)
+{
+	return memcmp(a, b, sizeof(struct fileid));
+}
+
+static void apk_db_purge_pkg(struct apk_database *db, struct apk_installed_package *ipkg, bool is_installed, struct fileid_array *fileids)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_fsdir d;
+	struct fileid id;
 	int purge = db->ctx->flags & APK_PURGE;
 	int ctrl = is_installed ? APK_FS_CTRL_DELETE : APK_FS_CTRL_CANCEL;
+
+	if (fileids) {
+		if (apk_array_len(fileids)) apk_array_qsort(fileids, fileid_cmp);
+		else fileids = NULL;
+	}
 
 	apk_array_foreach_item(diri, ipkg->diris) {
 		int dirclean = purge || !is_installed || apk_protect_mode_none(diri->dir->protect_mode);
@@ -2960,19 +2989,19 @@ static void apk_db_purge_pkg(struct apk_database *db, struct apk_installed_packa
 
 		apk_array_foreach_item(file, diri->files) {
 			if (file->audited) continue;
-
 			struct apk_db_file_hash_key key = (struct apk_db_file_hash_key) {
 				.dirname = dirname,
 				.filename = APK_BLOB_PTR_LEN(file->name, file->namelen),
 			};
-			unsigned long hash = apk_blob_hash_seed(key.filename, diri->dir->hash);
-			if (dirclean || apk_db_audit_file(&d, key.filename, file) == 0)
+			bool do_delete = !fileids || !fileid_get(&d, key.filename, &id) ||
+				apk_array_bsearch(fileids, fileid_cmp, &id) == NULL;
+			if (do_delete && (dirclean || apk_db_audit_file(&d, key.filename, file) == 0))
 				apk_fsdir_file_control(&d, key.filename, ctrl);
 			if (delapknew)
 				apk_fsdir_file_control(&d, key.filename, APK_FS_CTRL_DELETE_APKNEW);
-
-			apk_dbg2(out, DIR_FILE_FMT, DIR_FILE_PRINTF(diri->dir, file));
+			apk_dbg2(out, DIR_FILE_FMT "%s", DIR_FILE_PRINTF(diri->dir, file), do_delete ? "" : " (not removing)");
 			if (is_installed) {
+				unsigned long hash = apk_blob_hash_seed(key.filename, diri->dir->hash);
 				apk_hash_delete_hashed(&db->installed.files, APK_BLOB_BUF(&key), hash);
 				db->installed.stats.files--;
 			}
@@ -2984,12 +3013,14 @@ static void apk_db_purge_pkg(struct apk_database *db, struct apk_installed_packa
 
 static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 						 struct apk_installed_package *ipkg,
-						 uint8_t priority)
+						 uint8_t priority,
+						 struct fileid_array **fileids)
 {
 	struct apk_out *out = &db->ctx->out;
 	struct apk_db_file *ofile;
 	struct apk_db_file_hash_key key;
 	struct apk_fsdir d;
+	struct fileid id;
 	unsigned long hash;
 	int r, ctrl, inetc;
 	uint8_t dir_priority, next_priority = APK_FS_PRIO_MAX;
@@ -3067,26 +3098,29 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 			}
 
 			// Claim ownership of the file in db
-			if (ofile != file) {
-				if (ofile != NULL) {
-					ofile->audited = 1;
-					apk_hash_delete_hashed(&db->installed.files,
-							       APK_BLOB_BUF(&key), hash);
-				} else
-					db->installed.stats.files++;
-
-				apk_hash_insert_hashed(&db->installed.files, file, hash);
+			if (ofile == file) continue;
+			if (ofile != NULL) {
+				ofile->audited = 1;
+				apk_hash_delete_hashed(&db->installed.files,
+						       APK_BLOB_BUF(&key), hash);
+			} else {
+				if (fileids && fileid_get(&d, key.filename, &id))
+					fileid_array_add(fileids, id);
+				db->installed.stats.files++;
 			}
+
+			apk_hash_insert_hashed(&db->installed.files, file, hash);
 		}
 	}
 	return next_priority;
 }
 
 static void apk_db_migrate_files(struct apk_database *db,
-				 struct apk_installed_package *ipkg)
+				 struct apk_installed_package *ipkg,
+				 struct fileid_array **fileids)
 {
 	for (uint8_t prio = APK_FS_PRIO_DISK; prio != APK_FS_PRIO_MAX; )
-		prio = apk_db_migrate_files_for_priority(db, ipkg, prio);
+		prio = apk_db_migrate_files_for_priority(db, ipkg, prio, fileids);
 }
 
 static int apk_db_unpack_pkg(struct apk_database *db,
@@ -3157,7 +3191,10 @@ int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg,
 {
 	char *script_args[] = { NULL, NULL, NULL, NULL };
 	struct apk_installed_package *ipkg;
+	struct fileid_array *fileids;
 	int r = 0;
+
+	fileid_array_init(&fileids);
 
 	/* Upgrade script gets two args: <new-pkg> <old-pkg> */
 	if (oldpkg != NULL && newpkg != NULL) {
@@ -3173,7 +3210,7 @@ int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg,
 		if (ipkg == NULL)
 			goto ret_r;
 		apk_ipkg_run_script(ipkg, db, APK_SCRIPT_PRE_DEINSTALL, script_args);
-		apk_db_purge_pkg(db, ipkg, true);
+		apk_db_purge_pkg(db, ipkg, true, NULL);
 		apk_ipkg_run_script(ipkg, db, APK_SCRIPT_POST_DEINSTALL, script_args);
 		apk_pkg_uninstall(db, oldpkg);
 		goto ret_r;
@@ -3197,15 +3234,15 @@ int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg,
 		apk_db_ipkg_commit(db, ipkg);
 		if (r != 0) {
 			if (oldpkg != newpkg)
-				apk_db_purge_pkg(db, ipkg, false);
+				apk_db_purge_pkg(db, ipkg, false, NULL);
 			apk_pkg_uninstall(db, newpkg);
 			goto ret_r;
 		}
-		apk_db_migrate_files(db, ipkg);
+		apk_db_migrate_files(db, ipkg, oldpkg ? &fileids : NULL);
 	}
 
 	if (oldpkg != NULL && oldpkg != newpkg && oldpkg->ipkg != NULL) {
-		apk_db_purge_pkg(db, oldpkg->ipkg, true);
+		apk_db_purge_pkg(db, oldpkg->ipkg, true, fileids);
 		apk_pkg_uninstall(db, oldpkg);
 	}
 
@@ -3219,6 +3256,7 @@ int apk_db_install_pkg(struct apk_database *db, struct apk_package *oldpkg,
 ret_r:
 	free(script_args[1]);
 	free(script_args[2]);
+	fileid_array_free(&fileids);
 	return r;
 }
 
