@@ -21,7 +21,6 @@ static void __attribute((constructor)) resolver(void)
 int openat(int atfd, const char *filename, int flags, ...)
 {
 	if (atfd != MOCKFD) return next_openat(atfd, filename, flags);
-	fprintf(stderr, "mockdir %s\n", filename);
 	return MOCKFD;
 }
 

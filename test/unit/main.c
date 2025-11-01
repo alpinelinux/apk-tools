@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <signal.h>
+#include <unistd.h>
 #include "apk_test.h"
 
 static int num_tests;
@@ -36,6 +37,7 @@ void assert_output_equal(struct test_out *to, const char *expected_err, const ch
 
 int main(void)
 {
+	if (access("test/unit", F_OK) == 0) chdir("test/unit");
 	signal(SIGPIPE, SIG_IGN);
 	return _cmocka_run_group_tests("unit_tests", all_tests, num_tests, NULL, NULL);
 }
