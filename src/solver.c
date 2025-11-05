@@ -852,12 +852,11 @@ static void cset_check_install_by_iif(struct apk_solver_state *ss, struct apk_na
 {
 	struct apk_package *pkg = name->ss.chosen.pkg;
 
-	if (pkg == NULL || !name->ss.seen || name->ss.in_changeset)
-		return;
+	if (!pkg || !name->ss.seen || name->ss.changeset_processed) return;
 
 	apk_array_foreach(dep0, pkg->install_if) {
 		struct apk_name *name0 = dep0->name;
-		if (!apk_dep_conflict(dep0) == !name0->ss.in_changeset) return;
+		if (!apk_dep_conflict(dep0) && !name0->ss.changeset_processed) return;
 		if (!apk_dep_is_provided(pkg, dep0, &name0->ss.chosen)) return;
 	}
 	cset_gen_name_change(ss, name);
@@ -867,12 +866,12 @@ static void cset_check_removal_by_iif(struct apk_solver_state *ss, struct apk_na
 {
 	struct apk_package *pkg = name->ss.installed_pkg;
 
-	if (pkg == NULL || name->ss.in_changeset || name->ss.chosen.pkg != NULL)
-		return;
+	if (!pkg || name->ss.chosen.pkg) return;
+	if (name->ss.changeset_processed || name->ss.changeset_removed) return;
 
 	apk_array_foreach(dep0, pkg->install_if) {
-		if (dep0->name->ss.in_changeset &&
-		    dep0->name->ss.chosen.pkg == NULL) {
+		struct apk_name *name0 = dep0->name;
+		if (name0->ss.changeset_removed && !name0->ss.chosen.pkg) {
 			cset_check_removal_by_deps(ss, pkg);
 			return;
 		}
@@ -887,10 +886,10 @@ static void cset_check_by_reverse_iif(struct apk_solver_state *ss, struct apk_pa
 		apk_array_foreach_item(name, d->name->rinstall_if) cb(ss, name);
 }
 
-static void cset_gen_name_remove_orphan(struct apk_solver_state *ss, struct apk_name *name)
+static void cset_gen_name_preprocess(struct apk_solver_state *ss, struct apk_name *name)
 {
-	if (name->ss.in_changeset) return;
-	name->ss.in_changeset = 1;
+	if (name->ss.changeset_processed) return;
+	name->ss.changeset_processed = 1;
 
 	dbg_printf("cset_gen_name_remove_orphans: %s\n", name->name);
 
@@ -912,18 +911,18 @@ static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *n
 {
 	struct apk_package *pkg, *opkg;
 
-	if (name->ss.in_changeset) return;
+	if (name->ss.changeset_processed) return;
 
 	dbg_printf("cset_gen: processing: %s\n", name->name);
-	cset_gen_name_remove_orphan(ss, name);
+	cset_gen_name_preprocess(ss, name);
 
 	pkg = name->ss.chosen.pkg;
 	if (!pkg || pkg->ss.in_changeset) return;
-	pkg->ss.in_changeset = 1;
 
-	cset_gen_name_remove_orphan(ss, pkg->name);
+	pkg->ss.in_changeset = 1;
+	cset_gen_name_preprocess(ss, pkg->name);
 	apk_array_foreach(d, pkg->provides)
-		cset_gen_name_remove_orphan(ss, d->name);
+		cset_gen_name_preprocess(ss, d->name);
 
 	opkg = pkg->name->ss.installed_pkg;
 	cset_check_by_reverse_iif(ss, opkg, cset_check_removal_by_iif);
@@ -955,7 +954,7 @@ static void cset_gen_name_remove(struct apk_solver_state *ss, struct apk_package
 	     name->ss.chosen.pkg->name == name))
 		return;
 
-	name->ss.in_changeset = 1;
+	name->ss.changeset_removed = 1;
 	pkg->ss.in_changeset = 1;
 	apk_pkg_foreach_reverse_dependency(pkg, APK_FOREACH_INSTALLED|APK_DEP_SATISFIES, cset_gen_name_remove0, ss);
 	cset_check_by_reverse_iif(ss, pkg, cset_check_removal_by_iif);
