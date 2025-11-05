@@ -32,7 +32,8 @@ struct apk_solver_name_state {
 	unsigned short merge_provides;
 	unsigned seen : 1;
 	unsigned locked : 1;
-	unsigned in_changeset : 1;
+	unsigned changeset_processed : 1;
+	unsigned changeset_removed : 1;
 	unsigned reevaluate_deps : 1;
 	unsigned reevaluate_iif : 1;
 	unsigned has_iif : 1;
