@@ -49,6 +49,7 @@ struct not_deleted_ctx {
 	struct apk_name *name;
 	unsigned int matches;
 	int header;
+	int verbose;
 };
 
 static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependency *dep0,
@@ -71,10 +72,13 @@ static void print_not_deleted_pkg(struct apk_package *pkg0, struct apk_dependenc
 	}
 
 	apk_pkg_foreach_reverse_dependency(pkg0, ctx->matches, print_not_deleted_pkg, pctx);
+
+	// Traverse the providers of the packages automatically installed, limit to the marked world packages (issue #11151)
 	apk_array_foreach(d, pkg0->install_if) {
 		apk_array_foreach(p, d->name->providers) {
 			if (!p->pkg->marked) continue;
 			if (apk_pkg_match_genid(p->pkg, ctx->matches)) continue;
+			if (!ctx->verbose && !(p->pkg->name->state_int & NAME_IS_WORLD_DEPENDENCY)) continue;
 			print_not_deleted_pkg(p->pkg, NULL, NULL, pctx);
 		}
 	}
@@ -141,7 +145,10 @@ static int del_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *arg
 {
 	struct apk_database *db = ac->db;
 	struct del_ctx *ctx = (struct del_ctx *) pctx;
-	struct not_deleted_ctx ndctx = { .out = &db->ctx->out };
+	struct not_deleted_ctx ndctx = {
+		.out = &db->ctx->out,
+		.verbose = apk_out_verbosity(&db->ctx->out) >= 2
+	};
 	struct apk_changeset changeset = {};
 	struct apk_dependency_array *orig_world = apk_array_bclone(db->world, &db->ba_deps);
 	int r = 0;
