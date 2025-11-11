@@ -252,11 +252,13 @@ static int num_scripts(const struct apk_installed_package *ipkg)
 static int __apk_package_serialize(struct apk_package *pkg, struct apk_database *db, uint64_t fields, struct apk_serializer *ser, int (*ser_deps)(struct apk_serializer *, struct apk_dependency_array *, bool))
 {
 	char buf[PATH_MAX];
+	int ret = 0;
 
 	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_PACKAGE, apk_blob_fmt(buf, sizeof buf, PKG_VER_FMT, PKG_VER_PRINTF(pkg)), fields, ser);
 	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_NAME, APK_BLOB_STR(pkg->name->name), fields, ser);
 	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_VERSION, *pkg->version, fields, ser);
 	//APK_Q_FIELD_HASH
+	if (fields & BIT(APK_Q_FIELD_HASH)) ret = 1;
 	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_DESCRIPTION, *pkg->description, fields, ser);
 	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_ARCH, *pkg->arch, fields, ser);
 	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_LICENSE, *pkg->license, fields, ser);
@@ -293,59 +295,64 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 			apk_ser_string(ser, APK_BLOB_STR(buf));
 		}
 	}
+
 	//APK_Q_FIELD_REVDEPS_PKGNAME
 	//APK_Q_FIELD_REVDEPS_ORIGIN
 	//APK_Q_FIELD_RINSTALL_IF
+	if (fields & (BIT(APK_Q_FIELD_REVDEPS_PKGNAME) | BIT(APK_Q_FIELD_REVDEPS_ORIGIN) | BIT(APK_Q_FIELD_RINSTALL_IF)))
+		ret = 1;
 
-	// installed package fields
-	if (pkg->ipkg) {
-		struct apk_installed_package *ipkg = pkg->ipkg;
-		if (BIT(APK_Q_FIELD_CONTENTS) & fields) {
-			struct apk_pathbuilder pb;
-
-			apk_ser_key(ser, apk_query_field(APK_Q_FIELD_CONTENTS));
-			apk_ser_start_array(ser, -1);
-			apk_array_foreach_item(diri, ipkg->diris) {
-				apk_pathbuilder_setb(&pb, APK_BLOB_PTR_LEN(diri->dir->name, diri->dir->namelen));
-				apk_array_foreach_item(file, diri->files) {
-					int n = apk_pathbuilder_pushb(&pb, APK_BLOB_PTR_LEN(file->name, file->namelen));
-					apk_ser_string(ser, apk_pathbuilder_get(&pb));
-					apk_pathbuilder_pop(&pb, n);
-				}
-			}
-			apk_ser_end(ser);
-		}
-		if ((BIT(APK_Q_FIELD_TRIGGERS) & fields) && apk_array_len(ipkg->triggers)) {
-			apk_ser_key(ser, apk_query_field(APK_Q_FIELD_TRIGGERS));
-			apk_ser_start_array(ser, apk_array_len(ipkg->triggers));
-			apk_array_foreach_item(str, ipkg->triggers)
-				apk_ser_string(ser, APK_BLOB_STR(str));
-			apk_ser_end(ser);
-		}
-		if ((BIT(APK_Q_FIELD_SCRIPTS) & fields) && num_scripts(ipkg)) {
-			apk_ser_key(ser, apk_query_field(APK_Q_FIELD_SCRIPTS));
-			apk_ser_start_array(ser, num_scripts(ipkg));
-			for (int i = 0; i < ARRAY_SIZE(ipkg->script); i++) {
-				if (!ipkg->script[i].len) continue;
-				apk_ser_string(ser, APK_BLOB_STR(apk_script_types[i]));
-			}
-			apk_ser_end(ser);
-		}
-
-		FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_REPLACES_PRIORITY, ipkg->replaces_priority, fields, ser);
-		FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_REPLACES, ipkg->replaces, fields, ser_deps, false, ser);
-		if (BIT(APK_Q_FIELD_STATUS) & fields) {
-			apk_ser_key(ser, apk_query_field(APK_Q_FIELD_STATUS));
-			apk_ser_start_array(ser, -1);
-			apk_ser_string(ser, APK_BLOB_STRLIT("installed"));
-			if (ipkg->broken_files) apk_ser_string(ser, APK_BLOB_STRLIT("broken-files"));
-			if (ipkg->broken_script) apk_ser_string(ser, APK_BLOB_STRLIT("broken-script"));
-			if (ipkg->broken_xattr) apk_ser_string(ser, APK_BLOB_STRLIT("broken-xattr"));
-			apk_ser_end(ser);
-		}
+	if (!pkg->ipkg) {
+		if (fields & APK_Q_FIELDS_ONLY_IPKG) ret = 1;
+		return ret;
 	}
 
-	return 0;
+	// installed package fields
+	struct apk_installed_package *ipkg = pkg->ipkg;
+	if (BIT(APK_Q_FIELD_CONTENTS) & fields) {
+		struct apk_pathbuilder pb;
+
+		apk_ser_key(ser, apk_query_field(APK_Q_FIELD_CONTENTS));
+		apk_ser_start_array(ser, -1);
+		apk_array_foreach_item(diri, ipkg->diris) {
+			apk_pathbuilder_setb(&pb, APK_BLOB_PTR_LEN(diri->dir->name, diri->dir->namelen));
+			apk_array_foreach_item(file, diri->files) {
+				int n = apk_pathbuilder_pushb(&pb, APK_BLOB_PTR_LEN(file->name, file->namelen));
+				apk_ser_string(ser, apk_pathbuilder_get(&pb));
+				apk_pathbuilder_pop(&pb, n);
+			}
+		}
+		apk_ser_end(ser);
+	}
+	if ((BIT(APK_Q_FIELD_TRIGGERS) & fields) && apk_array_len(ipkg->triggers)) {
+		apk_ser_key(ser, apk_query_field(APK_Q_FIELD_TRIGGERS));
+		apk_ser_start_array(ser, apk_array_len(ipkg->triggers));
+		apk_array_foreach_item(str, ipkg->triggers)
+			apk_ser_string(ser, APK_BLOB_STR(str));
+		apk_ser_end(ser);
+	}
+	if ((BIT(APK_Q_FIELD_SCRIPTS) & fields) && num_scripts(ipkg)) {
+		apk_ser_key(ser, apk_query_field(APK_Q_FIELD_SCRIPTS));
+		apk_ser_start_array(ser, num_scripts(ipkg));
+		for (int i = 0; i < ARRAY_SIZE(ipkg->script); i++) {
+			if (!ipkg->script[i].len) continue;
+			apk_ser_string(ser, APK_BLOB_STR(apk_script_types[i]));
+		}
+		apk_ser_end(ser);
+	}
+
+	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_REPLACES_PRIORITY, ipkg->replaces_priority, fields, ser);
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_REPLACES, ipkg->replaces, fields, ser_deps, false, ser);
+	if (BIT(APK_Q_FIELD_STATUS) & fields) {
+		apk_ser_key(ser, apk_query_field(APK_Q_FIELD_STATUS));
+		apk_ser_start_array(ser, -1);
+		apk_ser_string(ser, APK_BLOB_STRLIT("installed"));
+		if (ipkg->broken_files) apk_ser_string(ser, APK_BLOB_STRLIT("broken-files"));
+		if (ipkg->broken_script) apk_ser_string(ser, APK_BLOB_STRLIT("broken-script"));
+		if (ipkg->broken_xattr) apk_ser_string(ser, APK_BLOB_STRLIT("broken-xattr"));
+		apk_ser_end(ser);
+	}
+	return ret;
 }
 
 int apk_package_serialize(struct apk_package *pkg, struct apk_database *db, uint64_t fields, struct apk_serializer *ser)
@@ -721,13 +728,15 @@ int apk_query_run(struct apk_ctx *ac, struct apk_query_spec *qs, struct apk_stri
 	r = apk_query_packages(ac, qs, args, &q.pkgs);
 	if (r < 0) goto ret;
 
+	r = 0;
 	apk_ser_start_array(ser, apk_array_len(q.pkgs));
 	apk_array_foreach_item(pkg, q.pkgs) {
 		apk_ser_start_object(ser);
-		apk_package_serialize(pkg, ac->db, qs->fields, ser);
+		if (apk_package_serialize(pkg, ac->db, qs->fields, ser) == 1) r = 1;
 		apk_ser_end(ser);
 	}
 	apk_ser_end(ser);
+	if (qs->fields == APK_Q_FIELDS_ALL) r = 0;
 ret:
 	apk_package_array_free(&q.pkgs);
 	return r;

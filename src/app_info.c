@@ -19,6 +19,8 @@ struct info_ctx {
 	struct apk_database *db;
 	unsigned int who_owns : 1;
 	unsigned int exists_test : 1;
+	unsigned int all_fields : 1;
+	unsigned int partial_result : 1;
 };
 
 static int verbosity;
@@ -222,11 +224,14 @@ static void info_subactions(struct info_ctx *ctx, struct apk_package *pkg)
 	struct apk_database *db = ctx->db;
 	uint64_t fields = db->ctx->query.fields;
 	if (!pkg->ipkg) {
-		const uint64_t installed_package_fields =
-			BIT(APK_Q_FIELD_CONTENTS) | BIT(APK_Q_FIELD_TRIGGERS) |
-			BIT(APK_Q_FIELD_REVDEPS_PKGNAME) | BIT(APK_Q_FIELD_RINSTALL_IF) |
-			BIT(APK_Q_FIELD_REPLACES);
-		fields &= ~installed_package_fields;
+		// info applet prints reverse dependencies only for installed packages
+		const uint64_t ipkg_fields = APK_Q_FIELDS_ONLY_IPKG |
+			BIT(APK_Q_FIELD_REVDEPS_PKGNAME) | BIT(APK_Q_FIELD_REVDEPS_ORIGIN) |
+			BIT(APK_Q_FIELD_RINSTALL_IF);
+		if (fields & ipkg_fields) {
+			ctx->partial_result = 1;
+			fields &= ~ipkg_fields;
+		}
 	}
 	if (fields & BIT(APK_Q_FIELD_DESCRIPTION)) info_print_blob(db, pkg, "description", *pkg->description);
 	if (fields & BIT(APK_Q_FIELD_URL)) info_print_blob(db, pkg, "webpage", *pkg->url);
@@ -315,6 +320,7 @@ static int info_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char
 		qs->fields |= BIT(APK_Q_FIELD_LICENSE);
 		break;
 	case OPT_INFO_all:
+		ctx->all_fields = 1;
 		qs->fields |= BIT(APK_Q_FIELD_URL) | BIT(APK_Q_FIELD_DEPENDS) |
 			BIT(APK_Q_FIELD_PROVIDES) | BIT(APK_Q_FIELD_REVDEPS_PKGNAME) |
 			BIT(APK_Q_FIELD_INSTALL_IF) | BIT(APK_Q_FIELD_RINSTALL_IF) |
@@ -362,6 +368,8 @@ static int info_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *arg
 			apk_array_foreach_item(pkg, pkgs) info_subactions(ctx, pkg);
 		}
 		apk_package_array_free(&pkgs);
+		if (errors == 0 && ictx->partial_result && !ictx->all_fields)
+			return 1;
 		return errors;
 	}
 	return apk_query_main(ac, args);
