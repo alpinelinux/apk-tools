@@ -684,13 +684,6 @@ int apk_query_matches(struct apk_ctx *ac, struct apk_query_spec *qs, struct apk_
 	return no_matches;
 }
 
-struct query {
-	struct apk_query_spec *qs;
-	struct apk_serializer *ser;
-	int errors;
-	struct apk_package_array *pkgs;
-};
-
 static int select_package(void *pctx, struct apk_query_match *qm)
 {
 	struct apk_package_array **ppkgs = pctx;
@@ -715,22 +708,19 @@ int apk_query_packages(struct apk_ctx *ac, struct apk_query_spec *qs, struct apk
 
 int apk_query_run(struct apk_ctx *ac, struct apk_query_spec *qs, struct apk_string_array *args, struct apk_serializer *ser)
 {
-	struct query q = {
-		.qs = qs,
-		.ser = ser,
-	};
+	struct apk_package_array *pkgs;
 	int r;
 
 	if (!qs->fields) qs->fields = APK_Q_FIELDS_DEFAULT_PKG;
 
 	// create list of packages that match
-	apk_package_array_init(&q.pkgs);
-	r = apk_query_packages(ac, qs, args, &q.pkgs);
+	apk_package_array_init(&pkgs);
+	r = apk_query_packages(ac, qs, args, &pkgs);
 	if (r < 0) goto ret;
 
 	r = 0;
-	apk_ser_start_array(ser, apk_array_len(q.pkgs));
-	apk_array_foreach_item(pkg, q.pkgs) {
+	apk_ser_start_array(ser, apk_array_len(pkgs));
+	apk_array_foreach_item(pkg, pkgs) {
 		apk_ser_start_object(ser);
 		if (apk_package_serialize(pkg, ac->db, qs->fields, ser) == 1) r = 1;
 		apk_ser_end(ser);
@@ -738,7 +728,7 @@ int apk_query_run(struct apk_ctx *ac, struct apk_query_spec *qs, struct apk_stri
 	apk_ser_end(ser);
 	if (qs->fields == APK_Q_FIELDS_ALL) r = 0;
 ret:
-	apk_package_array_free(&q.pkgs);
+	apk_package_array_free(&pkgs);
 	return r;
 }
 
