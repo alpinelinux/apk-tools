@@ -1030,6 +1030,7 @@ static void foreach_reverse_dependency(
 	unsigned int marked = match & APK_FOREACH_MARKED;
 	unsigned int installed = match & APK_FOREACH_INSTALLED;
 	unsigned int one_dep_only = (match & APK_FOREACH_GENID_MASK) && !(match & APK_FOREACH_DEP);
+	unsigned int no_conflicts = (match & APK_FOREACH_NO_CONFLICTS);
 
 	apk_array_foreach_item(name0, rdepends) {
 		apk_array_foreach(p0, name0->providers) {
@@ -1038,6 +1039,7 @@ static void foreach_reverse_dependency(
 			if (marked && !pkg0->marked) continue;
 			if (apk_pkg_match_genid(pkg0, match)) continue;
 			apk_array_foreach(d0, pkg0->depends) {
+				if (no_conflicts && apk_dep_conflict(d0)) continue;
 				if (apk_dep_analyze(pkg0, d0, pkg) & match) {
 					cb(pkg0, d0, pkg, ctx);
 					if (one_dep_only) break;

@@ -19,7 +19,6 @@ struct info_ctx {
 	struct apk_database *db;
 	unsigned int who_owns : 1;
 	unsigned int exists_test : 1;
-	unsigned int all_fields : 1;
 	unsigned int partial_result : 1;
 };
 
@@ -85,7 +84,7 @@ static int info_who_owns(struct info_ctx *ctx, struct apk_database *db, struct a
 		apk_query_who_owns(db, fn, &qm, buf, sizeof buf);
 		if (ser) {
 			apk_ser_start_object(ser);
-			apk_query_match_serialize(&qm, db, qs->fields, ser);
+			apk_query_match_serialize(&qm, db, qs, ser);
 			apk_ser_end(ser);
 			continue;
 		}
@@ -156,7 +155,6 @@ static void info_print_dep_array(struct apk_database *db, struct apk_package *pk
 
 static void print_rdep_pkg(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *pctx)
 {
-	if (apk_dep_conflict(dep0)) return;
 	printf(PKG_VER_FMT "%s", PKG_VER_PRINTF(pkg0), verbosity > 1 ? " " : "\n");
 }
 
@@ -166,7 +164,7 @@ static void info_print_required_by(struct apk_database *db, struct apk_package *
 	if (verbosity > 1) printf("%s: ", pkg->name->name);
 	apk_pkg_foreach_reverse_dependency(
 		pkg,
-		APK_FOREACH_INSTALLED | APK_DEP_SATISFIES | apk_foreach_genid(),
+		APK_FOREACH_INSTALLED | APK_FOREACH_NO_CONFLICTS | APK_DEP_SATISFIES | apk_foreach_genid(),
 		print_rdep_pkg, NULL);
 	puts("");
 }
@@ -184,8 +182,8 @@ static void info_print_rinstall_if(struct apk_database *db, struct apk_package *
 		struct apk_package *pkg0 = apk_pkg_get_installed(name0);
 		if (pkg0 == NULL) continue;
 		apk_array_foreach(dep, pkg0->install_if) {
-			if (apk_dep_conflict(dep)) continue;
 			if (dep->name != pkg->name) continue;
+			if (apk_dep_conflict(dep)) continue;
 			printf(PKG_VER_FMT "%s", PKG_VER_PRINTF(pkg0), separator);
 			break;
 		}
@@ -228,8 +226,8 @@ static void info_subactions(struct info_ctx *ctx, struct apk_package *pkg)
 	if (!pkg->ipkg) {
 		// info applet prints reverse dependencies only for installed packages
 		const uint64_t ipkg_fields = APK_Q_FIELDS_ONLY_IPKG |
-			BIT(APK_Q_FIELD_REVDEPS_PKGNAME) | BIT(APK_Q_FIELD_REVDEPS_ORIGIN) |
-			BIT(APK_Q_FIELD_RINSTALL_IF);
+			BIT(APK_Q_FIELD_REV_DEPENDS) |
+			BIT(APK_Q_FIELD_REV_INSTALL_IF);
 		if (fields & ipkg_fields) {
 			ctx->partial_result = 1;
 			fields &= ~ipkg_fields;
@@ -240,11 +238,11 @@ static void info_subactions(struct info_ctx *ctx, struct apk_package *pkg)
 	if (fields & BIT(APK_Q_FIELD_INSTALLED_SIZE)) info_print_size(db, pkg);
 	if (fields & BIT(APK_Q_FIELD_DEPENDS)) info_print_dep_array(db, pkg, pkg->depends, "depends on");
 	if (fields & BIT(APK_Q_FIELD_PROVIDES)) info_print_dep_array(db, pkg, pkg->provides, "provides");
-	if (fields & BIT(APK_Q_FIELD_REVDEPS_PKGNAME)) info_print_required_by(db, pkg);
+	if (fields & BIT(APK_Q_FIELD_REV_DEPENDS)) info_print_required_by(db, pkg);
 	if (fields & BIT(APK_Q_FIELD_CONTENTS)) info_print_contents(db, pkg);
 	if (fields & BIT(APK_Q_FIELD_TRIGGERS)) info_print_triggers(db, pkg);
 	if (fields & BIT(APK_Q_FIELD_INSTALL_IF)) info_print_dep_array(db, pkg, pkg->install_if, "has auto-install rule");
-	if (fields & BIT(APK_Q_FIELD_RINSTALL_IF)) info_print_rinstall_if(db, pkg);
+	if (fields & BIT(APK_Q_FIELD_REV_INSTALL_IF)) info_print_rinstall_if(db, pkg);
 	if (fields & BIT(APK_Q_FIELD_REPLACES)) info_print_dep_array(db, pkg, pkg->ipkg->replaces, "replaces");
 	if (fields & BIT(APK_Q_FIELD_LICENSE)) info_print_blob(db, pkg, "license", *pkg->license);
 }
@@ -295,13 +293,13 @@ static int info_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char
 		qs->fields |= BIT(APK_Q_FIELD_PROVIDES);
 		break;
 	case OPT_INFO_rdepends:
-		qs->fields |= BIT(APK_Q_FIELD_REVDEPS_PKGNAME);
+		qs->fields |= BIT(APK_Q_FIELD_REV_DEPENDS);
 		break;
 	case OPT_INFO_install_if:
 		qs->fields |= BIT(APK_Q_FIELD_INSTALL_IF);
 		break;
 	case OPT_INFO_rinstall_if:
-		qs->fields |= BIT(APK_Q_FIELD_RINSTALL_IF);
+		qs->fields |= BIT(APK_Q_FIELD_REV_INSTALL_IF);
 		break;
 	case OPT_INFO_size:
 		qs->fields |= BIT(APK_Q_FIELD_INSTALLED_SIZE);
@@ -322,13 +320,7 @@ static int info_parse_option(void *pctx, struct apk_ctx *ac, int opt, const char
 		qs->fields |= BIT(APK_Q_FIELD_LICENSE);
 		break;
 	case OPT_INFO_all:
-		ctx->all_fields = 1;
-		qs->fields |= BIT(APK_Q_FIELD_URL) | BIT(APK_Q_FIELD_DEPENDS) |
-			BIT(APK_Q_FIELD_PROVIDES) | BIT(APK_Q_FIELD_REVDEPS_PKGNAME) |
-			BIT(APK_Q_FIELD_INSTALL_IF) | BIT(APK_Q_FIELD_RINSTALL_IF) |
-			BIT(APK_Q_FIELD_INSTALLED_SIZE) | BIT(APK_Q_FIELD_DESCRIPTION) |
-			BIT(APK_Q_FIELD_CONTENTS) | BIT(APK_Q_FIELD_TRIGGERS) |
-			BIT(APK_Q_FIELD_REPLACES) | BIT(APK_Q_FIELD_LICENSE);
+		qs->fields |= APK_Q_FIELDS_ALL;
 		break;
 	default:
 		return -ENOTSUP;
@@ -347,6 +339,8 @@ static int info_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *arg
 
 	verbosity = apk_out_verbosity(out);
 	ictx->db = db;
+	qs->filter.revdeps_installed = 1;
+	qs->revdeps_field = APK_Q_FIELD_PACKAGE;
 
 	if (ictx->who_owns) return info_who_owns(ctx, db, args);
 	if (ictx->exists_test) return info_exists(ctx, db, args);
@@ -370,7 +364,7 @@ static int info_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *arg
 			apk_array_foreach_item(pkg, pkgs) info_subactions(ctx, pkg);
 		}
 		apk_package_array_free(&pkgs);
-		if (errors == 0 && ictx->partial_result && !ictx->all_fields)
+		if (errors == 0 && ictx->partial_result && qs->fields == APK_Q_FIELDS_ALL)
 			return 1;
 		return errors;
 	}

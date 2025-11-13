@@ -143,11 +143,33 @@ $APK query --format yaml --installed --fields all "apk-tools" 2>&1 | diff -u /de
     - cmd:apk=2.14.6-r3
   repositories:
     - lib/apk/db/installed
+  reverse-depends:
+    - alpine-base
+  reverse-install-if:
+    - apk-tools-doc
   contents:
     - sbin/apk
     - usr/lib/libapk.so.2.14.0
   status:
     - installed
+EOF
+
+$APK query --format yaml --installed --fields package,reverse-depends,reverse-install-if:package "apk-tools" 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong result"
+# 1 items
+- package: apk-tools-2.14.6-r3
+  reverse-depends:
+    - alpine-base-3.21.3-r0
+  reverse-install-if:
+    - apk-tools-doc-2.14.6-r3
+EOF
+
+$APK query --format yaml --installed --fields package,reverse-depends,reverse-install-if:origin "apk-tools" 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong result"
+# 1 items
+- package: apk-tools-2.14.6-r3
+  reverse-depends:
+    - alpine-base
+  reverse-install-if:
+    - apk-tools
 EOF
 
 $APK query --format json --installed "musl*" 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong result"

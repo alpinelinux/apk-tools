@@ -41,8 +41,10 @@ The applets supporting query specifiers recognize the following options:
 *--available*
 	Filter selection to available packages.
 
-*--fields* _FIELDS_
-	A comma separated list of fields to include in the output.
+*--fields* _FIELDS_[:_REVERSE_FIELD_]
+	A comma separated list of fields to include in the output. An optional
+	specification to specify the field to output for the synthetic reverse
+	dependency fields can be specifed (*name*, *package* or *origin*).
 
 *--format* _FORMATSPEC_
 	Specify output format from *default*, *yaml* or *json*. The *default*

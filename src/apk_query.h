@@ -55,16 +55,20 @@ enum {
 	APK_Q_FIELD_SCRIPTS,
 	APK_Q_FIELD_REPLACES_PRIORITY,
 
-	// synthetic/repositories fields
+	// installed database fields (for installed packages)
+	APK_Q_FIELD_STATUS,
+
+	// repositories fields
 	APK_Q_FIELD_REPOSITORIES,
 	APK_Q_FIELD_DOWNLOAD_URL,
-	APK_Q_FIELD_REVDEPS_PKGNAME,
-	APK_Q_FIELD_REVDEPS_ORIGIN,
-	APK_Q_FIELD_RINSTALL_IF,
-	APK_Q_FIELD_STATUS,
+
+	// synthetic fields
+	APK_Q_FIELD_REV_DEPENDS,
+	APK_Q_FIELD_REV_INSTALL_IF,
+	APK_Q_NUM_FIELDS
 };
 
-#define APK_Q_FIELDS_ALL 		(BIT(APK_Q_FIELD_STATUS+1)-1)
+#define APK_Q_FIELDS_ALL 		(BIT(APK_Q_NUM_FIELDS)-1)
 #define APK_Q_FIELDS_MATCHABLE \
 	(BIT(APK_Q_FIELD_PACKAGE) | BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_VERSION) | \
 	 BIT(APK_Q_FIELD_DESCRIPTION) | BIT(APK_Q_FIELD_ARCH) |BIT(APK_Q_FIELD_LICENSE) | \
@@ -96,7 +100,9 @@ struct apk_query_spec {
 		uint8_t installed : 1;
 		uint8_t orphaned : 1;
 		uint8_t upgradable : 1;
+		uint8_t revdeps_installed : 1;
 	} filter;
+	uint8_t revdeps_field;
 	uint64_t match;
 	uint64_t fields;
 	const struct apk_serializer_ops *ser;
@@ -111,14 +117,15 @@ struct apk_query_match {
 
 typedef int (*apk_query_match_cb)(void *pctx, struct apk_query_match *);
 
-uint64_t apk_query_fields(apk_blob_t field_list, uint64_t allowed_fields, struct apk_out *out);
+int apk_query_field_by_name(apk_blob_t k);
+uint64_t apk_query_fields(apk_blob_t field_list, uint64_t allowed_fields);
 apk_blob_t apk_query_field(int f);
 apk_blob_t apk_query_printable_field(apk_blob_t f);
 int apk_query_parse_option(struct apk_ctx *ac, int opt, const char *optarg);
 extern const char optgroup_query_desc[];
 
-int apk_package_serialize(struct apk_package *pkg, struct apk_database *db, uint64_t fields, struct apk_serializer *ser);
-int apk_query_match_serialize(struct apk_query_match *qm, struct apk_database *db, uint64_t fields, struct apk_serializer *ser);
+int apk_package_serialize(struct apk_package *pkg, struct apk_database *db, struct apk_query_spec *qs, struct apk_serializer *ser);
+int apk_query_match_serialize(struct apk_query_match *qm, struct apk_database *db, struct apk_query_spec *qs, struct apk_serializer *ser);
 
 int apk_query_who_owns(struct apk_database *db, const char *path, struct apk_query_match *qm, char *buf, size_t bufsz);
 int apk_query_matches(struct apk_ctx *ac, struct apk_query_spec *qs, struct apk_string_array *args, apk_query_match_cb match, void *pctx);

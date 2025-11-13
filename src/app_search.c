@@ -53,7 +53,7 @@ static void print_rdep_pkg(struct apk_package *pkg0, struct apk_dependency *dep0
 static void print_rdepends(struct search_ctx *ctx, struct apk_package *pkg)
 {
 	if (ctx->verbosity > 0) {
-		ctx->matches = apk_foreach_genid() | APK_DEP_SATISFIES;
+		ctx->matches = apk_foreach_genid() | APK_DEP_SATISFIES | APK_FOREACH_NO_CONFLICTS;
 		printf(PKG_VER_FMT " is required by:\n", PKG_VER_PRINTF(pkg));
 	}
 	apk_pkg_foreach_reverse_dependency(pkg, ctx->matches, print_rdep_pkg, ctx);
@@ -118,7 +118,7 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 
 	ctx->verbosity = apk_out_verbosity(&db->ctx->out);
 	ctx->filter = args;
-	ctx->matches = apk_foreach_genid() | APK_DEP_SATISFIES;
+	ctx->matches = apk_foreach_genid() | APK_DEP_SATISFIES | APK_FOREACH_NO_CONFLICTS;
 	if (ctx->print_package == NULL)
 		ctx->print_package = print_package_name;
 	if (ctx->print_result == NULL)
