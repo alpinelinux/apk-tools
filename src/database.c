@@ -1349,24 +1349,27 @@ static int apk_db_read_layer(struct apk_database *db, unsigned layer)
 
 static int apk_db_index_write_nr_cache(struct apk_database *db)
 {
-	struct apk_package_array *pkgs;
-	struct apk_ostream *os;
+	struct apk_ostream *os = NULL;
 
-	if (!apk_db_cache_active(db)) return 0;
+	if (apk_db_permanent(db) || !apk_db_cache_active(db)) return 0;
 
 	/* Write list of installed non-repository packages to
 	 * cached index file */
-	os = apk_ostream_to_file(db->cache_fd, "installed", 0644);
-	if (IS_ERR(os)) return PTR_ERR(os);
-
-	pkgs = apk_db_sorted_installed_packages(db);
+	struct apk_package_array *pkgs = apk_db_sorted_installed_packages(db);
 	apk_array_foreach_item(pkg, pkgs) {
 		if (apk_db_pkg_available(db, pkg)) continue;
 		if (pkg->cached || pkg->filename_ndx || !pkg->installed_size) {
+			if (!os) {
+				os = apk_ostream_to_file(db->cache_fd, "installed", 0644);
+				if (IS_ERR(os)) return PTR_ERR(os);
+			}
 			if (apk_pkg_write_index_entry(pkg, os) < 0) break;
 		}
 	}
-	return apk_ostream_close(os);
+	if (os) return apk_ostream_close(os);
+	/* Nothing written, remove existing file if any */
+	unlinkat(db->cache_fd, "installed", 0);
+	return 0;
 }
 
 static int apk_db_add_protected_path(struct apk_database *db, apk_blob_t blob)
@@ -2124,7 +2127,7 @@ int apk_db_open(struct apk_database *db)
 	}
 
 	if (!(ac->open_flags & APK_OPENF_NO_INSTALLED_REPO)) {
-		if (apk_db_cache_active(db)) {
+		if (!apk_db_permanent(db) && apk_db_cache_active(db)) {
 			apk_db_index_read(db, apk_istream_from_file(db->cache_fd, "installed"), APK_REPO_CACHE_INSTALLED);
 		}
 	}
