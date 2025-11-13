@@ -1,5 +1,4 @@
 #include <dirent.h>
-#include <dlfcn.h>
 
 #include "apk_test.h"
 #include "apk_io.h"
@@ -8,24 +7,17 @@
 
 #define MOCKFD 9999
 
-static int (*next_openat)(int, const char *, int);
-static int (*next_dup)(int);
-
-static void __attribute((constructor)) resolver(void)
-{
-	next_openat = dlsym(RTLD_NEXT, "openat");
-	next_dup = dlsym(RTLD_NEXT, "dup");
-}
-
 /* assume shared libapk.so, and override the symbols it depends on */
 int openat(int atfd, const char *filename, int flags, ...)
 {
+	extern typeof(openat)* next_openat;
 	if (atfd != MOCKFD) return next_openat(atfd, filename, flags);
 	return MOCKFD;
 }
 
 int dup(int fd)
 {
+	extern typeof(dup)* next_dup;
 	return fd == MOCKFD ? MOCKFD : next_dup(fd);
 }
 

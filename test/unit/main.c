@@ -1,3 +1,4 @@
+#include <dlfcn.h>
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
@@ -5,6 +6,9 @@
 
 static int num_tests;
 static struct CMUnitTest all_tests[1000];
+
+typeof(openat)* next_openat;
+typeof(dup)* next_dup;
 
 void test_register(const char *name, UnitTestFunction f)
 {
@@ -35,8 +39,15 @@ void assert_output_equal(struct test_out *to, const char *expected_err, const ch
 	assert_string_equal(to->buf_out, expected_out);
 }
 
+static void init_next_funcs(void)
+{
+	next_openat = dlsym(RTLD_NEXT, "openat");
+	next_dup = dlsym(RTLD_NEXT, "dup");
+}
+
 int main(void)
 {
+	init_next_funcs();
 	if (access("test/unit", F_OK) == 0) chdir("test/unit");
 	signal(SIGPIPE, SIG_IGN);
 	return _cmocka_run_group_tests("unit_tests", all_tests, num_tests, NULL, NULL);
