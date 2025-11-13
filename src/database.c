@@ -2127,7 +2127,7 @@ int apk_db_open(struct apk_database *db)
 	}
 
 	if (!(ac->open_flags & APK_OPENF_NO_INSTALLED_REPO)) {
-		if (!apk_db_permanent(db) && apk_db_cache_active(db)) {
+		if (apk_db_cache_active(db)) {
 			apk_db_index_read(db, apk_istream_from_file(db->cache_fd, "installed"), APK_REPO_CACHE_INSTALLED);
 		}
 	}
