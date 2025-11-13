@@ -104,7 +104,11 @@ static inline void *ERR_CAST(const void *ptr) { return (void*) ptr; }
 static inline int PTR_ERR(const void *ptr) { return (int)(long) ptr; }
 static inline int IS_ERR(const void *ptr) { return (unsigned long)ptr >= (unsigned long)-4095; }
 
-#if defined __GNUC__ && __GNUC__ == 2 && __GNUC_MINOR__ < 96
+#ifndef __has_builtin
+#define __has_builtin(x) 0
+#endif
+
+#if !__has_builtin(__builtin_expect)
 #define __builtin_expect(x, expected_value) (x)
 #endif
 

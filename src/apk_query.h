@@ -93,6 +93,7 @@ struct apk_query_spec {
 		uint8_t world : 1;
 		uint8_t search : 1;
 		uint8_t empty_matches_all : 1;
+		uint8_t summarize : 1;
 	} mode;
 	struct {
 		uint8_t all_matches : 1;

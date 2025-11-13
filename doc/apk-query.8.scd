@@ -64,6 +64,12 @@ The applets supporting query specifiers recognize the following options:
 *--recursive*
 	Run solver algorithm with given _constraints_ to select packages.
 
+*--summarize* _FIELD_[:_REVERSE_FIELD_]
+	Produce a summary of the specified field from all matches.
+	Summary is available on the following fields: *package*, *name*,
+	*origin*, *depends*, *provides*, *replaces*, *install_if*,
+	*recommends*, *reverse-depends*, and *reverse-install-if*.
+
 *--upgradable*
 	Filter selection to upgradable packages.
 

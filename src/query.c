@@ -76,6 +76,24 @@ static const unsigned short field_index[] = {
 	sizeof(struct field_mapping)
 };
 
+#define APK_Q_FIELD_SUMMARIZE \
+	(BIT(APK_Q_FIELD_PACKAGE) | BIT(APK_Q_FIELD_NAME) | BIT(APK_Q_FIELD_ORIGIN) |\
+	 BIT(APK_Q_FIELD_DEPENDS) | BIT(APK_Q_FIELD_PROVIDES) | BIT(APK_Q_FIELD_REPLACES) | \
+	 BIT(APK_Q_FIELD_INSTALL_IF) | BIT(APK_Q_FIELD_RECOMMENDS) | \
+	 BIT(APK_Q_FIELD_REV_DEPENDS) | BIT(APK_Q_FIELD_REV_INSTALL_IF))
+
+static int popcount(uint64_t val)
+{
+#if __has_builtin(__builtin_popcountll)
+	return __builtin_popcountll(val);
+#else
+	int count = 0;
+	for (int i = 0; i < 64; i++)
+		if (val & BIT(i)) count++;
+	return count;
+#endif
+}
+
 static const char *field_key(int f)
 {
 	return (const char*)&field_keys + field_index[f];
@@ -129,6 +147,7 @@ apk_blob_t apk_query_printable_field(apk_blob_t f)
 	OPT(OPT_QUERY_match,		APK_OPT_ARG "match") \
 	OPT(OPT_QUERY_recursive,	APK_OPT_SH("R") "recursive") \
 	OPT(OPT_QUERY_search,		"search") \
+	OPT(OPT_QUERY_summarize,	APK_OPT_ARG "summarize") \
 	OPT(OPT_QUERY_upgradable,	"upgradable") \
 	OPT(OPT_QUERY_world,		"world") \
 	OPT(OPT_QUERY_orphaned,		"orphaned") \
@@ -165,6 +184,7 @@ int apk_query_parse_option(struct apk_ctx *ac, int opt, const char *optarg)
 		qs->filter.available = 1;
 		break;
 	case OPT_QUERY_fields:
+		qs->mode.summarize = 0;
 		return parse_fields_and_revfield(APK_BLOB_STR(optarg), APK_Q_FIELDS_ALL, &qs->fields, &qs->revdeps_field);
 	case OPT_QUERY_format:
 		qs->ser = apk_serializer_lookup(optarg, &apk_serializer_query);
@@ -186,6 +206,12 @@ int apk_query_parse_option(struct apk_ctx *ac, int opt, const char *optarg)
 	case OPT_QUERY_search:
 		qs->mode.search = 1;
 		break;
+	case OPT_QUERY_summarize:
+		qs->mode.summarize = 1;
+		if (parse_fields_and_revfield(APK_BLOB_STR(optarg), APK_Q_FIELD_SUMMARIZE, &qs->fields, &qs->revdeps_field) < 0)
+			return -EINVAL;
+		if (popcount(qs->fields) != 1) return -EINVAL;
+		return 0;
 	case OPT_QUERY_upgradable:
 		qs->filter.upgradable = 1;
 		break;
@@ -218,43 +244,12 @@ int apk_query_parse_option(struct apk_ctx *ac, int opt, const char *optarg)
 	return 0;
 }
 
-static int serialize_deps(struct apk_serializer *ser, struct apk_dependency_array *deps, bool provides)
-{
-	char buf[1024];
-
-	apk_ser_start_array(ser, apk_array_len(deps));
-	apk_array_foreach(dep, deps)
-		apk_ser_string(ser, apk_blob_fmt(buf, sizeof buf, DEP_FMT, DEP_PRINTF(dep)));
-	return apk_ser_end(ser);
-}
-
-static int serialize_blobptr_array(struct apk_serializer *ser, struct apk_blobptr_array *a, bool provides)
+static int serialize_blobptr_array(struct apk_serializer *ser, struct apk_blobptr_array *a)
 {
 	apk_ser_start_array(ser, apk_array_len(a));
 	apk_array_foreach_item(item, a) apk_ser_string(ser, *item);
 	return apk_ser_end(ser);
 }
-
-#define FIELD_SERIALIZE_BLOB(_f, _val, _fields, _ser)		\
-	do { if ((_fields & BIT(_f))) {				\
-		apk_blob_t val = _val;				\
-		if (val.len) {					\
-			apk_ser_key(_ser, apk_query_field(_f));	\
-			apk_ser_string(_ser, val);		\
-		}						\
-	} } while (0)
-
-#define FIELD_SERIALIZE_NUMERIC(_f, _val, _fields, _ser)	\
-	do { if (_val && (_fields & BIT(_f))) {			\
-		apk_ser_key(_ser, apk_query_field(_f));		\
-		apk_ser_numeric(_ser, _val, 0);			\
-	} } while (0)
-
-#define FIELD_SERIALIZE_ARRAY(_f, _val, _fields, _action, _provides, _ser) \
-	do { if (apk_array_len(_val) && (_fields & BIT(_f))) {	\
-		apk_ser_key(_ser, apk_query_field(_f));		\
-		_action(_ser, _val, _provides);			\
-	} } while (0)
 
 static int num_scripts(const struct apk_installed_package *ipkg)
 {
@@ -263,19 +258,30 @@ static int num_scripts(const struct apk_installed_package *ipkg)
 	return num;
 }
 
-struct db_and_ser {
+struct pkgser_ops;
+typedef void (*revdep_serializer_f)(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *ctx);
+
+struct pkgser_ctx {
 	struct apk_database *db;
 	struct apk_serializer *ser;
+	struct apk_query_spec *qs;
+	const struct pkgser_ops *ops;
+	revdep_serializer_f revdep_serializer;
 };
 
-static void serialize_revdep_unique_name(struct db_and_ser *ds, struct apk_name *name, unsigned int genid)
+struct pkgser_ops {
+	void (*name)(struct pkgser_ctx*, struct apk_name *name);
+	void (*package)(struct pkgser_ctx*, struct apk_package *name);
+	void (*dependencies)(struct pkgser_ctx*, struct apk_dependency_array *deps, bool provides);
+};
+
+/* Reverse dependency target field serialzer */
+static void serialize_revdep_unique_name(struct pkgser_ctx *pc, struct apk_name *name, unsigned int genid)
 {
 	if (name->foreach_genid >= genid) return;
 	name->foreach_genid = genid;
-	apk_ser_string(ds->ser, APK_BLOB_STR(name->name));
+	pc->ops->name(pc, name);
 }
-
-typedef void (*revdep_serializer_f)(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *ctx);
 
 static void serialize_revdep_name(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *ctx)
 {
@@ -284,17 +290,14 @@ static void serialize_revdep_name(struct apk_package *pkg0, struct apk_dependenc
 
 static void serialize_revdep_package(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *ctx)
 {
-	struct db_and_ser *ds = ctx;
-	char buf[FILENAME_MAX];
-
-	apk_ser_string(ds->ser, apk_blob_fmt(buf, sizeof buf, PKG_VER_FMT, PKG_VER_PRINTF(pkg0)));
+	struct pkgser_ctx *pc = ctx;
+	pc->ops->package(pc, pkg0);
 }
 
 static void serialize_revdep_origin(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *ctx)
 {
-	struct db_and_ser *ds = ctx;
-	if (!pkg->origin->len) return;
-	serialize_revdep_unique_name(ds, apk_db_get_name(ds->db, *pkg0->origin), pkg0->foreach_genid);
+	struct pkgser_ctx *pc = ctx;
+	if (pkg->origin->len) serialize_revdep_unique_name(pc, apk_db_get_name(pc->db, *pkg0->origin), pkg0->foreach_genid);
 }
 
 static revdep_serializer_f revdep_serializer(uint8_t rev_field)
@@ -310,40 +313,79 @@ static revdep_serializer_f revdep_serializer(uint8_t rev_field)
 	}
 }
 
-static int __apk_package_serialize(struct apk_package *pkg, struct apk_database *db, struct apk_query_spec *qs, struct apk_serializer *ser, int (*ser_deps)(struct apk_serializer *, struct apk_dependency_array *, bool))
+/* Output directly to serializer */
+static void pkgser_serialize_name(struct pkgser_ctx *pc, struct apk_name *name)
 {
-	char buf[PATH_MAX];
-	struct db_and_ser ds = { .db = db, .ser = ser };
-	revdep_serializer_f revdep_serializer_func = revdep_serializer(qs->revdeps_field);
+	apk_ser_string(pc->ser, APK_BLOB_STR(name->name));
+}
+
+static void pkgser_serialize_package(struct pkgser_ctx *pc, struct apk_package *pkg)
+{
+	char buf[FILENAME_MAX];
+	apk_ser_string(pc->ser, apk_blob_fmt(buf, sizeof buf, PKG_VER_FMT, PKG_VER_PRINTF(pkg)));
+}
+
+static void pkgser_serialize_dependencies(struct pkgser_ctx *pc, struct apk_dependency_array *deps, bool provides)
+{
+	char buf[1024];
+	apk_ser_start_array(pc->ser, apk_array_len(deps));
+	apk_array_foreach(dep, deps)
+		apk_ser_string(pc->ser, apk_blob_fmt(buf, sizeof buf, DEP_FMT, DEP_PRINTF(dep)));
+	apk_ser_end(pc->ser);
+}
+
+static const struct pkgser_ops pkgser_serialize = {
+	.name = pkgser_serialize_name,
+	.package = pkgser_serialize_package,
+	.dependencies = pkgser_serialize_dependencies,
+};
+
+/* FIELDS_SERIALIZE* require 'ser' and 'fields' defined on scope */
+#define FIELD_SERIALIZE(_f, _action)				\
+	do { if ((fields & BIT(_f))) {				\
+		apk_ser_key(ser, apk_query_field(_f));		\
+		_action;					\
+	} } while (0)
+
+#define FIELD_SERIALIZE_BLOB(_f, _val)			if ((_val).len) FIELD_SERIALIZE(_f, apk_ser_string(ser, _val));
+#define FIELD_SERIALIZE_NUMERIC(_f, _val)		if (_val) FIELD_SERIALIZE(_f, apk_ser_numeric(ser, _val, 0));
+#define FIELD_SERIALIZE_ARRAY(_f, _val, _action) 	if (apk_array_len(_val)) FIELD_SERIALIZE(_f, _action);
+
+static int __apk_package_serialize(struct apk_package *pkg, struct pkgser_ctx *pc)
+{
+	struct apk_database *db = pc->db;
+	struct apk_serializer *ser = pc->ser;
+	struct apk_query_spec *qs = pc->qs;
 	uint64_t fields = qs->fields;
 	unsigned int revdeps_installed = qs->filter.revdeps_installed ? APK_FOREACH_INSTALLED : 0;
 	int ret = 0;
 
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_PACKAGE, apk_blob_fmt(buf, sizeof buf, PKG_VER_FMT, PKG_VER_PRINTF(pkg)), fields, ser);
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_NAME, APK_BLOB_STR(pkg->name->name), fields, ser);
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_VERSION, *pkg->version, fields, ser);
+	FIELD_SERIALIZE(APK_Q_FIELD_PACKAGE, pc->ops->package(pc, pkg));
+	FIELD_SERIALIZE(APK_Q_FIELD_NAME, pc->ops->name(pc, pkg->name));
+	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_VERSION, *pkg->version);
 	//APK_Q_FIELD_HASH
 	if (fields & BIT(APK_Q_FIELD_HASH)) ret = 1;
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_DESCRIPTION, *pkg->description, fields, ser);
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_ARCH, *pkg->arch, fields, ser);
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_LICENSE, *pkg->license, fields, ser);
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_ORIGIN, *pkg->origin, fields, ser);
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_MAINTAINER, *pkg->maintainer, fields, ser);
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_URL, *pkg->url, fields, ser);
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_COMMIT, *pkg->commit, fields, ser);
-	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_BUILD_TIME, pkg->build_time, fields, ser);
-	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_INSTALLED_SIZE, pkg->installed_size, fields, ser);
-	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_FILE_SIZE, pkg->size, fields, ser);
-	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_PROVIDER_PRIORITY, pkg->provider_priority, fields, ser);
-	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_DEPENDS, pkg->depends, fields, ser_deps, false, ser);
-	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_PROVIDES, pkg->provides, fields, ser_deps, true, ser);
-	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_INSTALL_IF, pkg->install_if, fields, ser_deps, false, ser);
-	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_RECOMMENDS, pkg->recommends, fields, ser_deps, false, ser);
-	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_LAYER, pkg->layer, fields, ser);
-	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_TAGS, pkg->tags, fields, serialize_blobptr_array, false, ser);
+	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_DESCRIPTION, *pkg->description);
+	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_ARCH, *pkg->arch);
+	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_LICENSE, *pkg->license);
+	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_ORIGIN, *pkg->origin);
+	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_MAINTAINER, *pkg->maintainer);
+	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_URL, *pkg->url);
+	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_COMMIT, *pkg->commit);
+	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_BUILD_TIME, pkg->build_time);
+	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_INSTALLED_SIZE, pkg->installed_size);
+	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_FILE_SIZE, pkg->size);
+	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_PROVIDER_PRIORITY, pkg->provider_priority);
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_DEPENDS, pkg->depends, pc->ops->dependencies(pc, pkg->depends, false));
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_PROVIDES, pkg->provides, pc->ops->dependencies(pc, pkg->provides, true));
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_INSTALL_IF, pkg->install_if, pc->ops->dependencies(pc, pkg->install_if, false));
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_RECOMMENDS, pkg->recommends, pc->ops->dependencies(pc, pkg->recommends, false));
+	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_LAYER, pkg->layer);
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_TAGS, pkg->tags, serialize_blobptr_array(ser, pkg->tags));
 
 	// synthetic/repositories fields
 	if (BIT(APK_Q_FIELD_REPOSITORIES) & fields) {
+		char buf[NAME_MAX];
 		apk_ser_key(ser, apk_query_field(APK_Q_FIELD_REPOSITORIES));
 		apk_ser_start_array(ser, -1);
 		if (pkg->ipkg) apk_ser_string(ser, apk_blob_fmt(buf, sizeof buf, "%s/installed", apk_db_layer_name(pkg->layer)));
@@ -354,6 +396,7 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 		apk_ser_end(ser);
 	}
 	if (BIT(APK_Q_FIELD_DOWNLOAD_URL) & fields) {
+		char buf[PATH_MAX];
 		struct apk_repository *repo = apk_db_select_repo(db, pkg);
 		if (repo && apk_repo_package_url(db, repo, pkg, NULL, buf, sizeof buf) == 0) {
 			apk_ser_key(ser, apk_query_field(APK_Q_FIELD_DOWNLOAD_URL));
@@ -366,7 +409,7 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 		apk_ser_start_array(ser, -1);
 		apk_pkg_foreach_reverse_dependency(
 			pkg, APK_DEP_SATISFIES | APK_FOREACH_NO_CONFLICTS | revdeps_installed | apk_foreach_genid(),
-			revdep_serializer_func, &ds);
+			pc->revdep_serializer, pc);
 		apk_ser_end(ser);
 	}
 	if (BIT(APK_Q_FIELD_REV_INSTALL_IF) & fields) {
@@ -380,7 +423,7 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 					if (revdeps_installed && !p->pkg->ipkg) continue;
 					if (apk_dep_analyze(p->pkg, dep, pkg) & APK_DEP_SATISFIES) {
 						if (apk_pkg_match_genid(p->pkg, match)) continue;
-						revdep_serializer_func(p->pkg, dep, pkg, &ds);
+						pc->revdep_serializer(p->pkg, dep, pkg, pc);
 					}
 				}
 			}
@@ -427,8 +470,8 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 		apk_ser_end(ser);
 	}
 
-	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_REPLACES_PRIORITY, ipkg->replaces_priority, fields, ser);
-	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_REPLACES, ipkg->replaces, fields, ser_deps, false, ser);
+	FIELD_SERIALIZE_NUMERIC(APK_Q_FIELD_REPLACES_PRIORITY, ipkg->replaces_priority);
+	FIELD_SERIALIZE_ARRAY(APK_Q_FIELD_REPLACES, ipkg->replaces, pc->ops->dependencies(pc, ipkg->replaces, false));
 	if (BIT(APK_Q_FIELD_STATUS) & fields) {
 		apk_ser_key(ser, apk_query_field(APK_Q_FIELD_STATUS));
 		apk_ser_start_array(ser, -1);
@@ -443,16 +486,25 @@ static int __apk_package_serialize(struct apk_package *pkg, struct apk_database 
 
 int apk_package_serialize(struct apk_package *pkg, struct apk_database *db, struct apk_query_spec *qs, struct apk_serializer *ser)
 {
-	return __apk_package_serialize(pkg, db, qs, ser, serialize_deps);
+	struct pkgser_ctx pc = {
+		.db = db,
+		.ser = ser,
+		.qs = qs,
+		.ops = &pkgser_serialize,
+		.revdep_serializer = revdep_serializer(qs->revdeps_field),
+	};
+	return __apk_package_serialize(pkg, &pc);
 }
 
 int apk_query_match_serialize(struct apk_query_match *qm, struct apk_database *db, struct apk_query_spec *qs, struct apk_serializer *ser)
 {
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_QUERY, qm->query, qs->fields, ser);
-	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_PATH_TARGET, qm->path_target, qs->fields, ser);
+	uint64_t fields = qs->fields | BIT(APK_Q_FIELD_ERROR);
+
+	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_QUERY, qm->query);
+	FIELD_SERIALIZE_BLOB(APK_Q_FIELD_PATH_TARGET, qm->path_target);
 
 	if (qm->pkg) apk_package_serialize(qm->pkg, db, qs, ser);
-	else FIELD_SERIALIZE_BLOB(APK_Q_FIELD_ERROR, APK_BLOB_STRLIT("owner not found"), BIT(APK_Q_FIELD_ERROR), ser);
+	else FIELD_SERIALIZE_BLOB(APK_Q_FIELD_ERROR, APK_BLOB_STRLIT("owner not found"));
 
 	return 0;
 }
@@ -580,17 +632,17 @@ static bool match_blob(struct match_ctx *ctx, apk_blob_t value)
 	}
 }
 
-static int ser_match_start_array(struct apk_serializer *ser, int num)
+static int ser_noop_start_array(struct apk_serializer *ser, int num)
 {
 	return 0;
 }
 
-static int ser_match_end(struct apk_serializer *ser)
+static int ser_noop_end(struct apk_serializer *ser)
 {
 	return 0;
 }
 
-static int ser_match_key(struct apk_serializer *ser, apk_blob_t key)
+static int ser_noop_key(struct apk_serializer *ser, apk_blob_t key)
 {
 	return 0;
 }
@@ -605,12 +657,13 @@ static int ser_match_string(struct apk_serializer *ser, apk_blob_t scalar, int m
 	return 0;
 }
 
-static int ser_match_dependency(struct apk_serializer *ser, struct apk_dependency_array *deps, bool provides)
+static void pkgpkgser_match_dependency(struct pkgser_ctx *pc, struct apk_dependency_array *deps, bool provides)
 {
+	struct apk_serializer *ser = pc->ser;
 	// TODO: This dependency operator/version is not used for normal dependencies; only for provides
 	// where the provided version is matched same as normal package version.
 	struct match_ctx *m = container_of(ser, struct match_ctx, ser);
-	if (m->done_matching) return 0;
+	if (m->done_matching) return;
 	apk_array_foreach(dep, deps) {
 		if (!match_string(m, dep->name->name)) continue;
 		if (provides && !apk_version_match(*m->dep.version, m->dep.op, *dep->version)) continue;
@@ -620,15 +673,21 @@ static int ser_match_dependency(struct apk_serializer *ser, struct apk_dependenc
 		m->done_matching = !m->qs->filter.all_matches;
 	}
 	m->qm.name = NULL;
-	return 0;
 }
 
-struct apk_serializer_ops serialize_match = {
-	.start_array = ser_match_start_array,
-	.end = ser_match_end,
-	.key = ser_match_key,
+static struct apk_serializer_ops serialize_match = {
+	.start_array = ser_noop_start_array,
+	.end = ser_noop_end,
+	.key = ser_noop_key,
 	.string = ser_match_string,
 };
+
+static const struct pkgser_ops pkgser_match = {
+	.name = pkgser_serialize_name,
+	.package = pkgser_serialize_package,
+	.dependencies = pkgpkgser_match_dependency,
+};
+
 
 static int update_best_match(void *pctx, struct apk_query_match *qm)
 {
@@ -647,6 +706,13 @@ static int match_name(apk_hash_item item, void *pctx)
 	struct apk_query_spec *qs = m->qs;
 	struct apk_name *name = item;
 	struct apk_query_spec qs_nonindex = { .fields = qs->match & ~BIT(APK_Q_FIELD_NAME) };
+	struct pkgser_ctx pc = {
+		.db = m->db,
+		.ser = &m->ser,
+		.qs = &qs_nonindex,
+		.ops = &pkgser_match,
+		.revdep_serializer = revdep_serializer(0),
+	};
 	bool name_match = false;
 	int r = 0;
 
@@ -675,7 +741,7 @@ static int match_name(apk_hash_item item, void *pctx)
 		}
 		m->qm.name = NULL;
 		m->done_matching = false;
-		__apk_package_serialize(p->pkg, m->db, &qs_nonindex, &m->ser, ser_match_dependency);
+		__apk_package_serialize(p->pkg, &pc);
 	}
 	if (m->best) {
 		return m->ser_cb(m->ser_cb_ctx, &(struct apk_query_match) {
@@ -792,11 +858,109 @@ int apk_query_packages(struct apk_ctx *ac, struct apk_query_spec *qs, struct apk
 	return r;
 }
 
+struct summary_ctx {
+	struct pkgser_ctx pc;
+	struct apk_serializer ser;
+	struct apk_name_array *names;
+	struct apk_package_array *pkgs;
+};
+
+static void pkgser_summarize_name(struct pkgser_ctx *pc, struct apk_name *name)
+{
+	struct summary_ctx *s = container_of(pc, struct summary_ctx, pc);
+	if (name->state_int) return;
+	apk_name_array_add(&s->names, name);
+	name->state_int = 1;
+}
+
+static int ser_summarize_string(struct apk_serializer *ser, apk_blob_t scalar, int multiline)
+{
+	// currently can happen only for "--summarize origin"
+	struct summary_ctx *s = container_of(ser, struct summary_ctx, ser);
+	if (scalar.len) pkgser_summarize_name(&s->pc, apk_db_get_name(s->pc.db, scalar));
+	return 0;
+}
+
+static void pkgser_summarize_package(struct pkgser_ctx *pc, struct apk_package *pkg)
+{
+	struct summary_ctx *s = container_of(pc, struct summary_ctx, pc);
+	if (pkg->seen) return;
+	apk_package_array_add(&s->pkgs, pkg);
+	pkg->seen = 1;
+}
+
+static void pkgser_summarize_dependencies(struct pkgser_ctx *pc, struct apk_dependency_array *deps, bool provides)
+{
+	apk_array_foreach(dep, deps)
+		if (!apk_dep_conflict(dep)) pkgser_summarize_name(pc, dep->name);
+}
+
+static struct apk_serializer_ops serialize_summarize = {
+	.start_array = ser_noop_start_array,
+	.end = ser_noop_end,
+	.key = ser_noop_key,
+	.string = ser_summarize_string,
+};
+
+static const struct pkgser_ops pkgser_summarize = {
+	.name = pkgser_summarize_name,
+	.package = pkgser_summarize_package,
+	.dependencies = pkgser_summarize_dependencies,
+};
+
+static int summarize_package(void *pctx, struct apk_query_match *qm)
+{
+	if (!qm->pkg) return 0;
+	return __apk_package_serialize(qm->pkg, pctx);
+}
+
+static int apk_query_summarize(struct apk_ctx *ac, struct apk_query_spec *qs, struct apk_string_array *args, struct apk_serializer *ser)
+{
+	struct summary_ctx s = {
+		.pc = {
+			.db = ac->db,
+			.ser = &s.ser,
+			.qs = qs,
+			.ops = &pkgser_summarize,
+			.revdep_serializer = revdep_serializer(qs->revdeps_field),
+		},
+		.ser = { .ops = &serialize_summarize },
+	};
+
+	if (popcount(qs->fields) != 1) return -EINVAL;
+
+	apk_name_array_init(&s.names);
+	apk_package_array_init(&s.pkgs);
+	int r = apk_query_matches(ac, qs, args, summarize_package, &s.pc);
+	if (apk_array_len(s.names)) {
+		apk_array_qsort(s.names, apk_name_array_qsort);
+		apk_ser_start_array(ser, apk_array_len(s.names));
+		apk_array_foreach_item(name, s.names) {
+			apk_ser_string(ser, APK_BLOB_STR(name->name));
+			name->state_int = 0;
+		}
+		apk_ser_end(ser);
+	} else if (apk_array_len(s.pkgs)) {
+		char buf[FILENAME_MAX];
+		apk_array_qsort(s.pkgs, apk_package_array_qsort);
+		apk_ser_start_array(ser, apk_array_len(s.pkgs));
+		apk_array_foreach_item(pkg, s.pkgs) {
+			apk_ser_string(ser, apk_blob_fmt(buf, sizeof buf, PKG_VER_FMT, PKG_VER_PRINTF(pkg)));
+			pkg->seen = 0;
+		}
+		apk_ser_end(ser);
+	}
+	apk_name_array_free(&s.names);
+	apk_package_array_free(&s.pkgs);
+	return r;
+}
+
 int apk_query_run(struct apk_ctx *ac, struct apk_query_spec *qs, struct apk_string_array *args, struct apk_serializer *ser)
 {
 	struct apk_package_array *pkgs;
 	int r;
 
+	if (qs->mode.summarize) return apk_query_summarize(ac, qs, args, ser);
 	if (!qs->fields) qs->fields = APK_Q_FIELDS_DEFAULT_PKG;
 
 	// create list of packages that match

@@ -172,6 +172,10 @@ $APK query --format yaml --installed --fields package,reverse-depends,reverse-in
     - apk-tools
 EOF
 
+$APK query --summarize reverse-install-if:origin "apk*" 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong result"
+apk-tools
+EOF
+
 $APK query --format json --installed "musl*" 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong result"
 [
   {
