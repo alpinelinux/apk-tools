@@ -112,8 +112,7 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 		return -ESHUTDOWN;
 	case OPT_GLOBAL_force:
 		ac->force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
-			| APK_FORCE_BROKEN_WORLD | APK_FORCE_NON_REPOSITORY
-			| APK_FORCE_BINARY_STDOUT;
+			| APK_FORCE_NON_REPOSITORY | APK_FORCE_BINARY_STDOUT;
 		break;
 	case OPT_GLOBAL_force_overwrite:
 		ac->force |= APK_FORCE_OVERWRITE;
