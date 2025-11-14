@@ -156,6 +156,7 @@ static void info_print_dep_array(struct apk_database *db, struct apk_package *pk
 
 static void print_rdep_pkg(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *pctx)
 {
+	if (apk_dep_conflict(dep0)) return;
 	printf(PKG_VER_FMT "%s", PKG_VER_PRINTF(pkg0), verbosity > 1 ? " " : "\n");
 }
 
@@ -183,6 +184,7 @@ static void info_print_rinstall_if(struct apk_database *db, struct apk_package *
 		struct apk_package *pkg0 = apk_pkg_get_installed(name0);
 		if (pkg0 == NULL) continue;
 		apk_array_foreach(dep, pkg0->install_if) {
+			if (apk_dep_conflict(dep)) continue;
 			if (dep->name != pkg->name) continue;
 			printf(PKG_VER_FMT "%s", PKG_VER_PRINTF(pkg0), separator);
 			break;
