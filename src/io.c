@@ -896,19 +896,24 @@ static int apk_dir_amend_file(void *pctx, int atfd, const char *path, const char
 int apk_dir_foreach_file_sorted(int atfd, const char *path, apk_dir_file_cb cb, void *ctx, bool (*filter)(const char*))
 {
 	struct apk_string_array *names;
-	int r;
+	int r, dirfd = atfd;
 
+	if (path) {
+		dirfd = openat(atfd, path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+		if (dirfd < 0) return -errno;
+	}
 	apk_string_array_init(&names);
-	r = apk_dir_foreach_file(atfd, path, apk_dir_amend_file, &names, filter);
+	r = apk_dir_foreach_file(dirfd, NULL, apk_dir_amend_file, &names, filter);
 	if (r == 0) {
 		apk_array_qsort(names, apk_string_array_qsort);
 		for (int i = 0; i < apk_array_len(names); i++) {
-			r = cb(ctx, atfd, path, names->item[i]);
+			r = cb(ctx, dirfd, path, names->item[i]);
 			if (r) break;
 		}
 	}
 	for (int i = 0; i < apk_array_len(names); i++) free(names->item[i]);
 	apk_string_array_free(&names);
+	if (dirfd != atfd) close(dirfd);
 	return r;
 }
 

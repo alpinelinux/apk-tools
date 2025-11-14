@@ -25,8 +25,6 @@
 #include "apk_print.h"
 #include "apk_xattr.h"
 
-#define SPECIAL_HARDLINK 0x8000000
-
 struct mkpkg_hardlink_key {
 	dev_t device;
 	ino_t inode;
@@ -54,8 +52,9 @@ static const struct apk_hash_ops mkpkg_hardlink_hash_ops = {
 struct mkpkg_ctx {
 	struct apk_ctx *ac;
 	const char *files_dir, *output;
+	struct apk_string_array *pathnames;
 	struct adb db;
-	struct adb_obj paths, *files;
+	struct adb_obj paths, files;
 	struct apk_extract_ctx ectx;
 	apk_blob_t package[ADBI_PKG_MAX];
 	apk_blob_t info[ADBI_PI_MAX];
@@ -65,8 +64,7 @@ struct mkpkg_ctx {
 	struct apk_pathbuilder pb;
 	struct apk_hash link_by_inode;
 	struct apk_balloc ba;
-	adb_val_t *hardlink_targets;
-	unsigned int hardlink_id;
+	int num_dirents;
 	unsigned has_scripts : 1;
 	unsigned rootnode : 1;
 	unsigned output_stdout : 1;
@@ -128,7 +126,7 @@ static int mkpkg_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 
 	switch (optch) {
 	case APK_OPTIONS_INIT:
-		apk_balloc_init(&ictx->ba, sizeof(struct mkpkg_hardlink) * 256);
+		apk_balloc_init(&ictx->ba, PATH_MAX * 256);
 		apk_hash_init(&ictx->link_by_inode, &mkpkg_hardlink_hash_ops, 256);
 		apk_string_array_init(&ictx->triggers);
 		ictx->rootnode = 1;
@@ -179,11 +177,12 @@ static adb_val_t create_xattrs(struct adb *db, int fd)
 	struct adb_obj xa;
 	char names[1024], buf[1024];
 	ssize_t len, vlen;
-	adb_val_t val;
+	adb_val_t val = ADB_NULL;
 	int i;
 
+	if (fd < 0) return ADB_NULL;
 	len = apk_flistxattr(fd, names, sizeof names);
-	if (len <= 0) return ADB_NULL;
+	if (len <= 0) goto done;
 
 	adb_wo_alloca(&xa, &schema_xattr_array, db);
 	for (i = 0; i < len; i += strlen(&names[i]) + 1) {
@@ -198,62 +197,41 @@ static adb_val_t create_xattrs(struct adb *db, int fd)
 	}
 	val = adb_w_arr(&xa);
 	adb_wo_free(&xa);
-
-	return val;
-}
-
-static adb_val_t create_xattrs_closefd(struct adb *db, int fd)
-{
-	adb_val_t val = create_xattrs(db, fd);
+done:
 	close(fd);
 	return val;
 }
 
-static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const char *entry);
-
-static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int atfd, const char *path, struct apk_file_info *fi)
+static int mkpkg_scan_dirent(void *pctx, int dirfd, const char *path, const char *entry)
 {
-	struct apk_ctx *ac = ctx->ac;
-	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
-	struct apk_out *out = &ac->out;
-	struct adb_obj acl, fio, files, *prev_files;
-	apk_blob_t dirname = apk_pathbuilder_get(&ctx->pb);
-	int r, dirfd;
+	struct mkpkg_ctx *ctx = pctx;
+	struct apk_file_info fi;
+	int r;
 
-	dirfd = openat(atfd, path, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
-	if (dirfd < 0) {
-		r = -errno;
-		goto done;
-	}
+	r = apk_fileinfo_get(dirfd, entry, APK_FI_NOFOLLOW, &fi, NULL);
+	if (r) return r;
+	if (!S_ISDIR(fi.mode)) return 0;
 
-	adb_wo_alloca(&fio, &schema_dir, &ctx->db);
-	adb_wo_alloca(&acl, &schema_acl, &ctx->db);
-	adb_wo_blob(&fio, ADBI_DI_NAME, dirname);
-	if (dirname.len != 0 || ctx->rootnode) {
-		adb_wo_int(&acl, ADBI_ACL_MODE, fi->mode & ~S_IFMT);
-		adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi->uid));
-		adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi->gid));
-		adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs(&ctx->db, dirfd));
-		adb_wo_obj(&fio, ADBI_DI_ACL, &acl);
-	}
-
-	adb_wo_alloca(&files, &schema_file_array, &ctx->db);
-	prev_files = ctx->files;
-	ctx->files = &files;
-	r = apk_dir_foreach_file_sorted(dirfd, NULL, mkpkg_process_dirent, ctx, NULL);
-	ctx->files = prev_files;
-	if (r) goto done;
-
-	// no need to record root folder if its empty
-	if (dirname.len == 0 && !ctx->rootnode && adb_ra_num(&files) == 0) goto done;
-
-	adb_wo_obj(&fio, ADBI_DI_FILES, &files);
-	adb_wa_append_obj(&ctx->paths, &fio);
-done:
-	if (r) apk_err(out, "failed to process directory '%s': %d", apk_pathbuilder_cstr(&ctx->pb), r);
-	adb_wo_free(&files);
-	close(dirfd);
+	int n = apk_pathbuilder_push(&ctx->pb, entry);
+	apk_string_array_add(&ctx->pathnames, apk_balloc_cstr(&ctx->ba, apk_pathbuilder_get(&ctx->pb)));
+	r = apk_dir_foreach_file_sorted(dirfd, entry, mkpkg_scan_dirent, ctx, NULL);
+	apk_pathbuilder_pop(&ctx->pb, n);
 	return r;
+}
+
+static adb_val_t hardlink_target(struct adb *db, const char *path, apk_blob_t file)
+{
+	uint16_t mode = htole16(S_IFREG);
+	int n = 0;
+	apk_blob_t vec[4];
+
+	vec[n++] = APK_BLOB_STRUCT(mode);
+	if (path[0]) {
+		vec[n++] = APK_BLOB_STR(path);
+		vec[n++] = APK_BLOB_STRLIT("/");
+	}
+	vec[n++] = file;
+	return adb_w_blob_vec(db, n, vec);
 }
 
 static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const char *entry)
@@ -266,7 +244,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const c
 	struct adb_obj fio, acl;
 	struct mkpkg_hardlink *link = NULL;
 	struct mkpkg_hardlink_key key;
-	apk_blob_t target = APK_BLOB_NULL;
+	apk_blob_t name = APK_BLOB_STR(entry), target = APK_BLOB_NULL;
 	union {
 		uint16_t mode;
 		struct {
@@ -280,6 +258,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const c
 	} ft;
 	int r, n;
 
+	ctx->num_dirents++;
 	r = apk_fileinfo_get(dirfd, entry, APK_FI_NOFOLLOW | APK_FI_DIGEST(APK_DIGEST_SHA256), &fi, NULL);
 	if (r) return r;
 
@@ -292,12 +271,14 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const c
 		if (fi.num_links > 1) {
 			link = apk_hash_get(&ctx->link_by_inode, APK_BLOB_STRUCT(key));
 			if (link) break;
+
 			link = apk_balloc_new(&ctx->ba, struct mkpkg_hardlink);
 			*link = (struct mkpkg_hardlink) {
 				.key = key,
-				.val = ADB_VAL(ADB_TYPE_SPECIAL, SPECIAL_HARDLINK | ctx->hardlink_id++),
+				.val = hardlink_target(&ctx->db, path, name),
 			};
 			apk_hash_insert(&ctx->link_by_inode, link);
+			link = NULL;
 		}
 		ctx->installed_size += fi.size;
 		break;
@@ -316,10 +297,8 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const c
 		r = 0;
 		break;
 	case S_IFDIR:
-		n = apk_pathbuilder_push(&ctx->pb, entry);
-		r = mkpkg_process_directory(ctx, dirfd, entry, &fi);
-		apk_pathbuilder_pop(&ctx->pb, n);
-		return r;
+		// Processed from the main loop.
+		return 0;
 	default:
 		n = apk_pathbuilder_push(&ctx->pb, entry);
 		apk_out(out, "%s: special file ignored", apk_pathbuilder_cstr(&ctx->pb));
@@ -329,7 +308,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const c
 
 	adb_wo_alloca(&fio, &schema_file, &ctx->db);
 	adb_wo_alloca(&acl, &schema_acl, &ctx->db);
-	adb_wo_blob(&fio, ADBI_FI_NAME, APK_BLOB_STR(entry));
+	adb_wo_blob(&fio, ADBI_FI_NAME, name);
 	if ((fi.mode & S_IFMT) == S_IFREG)
 		adb_wo_blob(&fio, ADBI_FI_HASHES, APK_DIGEST_BLOB(fi.digest));
 	if (!APK_BLOB_IS_NULL(target))
@@ -342,11 +321,51 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const c
 	adb_wo_int(&acl, ADBI_ACL_MODE, fi.mode & 07777);
 	adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi.uid));
 	adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi.gid));
-	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs_closefd(&ctx->db, openat(dirfd, entry, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)));
+	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs(&ctx->db, openat(dirfd, entry, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)));
 	adb_wo_obj(&fio, ADBI_FI_ACL, &acl);
 
-	adb_wa_append_obj(ctx->files, &fio);
+	adb_wa_append_obj(&ctx->files, &fio);
 
+	return r;
+}
+
+static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int atfd, const char *entry)
+{
+	struct apk_ctx *ac = ctx->ac;
+	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
+	struct apk_out *out = &ac->out;
+	struct adb_obj acl, fio;
+	struct apk_file_info fi;
+	const char *path = entry ?: ".";
+	apk_blob_t dirname = APK_BLOB_STR(entry);
+	int r;
+
+	r = apk_fileinfo_get(atfd, path, APK_FI_NOFOLLOW, &fi, NULL);
+	if (r) return r;
+
+	ctx->num_dirents = 0;
+	r = apk_dir_foreach_file_sorted(atfd, path, mkpkg_process_dirent, ctx, NULL);
+	if (r) goto done;
+
+	mode_t mode = fi.mode & ~S_IFMT;
+	// no need to record folder if it has no files, and the acl looks normal
+	if (!fi.uid && !fi.gid && mode == 0755 && adb_ra_num(&ctx->files) == 0) {
+		// root directory and flag allows pruning it
+		if (!entry && !ctx->rootnode) goto done;
+	}
+
+	adb_wo_alloca(&fio, &schema_dir, &ctx->db);
+	adb_wo_alloca(&acl, &schema_acl, &ctx->db);
+	adb_wo_blob(&fio, ADBI_DI_NAME, dirname);
+	adb_wo_int(&acl, ADBI_ACL_MODE, mode);
+	adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi.uid));
+	adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi.gid));
+	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs(&ctx->db, openat(atfd, path, O_DIRECTORY | O_RDONLY | O_CLOEXEC)));
+	adb_wo_obj(&fio, ADBI_DI_ACL, &acl);
+	adb_wo_obj(&fio, ADBI_DI_FILES, &ctx->files);
+	adb_wa_append_obj(&ctx->paths, &fio);
+done:
+	if (r) apk_err(out, "failed to process directory '%s': %d", apk_pathbuilder_cstr(&ctx->pb), r);
 	return r;
 }
 
@@ -377,30 +396,12 @@ static int assign_fields(struct apk_out *out, apk_blob_t *vals, int num_vals, st
 	return 0;
 }
 
-static void fixup_hardlink_target(struct mkpkg_ctx *ctx, struct adb_obj *file)
-{
-	adb_val_t val = adb_ro_val(file, ADBI_FI_TARGET);
-	if (ADB_VAL_TYPE(val) != ADB_TYPE_SPECIAL) return;
-	if ((ADB_VAL_VALUE(val) & SPECIAL_HARDLINK) == 0) return;
-	unsigned int hardlink_id = ADB_VAL_VALUE(val) & ~SPECIAL_HARDLINK;
-	val = ctx->hardlink_targets[hardlink_id];
-	if (val == ADB_VAL_NULL) {
-		int n = apk_pathbuilder_pushb(&ctx->pb, adb_ro_blob(file, ADBI_FI_NAME));
-		uint16_t mode = htole16(S_IFREG);
-		apk_blob_t vec[] = { APK_BLOB_STRUCT(mode), apk_pathbuilder_get(&ctx->pb) };
-		ctx->hardlink_targets[hardlink_id] = adb_w_blob_vec(file->db, ARRAY_SIZE(vec), vec);
-		apk_pathbuilder_pop(&ctx->pb, n);
-	}
-	// patch the previous value
-	file->obj[ADBI_FI_TARGET] = val;
-}
-
 static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
 	struct apk_trust *trust = apk_ctx_get_trust(ac);
 	struct adb_obj pkg, pkgi;
-	int i, j, r;
+	int i, j, r, dirfd = -1;
 	struct mkpkg_ctx *ctx = pctx;
 	struct apk_ostream *os;
 	struct apk_digest d = {};
@@ -409,10 +410,12 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	apk_blob_t uid = APK_BLOB_PTR_LEN((char*)d.data, uid_len);
 
 	ctx->ac = ac;
+	apk_string_array_init(&ctx->pathnames);
 	adb_w_init_alloca(&ctx->db, ADB_SCHEMA_PACKAGE, 40);
 	adb_wo_alloca(&pkg, &schema_package, &ctx->db);
 	adb_wo_alloca(&pkgi, &schema_pkginfo, &ctx->db);
 	adb_wo_alloca(&ctx->paths, &schema_dir_array, &ctx->db);
+	adb_wo_alloca(&ctx->files, &schema_file_array, &ctx->db);
 
 	// prepare package info
 	r = -EINVAL;
@@ -431,16 +434,23 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 	// scan and add all files
 	if (ctx->files_dir) {
-		struct apk_file_info fi;
-		r = apk_fileinfo_get(AT_FDCWD, ctx->files_dir, 0, &fi, 0);
-		if (r == 0 && !S_ISDIR(fi.mode)) r = -ENOTDIR;
-		if (r) {
+		dirfd = openat(AT_FDCWD, ctx->files_dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		if (dirfd < 0) {
+			r = -errno;
 			apk_err(out, "file directory '%s': %s",
 				ctx->files_dir, apk_error_str(r));
 			goto err;
 		}
-		r = mkpkg_process_directory(ctx, AT_FDCWD, ctx->files_dir, &fi);
+		r = apk_dir_foreach_file_sorted(dirfd, NULL, mkpkg_scan_dirent, ctx, NULL);
 		if (r) goto err;
+		apk_array_qsort(ctx->pathnames, apk_string_array_qsort);
+
+		r = mkpkg_process_directory(ctx, dirfd, NULL);
+		if (r) goto err;
+		apk_array_foreach_item(dir, ctx->pathnames) {
+			r = mkpkg_process_directory(ctx, dirfd, dir);
+			if (r) goto err;
+		}
 		if (!ctx->installed_size) ctx->installed_size = 1;
 	}
 	if (ctx->has_scripts && ctx->installed_size == 0) ctx->installed_size = 1;
@@ -470,22 +480,6 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	adb_r_rootobj(&ctx->db, &pkg, &schema_package);
 	adb_ro_obj(&pkg, ADBI_PKG_PKGINFO, &pkgi);
 	adb_ro_obj(&pkg, ADBI_PKG_PATHS, &ctx->paths);
-
-	// fixup hardlink targets
-	if (ctx->hardlink_id) {
-		ctx->hardlink_targets = apk_balloc_aligned0(&ctx->ba,
-			sizeof(adb_val_t[ctx->hardlink_id]), alignof(adb_val_t));
-		for (i = ADBI_FIRST; i <= adb_ra_num(&ctx->paths); i++) {
-			struct adb_obj path, files, file;
-			adb_ro_obj(&ctx->paths, i, &path);
-			adb_ro_obj(&path, ADBI_DI_FILES, &files);
-			apk_pathbuilder_setb(&ctx->pb, adb_ro_blob(&path, ADBI_DI_NAME));
-			for (j = ADBI_FIRST; j <= adb_ra_num(&files); j++) {
-				adb_ro_obj(&files, j, &file);
-				fixup_hardlink_target(ctx, &file);
-			}
-		}
-	}
 
 	// fill in unique id
 	apk_digest_calc(&d, APK_DIGEST_SHA256, ctx->db.adb.ptr, ctx->db.adb.len);
@@ -551,7 +545,9 @@ err:
 	if (r) apk_err(out, "failed to create package: %s", apk_error_str(r));
 	apk_string_array_free(&ctx->triggers);
 	apk_hash_free(&ctx->link_by_inode);
+	apk_string_array_free(&ctx->pathnames);
 	apk_balloc_destroy(&ctx->ba);
+	if (dirfd >= 0) close(dirfd);
 	return r;
 }
 
