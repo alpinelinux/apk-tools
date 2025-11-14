@@ -595,7 +595,7 @@ static int compare_providers(struct apk_solver_state *ss,
 		}
 
 		/* Prefer installed on self-upgrade */
-		if ((db->performing_self_upgrade && !(solver_flags & APK_SOLVERF_UPGRADE)) ||
+		if ((db->performing_preupgrade && !(solver_flags & APK_SOLVERF_UPGRADE)) ||
 		    (solver_flags & APK_SOLVERF_INSTALLED)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r) {

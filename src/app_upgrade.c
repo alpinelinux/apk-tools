@@ -16,15 +16,15 @@
 #include "apk_print.h"
 #include "apk_solver.h"
 
-// APK_SELFUPGRADE_TOKEN is used to determine if APK version changed
+// APK_PREUPGRADE_TOKEN is used to determine if APK version changed
 // so much after self-upgrade that a repository autoupdate should be
 // enabled. Mainly needed if the index cache name changes.
-#define APK_SELFUPGRADE_TOKEN	"laiNgeiThu6ip1Te"
+#define APK_PREUPGRADE_TOKEN	"laiNgeiThu6ip1Te"
 
 struct upgrade_ctx {
 	unsigned short solver_flags;
-	unsigned short no_self_upgrade : 1;
-	unsigned short self_upgrade_only : 1;
+	unsigned short preupgrade : 1;
+	unsigned short preupgrade_only : 1;
 	unsigned short ignore : 1;
 	unsigned short prune : 1;
 	int errors;
@@ -34,8 +34,10 @@ struct upgrade_ctx {
 	OPT(OPT_UPGRADE_available,		APK_OPT_SH("a") "available") \
 	OPT(OPT_UPGRADE_ignore,			"ignore") \
 	OPT(OPT_UPGRADE_latest,			APK_OPT_SH("l") "latest") \
-	OPT(OPT_UPGRADE_no_self_upgrade,	"no-self-upgrade") \
+	OPT(OPT_UPGRADE_preupgrade,		APK_OPT_BOOL "preupgrade") \
+	OPT(OPT_UPGRADE_preupgrade_only,	"preupgrade-only") \
 	OPT(OPT_UPGRADE_prune,			"prune") \
+	OPT(OPT_UPGRADE_self_upgrade,		APK_OPT_BOOL "self-upgrade") \
 	OPT(OPT_UPGRADE_self_upgrade_only,	"self-upgrade-only")
 
 APK_OPTIONS(upgrade_options_desc, UPGRADE_OPTIONS);
@@ -47,17 +49,21 @@ static int upgrade_parse_option(void *ctx, struct apk_ctx *ac, int opt, const ch
 
 	switch (opt) {
 	case APK_OPTIONS_INIT:
-		token = getenv("APK_SELFUPGRADE_TOKEN");
-		if (token != NULL && strcmp(token, APK_SELFUPGRADE_TOKEN) == 0) {
-			uctx->no_self_upgrade = 1;
+		uctx->preupgrade = 1;
+		token = getenv("APK_PREUPGRADE_TOKEN");
+		if (!token) token = getenv("APK_SELFUPGRADE_TOKEN");
+		if (token != NULL && strcmp(token, APK_PREUPGRADE_TOKEN) == 0) {
+			uctx->preupgrade = 0;
 			ac->open_flags |= APK_OPENF_NO_AUTOUPDATE;
 		}
 		break;
-	case OPT_UPGRADE_no_self_upgrade:
-		uctx->no_self_upgrade = 1;
+	case OPT_UPGRADE_preupgrade:
+	case OPT_UPGRADE_self_upgrade:
+		uctx->preupgrade = APK_OPT_BOOL_VAL(optarg);
 		break;
+	case OPT_UPGRADE_preupgrade_only:
 	case OPT_UPGRADE_self_upgrade_only:
-		uctx->self_upgrade_only = 1;
+		uctx->preupgrade_only = 1;
 		break;
 	case OPT_UPGRADE_ignore:
 		uctx->ignore = 1;
@@ -77,40 +83,62 @@ static int upgrade_parse_option(void *ctx, struct apk_ctx *ac, int opt, const ch
 	return 0;
 }
 
-int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, unsigned int self_upgrade_only)
+int apk_do_preupgrade(struct apk_database *db, unsigned short solver_flags, unsigned int preupgrade_only)
 {
+	struct apk_ctx *ac = db->ctx;
 	struct apk_out *out = &db->ctx->out;
 	struct apk_changeset changeset = {};
-	struct apk_query_match qm;
+	struct apk_dependency_array *deps;
 	char buf[PATH_MAX];
 	int r = 0;
 
+	apk_dependency_array_init(&deps);
 	apk_change_array_init(&changeset.changes);
 
+	struct apk_query_match qm;
 	apk_query_who_owns(db, "/proc/self/exe", &qm, buf, sizeof buf);
-	if (!qm.pkg) goto ret;
+	if (qm.pkg) {
+		apk_deps_add(&deps, &(struct apk_dependency){
+			.name = qm.pkg->name,
+			.op = APK_DEPMASK_ANY,
+			.version = &apk_atom_null,
+		});
+	}
+	apk_array_foreach_item(str, ac->preupgrade_deps) {
+		int warn = 0;
+		apk_blob_t b = APK_BLOB_STR(str);
+		while (b.len > 0) {
+			struct apk_dependency dep;
+			apk_blob_pull_dep(&b, db, &dep, false);
+			if (dep.name) apk_deps_add(&deps, &dep);
+			else warn = 1;
+		}
+		if (warn) apk_warn(out, "Ignored invalid preupgrade dependencies from: %s", str);
+	}
 
-	/* First check if new version is even available */
-	struct apk_package *pkg = qm.pkg;
-	struct apk_name *name = pkg->name;
-	apk_array_foreach(p0, name->providers) {
-		struct apk_package *pkg0 = p0->pkg;
-		if (pkg0->name != name || pkg0->repos == 0)
-			continue;
-		if (apk_version_match(*pkg0->version, APK_VERSION_GREATER, *pkg->version)) {
+	/* Determine if preupgrade can be made */
+	apk_array_foreach(dep, deps) {
+		struct apk_name *name = dep->name;
+		struct apk_package *pkg = apk_pkg_get_installed(name);
+		if (!apk_dep_is_materialized(dep, pkg)) continue;
+		apk_array_foreach(p0, name->providers) {
+			struct apk_package *pkg0 = p0->pkg;
+			if (pkg0->repos == 0) continue;
+			if (!apk_version_match(*pkg0->version, APK_VERSION_GREATER, *pkg->version))
+				continue;
+			apk_solver_set_name_flags(name, solver_flags, 0);
 			r = 1;
 			break;
 		}
 	}
 	if (r == 0) goto ret;
 
-	/* Create new commit upgrading apk-tools only with minimal other changes */
-	db->performing_self_upgrade = 1;
-	apk_solver_set_name_flags(name, solver_flags, 0);
+	/* Create new commit for preupgrades with minimal other changes */
+	db->performing_preupgrade = 1;
 
 	r = apk_solver_solve(db, 0, db->world, &changeset);
 	if (r != 0) {
-		apk_warn(out, "Failed to perform initial self-upgrade, continuing with full upgrade.");
+		apk_warn(out, "Failed to perform initial preupgrade, continuing with a full upgrade.");
 		r = 0;
 		goto ret;
 	}
@@ -118,19 +146,20 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	if (changeset.num_total_changes == 0)
 		goto ret;
 
-	if (!self_upgrade_only && db->ctx->flags & APK_SIMULATE) {
-		apk_warn(out, "This simulation is not reliable as apk-tools upgrade is available.");
+	if (!preupgrade_only && db->ctx->flags & APK_SIMULATE) {
+		apk_warn(out, "This simulation might not reliable as a preupgrade is available.");
 		goto ret;
 	}
 
-	apk_msg(out, "Upgrading critical system libraries and apk-tools:");
+	apk_msg(out, "Preupgrading:");
 	r = apk_solver_commit_changeset(db, &changeset, db->world);
-	if (r < 0 || self_upgrade_only) goto ret;
+	if (r < 0 || preupgrade_only) goto ret;
 
 	apk_db_close(db);
 
-	apk_msg(out, "Continuing the upgrade transaction with new apk-tools:");
-	putenv("APK_SELFUPGRADE_TOKEN=" APK_SELFUPGRADE_TOKEN);
+	apk_msg(out, "Continuing with the main upgrade transaction:");
+	putenv("APK_PREUPGRADE_TOKEN=" APK_PREUPGRADE_TOKEN);
+	putenv("APK_SELFUPGRADE_TOKEN=" APK_PREUPGRADE_TOKEN);
 
 	extern int apk_argc;
 	extern char **apk_argv;
@@ -144,7 +173,8 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 
 ret:
 	apk_change_array_free(&changeset.changes);
-	db->performing_self_upgrade = 0;
+	apk_dependency_array_free(&deps);
+	db->performing_preupgrade = 0;
 	return r;
 }
 
@@ -180,12 +210,12 @@ static int upgrade_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *
 	if (apk_db_repository_check(db) != 0) return -1;
 
 	solver_flags = APK_SOLVERF_UPGRADE | uctx->solver_flags;
-	if ((uctx->self_upgrade_only || !ac->root_set) && !uctx->no_self_upgrade && apk_array_len(args) == 0) {
-		r = apk_do_self_upgrade(db, solver_flags, uctx->self_upgrade_only);
+	if ((uctx->preupgrade_only || !ac->root_set) && uctx->preupgrade && apk_array_len(args) == 0) {
+		r = apk_do_preupgrade(db, solver_flags, uctx->preupgrade_only);
 		if (r != 0)
 			return r;
 	}
-	if (uctx->self_upgrade_only)
+	if (uctx->preupgrade_only)
 		return 0;
 
 	if (uctx->prune || (solver_flags & APK_SOLVERF_AVAILABLE)) {

@@ -217,6 +217,14 @@ The following options are available for all commands.
 	Allow passing the user environment down to scripts (excluding
 	variables starting APK_ which are reserved).
 
+*--preupgrade-depends* _DEPS_
+	Add or modify preupgrade dependencies. The preupgrade dependencies
+	are used to match installed packages that are eligible for preupgrade.
+	E.g. 'apk-tools' will always preupgrade the 'apk-tools' package,
+	but 'baselayout<2' would preupgrade the 'baselayout' only if the
+	installed version of baselayout is less than 2 and an upgrade is
+	available. See also *apk-upgrade*(8).
+
 *--print-arch*
 	Print default arch and exit.
 

@@ -64,6 +64,7 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_logfile,			APK_OPT_BOOL "logfile") \
 	OPT(OPT_GLOBAL_network,			APK_OPT_BOOL "network") \
 	OPT(OPT_GLOBAL_preserve_env,		APK_OPT_BOOL "preserve-env") \
+	OPT(OPT_GLOBAL_preupgrade_depends,	APK_OPT_ARG "preupgrade-depends") \
 	OPT(OPT_GLOBAL_print_arch,		"print-arch") \
 	OPT(OPT_GLOBAL_progress,		APK_OPT_BOOL "progress") \
 	OPT(OPT_GLOBAL_progress_fd,		APK_OPT_ARG "progress-fd") \
@@ -158,6 +159,9 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 		break;
 	case OPT_GLOBAL_preserve_env:
 		apk_opt_set_flag(optarg, APK_PRESERVE_ENV, &ac->flags);
+		break;
+	case OPT_GLOBAL_preupgrade_depends:
+		apk_string_array_add(&ac->preupgrade_deps, (char*) optarg);
 		break;
 	case OPT_GLOBAL_print_arch:
 		puts(APK_DEFAULT_ARCH);

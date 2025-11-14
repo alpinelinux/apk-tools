@@ -462,7 +462,7 @@ all_done:
 	if (apk_db_write_config(db) != 0) errors++;
 	run_commit_hooks(db, POST_COMMIT_HOOK);
 
-	if (!db->performing_self_upgrade) {
+	if (!db->performing_preupgrade) {
 		char buf[32];
 		const char *msg = "OK:";
 
