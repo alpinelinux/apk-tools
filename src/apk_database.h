@@ -210,6 +210,7 @@ struct apk_database {
 	unsigned int compat_depversions : 1;
 	unsigned int sorted_names : 1;
 	unsigned int sorted_installed_packages : 1;
+	unsigned int scripts_tar : 1;
 
 	struct apk_dependency_array *world;
 	struct apk_id_cache *id_cache;

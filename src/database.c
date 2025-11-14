@@ -1338,8 +1338,11 @@ static int apk_db_read_layer(struct apk_database *db, unsigned layer)
 	}
 
 	if (!(flags & APK_OPENF_NO_SCRIPTS)) {
-		r = apk_tar_parse(apk_istream_from_file(fd, "scripts.tar"),
-				  apk_read_script_archive_entry, db, db->id_cache);
+		struct apk_istream *is = apk_istream_from_file(fd, "scripts.tar");
+		if (!IS_ERR(is) || PTR_ERR(is) != -ENOENT) db->scripts_tar = 1;
+		else is = apk_istream_gunzip(apk_istream_from_file(fd, "scripts.tar.gz"));
+
+		r = apk_tar_parse(is, apk_read_script_archive_entry, db, db->id_cache);
 		if (!ret && r != -ENOENT) ret = r;
 	}
 
@@ -2217,8 +2220,9 @@ static int apk_db_write_layers(struct apk_database *db)
 			continue;
 		}
 		ld->installed = apk_ostream_to_file(ld->fd, "installed", 0644);
-		ld->scripts   = apk_ostream_to_file(ld->fd, "scripts.tar", 0644);
 		ld->triggers  = apk_ostream_to_file(ld->fd, "triggers", 0644);
+		if (db->scripts_tar) ld->scripts = apk_ostream_to_file(ld->fd, "scripts.tar", 0644);
+		else ld->scripts = apk_ostream_gzip(apk_ostream_to_file(ld->fd, "scripts.tar.gz", 0644));
 
 		if (i == APK_DB_LAYER_ROOT)
 			os = apk_ostream_to_file(db->root_fd, apk_world_file, 0644);

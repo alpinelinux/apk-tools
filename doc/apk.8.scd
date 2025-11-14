@@ -462,7 +462,8 @@ timeout 120
 */lib/apk/db/installed*
 	Database of installed packages and their contents.
 
-*/lib/apk/db/scripts.tar*
+*/lib/apk/db/scripts.tar*++
+*/lib/apk/db/scripts.tar.gz*
 	Collection of all package scripts from currently installed packages.
 
 */lib/apk/db/triggers*
