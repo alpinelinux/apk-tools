@@ -95,7 +95,7 @@ build:fedora:
   script:
     - dnf -y install meson gcc git-core lua-zlib 'pkgconfig(cmocka)' 'pkgconfig(libzstd)' 'pkgconfig(lua)' 'pkgconfig(openssl)' 'pkgconfig(python3)' 'pkgconfig(scdoc)' 'pkgconfig(zlib)'
     - meson setup build -Dlua_version=5.4 -Dlua_bin=lua -Dlua_pc=lua
-    - ninja -C build
+    - meson compile -C build
   tags:
     - docker-alpine
     - x86_64
