@@ -917,7 +917,7 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 
 	if (IS_ERR(is)) return PTR_ERR(is);
 
-	apk_pkgtmpl_init(&tmpl);
+	apk_pkgtmpl_init(&tmpl, db);
 	tmpl.pkg.layer = layer;
 
 	while (apk_istream_get_delim(is, token, &l) == 0) {
@@ -952,7 +952,7 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 		l.len -= 2;
 
 		/* Standard index line? */
-		r = apk_pkgtmpl_add_info(db, &tmpl, field, l);
+		r = apk_pkgtmpl_add_info(&tmpl, field, l);
 		if (r == 0) continue;
 		if (r == 1 && repo == APK_REPO_DB_INSTALLED && ipkg == NULL) {
 			/* Instert to installed database; this needs to
@@ -1467,7 +1467,7 @@ static int load_v3index(struct apk_extract_ctx *ectx, struct adb_obj *ndx)
 	apk_blob_t pkgname_spec;
 	int i, r = 0, num_broken = 0;
 
-	apk_pkgtmpl_init(&tmpl);
+	apk_pkgtmpl_init(&tmpl, db);
 
 	repo->description = *apk_atomize_dup(&db->atoms, adb_ro_blob(ndx, ADBI_NDX_DESCRIPTION));
 	pkgname_spec = adb_ro_blob(ndx, ADBI_NDX_PKGNAME_SPEC);
@@ -1479,7 +1479,7 @@ static int load_v3index(struct apk_extract_ctx *ectx, struct adb_obj *ndx)
 	adb_ro_obj(ndx, ADBI_NDX_PACKAGES, &pkgs);
 	for (i = ADBI_FIRST; i <= adb_ra_num(&pkgs); i++) {
 		adb_ro_obj(&pkgs, i, &pkginfo);
-		apk_pkgtmpl_from_adb(db, &tmpl, &pkginfo);
+		apk_pkgtmpl_from_adb(&tmpl, &pkginfo);
 		if (tmpl.id.alg == APK_DIGEST_NONE) {
 			num_broken++;
 			apk_pkgtmpl_reset(&tmpl);
@@ -1952,7 +1952,7 @@ void apk_db_init(struct apk_database *db, struct apk_ctx *ac)
 	apk_hash_init(&db->installed.files, &file_hash_ops, 200000);
 	apk_atom_init(&db->atoms, &db->ctx->ba);
 	apk_dependency_array_init(&db->world);
-	apk_pkgtmpl_init(&db->overlay_tmpl);
+	apk_pkgtmpl_init(&db->overlay_tmpl, db);
 	apk_db_dir_instance_array_init(&db->ic.diris);
 	apk_db_file_array_init(&db->ic.files);
 	apk_protected_path_array_init(&db->ic.ppaths);

@@ -403,9 +403,10 @@ int apk_script_type(const char *name)
 	return APK_SCRIPT_INVALID;
 }
 
-void apk_pkgtmpl_init(struct apk_package_tmpl *tmpl)
+void apk_pkgtmpl_init(struct apk_package_tmpl *tmpl, struct apk_database *db)
 {
 	memset(tmpl, 0, sizeof *tmpl);
+	tmpl->db = db;
 	apk_dependency_array_init(&tmpl->pkg.depends);
 	apk_dependency_array_init(&tmpl->pkg.install_if);
 	apk_dependency_array_init(&tmpl->pkg.provides);
@@ -416,6 +417,7 @@ void apk_pkgtmpl_init(struct apk_package_tmpl *tmpl)
 
 void apk_pkgtmpl_free(struct apk_package_tmpl *tmpl)
 {
+	if (tmpl->pkg.ipkg) apk_pkg_uninstall(tmpl->db, &tmpl->pkg);
 	apk_dependency_array_free(&tmpl->pkg.depends);
 	apk_dependency_array_free(&tmpl->pkg.install_if);
 	apk_dependency_array_free(&tmpl->pkg.provides);
@@ -426,6 +428,7 @@ void apk_pkgtmpl_free(struct apk_package_tmpl *tmpl)
 void apk_pkgtmpl_reset(struct apk_package_tmpl *tmpl)
 {
 	*tmpl = (struct apk_package_tmpl) {
+		.db = tmpl->db,
 		.pkg = (struct apk_package) {
 			.depends = apk_array_reset(tmpl->pkg.depends),
 			.install_if = apk_array_reset(tmpl->pkg.install_if),
@@ -444,14 +447,14 @@ void apk_pkgtmpl_reset(struct apk_package_tmpl *tmpl)
 }
 
 struct read_info_ctx {
-	struct apk_database *db;
 	struct apk_extract_ctx ectx;
 	struct apk_package_tmpl tmpl;
 	int v3ok;
 };
 
-int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl, char field, apk_blob_t value)
+int apk_pkgtmpl_add_info(struct apk_package_tmpl *tmpl, char field, apk_blob_t value)
 {
+	struct apk_database *db = tmpl->db;
 	struct apk_package *pkg = &tmpl->pkg;
 
 	switch (field) {
@@ -551,8 +554,9 @@ static void apk_blobs_from_adb(struct apk_blobptr_array **arr, struct apk_databa
 		apk_blobptr_array_add(arr, apk_atomize_dup(&db->atoms, adb_ro_blob(da, i)));
 }
 
-void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl, struct adb_obj *pkginfo)
+void apk_pkgtmpl_from_adb(struct apk_package_tmpl *tmpl, struct adb_obj *pkginfo)
 {
+	struct apk_database *db = tmpl->db;
 	struct adb_obj obj;
 	struct apk_package *pkg = &tmpl->pkg;
 	apk_blob_t uid;
@@ -617,7 +621,7 @@ static int read_info_line(struct read_info_ctx *ri, apk_blob_t line)
 
 	for (i = 0; i < ARRAY_SIZE(fields); i++)
 		if (apk_blob_compare(APK_BLOB_STR(fields[i].str), l) == 0)
-			return apk_pkgtmpl_add_info(ri->db, &ri->tmpl, fields[i].field, r);
+			return apk_pkgtmpl_add_info(&ri->tmpl, fields[i].field, r);
 
 	return 0;
 }
@@ -644,7 +648,7 @@ static int apk_pkg_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 	if (!ri->v3ok) return -APKE_FORMAT_NOT_SUPPORTED;
 
 	adb_ro_obj(pkg, ADBI_PKG_PKGINFO, &pkginfo);
-	apk_pkgtmpl_from_adb(ri->db, &ri->tmpl, &pkginfo);
+	apk_pkgtmpl_from_adb(&ri->tmpl, &pkginfo);
 
 	return -ECANCELED;
 }
@@ -656,17 +660,14 @@ static const struct apk_extract_ops extract_pkgmeta_ops = {
 
 int apk_pkg_read(struct apk_database *db, const char *file, struct apk_package **pkg, int v3ok)
 {
-	struct read_info_ctx ctx = {
-		.db = db,
-		.v3ok = v3ok,
-	};
+	struct read_info_ctx ctx = { .v3ok = v3ok };
 	struct apk_file_info fi;
 	int r;
 
 	r = apk_fileinfo_get(AT_FDCWD, file, 0, &fi, &db->atoms);
 	if (r != 0) return r;
 
-	apk_pkgtmpl_init(&ctx.tmpl);
+	apk_pkgtmpl_init(&ctx.tmpl, db);
 	apk_extract_init(&ctx.ectx, db->ctx, &extract_pkgmeta_ops);
 	apk_extract_generate_identity(&ctx.ectx, APK_DIGEST_SHA256, &ctx.tmpl.id);
 

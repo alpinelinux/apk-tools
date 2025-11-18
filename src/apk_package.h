@@ -152,14 +152,15 @@ void apk_deps_del(struct apk_dependency_array **deps, struct apk_name *name);
 int apk_script_type(const char *name);
 
 struct apk_package_tmpl {
+	struct apk_database *db;
 	struct apk_package pkg;
 	struct apk_digest id;
 };
-void apk_pkgtmpl_init(struct apk_package_tmpl *tmpl);
+void apk_pkgtmpl_init(struct apk_package_tmpl *tmpl, struct apk_database *db);
 void apk_pkgtmpl_free(struct apk_package_tmpl *tmpl);
 void apk_pkgtmpl_reset(struct apk_package_tmpl *tmpl);
-int apk_pkgtmpl_add_info(struct apk_database *db, struct apk_package_tmpl *tmpl, char field, apk_blob_t value);
-void apk_pkgtmpl_from_adb(struct apk_database *db, struct apk_package_tmpl *tmpl, struct adb_obj *pkginfo);
+int apk_pkgtmpl_add_info(struct apk_package_tmpl *tmpl, char field, apk_blob_t value);
+void apk_pkgtmpl_from_adb(struct apk_package_tmpl *tmpl, struct adb_obj *pkginfo);
 
 int apk_pkg_read(struct apk_database *db, const char *name, struct apk_package **pkg, int v3ok);
 int apk_pkg_subst(void *ctx, apk_blob_t key, apk_blob_t *to);

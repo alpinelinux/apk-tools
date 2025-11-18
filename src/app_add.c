@@ -114,7 +114,7 @@ static int add_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args
 	struct apk_dependency_array *world;
 	int r = 0;
 
-	apk_pkgtmpl_init(&virtpkg);
+	apk_pkgtmpl_init(&virtpkg, db);
 	apk_dependency_array_init(&world);
 	apk_dependency_array_copy(&world, db->world);
 
