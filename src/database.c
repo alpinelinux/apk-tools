@@ -1035,6 +1035,7 @@ static int apk_db_fdb_read(struct apk_database *db, struct apk_istream *is, int 
 		}
 		if (APK_BLOB_IS_NULL(l)) goto bad_entry;
 	}
+	if (is->err < 0) goto err_fmt;
 	goto done;
 
 old_apk_tools:
