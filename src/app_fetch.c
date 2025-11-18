@@ -179,7 +179,7 @@ static int fetch_package(struct fetch_ctx *ctx, struct apk_package *pkg)
 			    linkat(pkg_fd, pkg_url, ctx->outdir_fd, filename, AT_SYMLINK_FOLLOW) == 0)
 				goto done;
 		}
-		os = apk_ostream_to_file(ctx->outdir_fd, filename, 0644);
+		os = apk_ostream_to_file_safe(ctx->outdir_fd, filename, 0644);
 		if (IS_ERR(os)) {
 			r = PTR_ERR(os);
 			goto err;

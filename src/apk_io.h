@@ -175,6 +175,7 @@ struct apk_ostream {
 struct apk_ostream *apk_ostream_counter(off_t *);
 struct apk_ostream *apk_ostream_to_fd(int fd);
 struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode);
+struct apk_ostream *apk_ostream_to_file_safe(int atfd, const char *file, mode_t mode);
 ssize_t apk_ostream_write_string(struct apk_ostream *os, const char *string);
 int apk_ostream_fmt(struct apk_ostream *os, const char *fmt, ...);
 void apk_ostream_copy_meta(struct apk_ostream *os, struct apk_istream *is);

@@ -29,6 +29,9 @@
 #define HAVE_FGETPWENT_R
 #define HAVE_FGETGRENT_R
 #endif
+#if defined(__linux__) && defined(O_TMPFILE)
+#define HAVE_O_TMPFILE
+#endif
 
 size_t apk_io_bufsize = 128*1024;
 
@@ -989,12 +992,11 @@ int apk_dir_foreach_config_file(int dirfd, apk_dir_file_cb cb, void *cbctx, bool
 
 struct apk_fd_ostream {
 	struct apk_ostream os;
-	int fd;
-
+	int fd, atfd;
 	const char *file;
-	int atfd;
-
 	size_t bytes;
+	uint32_t tmpid;
+	bool tmpfile;
 	char buffer[1024];
 };
 
@@ -1043,23 +1045,52 @@ static int fdo_write(struct apk_ostream *os, const void *ptr, size_t size)
 	return 0;
 }
 
+static int format_tmpname(char *tmpname, size_t sz, const char *file, int no)
+{
+	if (no) {
+		if (apk_fmt(tmpname, sz, "%s.tmp.%d", file, no) < 0) return -ENAMETOOLONG;
+	} else {
+		if (apk_fmt(tmpname, sz, "%s.tmp", file) < 0) return -ENAMETOOLONG;
+	}
+	return 0;
+}
+
 static int fdo_close(struct apk_ostream *os)
 {
 	struct apk_fd_ostream *fos = container_of(os, struct apk_fd_ostream, os);
 	char tmpname[PATH_MAX];
+	bool need_unlink = true;
 	int rc;
 
 	fdo_flush(fos);
+
+#ifdef HAVE_O_TMPFILE
+	if (fos->tmpfile) {
+		char fdname[NAME_MAX];
+		apk_fmt(fdname, sizeof fdname, "/proc/self/fd/%d", fos->fd);
+
+		for (uint32_t i = 0, id = getpid(); i < 1024; i++, id++) {
+			rc = format_tmpname(tmpname, sizeof tmpname, fos->file, id);
+			if (rc < 0) break;
+			rc = linkat(AT_FDCWD, fdname, fos->atfd, tmpname, AT_SYMLINK_FOLLOW);
+			if (rc == 0 || errno != EEXIST) break;
+		}
+		if (rc < 0) {
+			apk_ostream_cancel(os, -errno);
+			need_unlink = false;
+		}
+	}
+#endif
 	if (fos->fd > STDERR_FILENO && close(fos->fd) < 0)
 		apk_ostream_cancel(os, -errno);
 
 	rc = fos->os.rc;
-	if (fos->file && apk_fmt(tmpname, sizeof tmpname, "%s.tmp", fos->file) > 0) {
+	if (fos->file) {
+		if (!fos->tmpfile) format_tmpname(tmpname, sizeof tmpname, fos->file, fos->tmpid);
 		if (rc == 0) {
-			if (renameat(fos->atfd, tmpname,
-				     fos->atfd, fos->file) < 0)
+			if (renameat(fos->atfd, tmpname, fos->atfd, fos->file) < 0)
 				rc = -errno;
-		} else {
+		} else if (need_unlink) {
 			unlinkat(fos->atfd, tmpname, 0);
 		}
 	}
@@ -1094,16 +1125,47 @@ struct apk_ostream *apk_ostream_to_fd(int fd)
 	return &fos->os;
 }
 
-struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode)
+#ifdef HAVE_O_TMPFILE
+static bool is_proc_fd_ok(void)
+{
+	static int res;
+	if (!res) res = 1 + (access("/proc/self/fd", F_OK) == 0 ? true : false);
+	return res - 1;
+}
+#endif
+
+static struct apk_ostream *__apk_ostream_to_file(int atfd, const char *file, mode_t mode, uint32_t tmpid)
 {
 	char tmpname[PATH_MAX];
 	struct apk_ostream *os;
-	int fd;
+	int fd = -1;
+	bool tmpfile;
 
 	if (atfd_error(atfd)) return ERR_PTR(atfd);
-	if (apk_fmt(tmpname, sizeof tmpname, "%s.tmp", file) < 0) return ERR_PTR(-ENAMETOOLONG);
 
-	fd = openat(atfd, tmpname, O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC, mode);
+#ifdef HAVE_O_TMPFILE
+	if (is_proc_fd_ok()) {
+		const char *slash = strrchr(file, '/'), *path = ".";
+		if (slash && slash != file) {
+			size_t pathlen = slash - file;
+			if (pathlen+1 > sizeof tmpname) return ERR_PTR(-ENAMETOOLONG);
+			path = apk_fmts(tmpname, sizeof tmpname, "%.*s", (int) pathlen, file);
+		}
+		tmpfile = true;
+		fd = openat(atfd, path, O_RDWR | O_TMPFILE | O_CLOEXEC, mode);
+	}
+#endif
+	if (fd < 0) {
+		int flags = O_CREAT | O_RDWR | O_TRUNC | O_CLOEXEC;
+		if (tmpid) flags |= O_EXCL;
+		tmpfile = false;
+		for (uint32_t i = 0; i < 1024; i++, tmpid++) {
+			int r = format_tmpname(tmpname, sizeof tmpname, file, tmpid);
+			if (r < 0) return ERR_PTR(r);
+			fd = openat(atfd, tmpname, flags, mode);
+			if (fd >= 0 || errno != EEXIST) break;
+		}
+	}
 	if (fd < 0) return ERR_PTR(-errno);
 
 	os = apk_ostream_to_fd(fd);
@@ -1112,8 +1174,20 @@ struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode)
 	struct apk_fd_ostream *fos = container_of(os, struct apk_fd_ostream, os);
 	fos->file = file;
 	fos->atfd = atfd;
+	fos->tmpfile = tmpfile;
+	fos->tmpid = tmpid;
 
 	return os;
+}
+
+struct apk_ostream *apk_ostream_to_file(int atfd, const char *file, mode_t mode)
+{
+	return __apk_ostream_to_file(atfd, file, mode, 0);
+}
+
+struct apk_ostream *apk_ostream_to_file_safe(int atfd, const char *file, mode_t mode)
+{
+	return __apk_ostream_to_file(atfd, file, mode, getpid());
 }
 
 struct apk_counter_ostream {

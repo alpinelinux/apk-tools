@@ -697,7 +697,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo, str
 	}
 	if (db->ctx->flags & APK_SIMULATE) return 0;
 
-	os = apk_ostream_to_file(cache_fd, cache_url, 0644);
+	os = apk_ostream_to_file_safe(cache_fd, cache_url, 0644);
 	if (IS_ERR(os)) return PTR_ERR(os);
 
 	is = apk_istream_from_fd_url_if_modified(download_fd, download_url, apk_db_url_since(db, download_mtime));
@@ -3129,7 +3129,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 		struct apk_istream *origis = is;
 		r = apk_repo_package_url(db, &db->cache_repository, pkg, &cache_fd, cache_url, sizeof cache_url);
 		if (r == 0)
-			is = apk_istream_tee(is, apk_ostream_to_file(cache_fd, cache_url, 0644),
+			is = apk_istream_tee(is, apk_ostream_to_file_safe(cache_fd, cache_url, 0644),
 				APK_ISTREAM_TEE_COPY_META|APK_ISTREAM_TEE_OPTIONAL);
 		if (is == origis)
 			apk_warn(out, PKG_VER_FMT": unable to cache package",
