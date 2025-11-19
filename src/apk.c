@@ -15,7 +15,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <getopt.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
@@ -28,7 +27,12 @@
 #include "apk_io.h"
 #include "apk_fs.h"
 
+static struct apk_ctx ctx;
+static struct apk_database db;
+static struct apk_applet *applet;
+static void *applet_ctx;
 char **apk_argv;
+int apk_argc;
 
 static void version(struct apk_out *out, const char *prefix)
 {
@@ -282,110 +286,102 @@ int optgroup_generation_parse(struct apk_ctx *ac, int optch, const char *optarg)
 	return 0;
 }
 
-static int usage(struct apk_out *out, struct apk_applet *applet)
+static int usage(struct apk_out *out)
 {
 	version(out, NULL);
 	apk_applet_help(applet, out);
 	return 1;
 }
 
-static struct apk_applet *deduce_applet(int argc, char **argv)
-{
-	struct apk_applet *a;
-	const char *prog;
-	int i;
-
-	prog = strrchr(argv[0], '/');
-	if (prog == NULL)
-		prog = argv[0];
-	else
-		prog++;
-
-	if (strncmp(prog, "apk_", 4) == 0)
-		return apk_applet_find(prog + 4);
-
-	for (i = 1; i < argc; i++) {
-		if (argv[i][0] == '-') continue;
-		a = apk_applet_find(argv[i]);
-		if (a) return a;
-	}
-
-	return NULL;
-}
-
-// Pack and unpack group and option id into one short (struct option.val & struct apk_options.short_option_val)
-#define APK_OPTVAL_BOOL				0x8000
-#define APK_OPTVAL_BOOL_TRUE			0x4000
-
-#define APK_OPTVAL_PACK(group_id, option_id)	((group_id << 10) + option_id)
-#define APK_OPTVAL_GROUPID(optval)		(((optval) >> 10) & 0xf)
-#define APK_OPTVAL_OPTIONID(optval)		((optval) & 0x3ff)
-
-void *apk_optval_arg(int val, void *optarg)
-{
-	if (val & APK_OPTVAL_BOOL_TRUE) return (void*) 1;
-	if (val & APK_OPTVAL_BOOL) return (void*) 0;
-	return optarg;
-}
-
-struct apk_options {
-	struct option options[80];
-	unsigned short short_option_val[64];
-	char short_options[256];
-	int num_opts, num_sopts;
+struct apk_opt_match {
+	apk_blob_t key;
+	const char *value;
+	int (*func)(struct apk_ctx *, int, const char *);
+	unsigned int cnt;
+	unsigned int optid;
+	const char *optarg;
+	char short_opt;
+	bool value_explicit, value_used;
 };
 
-static bool option_exists(struct apk_options *opts, const char *name)
+enum {
+	OPT_MATCH_PARTIAL = 1,
+	OPT_MATCH_EXACT,
+	OPT_MATCH_INVALID,
+	OPT_MATCH_AMBIGUOUS,
+	OPT_MATCH_ARGUMENT_EXPECTED,
+	OPT_MATCH_ARGUMENT_UNEXPECTED,
+	OPT_MATCH_NON_OPTION
+};
+
+static int opt_parse_desc(struct apk_opt_match *m, const char *desc, int (*func)(struct apk_ctx *, int, const char *))
 {
-	for (struct option *opt = opts->options; opt->name; opt++)
-		if (strcmp(name, opt->name) == 0) return true;
-	return false;
-}
-
-static void add_options(struct apk_options *opts, const char *desc, int group_id)
-{
-	unsigned short option_id = 0;
-	int num_short;
-
-	for (const char *d = desc; *d; d += strlen(d) + 1, option_id++) {
-		struct option *opt = &opts->options[opts->num_opts];
-		assert(opts->num_opts < ARRAY_SIZE(opts->options));
-
-		opt->val = APK_OPTVAL_PACK(group_id, option_id);
-		opt->flag = 0;
-		opt->has_arg = no_argument;
+	int id = 0;
+	for (const char *d = desc; *d; d += strlen(d) + 1, id++) {
+		const void *arg = m->value;
+		bool value_used = false, bool_arg = false;
 		if ((unsigned char)*d == 0xaf) {
-			opt->has_arg = required_argument;
+			value_used = true;
 			d++;
 		}
 		if ((unsigned char)*d == 0xab) {
-			opt->val |= APK_OPTVAL_BOOL;
+			bool_arg = true;
 			d++;
 		}
-		num_short = 0;
-		if ((unsigned char)*d >= 0xf0)
-			num_short = *d++ & 0x0f;
-		for (; num_short > 0; num_short--) {
-			unsigned char ch = *(unsigned char *)d;
-			assert(ch >= 64 && ch < 128);
-			if (opts->short_option_val[ch-64]) continue;
-			opts->short_option_val[ch-64] = opt->val;
-			opts->short_options[opts->num_sopts++] = *d++;
-			if (opt->has_arg != no_argument) opts->short_options[opts->num_sopts++] = ':';
-			assert(opts->num_sopts < ARRAY_SIZE(opts->short_options));
+		if ((unsigned char)*d >= 0xf0) {
+			for (int n = *d++ & 0x0f; n > 0; n--) {
+				if (*d++ != m->short_opt) continue;
+				if (m->cnt) return OPT_MATCH_AMBIGUOUS;
+				m->cnt++;
+				m->func = func;
+				m->optid = id;
+				m->optarg = arg;
+				m->value_used = value_used;
+				return OPT_MATCH_EXACT;
+			}
 		}
-		if (option_exists(opts, d)) continue;
-		opts->num_opts++;
-		opt->name = d;
-		if (opt->val & APK_OPTVAL_BOOL) {
-			struct option *opt2 = &opts->options[opts->num_opts++];
-			assert(opts->num_opts < ARRAY_SIZE(opts->options));
-			*opt2 = *opt;
-			opt2->val |= APK_OPTVAL_BOOL_TRUE;
-			opt2->name += 3; // skip "no-"
+		if (m->short_opt) continue;
+		size_t dlen = 0;
+		if (strncmp(m->key.ptr, d, m->key.len) == 0) {
+			dlen = strnlen(d, m->key.len+1);
+		} else if (bool_arg && strncmp(m->key.ptr, d+3, m->key.len) == 0) {
+			dlen = strnlen(d+3, m->key.len+1);
+			arg = (void*) 1;
 		}
-		assert(opt->val != '?');
+		if (dlen >= m->key.len) {
+			m->cnt++;
+			m->func = func;
+			m->optid = id;
+			m->optarg = arg;
+			m->value_used = value_used;
+			if (dlen == m->key.len) return OPT_MATCH_EXACT;
+		}
 	}
+	return 0;
+}
+
+static int optgroup_applet_parse(struct apk_ctx *ac, int opt, const char *val)
+{
+	return applet->parse(applet_ctx, ac, opt, val);
+}
+
+static int opt_match(struct apk_opt_match *m)
+{
+	int r;
+	if ((r = opt_parse_desc(m, optgroup_global_desc, optgroup_global_parse)) != 0) goto done;
+	if (applet) {
+		if (applet->options_desc && (r=opt_parse_desc(m, applet->options_desc, optgroup_applet_parse)) != 0) goto done;
+		if (applet->optgroup_commit && (r=opt_parse_desc(m, optgroup_commit_desc, optgroup_commit_parse)) != 0) goto done;
+		if (applet->optgroup_query && (r=opt_parse_desc(m, optgroup_query_desc, apk_query_parse_option)) != 0) goto done;
+		if (applet->optgroup_generation && (r=opt_parse_desc(m, optgroup_generation_desc, optgroup_generation_parse)) != 0) goto done;
+	}
+	if (m->cnt != 1) return (m->cnt > 1) ? OPT_MATCH_AMBIGUOUS : OPT_MATCH_INVALID;
+	r = OPT_MATCH_PARTIAL;
+done:
+	if (r != OPT_MATCH_PARTIAL && r != OPT_MATCH_EXACT) return r;
+	if (m->value_used && !m->value) r = OPT_MATCH_ARGUMENT_EXPECTED;
+	if (!m->value_used && m->value_explicit) r = OPT_MATCH_ARGUMENT_UNEXPECTED;
+	return r;
 }
 
 static void setup_automatic_flags(struct apk_ctx *ac)
@@ -409,12 +405,101 @@ static void setup_automatic_flags(struct apk_ctx *ac)
 		ac->flags |= APK_INTERACTIVE;
 }
 
-static int load_config(struct apk_ctx *ac, struct apk_options *opts)
+static void opt_print_error(int r, const char *fmtprefix, const char *prefix, struct apk_opt_match *m, struct apk_out *out)
+{
+	switch (r) {
+	case OPT_MATCH_PARTIAL:
+	case OPT_MATCH_INVALID:
+		apk_out_fmt(out, fmtprefix, "%s: unrecognized option '" BLOB_FMT "'",
+			prefix, BLOB_PRINTF(m->key));
+		break;
+	case OPT_MATCH_AMBIGUOUS:
+		apk_out_fmt(out, fmtprefix, "%s: ambiguous option '" BLOB_FMT "'",
+			prefix, BLOB_PRINTF(m->key));
+		break;
+	case OPT_MATCH_ARGUMENT_UNEXPECTED:
+		apk_out_fmt(out, fmtprefix, "%s: option '" BLOB_FMT "' does not expect argument (got '%s')",
+			prefix, BLOB_PRINTF(m->key), m->value);
+		break;
+	case OPT_MATCH_ARGUMENT_EXPECTED:
+		apk_out_fmt(out, fmtprefix, "%s: option '" BLOB_FMT "' expects an argument",
+			prefix, BLOB_PRINTF(m->key));
+		break;
+	case -EINVAL:
+		apk_out_fmt(out, fmtprefix, "%s: invalid argument for option '" BLOB_FMT "': '%s'",
+			prefix, BLOB_PRINTF(m->key), m->value);
+		break;
+	default:
+		apk_out_fmt(out, fmtprefix, "%s: setting option '" BLOB_FMT "' failed",
+			prefix, BLOB_PRINTF(m->key));
+		break;
+	}
+}
+
+struct opt_parse_state {
+	char **argv;
+	int argc;
+	bool execute;
+	bool end_of_options;
+};
+
+static struct opt_parse_state opt_parse_init(int argc, char **argv, bool execute) {
+	return (struct opt_parse_state) { .argc = argc - 1, .argv = argv + 1, .execute = execute };
+}
+static bool opt_parse_ok(struct opt_parse_state *st) { return st->argc > 0; }
+static void opt_parse_next(struct opt_parse_state *st) { st->argv++, st->argc--; }
+static char *opt_parse_arg(struct opt_parse_state *st) { return st->argv[0]; }
+static char *opt_parse_next_arg(struct opt_parse_state *st) { return (st->argc > 0) ? st->argv[1] : 0; }
+
+static int opt_parse_argv(struct opt_parse_state *st, struct apk_opt_match *m, struct apk_ctx *ac)
+{
+	const char *arg = opt_parse_arg(st), *next_arg = opt_parse_next_arg(st);
+	if (st->end_of_options) return OPT_MATCH_NON_OPTION;
+	if (arg[0] != '-' || arg[1] == 0) return OPT_MATCH_NON_OPTION;
+	if (arg[1] == '-') {
+		if (arg[2] == 0) {
+			st->end_of_options = true;
+			return 0;
+		}
+		apk_blob_t val;
+		*m = (struct apk_opt_match) {
+			.key = APK_BLOB_STR(arg+2),
+			.value = next_arg,
+		};
+		if (apk_blob_split(m->key, APK_BLOB_STRLIT("="), &m->key, &val))
+			m->value_explicit = true, m->value = val.ptr;
+		int r = opt_match(m);
+		if (st->execute) {
+			if (r != OPT_MATCH_EXACT && r != OPT_MATCH_PARTIAL) return r;
+			r = m->func(ac, m->optid, m->optarg);
+			if (r < 0) return r;
+		}
+	} else {
+		for (int j = 1; arg[j]; j++) {
+			*m = (struct apk_opt_match) {
+				.short_opt = arg[j],
+				.key = APK_BLOB_PTR_LEN(&m->short_opt, 1),
+				.value = arg[j+1] ? &arg[j+1] : next_arg,
+			};
+			int r = opt_match(m);
+			if (st->execute) {
+				if (r != OPT_MATCH_EXACT && r != OPT_MATCH_PARTIAL) return r;
+				r = m->func(ac, m->optid, m->optarg);
+				if (r < 0) return r;
+			}
+			if (m->value_used) break;
+		}
+	}
+	if (m->value_used && m->optarg == next_arg) opt_parse_next(st);
+	return 0;
+}
+
+static int load_config(struct apk_ctx *ac)
 {
 	struct apk_out *out = &ac->out;
 	struct apk_istream *is;
 	apk_blob_t newline = APK_BLOB_STRLIT("\n"), comment = APK_BLOB_STRLIT("#");
-	apk_blob_t space = APK_BLOB_STRLIT(" "), line, key, value;
+	apk_blob_t space = APK_BLOB_STRLIT(" "), line, value;
 	int r;
 
 	is = apk_istream_from_file(AT_FDCWD, getenv("APK_CONFIG") ?: "/etc/apk/config");
@@ -422,104 +507,80 @@ static int load_config(struct apk_ctx *ac, struct apk_options *opts)
 	if (IS_ERR(is)) return PTR_ERR(is);
 
 	while (apk_istream_get_delim(is, newline, &line) == 0) {
+		struct apk_opt_match m = {0};
 		apk_blob_split(line, comment, &line, &value);
-		if (!apk_blob_split(line, space, &key, &value)) {
-			key = line;
-			value = APK_BLOB_NULL;
+		m.key = apk_blob_trim_end(line, ' ');
+		if (apk_blob_split(m.key, space, &m.key, &value)) {
+			m.key = apk_blob_trim_end(m.key, ' ');
+			m.value = apk_balloc_cstr(&ac->ba, value);
+			m.value_explicit = true;
 		}
-		key = apk_blob_trim_end(key, ' ');
-		value = apk_blob_trim_end(value, ' ');
-		if (key.len == 0) continue;
-
-		r = -1;
-		for (int i = 0; i < opts->num_opts; i++) {
-			struct option *opt = &opts->options[i];
-			char *str = NULL;
-			if (strncmp(opt->name, key.ptr, key.len) != 0 || opt->name[key.len] != 0) continue;
-			switch (opt->has_arg) {
-			case no_argument:
-				if (!APK_BLOB_IS_NULL(value)) r = -2;
-				break;
-			case required_argument:
-				if (APK_BLOB_IS_NULL(value)) {
-					r = -3;
-					break;
-				}
-				str = apk_balloc_cstr(&ac->ba, value);
-				break;
-			}
-			assert(APK_OPTVAL_GROUPID(opt->val) == 1);
-			if (r == -1) r = optgroup_global_parse(ac, APK_OPTVAL_OPTIONID(opt->val), apk_optval_arg(opt->val, str));
-			break;
-		}
-		switch (r) {
-		case 0: break;
-		case -1:
-			apk_warn(out, "config: option '" BLOB_FMT "' unknown", BLOB_PRINTF(key));
-			break;
-		case -2:
-			apk_warn(out, "config: option '" BLOB_FMT "' does not expect argument (got '" BLOB_FMT "')",
-				BLOB_PRINTF(key), BLOB_PRINTF(value));
-			break;
-		case -3:
-			apk_warn(out, "config: option '" BLOB_FMT "' expects an argument",
-				BLOB_PRINTF(key));
-			break;
-		default: apk_warn(out, "config: setting option '" BLOB_FMT "' failed", BLOB_PRINTF(key)); break;
-		}
+		if (m.key.len == 0) continue;
+		r = opt_match(&m);
+		if (r == OPT_MATCH_AMBIGUOUS) r = OPT_MATCH_INVALID;
+		if (r == OPT_MATCH_EXACT) r = m.func(ac, m.optid, m.optarg);
+		if (r != 0 && apk_out_verbosity(out) >= 0) opt_print_error(r, APK_OUT_WARNING, "config", &m, out);
 	}
 	return apk_istream_close(is);
 }
 
-static int parse_options(int argc, char **argv, struct apk_applet *applet, void *ctx, struct apk_ctx *ac)
+static struct apk_applet *applet_from_arg0(const char *arg0)
 {
-	struct apk_out *out = &ac->out;
-	struct apk_options opts;
-	int r, p;
-
-	memset(&opts, 0, sizeof opts);
-
-	add_options(&opts, optgroup_global_desc, 1);
-	setup_automatic_flags(ac);
-	load_config(ac, &opts);
-
-	if (applet) {
-		if (applet->options_desc) add_options(&opts, applet->options_desc, 15);
-		if (applet->optgroup_commit) add_options(&opts, optgroup_commit_desc, 2);
-		if (applet->optgroup_query) add_options(&opts, optgroup_query_desc, 3);
-		if (applet->optgroup_generation) add_options(&opts, optgroup_generation_desc, 4);
-	}
-
-	while ((p = getopt_long(argc, argv, opts.short_options, opts.options, NULL)) != -1) {
-		if (p == '?') return 1;
-		if (p >= 64 && p < 128) p = opts.short_option_val[p - 64];
-		void *arg = apk_optval_arg(p, optarg);
-		switch (APK_OPTVAL_GROUPID(p)) {
-		case 1: r = optgroup_global_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
-		case 2: r = optgroup_commit_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
-		case 3: r = apk_query_parse_option(ac, APK_OPTVAL_OPTIONID(p), arg); break;
-		case 4: r = optgroup_generation_parse(ac, APK_OPTVAL_OPTIONID(p), arg); break;
-		case 15: r = applet->parse(ctx, ac, APK_OPTVAL_OPTIONID(p), arg); break;
-		default: r = -ENOTSUP;
-		}
-		if (r == -ENOTSUP) return usage(out, applet);
-		if (r == -EINVAL) {
-			struct option *opt = opts.options;
-			for (; opt->name; opt++)
-				if (opt->val == p) break;
-			assert(opt->val == p);
-			assert(optarg);
-			apk_err(out, "invalid argument for --%s: %s", opt->name, optarg);
-			return 1;
-		}
-		if (r != 0) return r;
-	}
-
-	return 0;
+	const char *prog = apk_last_path_segment(arg0);
+	if (strncmp(prog, "apk_", 4) != 0) return NULL;
+	return apk_applet_find(prog + 4);
 }
 
-static struct apk_ctx ctx;
-static struct apk_database db;
+static int parse_options(int argc, char **argv, struct apk_string_array **args, struct apk_ctx *ac)
+{
+	struct apk_out *out = &ac->out;
+	struct apk_opt_match m;
+	bool applet_arg_pending = false;
+	int r;
+
+	applet = applet_from_arg0(argv[0]);
+	if (!applet) {
+		for (struct opt_parse_state st = opt_parse_init(argc, argv, false); opt_parse_ok(&st); opt_parse_next(&st)) {
+			if (opt_parse_argv(&st, &m, ac) != OPT_MATCH_NON_OPTION) continue;
+			applet = apk_applet_find(opt_parse_arg(&st));
+			if (!applet) continue;
+			applet_arg_pending = true;
+			break;
+		}
+	}
+	if (applet) {
+		ac->query.ser = &apk_serializer_query;
+		ac->open_flags = applet->open_flags;
+		if (applet->context_size) applet_ctx = calloc(1, applet->context_size);
+		if (applet->parse) applet->parse(applet_ctx, &ctx, APK_OPTIONS_INIT, NULL);
+	}
+
+	setup_automatic_flags(ac);
+	load_config(ac);
+
+	for (struct opt_parse_state st = opt_parse_init(argc, argv, true); opt_parse_ok(&st); opt_parse_next(&st)) {
+		r = opt_parse_argv(&st, &m, ac);
+		switch (r) {
+		case 0:
+			break;
+		case OPT_MATCH_NON_OPTION:
+			char *arg = opt_parse_arg(&st);
+			if (applet_arg_pending && strcmp(arg, applet->name) == 0)
+				applet_arg_pending = false;
+			else if (arg[0] || !applet || !applet->remove_empty_arguments)
+				apk_string_array_add(args, arg);
+			break;
+		case -ENOTSUP:
+			return usage(out);
+		default:
+			if (r < 0) return r;
+		case -EINVAL:
+			opt_print_error(r, APK_OUT_ERROR, opt_parse_arg(&st), &m, out);
+			return 1;
+		}
+	}
+	return 0;
+}
 
 static void on_sigint(int s)
 {
@@ -540,16 +601,6 @@ static void setup_terminal(void)
 	signal(SIGPIPE, SIG_IGN);
 }
 
-static int remove_empty_strings(int count, char **args)
-{
-	int i, j;
-	for (i = j = 0; i < count; i++) {
-		args[j] = args[i];
-		if (args[j][0]) j++;
-	}
-	return j;
-}
-
 static void redirect_callback(int code, const char *url)
 {
 	apk_warn(&ctx.out, "Permanently redirected to %s", url);
@@ -557,55 +608,33 @@ static void redirect_callback(int code, const char *url)
 
 int main(int argc, char **argv)
 {
-	void *applet_ctx = NULL;
 	struct apk_out *out = &ctx.out;
 	struct apk_string_array *args;
-	struct apk_applet *applet;
 	int r;
 
+	apk_argc = argc;
+	apk_argv = argv;
 	apk_string_array_init(&args);
-
-	apk_argv = malloc(sizeof(char*[argc+2]));
-	memcpy(apk_argv, argv, sizeof(char*[argc]));
-	apk_argv[argc] = NULL;
-	apk_argv[argc+1] = NULL;
 
 	apk_crypto_init();
 	apk_ctx_init(&ctx);
 	umask(0);
 	setup_terminal();
 
-	applet = deduce_applet(argc, argv);
-	if (applet != NULL) {
-		ctx.query.ser = &apk_serializer_query;
-		ctx.open_flags = applet->open_flags;
-		if (applet->context_size) applet_ctx = calloc(1, applet->context_size);
-		if (applet->parse) applet->parse(applet_ctx, &ctx, APK_OPTIONS_INIT, NULL);
-	}
-
 	apk_io_url_init(&ctx.out);
 	apk_io_url_set_timeout(60);
 	apk_io_url_set_redirect_callback(redirect_callback);
 
-	r = parse_options(argc, argv, applet, applet_ctx, &ctx);
+	r = parse_options(argc, argv, &args, &ctx);
 	if (r != 0) goto err;
 
 	if (applet == NULL) {
-		if (argc > 1) {
-			apk_err(out, "'%s' is not an apk command. See 'apk --help'.", argv[1]);
+		if (apk_array_len(args)) {
+			apk_err(out, "'%s' is not an apk command. See 'apk --help'.", args->item[0]);
 			return 1;
 		}
-		return usage(out, NULL);
+		return usage(out);
 	}
-
-	argc -= optind;
-	argv += optind;
-	if (argc >= 1 && strcmp(argv[0], applet->name) == 0) {
-		argc--;
-		argv++;
-	}
-	if (applet->remove_empty_arguments)
-		argc = remove_empty_strings(argc, argv);
 
 	apk_db_init(&db, &ctx);
 	signal(SIGINT, on_sigint);
@@ -624,8 +653,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	apk_string_array_resize(&args, 0, argc);
-	for (r = 0; r < argc; r++) apk_string_array_add(&args, argv[r]);
 	apk_io_url_set_redirect_callback(NULL);
 
 	r = applet->main(applet_ctx, &ctx, args);
@@ -638,7 +665,6 @@ err:
 
 	apk_ctx_free(&ctx);
 	apk_string_array_free(&args);
-	free(apk_argv);
 
 	if (r < 0) r = 250;
 	if (r > 99) r = 99;

@@ -36,11 +36,14 @@ static inline int apk_out_verbosity(struct apk_out *out) { return out->verbosity
 // Pass this as the prefix to skip logging to the console (but still write to
 // the log file).
 #define APK_OUT_LOG_ONLY ((const char*)-1)
+#define APK_OUT_ERROR    "ERROR: "
+#define APK_OUT_WARNING  "WARNING: "
+#define APK_OUT_FLUSH    ""
 
-#define apk_err(out, args...)	do { apk_out_fmt(out, "ERROR: ", args); } while (0)
+#define apk_err(out, args...)	do { apk_out_fmt(out, APK_OUT_ERROR, args); } while (0)
 #define apk_out(out, args...)	do { apk_out_fmt(out, NULL, args); } while (0)
-#define apk_warn(out, args...)	do { if (apk_out_verbosity(out) >= 0) { apk_out_fmt(out, "WARNING: ", args); } } while (0)
-#define apk_notice(out, args...) do { if (apk_out_verbosity(out) >= 1) { apk_out_fmt(out, "", args); } } while (0)
+#define apk_warn(out, args...)	do { if (apk_out_verbosity(out) >= 0) { apk_out_fmt(out, APK_OUT_WARNING, args); } } while (0)
+#define apk_notice(out, args...) do { if (apk_out_verbosity(out) >= 1) { apk_out_fmt(out, APK_OUT_FLUSH, args); } } while (0)
 #define apk_msg(out, args...)	do { if (apk_out_verbosity(out) >= 1) { apk_out_fmt(out, NULL, args); } } while (0)
 #define apk_dbg(out, args...)	do { if (apk_out_verbosity(out) >= 2) { apk_out_fmt(out, NULL, args); } } while (0)
 #define apk_dbg2(out, args...)	do { if (apk_out_verbosity(out) >= 3) { apk_out_fmt(out, NULL, args); } } while (0)

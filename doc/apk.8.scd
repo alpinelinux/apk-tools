@@ -6,7 +6,7 @@ apk - Alpine Package Keeper
 
 # SYNOPSIS
 
-*apk* [<_options_>...] _command_ [<_arguments_>...]
+*apk* [<_global options_>...] _command_ [<_options_>...] [<_arguments_>...]
 
 # DESCRIPTION
 

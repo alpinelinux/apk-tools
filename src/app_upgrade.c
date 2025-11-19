@@ -21,8 +21,6 @@
 // enabled. Mainly needed if the index cache name changes.
 #define APK_SELFUPGRADE_TOKEN	"laiNgeiThu6ip1Te"
 
-extern char **apk_argv;
-
 struct upgrade_ctx {
 	unsigned short solver_flags;
 	unsigned short no_self_upgrade : 1;
@@ -134,11 +132,13 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	apk_msg(out, "Continuing the upgrade transaction with new apk-tools:");
 	putenv("APK_SELFUPGRADE_TOKEN=" APK_SELFUPGRADE_TOKEN);
 
-	for (r = 0; apk_argv[r] != NULL; r++)
-		;
-	apk_argv[r] = "--no-self-upgrade";
+	extern int apk_argc;
+	extern char **apk_argv;
+	char **argv = malloc(sizeof(char*[apk_argc+2]));
+	memcpy(argv, apk_argv, sizeof(char*[apk_argc]));
+	apk_argv[apk_argc] = "--no-self-upgrade";
+	apk_argv[apk_argc+1] = NULL;
 	execvp(apk_argv[0], apk_argv);
-
 	apk_err(out, "PANIC! Failed to re-execute new apk-tools!");
 	exit(1);
 
