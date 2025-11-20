@@ -126,8 +126,8 @@ int apk_do_self_upgrade(struct apk_database *db, unsigned short solver_flags, un
 	}
 
 	apk_msg(out, "Upgrading critical system libraries and apk-tools:");
-	apk_solver_commit_changeset(db, &changeset, db->world);
-	if (self_upgrade_only) goto ret;
+	r = apk_solver_commit_changeset(db, &changeset, db->world);
+	if (r < 0 || self_upgrade_only) goto ret;
 
 	apk_db_close(db);
 
