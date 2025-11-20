@@ -78,14 +78,14 @@ then the affected path or details. The changes detected are:
 	Use given FILE for protected paths listings. This also makes apk ignore
 	the regular protected_paths.d directories.
 
+*--recursive*, *-r*
+	Descend into directories and audit them as well.
+
 *--system*
 	Audit all system files. All files provided by packages are verified
 	for integrity with the exception of configuration files (listed in
 	protected_paths.d). This is useful detecting unauthorized file changes.
 	New files or directories are not reported.
-
-*-r, --recursive*
-	Descend into directories and audit them as well.
 
 # SEE ALSO
 

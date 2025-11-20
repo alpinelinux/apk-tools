@@ -11,7 +11,7 @@
 #include "apk_process.h"
 
 static char wget_timeout[16];
-static char wget_no_check_certificate;
+static bool wget_no_check_certificate;
 static struct apk_out *wget_out;
 
 struct apk_istream *apk_io_url_istream(const char *url, time_t since)
@@ -32,9 +32,9 @@ struct apk_istream *apk_io_url_istream(const char *url, time_t since)
 	return apk_process_istream(argv, wget_out, "wget");
 }
 
-void apk_io_url_no_check_certificate(void)
+void apk_io_url_check_certificate(bool check_cert)
 {
-	wget_no_check_certificate = 1;
+	wget_no_check_certificate = !check_cert;
 }
 
 void apk_io_url_set_timeout(int timeout)

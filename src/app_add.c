@@ -41,12 +41,12 @@ static int add_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char *
 	case OPT_ADD_latest:
 		actx->solver_flags |= APK_SOLVERF_LATEST;
 		break;
+	case OPT_ADD_upgrade:
+		actx->solver_flags |= APK_SOLVERF_UPGRADE;
+		break;
 	case OPT_ADD_usermode:
 	case OPT_ADD_no_chown:
 		ac->open_flags |= APK_OPENF_USERMODE;
-		break;
-	case OPT_ADD_upgrade:
-		actx->solver_flags |= APK_SOLVERF_UPGRADE;
 		break;
 	case OPT_ADD_virtual:
 		actx->virtpkg = optarg;

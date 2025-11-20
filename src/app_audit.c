@@ -69,6 +69,12 @@ static int audit_option_parse(void *applet_ctx, struct apk_ctx *ac, int opt, con
 	case OPT_AUDIT_backup:
 		actx->mode = MODE_BACKUP;
 		break;
+	case OPT_AUDIT_check_permissions:
+		actx->check_permissions = 1;
+		break;
+	case OPT_AUDIT_details:
+		actx->details = 1;
+		break;
 	case OPT_AUDIT_full:
 		actx->mode = MODE_FULL;
 		protected_paths_istream(ac,
@@ -88,15 +94,6 @@ static int audit_option_parse(void *applet_ctx, struct apk_ctx *ac, int opt, con
 					"-var\n"
 				)));
 		break;
-	case OPT_AUDIT_system:
-		actx->mode = MODE_SYSTEM;
-		break;
-	case OPT_AUDIT_check_permissions:
-		actx->check_permissions = 1;
-		break;
-	case OPT_AUDIT_details:
-		actx->details = 1;
-		break;
 	case OPT_AUDIT_ignore_busybox_symlinks:
 		actx->ignore_busybox_symlinks = 1;
 		break;
@@ -112,6 +109,9 @@ static int audit_option_parse(void *applet_ctx, struct apk_ctx *ac, int opt, con
 		break;
 	case OPT_AUDIT_recursive:
 		actx->recursive = 1;
+		break;
+	case OPT_AUDIT_system:
+		actx->mode = MODE_SYSTEM;
 		break;
 	default:
 		return -ENOTSUP;

@@ -21,6 +21,9 @@ All apk commands which modify the database are logged to /var/log/apk.log.
 By default apk is non-interactive. See *FILES* or *--interactive* on changing
 this default to be interactive.
 
+Only _global options_ should be specified before _command_. For backwards
+compatilibity a best effort attempt is made to parse applet specific options
+before the _command_, but this is deprecated and subject to be removed.
 
 # COMMANDS
 
@@ -95,41 +98,20 @@ Each command is documented in detail on its manual page.
 |  *apk-convndx*(8)
 :  Convert v2 indexes to v3 format
 
+# OPTION SYNTAX
+
+The _BOOL_ argument for options is '*yes*' or '*no*'. The default value is
+option specific.
+
+For options with a _BOOL_ argument, the argument must be specified with
+the *--option=argument* format (that is, the *--option argument* format
+is not supported). Additionally the following aliases are available:
+	- *--option* equals *--option=yes*
+	- *--no-option* equals *--option=no*
+
 # GLOBAL OPTIONS
 
 The following options are available for all commands.
-
-*-h, --help*
-	Print the list of all commands with descriptions.
-
-*-f, --force*
-	Enable selected --force-\* options (deprecated).
-
-*-i, --interactive, --no-interactive*
-	Ask or don't ask for confirmation before performing certain operations.
-	Interactive mode can be made the default when running on a tty,
-	by creating /etc/apk/interactive as an empty file.
-
-*-p, --root* _ROOT_
-	Manage file system at _ROOT_.
-
-*-q, --quiet*
-	Print less information.
-
-*-U, --update-cache*
-	Alias for '--cache-max-age 0'.
-
-*-v, --verbose*
-	Print more information (can be specified twice).
-
-*-V, --version*
-	Print program version and exit.
-
-*-X, --repository* _REPO_
-	Specify additional package repository. *apk-repositories*(5) specified
-	commands are not parsed (use *--repository-config* for that).
-	Additionally, relative paths are accepted and interpreted relative
-	to the startup directory.
 
 *--allow-untrusted*
 	Install packages with untrusted signature or no signature.
@@ -142,6 +124,9 @@ The following options are available for all commands.
 
 	When used with --root the architecture will also be saved.
 
+*--cache*[=_BOOL_]
+	When disabled, prevents using any local cache paths.
+
 *--cache-dir* _CACHEDIR_
 	Temporarily override the cache directory. _CACHEDIR_ is treated relative
 	to the _ROOT_.
@@ -150,13 +135,19 @@ The following options are available for all commands.
 	Maximum AGE (in minutes) for index in cache before it's refreshed. *0*
 	means always refresh.
 
-*--cache-packages, --no-cache-packages*
+*--cache-packages*[=_BOOL_]
 	Store a copy of packages at installation time to cache. Enabled automatically
 	if */etc/apk/cache* symlink exists.
 
-*--cache-predownload, --no-cache-predownload*
+*--cache-predownload*[=_BOOL_]
 	Download needed packages to cache before starting to commit a transtaction.
 	Requires cache to be configured to be functional. Implies *--cache-packages*.
+
+*--check-certificate*[=_BOOL_]
+	When disabled, omits the validation of the HTTPS server certificate.
+
+*--force*, *-f*
+	Enable selected --force-\* options (deprecated).
 
 *--force-binary-stdout*
 	Continue even if binary data will be printed to the terminal.
@@ -197,46 +188,52 @@ The following options are available for all commands.
 *--force-refresh*
 	Do not use cached files (local or from proxy).
 
+*--help*, *-h*
+	Print the list of all commands with descriptions.
+
+*--interactive*[=_BOOL_]
+	Ask or don't ask for confirmation before performing certain operations.
+	Interactive mode can be made the default when running on a tty,
+	by creating /etc/apk/interactive as an empty file.
+
 *--keys-dir* _KEYSDIR_
 	Override the default system trusted keys directories. If specified the
 	only this directory is processed. The _KEYSDIR_ is treated relative
 	to _ROOT_.
 
-*--legacy-info, --no-legacy-info*
+*--legacy-info*[=_BOOL_]
 	Print output from "info" applet in legacy format or new "query" format.
 	Defaults to no currently, but the default is subject to change to yes
 	in a future release.
 
-*--no-cache*
-	Do not use any local cache path.
+*--logfile*[=_BOOL_]
+	If turned off, disables the writing of the log file.
 
-*--no-check-certificate*
-	Do not validate the HTTPS server certificates.
+*--network*[=_BOOL_]
+	If turned off, does not use the network. The packages from network
+	repositories in the cache are used.
 
-*--no-logfile*
-	Disable writing to the log file.
-
-*--no-network*
-	Do not use the network. The cache is still used when possible.
-
-*--preserve-env*
-	Pass user environment down to scripts (excluding variables starting
-	APK_ which are reserved).
+*--preserve-env*[=_BOOL_]
+	Allow passing the user environment down to scripts (excluding
+	variables starting APK_ which are reserved).
 
 *--print-arch*
 	Print default arch and exit.
 
-*--progress, --no-progress*
+*--progress*[=_BOOL_]
 	Enable or disable progress bar. Defaults to yes for TTYs.
 
 *--progress-fd* _FD_
 	Write progress to the specified file descriptor.
 
-*--purge*
+*--purge*[=_BOOL_]
 	Purge modified configuration and cached packages. Enables deletion of
 	modified configuration files on package removal. On cache clean action
 	this enables deletion of unneeded cached packages (uninstalled packages
 	on tmpfs installations or all packages on disk installations).
+
+*--quiet*, *-q*
+	Print less information.
 
 *--repositories-file* _REPOFILE_
 	Override system repositories, see *apk-repositories*(5). Specifying this
@@ -244,14 +241,35 @@ The following options are available for all commands.
 	processing. The given _REPOFILE_ is relative to the startup directory since
 	apk 2.12.0_rc2.
 
+*--repository*, *-X* _REPO_
+	Specify additional package repository. *apk-repositories*(5) specified
+	commands are not parsed (use *--repository-config* for that).
+	Additionally, relative paths are accepted and interpreted relative
+	to the startup directory.
+
 *--repository-config* _REPOCONFIG_
 	Specify additional package repository configuration. The _REPOCONFIG_ is
 	parsed exactly the same way as if it was read from a *apk-repositories*(5)
 	specified *.list* file.
 
+*--root*, *-p* _ROOT_
+	Manage file system at _ROOT_.
+
 *--timeout* _TIME_
 	Timeout network connections if no progress is made in TIME seconds.
 	The default is 60 seconds.
+
+*--update-cache*, *-U*
+	Alias for '--cache-max-age 0'.
+
+*--uvol-manager* _UVOL_
+	Specify the OpenWRT _uvol_ volume manager executable location.
+
+*--verbose*, *-v*
+	Print more information (can be specified twice).
+
+*--version*, *-V*
+	Print program version and exit.
 
 *--wait* _TIME_
 	Wait for TIME seconds to get an exclusive repository lock before
@@ -261,36 +279,36 @@ The following options are available for all commands.
 
 The following options are available for all commands which commit the database.
 
-*-s, --simulate*
-	Simulate the requested operation without making any changes. The database
-	is opened in read only mode, and auto-updating of indexes is disabled.
-	You may want to run "apk update" before running a simulation to make sure
-	it is done with up-to-date repository indexes.
+*--clean-protected*[=_BOOL_]
+	If disabled, prevents creation of .apk-new files in configuration directories.
 
-*--clean-protected*
-	Do not create .apk-new files in configuration directories.
-
-*--overlay-from-stdin*
-	Read list of overlay files from stdin. Normally this is used only during
-	initramfs when booting run-from-tmpfs installation.
-
-*--no-commit-hooks*
-	Skip pre/post hook scripts (but not other scripts).
-
-*--no-scripts*
-	Do not execute any scripts. Useful for extracting a system image for
-	different architecture on alternative _ROOT_.
+*--commit-hooks*[=_BOOL_]
+	If disabled, skips the pre/post hook scripts (but not other scripts).
 
 *--initramfs-diskless-boot*
 	Used by initramfs when it's recreating root tmpfs. This enables selected
 	force options to minimize failure, and disables commit hooks, among
 	other features.
 
+*--overlay-from-stdin*
+	Read list of overlay files from stdin. Normally this is used only during
+	initramfs when booting run-from-tmpfs installation.
+
+*--scripts*[=_BOOL_]
+	If disabled, prevents execution of all scripts. Useful for extracting
+	a system image for different architecture on alternative _ROOT_.
+
+*--simulate*[=_BOOL_], *-s*
+	Simulate the requested operation without making any changes. The database
+	is opened in read only mode, and auto-updating of indexes is disabled.
+	You may want to run "apk update" before running a simulation to make sure
+	it is done with up-to-date repository indexes.
+
 # GENERATION OPTIONS
 
 The following options are available for all commands which generate APKv3 files.
 
-*-c, --compression* _ALGORITHM[:LEVEL]_
+*--compression, -C* _ALGORITHM[:LEVEL]_
 	Compress the file with given _ALGORITHM_ and _LEVEL_. Supported algorithms:
 	- none
 	- deflate (level 1-9)

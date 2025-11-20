@@ -27,6 +27,14 @@ case "$($APK --no-cache 2>&1 >/dev/null)" in
 "") ;;
 *) assert "expected valid exact option" ;;
 esac
+case "$($APK --no-cache=foo 2>&1 >/dev/null)" in
+*"option 'no-cache' does not expect argument"*) ;;
+*) assert "expected no argument error" ;;
+esac
+case "$($APK --cache=no 2>&1 >/dev/null)" in
+"") ;;
+*) assert "expected no argument error" ;;
+esac
 case "$($APK --root 2>&1 >/dev/null)" in
 *"option 'root' expects an argument"*) ;;
 *) assert "expected argument error" ;;

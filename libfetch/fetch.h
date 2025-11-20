@@ -112,7 +112,7 @@ struct fetch_error {
 extern "C" {
 #endif
 
-void		fetch_no_check_certificate(void);
+void		fetch_check_certificate(int check_cert);
 
 void		fetchIO_close(fetchIO *);
 ssize_t		fetchIO_read(fetchIO *, void *, size_t);

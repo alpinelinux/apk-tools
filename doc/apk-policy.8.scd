@@ -16,5 +16,5 @@ repositories (see *apk-repositories*(5)), sorted by ascending version.
 
 # OPTIONS
 
-*apk policy* does not support any specific options. See *apk*(8) for global
-options.
+The global options (see *apk*(8)) and query options (see *apk-query*(8))
+are supported.

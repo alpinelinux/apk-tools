@@ -17,9 +17,9 @@ known package if unspecified (this will generate a large and unwieldy graph).
 
 # OPTIONS
 
+In addition to the global options (see *apk*(8)), and query options
+(see *apk-query*(8)) the following options are supported:
+
 *--errors*
 	Consider only packages with errors. This is useful for visually reporting
 	e.g. cyclic dependencies and missing packages.
-
-*--installed*
-	Consider only installed packages.

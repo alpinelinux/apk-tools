@@ -73,7 +73,7 @@ static int cup(void)
 	OPT(OPT_FETCH_link,		APK_OPT_SH("l") "link") \
 	OPT(OPT_FETCH_pkgname_spec,	APK_OPT_ARG "pkgname-spec") \
 	OPT(OPT_FETCH_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
-	OPT(OPT_FETCH_simulate,		"simulate") \
+	OPT(OPT_FETCH_simulate,		APK_OPT_BOOL "simulate") \
 	OPT(OPT_FETCH_stdout,		APK_OPT_SH("s") "stdout") \
 	OPT(OPT_FETCH_url,		"url") \
 
@@ -107,7 +107,7 @@ static int fetch_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char
 		if (!fctx->built_after) return -EINVAL;
 		break;
 	case OPT_FETCH_simulate:
-		ac->flags |= APK_SIMULATE;
+		apk_opt_set_flag(optarg, APK_SIMULATE, &ac->flags);
 		break;
 	case OPT_FETCH_pkgname_spec:
 		fctx->pkgname_spec = APK_BLOB_STR(optarg);

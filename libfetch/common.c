@@ -61,9 +61,9 @@ static int ssl_verify_mode = SSL_VERIFY_PEER;
 /*** Error-reporting functions ***********************************************/
 
 void
-fetch_no_check_certificate(void)
+fetch_check_certificate(int check_cert)
 {
-	ssl_verify_mode = SSL_VERIFY_NONE;
+	ssl_verify_mode = check_cert ? SSL_VERIFY_PEER : SSL_VERIFY_NONE;
 }
 
 /*

@@ -28,7 +28,7 @@ following options:
 *--initdb*
 	Initialize a new package database.
 
-*-l, --latest*
+*--latest*, *-l*
 	Always choose the latest package by version. However, the versions
 	considered are based on the package pinning. Primarily this overrides
 	the default heuristic and will cause an error to displayed if all
@@ -37,7 +37,7 @@ following options:
 *--no-chown*
 	Deperecated alias for --usermode.
 
-*-u, --upgrade*
+*--upgrade*, *-u*
 	Upgrade _packages_ and their dependencies. Normally *apk add* will
 	avoid changing installed package unless it is required by the newly
 	added _packages_ or their dependencies. This changes the default
@@ -54,7 +54,7 @@ following options:
 	However, this is useful mode for testing purposes or to create
 	chroot where some specific applications can run as non-root.
 
-*-t, --virtual* _NAME_
+*--virtual*, *-t* _NAME_
 	Create virtual package _NAME_ with given dependencies. This new package
 	will get the _packages_ as dependencies instead of _world_. Finally the
 	_NAME_ is added to _world_. An optional version specifier for the virtual

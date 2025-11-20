@@ -39,7 +39,7 @@ disk installations.
 	Add the argument dependencies to _world_ dependencies when determining
 	which packages to download.
 
-*-a, --available*
+*--available*, *-a*
 	Selected packages to be downloaded from active repositories even if
 	it means replacing or downgrading the installed package.
 
@@ -47,16 +47,16 @@ disk installations.
 	Ignore conflicts when resolving dependencies. This can be useful when
 	pre-populating cache for creation of multiple images in one go.
 
-*-l, --latest*
+*--latest*, *-l*
 	Always choose the latest package by version. However, the versions
 	considered are based on the package pinning. Primarily this overrides
 	the default heuristic and will cause an error to displayed if all
 	dependencies cannot be satisfied.
 
-*-u, --upgrade*
+*--upgrade*, *-u*
 	When caching packages which are already installed, prefer their upgrades
 	rather than considering the requirement fulfilled by the current
 	installation.
 
-*-s, --simulate*
+*--simulate*[=_BOOL_], *-s*
 	Simulate the requested operation without making any changes.

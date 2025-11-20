@@ -190,9 +190,9 @@ static void fetch_redirect(int code, const struct url *cur, const struct url *ne
 	}
 }
 
-void apk_io_url_no_check_certificate(void)
+void apk_io_url_check_certificate(bool check_cert)
 {
-	fetch_no_check_certificate();
+	fetch_check_certificate(check_cert);
 }
 
 void apk_io_url_set_timeout(int timeout)

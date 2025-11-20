@@ -18,26 +18,29 @@ globbing.
 
 # OPTIONS
 
-*-a, --available*
+In addition to the global options (see *apk*(8)), and query options
+(see *apk-query*(8)) the following options are supported:
+
+*--available*, *-a*
 	Consider only available packages.
 
-*-d, --depends*
+*--depends*, *-d*
 	List packages by dependency.
 
-*-I, --installed*
+*--installed*, *-I*
 	Consider only installed packages.
 
 *--manifest*
 	List installed packages in format `<name> <version>`.
 
-*-o, --origin*
+*--origin*, *-o*
 	List packages by origin.
 
-*-O, --orphaned*
+*--orphaned*, *-O*
 	Consider only orphaned packages.
 
-*-P, --providers*
+*--providers*, *-P*
 	List packages by provider.
 
-*-u, --upgradable, --upgradeable*
+*--upgradable*, *--upgradeable*, *-u*
 	Consider only upgradable packages.

@@ -15,7 +15,7 @@ apk mkndx - create apkv3 repository index file from packages
 
 # OPTIONS
 
-*-d, --description* _TEXT_
+*--description*, *-d* _TEXT_
 	Add a description to the index. Upstream, this is used to add version
 	information based on the git commit SHA of aports HEAD at the time of
 	index generation.
@@ -33,12 +33,12 @@ apk mkndx - create apkv3 repository index file from packages
 	The *sha256-160* is allowed to generate index compatible with old
 	prereleases of apkv3 that do no handle longer hashes correctly.
 
-*-o, --output* _FILE_
-	Output generated index to _FILE_.
-
-*-x, --index* _INDEX_
+*--index*, *-x* _INDEX_
 	Read an existing index from _INDEX_ to speed up the creation of the new
 	index by reusing data when possible.
+
+*--output*, *-o* _FILE_
+	Output generated index to _FILE_.
 
 *--pkgname-spec* _PKGNAME_SPEC_
 	Specify package name specification for downloading the packages.

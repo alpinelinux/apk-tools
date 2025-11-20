@@ -42,10 +42,12 @@ static void version(struct apk_out *out, const char *prefix)
 #define GLOBAL_OPTIONS(OPT) \
 	OPT(OPT_GLOBAL_allow_untrusted,		"allow-untrusted") \
 	OPT(OPT_GLOBAL_arch,			APK_OPT_ARG "arch") \
+	OPT(OPT_GLOBAL_cache,			APK_OPT_BOOL "cache") \
 	OPT(OPT_GLOBAL_cache_dir,		APK_OPT_ARG "cache-dir") \
 	OPT(OPT_GLOBAL_cache_max_age,		APK_OPT_ARG "cache-max-age") \
 	OPT(OPT_GLOBAL_cache_packages,		APK_OPT_BOOL "cache-packages") \
 	OPT(OPT_GLOBAL_cache_predownload,	APK_OPT_BOOL "cache-predownload") \
+	OPT(OPT_GLOBAL_check_certificate,	APK_OPT_BOOL "check-certificate") \
 	OPT(OPT_GLOBAL_force,			APK_OPT_SH("f") "force") \
 	OPT(OPT_GLOBAL_force_binary_stdout,	"force-binary-stdout") \
 	OPT(OPT_GLOBAL_force_broken_world,	"force-broken-world") \
@@ -56,19 +58,16 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_force_overwrite,		"force-overwrite") \
 	OPT(OPT_GLOBAL_force_refresh,		"force-refresh") \
 	OPT(OPT_GLOBAL_help,			APK_OPT_SH("h") "help") \
-	OPT(OPT_GLOBAL_interactive,		APK_OPT_SH("i") "interactive") \
+	OPT(OPT_GLOBAL_interactive,		APK_OPT_BOOL APK_OPT_SH("i") "interactive") \
 	OPT(OPT_GLOBAL_keys_dir,		APK_OPT_ARG "keys-dir") \
 	OPT(OPT_GLOBAL_legacy_info,		APK_OPT_BOOL "legacy-info") \
-	OPT(OPT_GLOBAL_no_cache,		"no-cache") \
-	OPT(OPT_GLOBAL_no_check_certificate,	"no-check-certificate") \
-	OPT(OPT_GLOBAL_no_interactive,		"no-interactive") \
-	OPT(OPT_GLOBAL_no_logfile,		"no-logfile") \
-	OPT(OPT_GLOBAL_no_network,		"no-network") \
-	OPT(OPT_GLOBAL_preserve_env,		"preserve-env") \
+	OPT(OPT_GLOBAL_logfile,			APK_OPT_BOOL "logfile") \
+	OPT(OPT_GLOBAL_network,			APK_OPT_BOOL "network") \
+	OPT(OPT_GLOBAL_preserve_env,		APK_OPT_BOOL "preserve-env") \
 	OPT(OPT_GLOBAL_print_arch,		"print-arch") \
 	OPT(OPT_GLOBAL_progress,		APK_OPT_BOOL "progress") \
 	OPT(OPT_GLOBAL_progress_fd,		APK_OPT_ARG "progress-fd") \
-	OPT(OPT_GLOBAL_purge,			"purge") \
+	OPT(OPT_GLOBAL_purge,			APK_OPT_BOOL "purge") \
 	OPT(OPT_GLOBAL_quiet,			APK_OPT_SH("q") "quiet") \
 	OPT(OPT_GLOBAL_repositories_file,	APK_OPT_ARG "repositories-file") \
 	OPT(OPT_GLOBAL_repository,		APK_OPT_ARG APK_OPT_SH("X") "repository") \
@@ -88,32 +87,30 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 {
 	struct apk_out *out = &ac->out;
 	switch (opt) {
-	case OPT_GLOBAL_help:
-		return -ENOTSUP;
-	case OPT_GLOBAL_root:
-		ac->root = optarg;
+	case OPT_GLOBAL_allow_untrusted:
+		ac->flags |= APK_ALLOW_UNTRUSTED;
 		break;
-	case OPT_GLOBAL_keys_dir:
-		ac->keys_dir = optarg;
+	case OPT_GLOBAL_arch:
+		apk_string_array_add(&ac->arch_list, (char*) optarg);
 		break;
-	case OPT_GLOBAL_repositories_file:
-		ac->repositories_file = optarg;
+	case OPT_GLOBAL_cache:
+		apk_opt_set_flag_invert(optarg, APK_NO_CACHE, &ac->flags);
 		break;
-	case OPT_GLOBAL_repository:
-		apk_string_array_add(&ac->repository_list, (char*) optarg);
+	case OPT_GLOBAL_cache_dir:
+		ac->cache_dir = optarg;
 		break;
-	case OPT_GLOBAL_repository_config:
-		apk_string_array_add(&ac->repository_config_list, (char*) optarg);
+	case OPT_GLOBAL_cache_max_age:
+		ac->cache_max_age = atoi(optarg) * 60;
 		break;
-	case OPT_GLOBAL_quiet:
-		if (ac->out.verbosity) ac->out.verbosity--;
+	case OPT_GLOBAL_cache_packages:
+		ac->cache_packages = APK_OPT_BOOL_VAL(optarg);
 		break;
-	case OPT_GLOBAL_verbose:
-		ac->out.verbosity++;
+	case OPT_GLOBAL_cache_predownload:
+		ac->cache_predownload = APK_OPT_BOOL_VAL(optarg);
 		break;
-	case OPT_GLOBAL_version:
-		version(out, NULL);
-		return -ESHUTDOWN;
+	case OPT_GLOBAL_check_certificate:
+		apk_io_url_check_certificate(APK_OPT_BOOL_VAL(optarg));
+		break;
 	case OPT_GLOBAL_force:
 		ac->force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
 			| APK_FORCE_NON_REPOSITORY | APK_FORCE_BINARY_STDOUT;
@@ -142,44 +139,55 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 	case OPT_GLOBAL_force_missing_repositories:
 		ac->force |= APK_FORCE_MISSING_REPOSITORIES;
 		break;
+	case OPT_GLOBAL_help:
+		return -ENOTSUP;
 	case OPT_GLOBAL_interactive:
-		ac->flags |= APK_INTERACTIVE;
+		apk_opt_set_flag(optarg, APK_INTERACTIVE, &ac->flags);
 		break;
-	case OPT_GLOBAL_no_interactive:
-		ac->flags &= ~APK_INTERACTIVE;
+	case OPT_GLOBAL_keys_dir:
+		ac->keys_dir = optarg;
+		break;
+	case OPT_GLOBAL_legacy_info:
+		ac->legacy_info = APK_OPT_BOOL_VAL(optarg);
+		break;
+	case OPT_GLOBAL_logfile:
+		apk_opt_set_flag_invert(optarg, APK_NO_LOGFILE, &ac->flags);
+		break;
+	case OPT_GLOBAL_network:
+		apk_opt_set_flag_invert(optarg, APK_NO_NETWORK, &ac->flags);
 		break;
 	case OPT_GLOBAL_preserve_env:
-		ac->flags |= APK_PRESERVE_ENV;
+		apk_opt_set_flag(optarg, APK_PRESERVE_ENV, &ac->flags);
 		break;
+	case OPT_GLOBAL_print_arch:
+		puts(APK_DEFAULT_ARCH);
+		return -ESHUTDOWN;
 	case OPT_GLOBAL_progress:
 		ac->out.progress_disable = !APK_OPT_BOOL_VAL(optarg);
 		break;
 	case OPT_GLOBAL_progress_fd:
 		ac->out.progress_fd = atoi(optarg);
 		break;
-	case OPT_GLOBAL_allow_untrusted:
-		ac->flags |= APK_ALLOW_UNTRUSTED;
-		break;
 	case OPT_GLOBAL_purge:
-		ac->flags |= APK_PURGE;
+		apk_opt_set_flag(optarg, APK_PURGE, &ac->flags);
 		break;
-	case OPT_GLOBAL_wait:
-		ac->lock_wait = atoi(optarg);
+	case OPT_GLOBAL_quiet:
+		if (ac->out.verbosity) ac->out.verbosity--;
 		break;
-	case OPT_GLOBAL_no_logfile:
-		ac->flags |= APK_NO_LOGFILE;
+	case OPT_GLOBAL_repositories_file:
+		ac->repositories_file = optarg;
 		break;
-	case OPT_GLOBAL_no_network:
-		ac->flags |= APK_NO_NETWORK;
+	case OPT_GLOBAL_repository:
+		apk_string_array_add(&ac->repository_list, (char*) optarg);
 		break;
-	case OPT_GLOBAL_no_cache:
-		ac->flags |= APK_NO_CACHE;
+	case OPT_GLOBAL_repository_config:
+		apk_string_array_add(&ac->repository_config_list, (char*) optarg);
 		break;
-	case OPT_GLOBAL_no_check_certificate:
-		apk_io_url_no_check_certificate();
+	case OPT_GLOBAL_root:
+		ac->root = optarg;
 		break;
-	case OPT_GLOBAL_cache_dir:
-		ac->cache_dir = optarg;
+	case OPT_GLOBAL_timeout:
+		apk_io_url_set_timeout(atoi(optarg));
 		break;
 	case OPT_GLOBAL_update_cache:
 		ac->cache_max_age = 0;
@@ -187,26 +195,14 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 	case OPT_GLOBAL_uvol_manager:
 		ac->uvol = optarg;
 		break;
-	case OPT_GLOBAL_cache_max_age:
-		ac->cache_max_age = atoi(optarg) * 60;
+	case OPT_GLOBAL_verbose:
+		ac->out.verbosity++;
 		break;
-	case OPT_GLOBAL_cache_packages:
-		ac->cache_packages = APK_OPT_BOOL_VAL(optarg);
-		break;
-	case OPT_GLOBAL_cache_predownload:
-		ac->cache_predownload = APK_OPT_BOOL_VAL(optarg);
-		break;
-	case OPT_GLOBAL_timeout:
-		apk_io_url_set_timeout(atoi(optarg));
-		break;
-	case OPT_GLOBAL_arch:
-		apk_string_array_add(&ac->arch_list, (char*) optarg);
-		break;
-	case OPT_GLOBAL_print_arch:
-		puts(APK_DEFAULT_ARCH);
+	case OPT_GLOBAL_version:
+		version(out, NULL);
 		return -ESHUTDOWN;
-	case OPT_GLOBAL_legacy_info:
-		ac->legacy_info = APK_OPT_BOOL_VAL(optarg);
+	case OPT_GLOBAL_wait:
+		ac->lock_wait = atoi(optarg);
 		break;
 	default:
 		return -ENOTSUP;
@@ -215,38 +211,38 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 }
 
 #define COMMIT_OPTIONS(OPT) \
-	OPT(OPT_COMMIT_clean_protected,		"clean-protected") \
+	OPT(OPT_COMMIT_clean_protected,		APK_OPT_BOOL "clean-protected") \
+	OPT(OPT_COMMIT_commit_hooks,		APK_OPT_BOOL "commit-hooks") \
 	OPT(OPT_COMMIT_initramfs_diskless_boot,	"initramfs-diskless-boot") \
-	OPT(OPT_COMMIT_no_commit_hooks,		"no-commit-hooks") \
-	OPT(OPT_COMMIT_no_scripts,		"no-scripts") \
 	OPT(OPT_COMMIT_overlay_from_stdin,	"overlay-from-stdin") \
-	OPT(OPT_COMMIT_simulate,		APK_OPT_SH("s") "simulate")
+	OPT(OPT_COMMIT_scripts,			APK_OPT_BOOL "scripts") \
+	OPT(OPT_COMMIT_simulate,		APK_OPT_BOOL APK_OPT_SH("s") "simulate")
 
 APK_OPTIONS(optgroup_commit_desc, COMMIT_OPTIONS);
 
 static int optgroup_commit_parse(struct apk_ctx *ac, int opt, const char *optarg)
 {
 	switch (opt) {
-	case OPT_COMMIT_simulate:
-		ac->flags |= APK_SIMULATE;
-		break;
 	case OPT_COMMIT_clean_protected:
-		ac->flags |= APK_CLEAN_PROTECTED;
+		apk_opt_set_flag(optarg, APK_CLEAN_PROTECTED, &ac->flags);
 		break;
-	case OPT_COMMIT_overlay_from_stdin:
-		ac->flags |= APK_OVERLAY_FROM_STDIN;
-		break;
-	case OPT_COMMIT_no_scripts:
-		ac->flags |= APK_NO_SCRIPTS;
-		break;
-	case OPT_COMMIT_no_commit_hooks:
-		ac->flags |= APK_NO_COMMIT_HOOKS;
+	case OPT_COMMIT_commit_hooks:
+		apk_opt_set_flag_invert(optarg, APK_NO_COMMIT_HOOKS, &ac->flags);
 		break;
 	case OPT_COMMIT_initramfs_diskless_boot:
 		ac->open_flags |= APK_OPENF_CREATE;
 		ac->flags |= APK_NO_COMMIT_HOOKS;
 		ac->force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
 			|  APK_FORCE_BROKEN_WORLD | APK_FORCE_NON_REPOSITORY;
+		break;
+	case OPT_COMMIT_overlay_from_stdin:
+		ac->flags |= APK_OVERLAY_FROM_STDIN;
+		break;
+	case OPT_COMMIT_scripts:
+		apk_opt_set_flag_invert(optarg, APK_NO_SCRIPTS, &ac->flags);
+		break;
+	case OPT_COMMIT_simulate:
+		apk_opt_set_flag(optarg, APK_SIMULATE, &ac->flags);
 		break;
 	default:
 		return -ENOTSUP;
@@ -314,8 +310,20 @@ enum {
 	OPT_MATCH_NON_OPTION
 };
 
+static int opt_parse_yesno(const char *arg, const char **argval)
+{
+	if (strcmp(arg, "yes") == 0)
+		*argval = APK_OPTVAL_YES;
+	else if (strcmp(arg, "no") == 0)
+		*argval = APK_OPTVAL_NO;
+	else
+		return -EINVAL;
+	return 0;
+}
+
 static int opt_parse_desc(struct apk_opt_match *m, const char *desc, int (*func)(struct apk_ctx *, int, const char *))
 {
+	bool no_prefix = apk_blob_starts_with(m->key, APK_BLOB_STRLIT("no-"));
 	int id = 0;
 	for (const char *d = desc; *d; d += strlen(d) + 1, id++) {
 		const void *arg = m->value;
@@ -335,25 +343,42 @@ static int opt_parse_desc(struct apk_opt_match *m, const char *desc, int (*func)
 				m->cnt++;
 				m->func = func;
 				m->optid = id;
-				m->optarg = arg;
-				m->value_used = value_used;
+				if (bool_arg) {
+					m->optarg = APK_OPTVAL_YES;
+					m->value_used = false;
+				} else {
+					m->optarg = arg;
+					m->value_used = value_used;
+				}
 				return OPT_MATCH_EXACT;
 			}
 		}
 		if (m->short_opt) continue;
 		size_t dlen = 0;
-		if (strncmp(m->key.ptr, d, m->key.len) == 0) {
+		if (strncmp(m->key.ptr, d, m->key.len) == 0)
 			dlen = strnlen(d, m->key.len+1);
-		} else if (bool_arg && strncmp(m->key.ptr, d+3, m->key.len) == 0) {
-			dlen = strnlen(d+3, m->key.len+1);
-			arg = (void*) 1;
-		}
+		else if (bool_arg && no_prefix && strncmp(m->key.ptr+3, d, m->key.len-3) == 0)
+			dlen = strnlen(d, m->key.len-3+1) + 3;
 		if (dlen >= m->key.len) {
 			m->cnt++;
 			m->func = func;
 			m->optid = id;
-			m->optarg = arg;
-			m->value_used = value_used;
+			if (bool_arg) {
+				if (no_prefix) {
+					m->optarg = APK_OPTVAL_NO;
+					m->value_used = false;
+				} else if (!m->value_explicit) {
+					m->optarg = APK_OPTVAL_YES;
+					m->value_used = false;
+				} else {
+					int r = opt_parse_yesno(m->value, &m->optarg);
+					if (r) return r;
+					m->value_used = true;
+				}
+			} else {
+				m->optarg = value_used ? arg : NULL;
+				m->value_used = value_used;
+			}
 			if (dlen == m->key.len) return OPT_MATCH_EXACT;
 		}
 	}

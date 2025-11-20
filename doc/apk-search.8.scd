@@ -17,27 +17,27 @@ case-insensitive substring of the package name.
 
 # OPTIONS
 
-In addition to the global options (see *apk*(8)), *apk search* supports the
-following options:
+In addition to the global options (see *apk*(8)), and query options
+(see *apk-query*(8)) the following options are supported:
 
-*-a, --all*
+*--all*, *-a*
 	Print all matching package versions. By default, *apk* only shows the
 	latest version.
 
-*-d, --description*
+*--description*, *-d*
 	Also search for _pattern_ in the package description. By default, *apk*
 	does not search package descriptions.
 
-*-e, -x, --exact*
+*--exact*, *-e*, *-x*
 	Match package names exactly.
 
 *--has-origin*
 	Match by package origin. Shows all packages whose base package name
 	matches _pattern_ exactly. Implies *--all* and *--exact*.
 
-*-o, --origin*
+*--origin*, *-o*
 	Print base package name.
 
-*-r, --rdepends*
+*--rdepends*, *-r*
 	Print reverse dependencies (other packages which depend on the
 	package).

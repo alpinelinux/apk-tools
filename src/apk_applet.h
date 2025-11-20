@@ -16,12 +16,14 @@
 #define __APK_OPT_ENUM(_enum,__desc) _enum,
 #define __APK_OPT_DESC(_enum,__desc) __desc "\x00"
 
-#define APK_OPT_BOOL		"\xab" "no-"
+#define APK_OPT_BOOL		"\xab"
 #define APK_OPT_ARG		"\xaf"
 #define APK_OPT_SH(x)		"\xf1" x
 #define APK_OPT_S2(x)		"\xf2" x
 
 #define APK_OPT_BOOL_VAL(val)	((intptr_t)(val))
+#define APK_OPTVAL_NO  ((void*)0)
+#define APK_OPTVAL_YES ((void*)1)
 
 #define APK_OPTIONS(var_name, init_macro) \
 	enum { init_macro(__APK_OPT_ENUM) }; \
@@ -32,6 +34,17 @@
 	const char var_name[] = init_macro(__APK_OPT_DESC);
 
 #define APK_OPTIONS_INIT 0xffff00
+
+static inline void apk_opt_set_flag(const char *optarg, unsigned int flag, unsigned int *flags)
+{
+	if (optarg == APK_OPTVAL_YES) *flags |= flag;
+	else *flags &= ~flag;
+}
+static inline void apk_opt_set_flag_invert(const char *optarg, unsigned int flag, unsigned int *flags)
+{
+	if (optarg == APK_OPTVAL_NO) *flags |= flag;
+	else *flags &= ~flag;
+}
 
 struct apk_applet {
 	struct list_head node;

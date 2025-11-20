@@ -18,29 +18,29 @@ will accept it. See *abuild-sign*(1) for details.
 
 # OPTIONS
 
-*-d, --description* _TEXT_
+*--description*, *-d* _TEXT_
 	Add a description to the index. Upstream, this is used to add version
 	information based on the git commit SHA of aports HEAD at the time of
 	index generation.
 
-*--merge*
-	Merge _packages_ into the existing _INDEX_.
-
-*-o, --output* _FILE_
-	Output generated index to _FILE_.
-
-*--prune-origin*
-	Prune packages from the existing _INDEX_ with same origin as any of
-	the new _packages_ during merge.
-
-*-x, --index* _INDEX_
+*--index*, *-x* _INDEX_
 	Read an existing index from _INDEX_ to speed up the creation of the new
 	index by reusing data when possible.
+
+*--merge*
+	Merge _packages_ into the existing _INDEX_.
 
 *--no-warnings*
 	Disable the warning about missing dependencies. This happens when A,
 	depends on package B, that does not have a provider in the indexed
 	repository.
+
+*--output*, *-o* _FILE_
+	Output generated index to _FILE_.
+
+*--prune-origin*
+	Prune packages from the existing _INDEX_ with same origin as any of
+	the new _packages_ during merge.
 
 *--rewrite-arch* _ARCH_
 	Set all package's architecture to _ARCH_.

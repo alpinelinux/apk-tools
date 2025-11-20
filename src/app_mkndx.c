@@ -43,8 +43,8 @@ struct mkndx_ctx {
 
 #define MKNDX_OPTIONS(OPT) \
 	OPT(OPT_MKNDX_description,	APK_OPT_ARG APK_OPT_SH("d") "description") \
-	OPT(OPT_MKNDX_hash,		APK_OPT_ARG "hash") \
 	OPT(OPT_MKNDX_filter_spec,	APK_OPT_ARG "filter-spec") \
+	OPT(OPT_MKNDX_hash,		APK_OPT_ARG "hash") \
 	OPT(OPT_MKNDX_index,		APK_OPT_ARG APK_OPT_SH("x") "index") \
 	OPT(OPT_MKNDX_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
 	OPT(OPT_MKNDX_pkgname_spec,	APK_OPT_ARG "pkgname-spec") \

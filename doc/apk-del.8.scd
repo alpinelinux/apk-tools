@@ -19,5 +19,5 @@ but may also cause other changes to the installed packages.
 *apk del* supports the commit options described in *apk*(8), as well as the
 following options:
 
-*-r, --rdepends*
+*--rdepends*, *-r*
 	Recursively delete all top-level reverse dependencies, too.

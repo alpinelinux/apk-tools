@@ -33,23 +33,23 @@ These options only apply when checking installed package versions against
 packages available from the repositories (when neither *-c*, *-t*, nor *-I* are
 specified).
 
-*-a, --all*
+*--all*, *-a*
 	Consider packages from all repository tags.
 
-*-c, --check*
+*--check*, *-c*
 	Check versions for validity. If a given version is invalid, it is
 	printed. Exits with status code zero if all versions are valid, and
 	non-zero otherwise.
 
-*-I, --indexes*
+*--indexes*, *-I*
 	Print the version and description for each repository's index. See
 	*apk-repositories*(5) for more information.
 
-*-l, --limit* _operand_
+*--limit*, *-l* _operand_
 	Limit to packages with output matching given _operand_. The _operand_
 	can be specified as any combination of *>*, *=*, and *<*.
 
-*-t, --test*
+*--test*, *-t*
 	Compare two version strings. Does not consult the database. Prints one
 	of *>*, *=*, or *<*, if _version1_ is, respectively, greater than,
 	equal to, or lesser than _version2_.

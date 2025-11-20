@@ -34,7 +34,7 @@ struct cache_ctx {
 	OPT(OPT_CACHE_ignore_conflict,	"ignore-conflict") \
 	OPT(OPT_CACHE_latest,		APK_OPT_SH("l") "latest") \
 	OPT(OPT_CACHE_upgrade,		APK_OPT_SH("u") "upgrade") \
-	OPT(OPT_CACHE_simulate,		APK_OPT_SH("s") "simulate") \
+	OPT(OPT_CACHE_simulate,		APK_OPT_BOOL APK_OPT_SH("s") "simulate") \
 
 APK_OPTIONS(cache_options_desc, CACHE_OPTIONS);
 
@@ -59,7 +59,7 @@ static int cache_parse_option(void *ctx, struct apk_ctx *ac, int opt, const char
 		cctx->solver_flags |= APK_SOLVERF_UPGRADE;
 		break;
 	case OPT_CACHE_simulate:
-		ac->flags |= APK_SIMULATE;
+		apk_opt_set_flag(optarg, APK_SIMULATE, &ac->flags);
 		break;
 	default:
 		return -ENOTSUP;

@@ -136,7 +136,7 @@ static inline int apk_istream_close_error(struct apk_istream *is, int r)
 void apk_io_url_init(struct apk_out *out);
 void apk_io_url_set_timeout(int timeout);
 void apk_io_url_set_redirect_callback(void (*cb)(int, const char *));
-void apk_io_url_no_check_certificate(void);
+void apk_io_url_check_certificate(bool);
 struct apk_istream *apk_io_url_istream(const char *url, time_t since);
 
 struct apk_segment_istream {

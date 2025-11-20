@@ -57,8 +57,15 @@ local function collect_flags(doc)
 	-- Collect every --flag/-f we can find
 	for _, group in ipairs(doc.optgroup or {}) do
 		for _, opt in ipairs(group) do
-			for flag in opt[1]:gmatch("(%-%-?[%w%-]+)") do
-				table.insert(opts, flag)
+			for flag in opt[1]:gmatch("(%-%-?[^ ,]+)") do
+				local opt, val = flag:match("(.*)%[=(%w+)%]")
+				if val == "BOOL" then
+					local no_opt =  opt:gsub("^%-%-", "--no-")
+					table.insert(opts, opt)
+					table.insert(opts, no_opt)
+				else
+					table.insert(opts, flag)
+				end
 			end
 		end
 	end
