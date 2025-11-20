@@ -260,14 +260,17 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 			discover_name(ss, dep->name);
 	}
 
-	name->ss.order_id = ((unsigned int)(1-name->solver_flags_set) << 31) | ++ss->order_id;
+	unsigned int order_flags = 0;
+	if (!name->solver_flags_set) order_flags |= 1UL << 31;
+	if (apk_array_len(name->providers) != num_virtual) order_flags |= 1UL << 30;
+	name->ss.order_id = order_flags | ++ss->order_id;
 
 	apk_array_foreach(p, name->providers) {
 		apk_array_foreach(dep, p->pkg->install_if)
 			discover_name(ss, dep->name);
 	}
 
-	dbg_printf("discover %s: no_iif=%d num_virtual=%d, order_id=%d\n",
+	dbg_printf("discover %s: no_iif=%d num_virtual=%d, order_id=%#x\n",
 		name->name, name->ss.no_iif, num_virtual, name->ss.order_id);
 }
 
@@ -736,7 +739,7 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 	struct apk_provider chosen = { NULL, &apk_atom_null };
 	struct apk_package *pkg = NULL;
 
-	dbg_printf("select_package: %s (requirers=%d, autosel=%d, iif=%d, order_id=%d)\n",
+	dbg_printf("select_package: %s (requirers=%d, autosel=%d, iif=%d, order_id=%#x)\n",
 		name->name, name->ss.requirers, name->ss.has_auto_selectable, name->ss.has_iif, name->ss.order_id);
 
 	if (name->ss.requirers || name->ss.has_iif) {
