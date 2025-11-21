@@ -14,6 +14,26 @@
 #include "apk_solver.h"
 #include "apk_print.h"
 
+#ifdef __linux__
+static bool running_on_host(void)
+{
+	static const char expected[] = "2 (kthreadd) ";
+	char buf[sizeof expected - 1];
+	bool on_host = false;
+
+	int fd = open("/proc/2/stat", O_RDONLY);
+	if (fd >= 0) {
+		if (read(fd, buf, sizeof buf) == sizeof buf &&
+		    memcmp(buf, expected, sizeof buf) == 0)
+			on_host = true;
+		close(fd);
+	}
+	return on_host;
+}
+#else
+static bool running_on_host(void) { return false; }
+#endif
+
 struct apk_stats {
 	uint64_t bytes;
 	unsigned int changes;
@@ -285,6 +305,15 @@ static int run_commit_hooks(struct apk_database *db, int type)
 		NULL);
 }
 
+static void sync_if_needed(struct apk_database *db)
+{
+	struct apk_ctx *ac = db->ctx;
+	if (ac->sync == APK_NO) return;
+	if (ac->sync == APK_AUTO && (ac->root_set || db->usermode || !running_on_host())) return;
+	apk_out_progress_note(&ac->out, "syncing disks...");
+	sync();
+}
+
 static int calc_precision(unsigned int num)
 {
 	int precision = 1;
@@ -472,6 +501,8 @@ all_done:
 	if (!db->performing_preupgrade) {
 		char buf[32];
 		const char *msg = "OK:";
+
+		sync_if_needed(db);
 
 		if (errors) msg = apk_fmts(buf, sizeof buf, "%d error%s;",
 				errors, errors > 1 ? "s" : "") ?: "ERRORS;";

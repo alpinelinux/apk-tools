@@ -151,6 +151,8 @@ int apk_do_preupgrade(struct apk_database *db, unsigned short solver_flags, unsi
 		goto ret;
 	}
 
+	if (preupgrade_only) db->performing_preupgrade = 0;
+
 	apk_msg(out, "Preupgrading:");
 	r = apk_solver_commit_changeset(db, &changeset, db->world);
 	if (r < 0 || preupgrade_only) goto ret;

@@ -274,6 +274,12 @@ The following options are available for all commands.
 		- purging of packages in cache
 		- safety checks to not install non-repository packages
 
+*--sync*[=_AUTO_]
+	Determine if filesystem caches should be committed to disk. Defaults
+	to *auto* which resolves to *yes* if *--root* is not specified, the
+	database is not in usermode, and running on the root pid namespace
+	(not containerized).
+
 *--timeout* _TIME_
 	Timeout network connections if no progress is made in TIME seconds.
 	The default is 60 seconds.

@@ -6,3 +6,4 @@
 Preupgrading:
 (1/2) Upgrading libcrypto (1 -> 2)
 (2/2) Upgrading apk-tools (1 -> 2)
+OK: 0 MiB in 3 packages

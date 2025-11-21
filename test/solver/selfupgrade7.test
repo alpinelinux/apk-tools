@@ -5,3 +5,4 @@
 @EXPECT
 Preupgrading:
 (1/1) Upgrading application (1 -> 2)
+OK: 0 MiB in 3 packages

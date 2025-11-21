@@ -75,6 +75,7 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_repository_config,	APK_OPT_ARG "repository-config") \
 	OPT(OPT_GLOBAL_root,			APK_OPT_ARG APK_OPT_SH("p") "root") \
 	OPT(OPT_GLOBAL_root_tmpfs,		APK_OPT_AUTO "root-tmpfs") \
+	OPT(OPT_GLOBAL_sync,			APK_OPT_AUTO "sync") \
 	OPT(OPT_GLOBAL_timeout,			APK_OPT_ARG "timeout") \
 	OPT(OPT_GLOBAL_update_cache,		APK_OPT_SH("U") "update-cache") \
 	OPT(OPT_GLOBAL_uvol_manager,		APK_OPT_ARG "uvol-manager") \
@@ -192,6 +193,9 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 		break;
 	case OPT_GLOBAL_root_tmpfs:
 		ac->root_tmpfs = APK_OPTARG_VAL(optarg);
+		break;
+	case OPT_GLOBAL_sync:
+		ac->sync = APK_OPTARG_VAL(optarg);
 		break;
 	case OPT_GLOBAL_timeout:
 		apk_io_url_set_timeout(atoi(optarg));
