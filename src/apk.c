@@ -603,7 +603,7 @@ static int parse_options(int argc, char **argv, struct apk_string_array **args, 
 		default:
 			if (r < 0) return r;
 		case -EINVAL:
-			opt_print_error(r, APK_OUT_ERROR, opt_parse_arg(&st), &m, out);
+			opt_print_error(r, APK_OUT_ERROR, "command line", &m, out);
 			return 1;
 		}
 	}
