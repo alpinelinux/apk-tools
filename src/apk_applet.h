@@ -16,10 +16,9 @@
 #define __APK_OPT_ENUM(_enum,__desc) _enum,
 #define __APK_OPT_DESC(_enum,__desc) __desc "\x00"
 
+#define APK_OPT_SH(x)		"\xa0" x
 #define APK_OPT_BOOL		"\xab"
 #define APK_OPT_ARG		"\xaf"
-#define APK_OPT_SH(x)		"\xf1" x
-#define APK_OPT_S2(x)		"\xf2" x
 
 #define APK_OPT_BOOL_VAL(val)	((intptr_t)(val))
 #define APK_OPTVAL_NO  ((void*)0)

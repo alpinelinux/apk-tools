@@ -332,17 +332,10 @@ static int opt_parse_desc(struct apk_opt_match *m, const char *desc, int (*func)
 	for (const char *d = desc; *d; d += strlen(d) + 1, id++) {
 		const void *arg = m->value;
 		bool value_used = false, bool_arg = false;
-		if ((unsigned char)*d == 0xaf) {
-			value_used = true;
-			d++;
-		}
-		if ((unsigned char)*d == 0xab) {
-			bool_arg = true;
-			d++;
-		}
-		if ((unsigned char)*d >= 0xf0) {
-			for (int n = *d++ & 0x0f; n > 0; n--) {
-				if (*d++ != m->short_opt) continue;
+		while ((unsigned char)*d >= 0xa0) {
+			switch ((unsigned char)*d++) {
+			case 0xa0:
+				if (*d++ != m->short_opt) break;
 				if (m->cnt) return OPT_MATCH_AMBIGUOUS;
 				m->cnt++;
 				m->func = func;
@@ -355,6 +348,12 @@ static int opt_parse_desc(struct apk_opt_match *m, const char *desc, int (*func)
 					m->value_used = value_used;
 				}
 				return OPT_MATCH_EXACT;
+			case 0xab:
+				bool_arg = true;
+				break;
+			case 0xaf:
+				value_used = true;
+				break;
 			}
 		}
 		if (m->short_opt) continue;

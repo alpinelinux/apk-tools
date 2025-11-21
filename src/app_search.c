@@ -62,7 +62,7 @@ static void print_rdepends(struct search_ctx *ctx, struct apk_package *pkg)
 #define SEARCH_OPTIONS(OPT) \
 	OPT(OPT_SEARCH_all,		APK_OPT_SH("a") "all") \
 	OPT(OPT_SEARCH_description,	APK_OPT_SH("d") "description") \
-	OPT(OPT_SEARCH_exact,		APK_OPT_S2("ex") "exact") \
+	OPT(OPT_SEARCH_exact,		APK_OPT_SH("e") APK_OPT_SH("x") "exact") \
 	OPT(OPT_SEARCH_has_origin,	"has-origin") \
 	OPT(OPT_SEARCH_origin,		APK_OPT_SH("o") "origin") \
 	OPT(OPT_SEARCH_rdepends,	APK_OPT_SH("r") "rdepends") \
