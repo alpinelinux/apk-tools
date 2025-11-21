@@ -1,7 +1,5 @@
 stages:
-  - test
   - build
-  - upload
   - release
 
 variables:
@@ -9,56 +7,56 @@ variables:
   ALPINE_DEPS: "make gcc git scdoc musl-dev linux-headers openssl-dev zlib-dev lua5.3-dev lua5.3-lzlib cmocka-dev python3-dev"
   ALPINE_STATIC_DEPS: "zlib-static openssl-libs-static"
 
-.test:alpine:
-  stage: test
-  image:
-    name: alpine
+.build:alpine:
+  stage: build
+  image: alpinelinux/build-base:latest-$ARCH
   script:
-    - apk add -u meson $ALPINE_DEPS $ALPINE_JOB_DEPS $ALPINE_STATIC_DEPS zstd-dev zstd-static
+    - if [ "$ARCH" = "x86_64" ]; then EXTRA="--repository=$(sed -ne 's/main/community/p' < /etc/apk/repositories) shellcheck"; fi
+    - abuild-apk add -u meson $ALPINE_DEPS $ALPINE_STATIC_DEPS zstd-dev zstd-static $EXTRA
     - meson setup --auto-features=enabled build
     - ninja -C build
     - meson setup build-static -Dc_link_args=-static -Ddefault_library=static -Dprefer_static=true
     - ninja -C build-static src/apk
     - meson test -C build
+    - install -s -m0755 build-static/src/apk build-static/src/apk.static-$ARCH
   artifacts:
+    paths:
+      - build-static/src/apk.static-*
     reports:
       junit: build/**/*.junit.xml
 
-test:alpine:x86_64:
-  extends: .test:alpine
-  variables:
-    ALPINE_JOB_DEPS: "shellcheck"
+build:alpine:
+  extends: .build:alpine
+  parallel:
+    matrix:
+      - ARCH:
+        - x86
+        - x86_64
+        - armv7
+        - aarch64
+        - s390x
+        - ppc64le
+        - riscv64
   tags:
     - docker-alpine
-    - x86_64
+    - $ARCH
 
-test:alpine:x86:
-  extends: .test:alpine
-  image:
-    entrypoint: ["linux32", "sh", "-c"]
-    docker:
-      platform: linux/i386
-  tags:
-    - docker-alpine
-    - x86
-
-test:alpine-alt-config:
-  image: alpine
-  stage: test
+build:alpine-alt-config:
+  stage: build
+  image: alpinelinux/build-base:latest-x86_64
   script:
-    - apk add -u meson $ALPINE_DEPS
+    - abuild-apk add -u meson $ALPINE_DEPS
     - meson setup build -Durl_backend=wget -Dzstd=false
     - ninja -C build
   tags:
     - docker-alpine
     - x86_64
 
-test:alpine-muon:
-  image: alpine:edge
-  stage: test
+build:alpine-muon:
+  stage: build
+  image: alpinelinux/build-base:latest-x86_64
   script:
-    - echo https://dl-cdn.alpinelinux.org/alpine/edge/testing >> /etc/apk/repositories
-    - apk add -u muon $ALPINE_DEPS $ALPINE_STATIC_DEPS zstd-dev zstd-static
+    - abuild-apk add -u muon $ALPINE_DEPS $ALPINE_STATIC_DEPS zstd-dev zstd-static
     - muon setup -Dpython=disabled build
     - ninja -C build
     - muon setup -Dpython=disabled -Dc_link_args="-static" -Dprefer_static=true -Ddefault_library=static build-static
@@ -67,20 +65,19 @@ test:alpine-muon:
     - docker-alpine
     - x86_64
 
-test:alpine-legacy:
-  stage: test
-  image:
-    name: alpine
+build:alpine-legacy:
+  stage: build
+  image: alpinelinux/build-base:latest-x86_64
   script:
-    - apk add -u $ALPINE_DEPS zstd-dev
+    - abuild-apk add -u $ALPINE_DEPS zstd-dev
     - make -j$(nproc) check
   tags:
     - docker-alpine
     - x86_64
 
-test:debian:
+build:debian:
   image: debian
-  stage: test
+  stage: build
   script:
     - apt-get update
     - apt-get install -y make gcc git libssl-dev zlib1g-dev libzstd-dev lua5.3-dev lua5.2 lua-zlib-dev sudo meson
@@ -92,9 +89,9 @@ test:debian:
     - docker-alpine
     - x86_64
 
-test:fedora:
+build:fedora:
   image: registry.fedoraproject.org/fedora:latest
-  stage: test
+  stage: build
   script:
     - dnf -y install meson gcc git-core lua-zlib 'pkgconfig(cmocka)' 'pkgconfig(libzstd)' 'pkgconfig(lua)' 'pkgconfig(openssl)' 'pkgconfig(python3)' 'pkgconfig(scdoc)' 'pkgconfig(zlib)'
     - meson setup build -Dlua_version=5.4 -Dlua_bin=lua -Dlua_pc=lua
@@ -103,38 +100,13 @@ test:fedora:
     - docker-alpine
     - x86_64
 
-build-static:
-  stage: build
-  image: alpinelinux/build-base:latest-$ARCH
-  script:
-    - abuild-apk add -u $ALPINE_DEPS $ALPINE_STATIC_DEPS zstd-dev zstd-static
-    - make -j$(nproc) static
-    - install -s -m0755 src/apk.static src/apk.static-$ARCH
-  parallel:
-    matrix:
-      - ARCH:
-        - x86_64
-        - x86
-        - armv7
-        - armhf
-        - aarch64
-        - s390x
-        - ppc64le
-        - riscv64
-  artifacts:
-    paths:
-      - src/apk.static-*
-  tags:
-    - docker-alpine
-    - $ARCH
-
-make-release:
+upload-release:
   stage: release
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   script:
     - |-
       apk add curl
-      for artifact in src/apk.static-*; do
+      for artifact in build-normal/src/apk.static-*; do
         ! [ -f "$artifact" ] && { echo "No artifacts found"; exit 1; }
         ARCH=${artifact#*-}
         echo "Uploading binary for $ARCH"
