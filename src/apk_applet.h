@@ -17,12 +17,12 @@
 #define __APK_OPT_DESC(_enum,__desc) __desc "\x00"
 
 #define APK_OPT_SH(x)		"\xa0" x
+#define APK_OPT_AUTO		"\xaa"
 #define APK_OPT_BOOL		"\xab"
 #define APK_OPT_ARG		"\xaf"
 
-#define APK_OPT_BOOL_VAL(val)	((intptr_t)(val))
-#define APK_OPTVAL_NO  ((void*)0)
-#define APK_OPTVAL_YES ((void*)1)
+#define APK_OPTARG_VAL(val)	((intptr_t)(val))
+#define APK_OPTARG(val)		((void*)(intptr_t)(val))
 
 #define APK_OPTIONS(var_name, init_macro) \
 	enum { init_macro(__APK_OPT_ENUM) }; \
@@ -36,12 +36,12 @@
 
 static inline void apk_opt_set_flag(const char *optarg, unsigned int flag, unsigned int *flags)
 {
-	if (optarg == APK_OPTVAL_YES) *flags |= flag;
+	if (optarg == APK_OPTARG(APK_YES)) *flags |= flag;
 	else *flags &= ~flag;
 }
 static inline void apk_opt_set_flag_invert(const char *optarg, unsigned int flag, unsigned int *flags)
 {
-	if (optarg == APK_OPTVAL_NO) *flags |= flag;
+	if (optarg == APK_OPTARG(APK_NO)) *flags |= flag;
 	else *flags &= ~flag;
 }
 

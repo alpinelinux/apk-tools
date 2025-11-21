@@ -59,7 +59,7 @@ static int upgrade_parse_option(void *ctx, struct apk_ctx *ac, int opt, const ch
 		break;
 	case OPT_UPGRADE_preupgrade:
 	case OPT_UPGRADE_self_upgrade:
-		uctx->preupgrade = APK_OPT_BOOL_VAL(optarg);
+		uctx->preupgrade = APK_OPTARG_VAL(optarg);
 		break;
 	case OPT_UPGRADE_preupgrade_only:
 	case OPT_UPGRADE_self_upgrade_only:

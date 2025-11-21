@@ -100,11 +100,12 @@ Each command is documented in detail on its manual page.
 
 # OPTION SYNTAX
 
-The _BOOL_ argument for options is '*yes*' or '*no*'. The default value is
-option specific.
+The _BOOL_ argument for options is '*yes*' or '*no*'.
+The _AUTO_ argument for options is '*yes*', '*no*' or '*auto*'.
+The default value for these arguments is options specific.
 
-For options with a _BOOL_ argument, the argument must be specified with
-the *--option=argument* format (that is, the *--option argument* format
+For options with an _AUTO_ or _BOOL_ argument, the argument must be specified
+with the *--option=argument* format (that is, the *--option argument* format
 is not supported). Additionally the following aliases are available:
 	- *--option* equals *--option=yes*
 	- *--no-option* equals *--option=no*
@@ -191,10 +192,10 @@ The following options are available for all commands.
 *--help*, *-h*
 	Print the list of all commands with descriptions.
 
-*--interactive*[=_BOOL_]
-	Ask or don't ask for confirmation before performing certain operations.
-	Interactive mode can be made the default when running on a tty,
-	by creating /etc/apk/interactive as an empty file.
+*--interactive*[=_AUTO_]
+	Determine if questions can be asked before performing certain operations.
+	In *auto* mode, the interactive mode is enabled if running on a tty.
+	Defaults to *no*, or *auto* if */etc/apk/interactive* exists.
 
 *--keys-dir* _KEYSDIR_
 	Override the default system trusted keys directories. If specified the
@@ -228,8 +229,9 @@ The following options are available for all commands.
 *--print-arch*
 	Print default arch and exit.
 
-*--progress*[=_BOOL_]
-	Enable or disable progress bar. Defaults to yes for TTYs.
+*--progress*[=_AUTO_]
+	Enable or disable progress bar. Defaults to *auto* which resolves
+	to *yes* if running on a tty.
 
 *--progress-fd* _FD_
 	Write progress to the specified file descriptor.
@@ -415,8 +417,7 @@ The environment variables defined by APK are the following:
 timeout 120
 
 */etc/apk/interactive*
-	If this file exists and apk is running on a tty, *--interactive*
-	mode is enabled by default.
+	If this file exists it defaults *--interactive* to *auto*.
 
 ## Configuration files (relative to --root)
 

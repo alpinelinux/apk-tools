@@ -140,7 +140,7 @@ static int mkpkg_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 		ictx->output = optarg;
 		break;
 	case OPT_MKPKG_rootnode:
-		ictx->rootnode = APK_OPT_BOOL_VAL(optarg);
+		ictx->rootnode = APK_OPTARG_VAL(optarg);
 		break;
 	case OPT_MKPKG_script:
 		if (!apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r)) {

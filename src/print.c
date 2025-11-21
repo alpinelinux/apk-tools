@@ -160,6 +160,25 @@ apk_blob_t apk_url_sanitize(apk_blob_t url, struct apk_balloc *ba)
 	return url;
 }
 
+void apk_out_configure_progress(struct apk_out *out, bool on_tty)
+{
+	const char *tmp;
+
+	if (out->progress == APK_AUTO) {
+		out->progress = on_tty;
+		if ((tmp = getenv("TERM")) != NULL && strcmp(tmp, "dumb") == 0)
+			out->progress = APK_NO;
+	}
+	if (out->progress == APK_NO) return;
+
+	if ((tmp = getenv("APK_PROGRESS_CHAR")) != NULL)
+		out->progress_char = tmp;
+	else if ((tmp = getenv("LANG")) != NULL && strstr(tmp, "UTF-8") != NULL)
+		out->progress_char = "\u2588";
+	else
+		out->progress_char = "#";
+}
+
 void apk_out_reset(struct apk_out *out)
 {
 	out->width = 0;
@@ -184,7 +203,7 @@ static void apk_out_render_progress(struct apk_out *out, bool force)
 	struct apk_progress *p = out->prog;
 	int i, bar_width, bar = 0, percent = 0;
 
-	if (!p || out->progress_disable) return;
+	if (!p || out->progress == APK_NO) return;
 	if (out->width == 0) force = true;
 
 	bar_width = apk_out_get_width(out) - 6;
@@ -220,7 +239,7 @@ void apk_out_progress_note(struct apk_out *out, const char *format, ...)
 	int n, width = apk_out_get_width(out);
 	FILE *f = out->out;
 
-	if (out->progress_disable) return;
+	if (out->progress == APK_NO) return;
 	if (!format) {
 		if (out->need_flush) {
 			fflush(f);

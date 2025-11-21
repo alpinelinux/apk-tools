@@ -28,6 +28,10 @@
 #define NULL 0L
 #endif
 
+#define APK_NO		0
+#define APK_YES		1
+#define APK_AUTO	2
+
 enum {
 	APKE_FIRST_VALUE = 1024,
 

@@ -385,7 +385,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 	}
 	prog.total_changes_digits = calc_precision(prog.total.changes);
 
-	if (apk_out_verbosity(out) > 1 || (db->ctx->flags & APK_INTERACTIVE)) {
+	if (apk_out_verbosity(out) > 1 || db->ctx->interactive) {
 		struct apk_change_array *sorted;
 		bool details = apk_out_verbosity(out) >= 2;
 
@@ -400,7 +400,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 			"The following packages will be REMOVED");
 		r += dump_packages(db, sorted, cmp_downgrade, details,
 			"The following packages will be DOWNGRADED");
-		if (r || (db->ctx->flags & APK_INTERACTIVE) || apk_out_verbosity(out) > 2) {
+		if (r || db->ctx->interactive || apk_out_verbosity(out) > 2) {
 			r += dump_packages(db, sorted, cmp_new, details,
 				"The following NEW packages will be installed");
 			r += dump_packages(db, sorted, cmp_upgrade, details,
@@ -421,7 +421,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		}
 		apk_change_array_free(&sorted);
 
-		if (r > 0 && (db->ctx->flags & APK_INTERACTIVE) && !(db->ctx->flags & APK_SIMULATE)) {
+		if (r > 0 && db->ctx->interactive && !(db->ctx->flags & APK_SIMULATE)) {
 			printf("Do you want to continue [Y/n]? ");
 			fflush(stdout);
 			r = fgetc(stdin);

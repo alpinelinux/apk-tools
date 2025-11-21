@@ -58,7 +58,7 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_force_overwrite,		"force-overwrite") \
 	OPT(OPT_GLOBAL_force_refresh,		"force-refresh") \
 	OPT(OPT_GLOBAL_help,			APK_OPT_SH("h") "help") \
-	OPT(OPT_GLOBAL_interactive,		APK_OPT_BOOL APK_OPT_SH("i") "interactive") \
+	OPT(OPT_GLOBAL_interactive,		APK_OPT_AUTO APK_OPT_SH("i") "interactive") \
 	OPT(OPT_GLOBAL_keys_dir,		APK_OPT_ARG "keys-dir") \
 	OPT(OPT_GLOBAL_legacy_info,		APK_OPT_BOOL "legacy-info") \
 	OPT(OPT_GLOBAL_logfile,			APK_OPT_BOOL "logfile") \
@@ -66,7 +66,7 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_preserve_env,		APK_OPT_BOOL "preserve-env") \
 	OPT(OPT_GLOBAL_preupgrade_depends,	APK_OPT_ARG "preupgrade-depends") \
 	OPT(OPT_GLOBAL_print_arch,		"print-arch") \
-	OPT(OPT_GLOBAL_progress,		APK_OPT_BOOL "progress") \
+	OPT(OPT_GLOBAL_progress,		APK_OPT_AUTO "progress") \
 	OPT(OPT_GLOBAL_progress_fd,		APK_OPT_ARG "progress-fd") \
 	OPT(OPT_GLOBAL_purge,			APK_OPT_BOOL "purge") \
 	OPT(OPT_GLOBAL_quiet,			APK_OPT_SH("q") "quiet") \
@@ -80,7 +80,6 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_verbose,			APK_OPT_SH("v") "verbose") \
 	OPT(OPT_GLOBAL_version,			APK_OPT_SH("V") "version") \
 	OPT(OPT_GLOBAL_wait,			APK_OPT_ARG "wait") \
-
 
 APK_OPTIONS(optgroup_global_desc, GLOBAL_OPTIONS);
 
@@ -104,13 +103,13 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 		ac->cache_max_age = atoi(optarg) * 60;
 		break;
 	case OPT_GLOBAL_cache_packages:
-		ac->cache_packages = APK_OPT_BOOL_VAL(optarg);
+		ac->cache_packages = APK_OPTARG_VAL(optarg);
 		break;
 	case OPT_GLOBAL_cache_predownload:
-		ac->cache_predownload = APK_OPT_BOOL_VAL(optarg);
+		ac->cache_predownload = APK_OPTARG_VAL(optarg);
 		break;
 	case OPT_GLOBAL_check_certificate:
-		apk_io_url_check_certificate(APK_OPT_BOOL_VAL(optarg));
+		apk_io_url_check_certificate(APK_OPTARG_VAL(optarg));
 		break;
 	case OPT_GLOBAL_force:
 		ac->force |= APK_FORCE_OVERWRITE | APK_FORCE_OLD_APK
@@ -143,13 +142,13 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 	case OPT_GLOBAL_help:
 		return -ENOTSUP;
 	case OPT_GLOBAL_interactive:
-		apk_opt_set_flag(optarg, APK_INTERACTIVE, &ac->flags);
+		ac->interactive = APK_OPTARG_VAL(optarg);
 		break;
 	case OPT_GLOBAL_keys_dir:
 		ac->keys_dir = optarg;
 		break;
 	case OPT_GLOBAL_legacy_info:
-		ac->legacy_info = APK_OPT_BOOL_VAL(optarg);
+		ac->legacy_info = APK_OPTARG_VAL(optarg);
 		break;
 	case OPT_GLOBAL_logfile:
 		apk_opt_set_flag_invert(optarg, APK_NO_LOGFILE, &ac->flags);
@@ -167,7 +166,7 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 		puts(APK_DEFAULT_ARCH);
 		return -ESHUTDOWN;
 	case OPT_GLOBAL_progress:
-		ac->out.progress_disable = !APK_OPT_BOOL_VAL(optarg);
+		ac->out.progress = APK_OPTARG_VAL(optarg);
 		break;
 	case OPT_GLOBAL_progress_fd:
 		ac->out.progress_fd = atoi(optarg);
@@ -314,15 +313,12 @@ enum {
 	OPT_MATCH_NON_OPTION
 };
 
-static int opt_parse_yesno(const char *arg, const char **argval)
+static int opt_parse_yesnoauto(const char *arg, bool auto_arg)
 {
-	if (strcmp(arg, "yes") == 0)
-		*argval = APK_OPTVAL_YES;
-	else if (strcmp(arg, "no") == 0)
-		*argval = APK_OPTVAL_NO;
-	else
-		return -EINVAL;
-	return 0;
+	if (strcmp(arg, "yes") == 0) return APK_YES;
+	if (strcmp(arg, "no") == 0) return APK_NO;
+	if (auto_arg && strcmp(arg, "auto") == 0) return APK_AUTO;
+	return -EINVAL;
 }
 
 static int opt_parse_desc(struct apk_opt_match *m, const char *desc, int (*func)(struct apk_ctx *, int, const char *))
@@ -331,7 +327,7 @@ static int opt_parse_desc(struct apk_opt_match *m, const char *desc, int (*func)
 	int id = 0;
 	for (const char *d = desc; *d; d += strlen(d) + 1, id++) {
 		const void *arg = m->value;
-		bool value_used = false, bool_arg = false;
+		bool value_used = false, bool_arg = false, auto_arg = false;
 		while ((unsigned char)*d >= 0xa0) {
 			switch ((unsigned char)*d++) {
 			case 0xa0:
@@ -341,13 +337,16 @@ static int opt_parse_desc(struct apk_opt_match *m, const char *desc, int (*func)
 				m->func = func;
 				m->optid = id;
 				if (bool_arg) {
-					m->optarg = APK_OPTVAL_YES;
+					m->optarg = APK_OPTARG(APK_YES);
 					m->value_used = false;
 				} else {
 					m->optarg = arg;
 					m->value_used = value_used;
 				}
 				return OPT_MATCH_EXACT;
+			case 0xaa:
+				auto_arg = bool_arg = true;
+				break;
 			case 0xab:
 				bool_arg = true;
 				break;
@@ -368,14 +367,15 @@ static int opt_parse_desc(struct apk_opt_match *m, const char *desc, int (*func)
 			m->optid = id;
 			if (bool_arg) {
 				if (no_prefix) {
-					m->optarg = APK_OPTVAL_NO;
+					m->optarg = APK_OPTARG(APK_NO);
 					m->value_used = false;
 				} else if (!m->value_explicit) {
-					m->optarg = APK_OPTVAL_YES;
+					m->optarg = APK_OPTARG(APK_YES);
 					m->value_used = false;
 				} else {
-					int r = opt_parse_yesno(m->value, &m->optarg);
-					if (r) return r;
+					int r = opt_parse_yesnoauto(m->value, auto_arg);
+					if (r < 0) return r;
+					m->optarg = APK_OPTARG(r);
 					m->value_used = true;
 				}
 			} else {
@@ -410,27 +410,6 @@ done:
 	if (m->value_used && !m->value) r = OPT_MATCH_ARGUMENT_EXPECTED;
 	if (!m->value_used && m->value_explicit) r = OPT_MATCH_ARGUMENT_UNEXPECTED;
 	return r;
-}
-
-static void setup_automatic_flags(struct apk_ctx *ac)
-{
-	const char *tmp;
-
-	if ((tmp = getenv("APK_PROGRESS_CHAR")) != NULL)
-		ac->out.progress_char = tmp;
-	else if ((tmp = getenv("LANG")) != NULL && strstr(tmp, "UTF-8") != NULL)
-		ac->out.progress_char = "\u2588";
-
-	if (!isatty(STDOUT_FILENO) || !isatty(STDERR_FILENO)) {
-		ac->out.progress_disable = 1;
-		return;
-	}
-
-	if ((tmp = getenv("TERM")) != NULL && strcmp(tmp, "dumb") == 0)
-		ac->out.progress_disable = 1;
-
-	if (!(ac->flags & APK_SIMULATE) && access("/etc/apk/interactive", F_OK) == 0)
-		ac->flags |= APK_INTERACTIVE;
 }
 
 static void opt_print_error(int r, const char *fmtprefix, const char *prefix, struct apk_opt_match *m, struct apk_out *out)
@@ -582,8 +561,6 @@ static int parse_options(int argc, char **argv, struct apk_string_array **args, 
 		if (applet->context_size) applet_ctx = calloc(1, applet->context_size);
 		if (applet->parse) applet->parse(applet_ctx, &ctx, APK_OPTIONS_INIT, NULL);
 	}
-
-	setup_automatic_flags(ac);
 	load_config(ac);
 
 	for (struct opt_parse_state st = opt_parse_init(argc, argv, true); opt_parse_ok(&st); opt_parse_next(&st)) {
@@ -646,6 +623,10 @@ int main(int argc, char **argv)
 
 	apk_crypto_init();
 	apk_ctx_init(&ctx);
+	ctx.on_tty = isatty(STDOUT_FILENO);
+	ctx.interactive = (access("/etc/apk/interactive", F_OK) == 0) ? APK_AUTO : APK_NO;
+	ctx.out.progress = APK_AUTO;
+
 	umask(0);
 	setup_terminal();
 

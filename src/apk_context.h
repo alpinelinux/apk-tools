@@ -21,7 +21,6 @@
 #define APK_RECURSIVE			BIT(2)
 #define APK_ALLOW_UNTRUSTED		BIT(3)
 #define APK_PURGE			BIT(4)
-#define APK_INTERACTIVE			BIT(5)
 #define APK_NO_NETWORK			BIT(6)
 #define APK_OVERLAY_FROM_STDIN		BIT(7)
 #define APK_NO_SCRIPTS			BIT(8)
@@ -90,12 +89,14 @@ struct apk_ctx {
 	struct apk_database *db;
 	struct apk_query_spec query;
 	int root_fd, dest_fd;
+	unsigned int on_tty : 1;
 	unsigned int root_set : 1;
 	unsigned int cache_dir_set : 1;
 	unsigned int cache_packages : 1;
 	unsigned int cache_predownload : 1;
 	unsigned int keys_loaded : 1;
 	unsigned int legacy_info : 1;
+	unsigned int interactive : 2;
 };
 
 void apk_ctx_init(struct apk_ctx *ac);

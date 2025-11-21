@@ -255,7 +255,7 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 
 	if (APK_BLOB_IS_NULL(ctx->pkgname_spec)) ctx->pkgname_spec = ac->default_pkgname_spec;
 	if (ctx->flags & FETCH_STDOUT) {
-		db->ctx->out.progress_disable = 1;
+		db->ctx->out.progress = 0;
 		db->ctx->out.verbosity = 0;
 	}
 

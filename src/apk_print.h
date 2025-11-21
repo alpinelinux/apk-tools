@@ -24,7 +24,7 @@ apk_blob_t apk_url_sanitize(apk_blob_t url, struct apk_balloc *ba);
 struct apk_out {
 	int verbosity, progress_fd;
 	unsigned int width;
-	unsigned int progress_disable : 1;
+	unsigned int progress : 2;
 	unsigned int need_flush : 1;
 	const char *progress_char;
 	FILE *out, *err, *log;
@@ -48,6 +48,7 @@ static inline int apk_out_verbosity(struct apk_out *out) { return out->verbosity
 #define apk_dbg(out, args...)	do { if (apk_out_verbosity(out) >= 2) { apk_out_fmt(out, NULL, args); } } while (0)
 #define apk_dbg2(out, args...)	do { if (apk_out_verbosity(out) >= 3) { apk_out_fmt(out, NULL, args); } } while (0)
 
+void apk_out_configure_progress(struct apk_out *out, bool on_tty);
 void apk_out_reset(struct apk_out *);
 void apk_out_progress_note(struct apk_out *out, const char *format, ...)
 	__attribute__ ((format (printf, 2, 3)));
