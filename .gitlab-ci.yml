@@ -93,9 +93,13 @@ build:fedora:
   image: registry.fedoraproject.org/fedora:latest
   stage: build
   script:
-    - dnf -y install meson gcc git-core lua-zlib 'pkgconfig(cmocka)' 'pkgconfig(libzstd)' 'pkgconfig(lua)' 'pkgconfig(openssl)' 'pkgconfig(python3)' 'pkgconfig(scdoc)' 'pkgconfig(zlib)'
+    - dnf -y install diffutils meson gcc git-core lua-zlib 'pkgconfig(cmocka)' 'pkgconfig(libzstd)' 'pkgconfig(lua)' 'pkgconfig(openssl)' 'pkgconfig(python3)' 'pkgconfig(scdoc)' 'pkgconfig(zlib)'
     - meson setup build -Dlua_version=5.4 -Dlua_bin=lua -Dlua_pc=lua
     - meson compile -C build
+    - meson test -C build
+  artifacts:
+    reports:
+      junit: build/**/*.junit.xml
   tags:
     - docker-alpine
     - x86_64
