@@ -1775,11 +1775,11 @@ static int unshare_mount_namespace(bool usermode)
 	return 0;
 }
 
-static int detect_tmpfs_root(struct apk_database *db)
+static int detect_tmpfs(int fd)
 {
 	struct statfs stfs;
 
-	return fstatfs(db->root_fd, &stfs) == 0 && stfs.f_type == TMPFS_MAGIC;
+	return fstatfs(fd, &stfs) == 0 && stfs.f_type == TMPFS_MAGIC;
 }
 
 static unsigned long map_statfs_flags(unsigned long f_flag)
@@ -1867,9 +1867,8 @@ static int unshare_mount_namespace(bool usermode)
 	return 0;
 }
 
-static int detect_tmpfs_root(struct apk_database *db)
+static int detect_tmpfs(int fd)
 {
-	(void) db;
 	return 0;
 }
 
@@ -1965,7 +1964,6 @@ void apk_db_init(struct apk_database *db, struct apk_ctx *ac)
 	apk_name_array_init(&db->available.sorted_names);
 	apk_package_array_init(&db->installed.sorted_packages);
 	apk_repoparser_init(&db->repoparser, &ac->out, &db_repoparser_ops);
-	db->permanent = 1;
 	db->root_fd = -1;
 	db->noarch = apk_atomize_dup(&db->atoms, APK_BLOB_STRLIT("noarch"));
 }
@@ -1990,8 +1988,8 @@ int apk_db_open(struct apk_database *db)
 
 	setup_cache_repository(db, APK_BLOB_STR(ac->cache_dir));
 	db->root_fd = apk_ctx_fd_root(ac);
+	db->root_tmpfs = (ac->root_tmpfs == APK_AUTO) ? detect_tmpfs(db->root_fd) : ac->root_tmpfs;
 	db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
-	db->permanent = !detect_tmpfs_root(db);
 	db->usermode = !!(ac->open_flags & APK_OPENF_USERMODE);
 
 	if (!(ac->open_flags & APK_OPENF_CREATE)) {
@@ -2096,7 +2094,7 @@ int apk_db_open(struct apk_database *db)
 	}
 
 	if (!(ac->open_flags & APK_OPENF_NO_INSTALLED_REPO)) {
-		if (apk_db_cache_active(db)) {
+		if (!apk_db_permanent(db) && apk_db_cache_active(db)) {
 			apk_db_index_read(db, apk_istream_from_file(db->cache_fd, "installed"), APK_REPO_CACHE_INSTALLED);
 		}
 	}
@@ -2504,7 +2502,7 @@ int apk_db_cache_foreach_item(struct apk_database *db, apk_cache_item_cb cb)
 
 int apk_db_permanent(struct apk_database *db)
 {
-	return db->permanent;
+	return !db->root_tmpfs;
 }
 
 int apk_db_check_world(struct apk_database *db, struct apk_dependency_array *world)

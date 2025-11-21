@@ -265,6 +265,15 @@ The following options are available for all commands.
 *--root*, *-p* _ROOT_
 	Manage file system at _ROOT_.
 
+*--root-tmpfs*[=_AUTO_]
+	Specify if the _ROOT_ is a temporary filesystem. Defaults to *auto* which
+	determines the filesystem type automatically.
+
+	This affects:
+		- reading and creation of 'installed' index in the cache
+		- purging of packages in cache
+		- safety checks to not install non-repository packages
+
 *--timeout* _TIME_
 	Timeout network connections if no progress is made in TIME seconds.
 	The default is 60 seconds.

@@ -108,7 +108,7 @@ static void cache_clean_item(struct apk_database *db, int static_cache, int dirf
 	if (strcmp(name, "installed") == 0) return;
 	if (pkg) {
 		if (db->ctx->flags & APK_PURGE) {
-			if (db->permanent || !pkg->ipkg) goto delete;
+			if (apk_db_permanent(db) || !pkg->ipkg) goto delete;
 		}
 		if (pkg->repos & db->local_repos) goto delete;
 		if (!pkg->ipkg && !apk_db_pkg_available(db, pkg)) goto delete;

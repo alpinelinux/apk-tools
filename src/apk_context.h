@@ -97,6 +97,7 @@ struct apk_ctx {
 	unsigned int keys_loaded : 1;
 	unsigned int legacy_info : 1;
 	unsigned int interactive : 2;
+	unsigned int root_tmpfs : 2;
 };
 
 void apk_ctx_init(struct apk_ctx *ac);

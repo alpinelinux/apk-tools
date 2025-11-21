@@ -75,7 +75,7 @@ run_test() {
 	retcode=1
 	if [ "$run_found" = "yes" ]; then
 		# shellcheck disable=SC2086 # $args needs to be word splitted
-		$APK --allow-untrusted --simulate $args > "$TEST_ROOT/data/output" 2>&1
+		$APK --allow-untrusted --simulate --root-tmpfs=no $args > "$TEST_ROOT/data/output" 2>&1
 
 		if ! cmp "$TEST_ROOT/data/output" "$TEST_ROOT/data/expected" > /dev/null 2>&1; then
 			fail=$((fail+1))
