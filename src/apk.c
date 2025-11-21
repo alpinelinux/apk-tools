@@ -570,6 +570,7 @@ int main(int argc, char **argv)
 	apk_argv[argc] = NULL;
 	apk_argv[argc+1] = NULL;
 
+	apk_crypto_init();
 	apk_ctx_init(&ctx);
 	umask(0);
 	setup_terminal();
@@ -582,7 +583,6 @@ int main(int argc, char **argv)
 		if (applet->parse) applet->parse(applet_ctx, &ctx, APK_OPTIONS_INIT, NULL);
 	}
 
-	apk_crypto_init();
 	apk_io_url_init(&ctx.out);
 	apk_io_url_set_timeout(60);
 	apk_io_url_set_redirect_callback(redirect_callback);
