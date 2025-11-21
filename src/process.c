@@ -46,11 +46,17 @@ static void set_non_blocking(int fd)
 	if (fd >= 0) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
 }
 
-int apk_process_init(struct apk_process *p, const char *argv0, struct apk_out *out, struct apk_istream *is)
+int apk_process_init(struct apk_process *p, const char *argv0, const char *logpfx, struct apk_out *out, struct apk_istream *is)
 {
 	int ret;
 
+	const char *linepfx = strrchr(logpfx, '\n');
+	if (linepfx) linepfx++;
+	else linepfx = logpfx;
+
 	*p = (struct apk_process) {
+		.logpfx = logpfx,
+		.linepfx = linepfx,
 		.argv0 = argv0,
 		.is = is,
 		.out = out,
@@ -88,27 +94,44 @@ int apk_process_init(struct apk_process *p, const char *argv0, struct apk_out *o
 	return 0;
 }
 
-static int buf_process(struct buf *b, int fd, struct apk_out *out, const char *prefix, const char *argv0)
+// temporary sanitation to remove duplicate "* " prefix from a script output.
+// remove when all package scripts are updated to accommodate apk prefixing output.
+static uint8_t *sanitize_prefix(uint8_t *pos, uint8_t *end)
+{
+	switch (end - pos) {
+	default:
+		if (pos[0] != '*') return pos;
+		if (pos[1] != ' ') return pos;
+		return pos + 2;
+	case 1:
+		if (pos[0] != '*') return pos;
+		return pos + 1;
+	case 0:
+		return pos;
+	}
+}
+
+static int buf_process(struct buf *b, int fd, struct apk_out *out, const char *prefix, struct apk_process *p)
 {
 	ssize_t n = read(fd, &b->buf[b->len], sizeof b->buf - b->len);
-	if (n <= 0) {
-		if (b->len) {
-			apk_out_fmt(out, prefix, "%s: %.*s", argv0, (int)b->len, b->buf);
-			b->len = 0;
-		}
-		return 0;
-	}
-
-	b->len += n;
+	if (n > 0) b->len += n;
 
 	uint8_t *pos, *lf, *end = &b->buf[b->len];
 	for (pos = b->buf; (lf = memchr(pos, '\n', end - pos)) != NULL; pos = lf + 1) {
-		apk_out_fmt(out, prefix, "%s: %.*s", argv0, (int)(lf - pos), pos);
+		pos = sanitize_prefix(pos, lf);
+		apk_out_fmt(out, prefix, "%s%.*s", p->logpfx, (int)(lf - pos), pos);
+		p->logpfx = p->linepfx;
 	}
-
-	b->len = end - pos;
-	memmove(b->buf, pos, b->len);
-	return 1;
+	if (n > 0) {
+		b->len = end - pos;
+		memmove(b->buf, pos, b->len);
+		return 1;
+	}
+	if (pos != end) {
+		pos = sanitize_prefix(pos, end);
+		apk_out_fmt(out, prefix, "%s%.*s", p->logpfx, (int)(end - pos), pos);
+	}
+	return 0;
 }
 
 pid_t apk_process_fork(struct apk_process *p)
@@ -161,13 +184,13 @@ static int apk_process_handle(struct apk_process *p, bool break_on_stdout)
 	while (fds[0].fd >= 0 || fds[1].fd >= 0 || fds[2].fd >= 0) {
 		if (poll(fds, ARRAY_SIZE(fds), -1) <= 0) continue;
 		if (fds[0].revents && !break_on_stdout) {
-			if (!buf_process(&p->buf_stdout, p->pipe_stdout[0], p->out, NULL, p->argv0)) {
+			if (!buf_process(&p->buf_stdout, p->pipe_stdout[0], p->out, NULL, p)) {
 				fds[0].fd = -1;
 				close_fd(&p->pipe_stdout[0]);
 			}
 		}
 		if (fds[1].revents) {
-			if (!buf_process(&p->buf_stderr, p->pipe_stderr[0], p->out, "", p->argv0)) {
+			if (!buf_process(&p->buf_stderr, p->pipe_stderr[0], p->out, APK_OUT_FLUSH, p)) {
 				fds[1].fd = -1;
 				close_fd(&p->pipe_stderr[0]);
 			}
@@ -282,7 +305,7 @@ static const struct apk_istream_ops process_istream_ops = {
 	.close = process_close,
 };
 
-struct apk_istream *apk_process_istream(char * const* argv, struct apk_out *out, const char *argv0)
+struct apk_istream *apk_process_istream(char * const* argv, struct apk_out *out, const char *logpfx)
 {
 	struct apk_process_istream *pis;
 	int r;
@@ -295,7 +318,7 @@ struct apk_istream *apk_process_istream(char * const* argv, struct apk_out *out,
 		.is.buf = (uint8_t *)(pis + 1),
 		.is.buf_size = apk_io_bufsize,
 	};
-	r = apk_process_init(&pis->proc, argv0, out, NULL);
+	r = apk_process_init(&pis->proc, apk_last_path_segment(argv[0]), logpfx, out, NULL);
 	if (r != 0) goto err;
 
 	r = apk_process_spawn(&pis->proc, argv[0], argv, NULL);

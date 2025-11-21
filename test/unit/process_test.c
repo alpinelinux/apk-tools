@@ -13,7 +13,7 @@ APK_TEST(pid_logging) {
 	struct apk_process p;
 
 	test_out_open(&to);
-	assert_int_equal(0, apk_process_init(&p, "test0", &to.out, NULL));
+	assert_int_equal(0, apk_process_init(&p, "test0", "test0: ", &to.out, NULL));
 	if (apk_process_fork(&p) == 0) {
 		writestr(STDERR_FILENO, "error1\nerror2\n");
 		writestr(STDOUT_FILENO, "hello1\nhello2\n");
@@ -39,7 +39,7 @@ APK_TEST(pid_error_exit) {
 	struct apk_process p;
 
 	test_out_open(&to);
-	assert_int_equal(0, apk_process_init(&p, "test1", &to.out, NULL));
+	assert_int_equal(0, apk_process_init(&p, "test1", "test1: ", &to.out, NULL));
 	if (apk_process_fork(&p) == 0) {
 		exit(100);
 	}
@@ -55,7 +55,7 @@ APK_TEST(pid_input_partial) {
 	struct apk_process p;
 
 	test_out_open(&to);
-	assert_int_equal(0, apk_process_init(&p, "test2", &to.out, apk_istream_from_file(AT_FDCWD, "/dev/zero")));
+	assert_int_equal(0, apk_process_init(&p, "test2", "test2: ", &to.out, apk_istream_from_file(AT_FDCWD, "/dev/zero")));
 	if (apk_process_fork(&p) == 0) {
 		char buf[1024];
 		int left = 128*1024;
@@ -79,7 +79,7 @@ APK_TEST(pid_input_full) {
 	struct apk_process p;
 
 	test_out_open(&to);
-	assert_int_equal(0, apk_process_init(&p, "test3", &to.out, apk_istream_from_file(AT_FDCWD, "version.data")));
+	assert_int_equal(0, apk_process_init(&p, "test3", "test3: ", &to.out, apk_istream_from_file(AT_FDCWD, "version.data")));
 	if (apk_process_fork(&p) == 0) {
 		char buf[1024];
 		writestr(STDOUT_FILENO, "start reading!\n");
@@ -106,7 +106,7 @@ static void test_process_istream(int rc, char *arg, const char *expect_err, cons
 	char out[256], *argv[] = { "../process-istream.sh", arg, NULL };
 
 	test_out_open(&to);
-	struct apk_istream *is = apk_process_istream(argv, &to.out, "process-istream");
+	struct apk_istream *is = apk_process_istream(argv, &to.out, "process-istream: ");
 	assert_ptr_ok(is);
 
 	int n = apk_istream_read_max(is, out, sizeof out);
@@ -127,6 +127,6 @@ APK_TEST(pid_istream_ok) {
 APK_TEST(pid_istream_fail) {
 	test_process_istream(-APKE_REMOTE_IO, "fail",
 		"process-istream: stderr text\n"
-		"ERROR: process-istream: exited with error 10\n",
+		"ERROR: process-istream.sh: exited with error 10\n",
 		"hello\n");
 }

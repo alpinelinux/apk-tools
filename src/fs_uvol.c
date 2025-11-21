@@ -16,10 +16,12 @@ static int _uvol_run(struct apk_ctx *ac, char *action, const char *volname, char
 	struct apk_out *out = &ac->out;
 	struct apk_process p;
 	char *argv[] = { (char*)apk_ctx_get_uvol(ac), action, (char*) volname, arg1, arg2, 0 };
-	char argv0[256];
+	char argv0[64], logpfx[64];
 	int r;
 
-	if (apk_process_init(&p, apk_fmts(argv0, sizeof argv0, "uvol(%s)", action), out, is) != 0)
+	apk_fmts(argv0, sizeof argv0, "uvol(%s)", action);
+	apk_fmts(logpfx, sizeof logpfx, "uvol(%s): ", action);
+	if (apk_process_init(&p, argv0, logpfx, out, is) != 0)
 		return -APKE_UVOL_ERROR;
 
 	r = apk_process_spawn(&p, apk_ctx_get_uvol(ac), argv, NULL);

@@ -763,8 +763,10 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		fd = -1;
 	}
 
-	apk_msg(out, PKG_VER_FMT ".%s: Executing script...", PKG_VER_PRINTF(pkg), apk_script_types[type]);
-	if (apk_db_run_script(db, apk_script_types[type], pkg->name->name, fd, argv) < 0)
+	apk_msg(out, "%sExecuting " PKG_VER_FMT ".%s",
+		db->indent_level ? "  " : "",
+		PKG_VER_PRINTF(pkg), apk_script_types[type]);
+	if (apk_db_run_script(db, apk_script_types[type], pkg->name->name, fd, argv, db->indent_level ? "  * " : "* " ) < 0)
 		goto err;
 
 	/* Script may have done something that changes id cache contents */

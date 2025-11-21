@@ -17,7 +17,7 @@ struct apk_istream;
 struct apk_process {
 	int pipe_stdin[2], pipe_stdout[2], pipe_stderr[2];
 	pid_t pid;
-	const char *argv0;
+	const char *linepfx, *logpfx, *argv0;
 	struct apk_out *out;
 	struct apk_istream *is;
 	apk_blob_t is_blob;
@@ -29,7 +29,7 @@ struct apk_process {
 	} buf_stdout, buf_stderr;
 };
 
-int apk_process_init(struct apk_process *p, const char *argv0, struct apk_out *out, struct apk_istream *is);
+int apk_process_init(struct apk_process *p, const char *argv0, const char *logpfx, struct apk_out *out, struct apk_istream *is);
 pid_t apk_process_fork(struct apk_process *p);
 int apk_process_spawn(struct apk_process *p, const char *path, char * const* argv, char * const* env);
 int apk_process_run(struct apk_process *p);

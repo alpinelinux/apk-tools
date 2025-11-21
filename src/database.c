@@ -2390,11 +2390,10 @@ int apk_db_fire_triggers(struct apk_database *db)
 
 static void script_panic(const char *reason)
 {
-	// The parent will prepend argv0 to the logged string
 	char buf[256];
 	int n = apk_fmt(buf, sizeof buf, "%s: %s\n", reason, strerror(errno));
 	apk_write_fully(STDERR_FILENO, buf, n);
-	exit(127);
+	_exit(127);
 }
 
 struct env_buf {
@@ -2411,7 +2410,7 @@ static void env_buf_add(struct env_buf *enb, const char *key, const char *val)
 	enb->pos += n + 1;
 }
 
-int apk_db_run_script(struct apk_database *db, const char *hook_type, const char *package_name, int fd, char **argv)
+int apk_db_run_script(struct apk_database *db, const char *hook_type, const char *package_name, int fd, char **argv, const char *logpfx)
 {
 	struct env_buf enb;
 	struct apk_ctx *ac = db->ctx;
@@ -2420,7 +2419,7 @@ int apk_db_run_script(struct apk_database *db, const char *hook_type, const char
 	int r, env_size_save = apk_array_len(ac->script_environment);
 	const char *argv0 = apk_last_path_segment(argv[0]);
 
-	r = apk_process_init(&p, argv0, out, NULL);
+	r = apk_process_init(&p, argv[0], logpfx, out, NULL);
 	if (r != 0) goto err;
 
 	enb.arr = &ac->script_environment;
@@ -3038,8 +3037,7 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 					} else {
 						// All files differ. Use the package's file as .apk-new.
 						ctrl = APK_FS_CTRL_APKNEW;
-						apk_msg(out, PKG_VER_FMT ": installing file to " DIR_FILE_FMT "%s",
-						    PKG_VER_PRINTF(ipkg->pkg),
+						apk_msg(out, "  Installing file to " DIR_FILE_FMT "%s",
 						    DIR_FILE_PRINTF(diri->dir, file),
 						    db->ctx->apknew_suffix);
 					}

@@ -276,7 +276,8 @@ static int run_commit_hook(void *ctx, int dirfd, const char *path, const char *f
 	struct apk_commit_hook *hook = (struct apk_commit_hook *) ctx;
 	struct apk_database *db = hook->db;
 	struct apk_out *out = &db->ctx->out;
-	char fn[PATH_MAX], *argv[] = { fn, (char *) commit_hook_str[hook->type], NULL };
+	char buf[PATH_MAX], fn[PATH_MAX], *argv[] = { fn, (char *) commit_hook_str[hook->type], NULL };
+	const char *linepfx;
 	int ret = 0;
 
 	if (file[0] == '.') return 0;
@@ -287,9 +288,16 @@ static int run_commit_hook(void *ctx, int dirfd, const char *path, const char *f
 		apk_msg(out, "Skipping: %s %s", fn, commit_hook_str[hook->type]);
 		return 0;
 	}
-	apk_dbg(out, "Executing: %s %s", fn, commit_hook_str[hook->type]);
 
-	if (apk_db_run_script(db, commit_hook_str[hook->type], NULL, -1, argv) < 0 && hook->type == PRE_COMMIT_HOOK)
+	if (apk_out_verbosity(out) >= 2) {
+		apk_dbg(out, "Executing /%s %s", fn, commit_hook_str[hook->type]);
+		linepfx = "* ";
+	} else {
+		apk_out_progress_note(out, "executing %s %s", commit_hook_str[hook->type], file);
+		linepfx = apk_fmts(buf, sizeof buf, "Executing %s %s\n* ", commit_hook_str[hook->type], file);
+	}
+
+	if (apk_db_run_script(db, commit_hook_str[hook->type], NULL, -1, argv, linepfx) < 0 && hook->type == PRE_COMMIT_HOOK)
 		ret = -2;
 
 	return ret;
@@ -468,6 +476,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		return -1;
 
 	/* Go through changes */
+	db->indent_level = 1;
 	apk_progress_start(&prog.prog, out, "install", apk_progress_weight(prog.total.bytes, prog.total.packages));
 	apk_array_foreach(change, changeset->changes) {
 		r = change->old_pkg &&
@@ -488,6 +497,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		count_change(change, &prog.done);
 	}
 	apk_progress_end(&prog.prog);
+	db->indent_level = 0;
 
 	errors += db->num_dir_update_errors;
 	errors += run_triggers(db, changeset);
