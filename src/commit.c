@@ -178,9 +178,16 @@ static int cmp_reinstall(struct apk_change *change)
 	return change->reinstall;
 }
 
-static int cmp_non_repository(struct apk_change *change)
+static int cmp_non_repository_verbose(struct apk_change *change)
 {
 	if (!change->new_pkg || change->new_pkg->name->has_repository_providers) return 0;
+	return 1;
+}
+
+static int cmp_non_repository(struct apk_change *change)
+{
+	if (!cmp_non_repository_verbose(change)) return 0;
+	if (change->new_pkg->name->name[0] == '.') return 0;
 	return 1;
 }
 
@@ -386,7 +393,7 @@ int apk_solver_commit_changeset(struct apk_database *db,
 		apk_change_array_copy(&sorted, changeset->changes);
 		apk_array_qsort(sorted, sort_change);
 
-		dump_packages(db, sorted, cmp_non_repository, false,
+		dump_packages(db, sorted, details ? cmp_non_repository_verbose : cmp_non_repository, false,
 			"NOTE: Consider running apk upgrade with --prune and/or --available.\n"
 			"The following packages are no longer available from a repository");
 		r = dump_packages(db, sorted, cmp_remove, details,
