@@ -176,9 +176,10 @@ static int ser_yaml_string(struct apk_serializer *ser, apk_blob_t scalar, int mu
 static int ser_yaml_numeric(struct apk_serializer *ser, uint64_t val, int hint)
 {
 	struct serialize_yaml *dt = container_of(ser, struct serialize_yaml, ser);
+	char buf[64];
 
 	ser_yaml_indent(dt, true, true);
-	apk_ostream_fmt(dt->ser.os, hint ? "%#llo" : "%llu", val);
+	apk_ostream_write_blob(dt->ser.os, apk_ser_format_numeric(ser, buf, sizeof buf, val, hint));
 	ser_yaml_newline(dt);
 	return 0;
 }

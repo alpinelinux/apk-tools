@@ -218,6 +218,10 @@ The following options are available for all commands.
 	Allow passing the user environment down to scripts (excluding
 	variables starting APK_ which are reserved).
 
+*--pretty-print*[=_AUTO_]
+	Determine if output should be stylized to be human readable.
+	Defaults to *auto* which resolves to *yes* if running on a tty.
+
 *--preupgrade-depends* _DEPS_
 	Add or modify preupgrade dependencies. The preupgrade dependencies
 	are used to match installed packages that are eligible for preupgrade.

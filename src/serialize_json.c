@@ -118,7 +118,7 @@ static int ser_json_string(struct apk_serializer *ser, apk_blob_t val, int multi
 	return 0;
 }
 
-static int ser_json_numeric(struct apk_serializer *ser, uint64_t val, int octal)
+static int ser_json_numeric(struct apk_serializer *ser, uint64_t val, int hint)
 {
 	struct serialize_json *dt = container_of(ser, struct serialize_json, ser);
 

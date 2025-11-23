@@ -11,6 +11,12 @@
 
 #define APK_SERIALIZE_MAX_NESTING 32
 
+#define APK_SERIALIZE_INT	0
+#define APK_SERIALIZE_OCTAL	1
+#define APK_SERIALIZE_SIZE	2
+#define APK_SERIALIZE_TIME	3
+
+struct apk_ctx;
 struct apk_serializer;
 struct apk_ostream;
 struct apk_trust;
@@ -34,12 +40,15 @@ struct apk_serializer {
 	const struct apk_serializer_ops *ops;
 	struct apk_ostream *os;
 	struct apk_trust *trust;
+	unsigned int pretty_print : 1;
 };
 
 const struct apk_serializer_ops *apk_serializer_lookup(const char *format, const struct apk_serializer_ops *def);
-struct apk_serializer *_apk_serializer_init(const struct apk_serializer_ops *ops, struct apk_ostream *os, void *ctx);
-#define apk_serializer_init_alloca(ops, os) _apk_serializer_init(ops, os, (ops)->context_size < 1024 ? alloca((ops)->context_size) : NULL)
+struct apk_serializer *_apk_serializer_init(const struct apk_ctx *ac, const struct apk_serializer_ops *ops, struct apk_ostream *os, void *ctx);
+#define apk_serializer_init_alloca(ac, ops, os) _apk_serializer_init(ac, ops, os, (ops)->context_size < 1024 ? alloca((ops)->context_size) : NULL)
 void apk_serializer_cleanup(struct apk_serializer *ser);
+
+apk_blob_t apk_ser_format_numeric(struct apk_serializer *ser, char *buf, size_t sz, uint64_t val, int hint);
 
 static inline int apk_ser_start_schema(struct apk_serializer *ser, uint32_t schema_id) { return ser->ops->start_object(ser, schema_id); }
 static inline int apk_ser_start_object(struct apk_serializer *ser) { return ser->ops->start_object(ser, 0); }

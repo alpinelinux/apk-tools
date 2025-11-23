@@ -123,7 +123,6 @@ struct adb_sign_v0 {
 #define ADB_KIND_ARRAY		3
 #define ADB_KIND_BLOB		4
 #define ADB_KIND_NUMERIC	5
-#define ADB_KIND_OCTAL		6
 
 #define ADB_ARRAY_ITEM(_t) (const struct adb_object_schema_field[1]) { {.kind = &(_t).kind} }
 #define ADB_OBJECT_FIELDS(n) (const struct adb_object_schema_field[n])
@@ -151,6 +150,7 @@ struct adb_object_schema {
 
 struct adb_scalar_schema {
 	uint8_t kind;
+	uint8_t hint : 4;
 	uint8_t multiline : 1;
 
 	apk_blob_t (*tostring)(struct adb*, adb_val_t, char *, size_t);
@@ -294,7 +294,7 @@ struct adb_db_schema {
 
 extern const struct adb_db_schema adb_all_schemas[];
 
-int adb_walk_adb(struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ser, struct apk_trust *trust);
+int adb_walk_adb(struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ser, struct apk_ctx *ac);
 
 // Seamless compression support
 

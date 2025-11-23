@@ -147,13 +147,13 @@ static int ser_q_string(struct apk_serializer *ser, apk_blob_t val, int multilin
 	return 0;
 }
 
-static int ser_q_numeric(struct apk_serializer *ser, uint64_t val, int octal)
+static int ser_q_numeric(struct apk_serializer *ser, uint64_t val, int hint)
 {
 	struct serialize_query *dt = container_of(ser, struct serialize_query, ser);
 	char buf[64];
 
 	ser_q_item(ser, true);
-	ser_q_write(dt, apk_blob_fmt(buf, sizeof buf, "%" PRIu64, val));
+	ser_q_write(dt, apk_ser_format_numeric(ser, buf, sizeof buf, val, hint));
 	dt->state = S_SCALAR;
 	return 0;
 }

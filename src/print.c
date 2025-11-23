@@ -106,6 +106,12 @@ const char *apk_error_str(int error)
 	return strerror(error);
 }
 
+const char *apk_last_path_segment(const char *path)
+{
+	const char *last = strrchr(path, '/');
+	return last == NULL ? path : last + 1;
+}
+
 static const char *size_units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
 
 int apk_get_human_size_unit(apk_blob_t b)
@@ -116,22 +122,15 @@ int apk_get_human_size_unit(apk_blob_t b)
 	return 1;
 }
 
-const char *apk_get_human_size(uint64_t size, uint64_t *dest)
+apk_blob_t apk_fmt_human_size(char *buf, size_t sz, uint64_t val, int pretty_print)
 {
-	size_t i;
-	uint64_t s;
-
-	for (i = 0, s = size; s >= 10000 && i < ARRAY_SIZE(size_units); i++)
-		s /= 1024;
-
-	if (dest) *dest = s;
-	return size_units[min(i, ARRAY_SIZE(size_units) - 1)];
-}
-
-const char *apk_last_path_segment(const char *path)
-{
-	const char *last = strrchr(path, '/');
-	return last == NULL ? path : last + 1;
+	if (pretty_print == 0) return apk_blob_fmt(buf, sz, "%" PRIu64, val);
+	float s = val;
+	int i;
+	for (i = 0; i < ARRAY_SIZE(size_units)-1 && s >= 10000; i++)
+		s /= 1024, val /= 1024;
+	if (i < 2 || pretty_print < 0) return apk_blob_fmt(buf, sz, "%" PRIu64 " %s", val, size_units[i]);
+	return apk_blob_fmt(buf, sz, "%.1f %s", s, size_units[i]);
 }
 
 apk_blob_t apk_url_sanitize(apk_blob_t url, struct apk_balloc *ba)

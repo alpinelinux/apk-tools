@@ -277,6 +277,14 @@ static struct adb_scalar_schema scalar_int = {
 	.compare = int_compare,
 };
 
+static struct adb_scalar_schema scalar_time = {
+	.kind = ADB_KIND_NUMERIC,
+	.hint = APK_SERIALIZE_TIME,
+	.tostring = int_tostring,
+	.fromstring = int_fromstring,
+	.compare = int_compare,
+};
+
 static apk_blob_t oct_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
 	return apk_blob_fmt(buf, bufsz, "%" PRIo64, adb_r_int(db, val));
@@ -290,19 +298,12 @@ static adb_val_t oct_fromstring(struct adb *db, apk_blob_t val)
 }
 
 static struct adb_scalar_schema scalar_oct = {
-	.kind = ADB_KIND_OCTAL,
+	.kind = ADB_KIND_NUMERIC,
+	.hint = APK_SERIALIZE_OCTAL,
 	.tostring = oct_tostring,
 	.fromstring = oct_fromstring,
 	.compare = int_compare,
 };
-
-static apk_blob_t hsize_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
-{
-	uint64_t v = adb_r_int(db, val);
-	const char *unit = apk_get_human_size(v, &v);
-
-	return apk_blob_fmt(buf, bufsz, "%" PRIu64 " %s", v, unit);
-}
 
 static adb_val_t hsize_fromstring(struct adb *db, apk_blob_t val)
 {
@@ -319,7 +320,8 @@ static adb_val_t hsize_fromstring(struct adb *db, apk_blob_t val)
 
 static struct adb_scalar_schema scalar_hsize = {
 	.kind = ADB_KIND_NUMERIC,
-	.tostring = hsize_tostring,
+	.hint = APK_SERIALIZE_SIZE,
+	.tostring = int_tostring,
 	.fromstring = hsize_fromstring,
 	.compare = int_compare,
 };
@@ -423,7 +425,7 @@ const struct adb_object_schema schema_pkginfo = {
 		ADB_FIELD(ADBI_PI_MAINTAINER,	"maintainer",	scalar_string),
 		ADB_FIELD(ADBI_PI_URL,		"url",		scalar_string),
 		ADB_FIELD(ADBI_PI_REPO_COMMIT,	"repo-commit",	scalar_hexblob),
-		ADB_FIELD(ADBI_PI_BUILD_TIME,	"build-time",	scalar_int),
+		ADB_FIELD(ADBI_PI_BUILD_TIME,	"build-time",	scalar_time),
 		ADB_FIELD(ADBI_PI_INSTALLED_SIZE,"installed-size",scalar_hsize),
 		ADB_FIELD(ADBI_PI_FILE_SIZE,	"file-size",	scalar_hsize),
 		ADB_FIELD(ADBI_PI_PROVIDER_PRIORITY,	"provider-priority",	scalar_int),
@@ -473,7 +475,7 @@ const struct adb_object_schema schema_file = {
 		ADB_FIELD(ADBI_FI_NAME,		"name",		scalar_string),
 		ADB_FIELD(ADBI_FI_ACL,		"acl",		schema_acl),
 		ADB_FIELD(ADBI_FI_SIZE,		"size",		scalar_int),
-		ADB_FIELD(ADBI_FI_MTIME,	"mtime",	scalar_int),
+		ADB_FIELD(ADBI_FI_MTIME,	"mtime",	scalar_time),
 		ADB_FIELD(ADBI_FI_HASHES,	"hash",		scalar_hexblob),
 		ADB_FIELD(ADBI_FI_TARGET,	"target",	scalar_hexblob),
 	},

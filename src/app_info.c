@@ -73,7 +73,7 @@ static int info_who_owns(struct info_ctx *ctx, struct apk_database *db, struct a
 
 	if (qs->ser != &apk_serializer_query) {
 		if (!qs->fields) qs->fields = BIT(APK_Q_FIELD_QUERY) | BIT(APK_Q_FIELD_PATH_TARGET) | BIT(APK_Q_FIELD_ERROR) | BIT(APK_Q_FIELD_NAME);
-		ser = apk_serializer_init_alloca(qs->ser, apk_ostream_to_fd(STDOUT_FILENO));
+		ser = apk_serializer_init_alloca(db->ctx, qs->ser, apk_ostream_to_fd(STDOUT_FILENO));
 		if (IS_ERR(ser)) return PTR_ERR(ser);
 		apk_ser_start_array(ser, apk_array_len(args));
 	}
@@ -124,15 +124,13 @@ static void info_print_blob(struct apk_database *db, struct apk_package *pkg, co
 
 static void info_print_size(struct apk_database *db, struct apk_package *pkg)
 {
-	uint64_t size;
-	const char *size_unit;
-
-	size_unit = apk_get_human_size(pkg->installed_size, &size);
+	char buf[64];
+	apk_blob_t fmt = apk_fmt_human_size(buf, sizeof buf, pkg->installed_size, -1);
 	if (verbosity > 1)
-		printf("%s: %" PRIu64 " %s\n", pkg->name->name, size, size_unit);
+		printf("%s: " BLOB_FMT "\n", pkg->name->name, BLOB_PRINTF(fmt));
 	else
-		printf(PKG_VER_FMT " installed size:\n%" PRIu64 " %s\n\n",
-		       PKG_VER_PRINTF(pkg), size, size_unit);
+		printf(PKG_VER_FMT " installed size:\n" BLOB_FMT "\n\n",
+		       PKG_VER_PRINTF(pkg), BLOB_PRINTF(fmt));
 }
 
 static void info_print_dep_array(struct apk_database *db, struct apk_package *pkg,

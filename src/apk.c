@@ -64,6 +64,7 @@ static void version(struct apk_out *out, const char *prefix)
 	OPT(OPT_GLOBAL_logfile,			APK_OPT_BOOL "logfile") \
 	OPT(OPT_GLOBAL_network,			APK_OPT_BOOL "network") \
 	OPT(OPT_GLOBAL_preserve_env,		APK_OPT_BOOL "preserve-env") \
+	OPT(OPT_GLOBAL_pretty_print,		APK_OPT_AUTO "pretty-print") \
 	OPT(OPT_GLOBAL_preupgrade_depends,	APK_OPT_ARG "preupgrade-depends") \
 	OPT(OPT_GLOBAL_print_arch,		"print-arch") \
 	OPT(OPT_GLOBAL_progress,		APK_OPT_AUTO "progress") \
@@ -160,6 +161,9 @@ static int optgroup_global_parse(struct apk_ctx *ac, int opt, const char *optarg
 		break;
 	case OPT_GLOBAL_preserve_env:
 		apk_opt_set_flag(optarg, APK_PRESERVE_ENV, &ac->flags);
+		break;
+	case OPT_GLOBAL_pretty_print:
+		ac->pretty_print = APK_OPTARG_VAL(optarg);
 		break;
 	case OPT_GLOBAL_preupgrade_depends:
 		apk_string_array_add(&ac->preupgrade_deps, (char*) optarg);
@@ -633,6 +637,7 @@ int main(int argc, char **argv)
 	apk_ctx_init(&ctx);
 	ctx.on_tty = isatty(STDOUT_FILENO);
 	ctx.interactive = (access("/etc/apk/interactive", F_OK) == 0) ? APK_AUTO : APK_NO;
+	ctx.pretty_print = APK_AUTO;
 	ctx.out.progress = APK_AUTO;
 
 	umask(0);

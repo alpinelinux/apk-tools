@@ -39,7 +39,7 @@ static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 		r = adb_walk_adb(
 			adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, arg), NULL),
 			apk_ostream_to_fd(STDOUT_FILENO),
-			ctx->ser, apk_ctx_get_trust(ac));
+			ctx->ser, ac);
 		if (r) {
 			apk_err(out, "%s: %s", arg, apk_error_str(r));
 			return r;

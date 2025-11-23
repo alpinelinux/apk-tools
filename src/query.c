@@ -989,7 +989,7 @@ int apk_query_main(struct apk_ctx *ac, struct apk_string_array *args)
 	struct apk_out *out = &ac->out;
 	int r;
 
-	ser = apk_serializer_init_alloca(qs->ser, apk_ostream_to_fd(STDOUT_FILENO));
+	ser = apk_serializer_init_alloca(ac, qs->ser, apk_ostream_to_fd(STDOUT_FILENO));
 	if (IS_ERR(ser)) return PTR_ERR(ser);
 
 	r = apk_query_run(ac, qs, args, ser);

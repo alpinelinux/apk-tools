@@ -381,8 +381,9 @@ int apk_solver_commit_changeset(struct apk_database *db,
 {
 	struct apk_out *out = &db->ctx->out;
 	struct progress prog = { 0 };
-	const char *size_unit;
-	uint64_t humanized, download_size = 0;
+	char buf[64];
+	apk_blob_t humanized;
+	uint64_t download_size = 0;
 	int64_t size_diff = 0;
 	int r, errors = 0, pkg_diff = 0;
 
@@ -437,14 +438,12 @@ int apk_solver_commit_changeset(struct apk_database *db,
 			r += dump_packages(db, sorted, cmp_reinstall, details,
 				"The following packages will be reinstalled");
 			if (download_size) {
-				size_unit = apk_get_human_size(download_size, &humanized);
-				apk_msg(out, "Need to download %" PRIu64 " %s of packages.",
-					humanized, size_unit);
+				humanized = apk_fmt_human_size(buf, sizeof buf, download_size, 1);
+				apk_msg(out, "Need to download " BLOB_FMT " of packages.", BLOB_PRINTF(humanized));
 			}
-			size_unit = apk_get_human_size(llabs(size_diff), &humanized);
-			apk_msg(out, "After this operation, %" PRIu64 " %s of %s.",
-				humanized, size_unit,
-				(size_diff < 0) ?
+			humanized = apk_fmt_human_size(buf, sizeof buf, llabs(size_diff), 1);
+			apk_msg(out, "After this operation, " BLOB_FMT " of %s.",
+				BLOB_PRINTF(humanized), (size_diff < 0) ?
 				"disk space will be freed" :
 				"additional disk space will be used");
 		}

@@ -179,7 +179,7 @@ const struct apk_serializer_ops apk_serializer_adb = {
 	.string = ser_adb_string,
 };
 
-static int adb_walk_yaml(struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ops, struct apk_trust *trust)
+static int adb_walk_yaml(struct apk_ctx *ac, struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ops, struct apk_trust *trust)
 {
 	const apk_blob_t token = APK_BLOB_STR("\n");
 	const apk_blob_t comment = APK_BLOB_STR(" #");
@@ -190,7 +190,7 @@ static int adb_walk_yaml(struct apk_istream *is, struct apk_ostream *os, const s
 	int r = 0, i, multi_line = 0, nesting = 0, new_item = 0;
 	uint8_t started[64] = {0};
 
-	ser = apk_serializer_init_alloca(ops, os);
+	ser = apk_serializer_init_alloca(ac, ops, os);
 	if (IS_ERR(ser)) {
 		if (IS_ERR(is)) apk_istream_close(is);
 		return PTR_ERR(ser);
@@ -326,7 +326,7 @@ static int adbgen_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 	struct apk_out *out = &ac->out;
 
 	apk_array_foreach_item(arg, args) {
-		int r = adb_walk_yaml(
+		int r = adb_walk_yaml(ac,
 			apk_istream_from_file(AT_FDCWD, arg),
 			apk_ostream_to_fd(STDOUT_FILENO),
 			&apk_serializer_adb,

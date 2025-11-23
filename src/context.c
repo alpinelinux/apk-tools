@@ -60,6 +60,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
 {
 	apk_out_configure_progress(&ac->out, ac->on_tty);
 	if (ac->interactive == APK_AUTO) ac->interactive = ac->on_tty;
+	if (ac->pretty_print == APK_AUTO) ac->pretty_print = ac->on_tty;
 	if (ac->flags & APK_SIMULATE &&
 	    ac->open_flags & (APK_OPENF_CREATE | APK_OPENF_WRITE)) {
 		ac->open_flags &= ~(APK_OPENF_CREATE | APK_OPENF_WRITE);

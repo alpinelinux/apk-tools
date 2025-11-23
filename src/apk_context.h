@@ -99,6 +99,7 @@ struct apk_ctx {
 	unsigned int interactive : 2;
 	unsigned int root_tmpfs : 2;
 	unsigned int sync : 2;
+	unsigned int pretty_print : 2;
 };
 
 void apk_ctx_init(struct apk_ctx *ac);

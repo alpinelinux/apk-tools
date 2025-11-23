@@ -22,6 +22,7 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 	struct adb origdb;
 	struct adb_obj o;
 	struct adb_object_schema *obj_schema;
+	struct adb_scalar_schema *scalar;
 	struct apk_istream is;
 	char tmp[256];
 	apk_blob_t b;
@@ -61,7 +62,7 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 		}
 		break;
 	case ADB_KIND_BLOB:;
-		struct adb_scalar_schema *scalar = container_of(kind, struct adb_scalar_schema, kind);
+		scalar = container_of(kind, struct adb_scalar_schema, kind);
 		if (scalar->tostring) {
 			b = scalar->tostring(&ctx->db, v, tmp, sizeof tmp);
 		} else {
@@ -70,10 +71,8 @@ static int dump_item(struct adb_walk_ctx *ctx, const char *name, const uint8_t *
 		apk_ser_string_ml(ser, b, scalar->multiline);
 		break;
 	case ADB_KIND_NUMERIC:
-		apk_ser_numeric(ser, adb_r_int(&ctx->db, v), 0);
-		break;
-	case ADB_KIND_OCTAL:
-		apk_ser_numeric(ser, adb_r_int(&ctx->db, v), 1);
+		scalar = container_of(kind, struct adb_scalar_schema, kind);
+		apk_ser_numeric(ser, adb_r_int(&ctx->db, v), scalar->hint);
 		break;
 	}
 	return 0;
@@ -151,7 +150,7 @@ static int adb_walk_block(struct adb *db, struct adb_block *b, struct apk_istrea
 	return 0;
 }
 
-int adb_walk_adb(struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ops, struct apk_trust *trust)
+int adb_walk_adb(struct apk_istream *is, struct apk_ostream *os, const struct apk_serializer_ops *ops, struct apk_ctx *ac)
 {
 	struct apk_trust allow_untrusted = {
 		.allow_untrusted = 1,
@@ -159,12 +158,12 @@ int adb_walk_adb(struct apk_istream *is, struct apk_ostream *os, const struct ap
 	struct adb_walk_ctx ctx = { 0 };
 	int r;
 
-	ctx.ser = apk_serializer_init_alloca(ops, os);
+	ctx.ser = apk_serializer_init_alloca(ac, ops, os);
 	if (IS_ERR(ctx.ser)) {
 		if (!IS_ERR(is)) apk_istream_close(is);
 		return PTR_ERR(ctx.ser);
 	}
-	ctx.ser->trust = trust;
+	ctx.ser->trust = apk_ctx_get_trust(ac);
 
 	r = adb_m_process(&ctx.db, is, 0, &allow_untrusted, NULL, adb_walk_block);
 	adb_free(&ctx.db);
