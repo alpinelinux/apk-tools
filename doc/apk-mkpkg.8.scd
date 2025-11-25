@@ -14,6 +14,10 @@ apk mkpkg - create apkv3 package files
 
 # OPTIONS
 
+*--compat* _APK_VERSION_
+	Produces packages comptable with given apk versions. The default
+	currently is *3.0.0_pre1*.
+
 *--files*, *-F* _PATH_
 	Specify the build root path from where the files are collected
 	from to be included in the package.
@@ -29,9 +33,8 @@ apk mkpkg - create apkv3 package files
 	a default name will be deduced from the package metadata fields.
 
 *--rootnode*[=*BOOL*]
-	Generate or do not generate the rootnode entry in package PATHS.
-	The packages generated without rootnode are not backwards compatible
-	so this is off by default for now.
+	Deprecated alias to set compat version. *yes* resolves to
+	*--compat=3.0.0_pre1* and *no* to *--compat=3.0.0_pre3*.
 
 *--script*, *-s* _TYPE:SCRIPT_
 	Add the specified *SCRIPT* with the *TYPE*. Refer to *apk-package*(5)

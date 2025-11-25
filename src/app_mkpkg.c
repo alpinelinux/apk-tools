@@ -65,12 +65,15 @@ struct mkpkg_ctx {
 	struct apk_hash link_by_inode;
 	struct apk_balloc ba;
 	int num_dirents;
+	const char *compat;
 	unsigned has_scripts : 1;
-	unsigned rootnode : 1;
 	unsigned output_stdout : 1;
+	unsigned compat_rootnode : 1;
+	unsigned compat_dirnode : 1;
 };
 
 #define MKPKG_OPTIONS(OPT) \
+	OPT(OPT_MKPKG_compat,		APK_OPT_ARG "compat") \
 	OPT(OPT_MKPKG_files,		APK_OPT_ARG APK_OPT_SH("F") "files") \
 	OPT(OPT_MKPKG_info,		APK_OPT_ARG APK_OPT_SH("I") "info") \
 	OPT(OPT_MKPKG_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
@@ -129,7 +132,10 @@ static int mkpkg_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 		apk_balloc_init(&ictx->ba, PATH_MAX * 256);
 		apk_hash_init(&ictx->link_by_inode, &mkpkg_hardlink_hash_ops, 256);
 		apk_string_array_init(&ictx->triggers);
-		ictx->rootnode = 1;
+		ictx->compat = "3.0.0_pre1";
+		break;
+	case OPT_MKPKG_compat:
+		ictx->compat = optarg;
 		break;
 	case OPT_MKPKG_files:
 		ictx->files_dir = optarg;
@@ -140,7 +146,7 @@ static int mkpkg_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 		ictx->output = optarg;
 		break;
 	case OPT_MKPKG_rootnode:
-		ictx->rootnode = APK_OPTARG_VAL(optarg);
+		ictx->compat = APK_OPTARG_VAL(optarg) ? "3.0.0_pre1" : "3.0.0_pre3";
 		break;
 	case OPT_MKPKG_script:
 		if (!apk_blob_split(APK_BLOB_STR(optarg), APK_BLOB_STRLIT(":"), &l, &r)) {
@@ -331,6 +337,7 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const c
 
 static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int atfd, const char *entry)
 {
+	apk_blob_t root = APK_BLOB_STRLIT("root");
 	struct apk_ctx *ac = ctx->ac;
 	struct apk_id_cache *idc = apk_ctx_get_id_cache(ac);
 	struct apk_out *out = &ac->out;
@@ -347,19 +354,21 @@ static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int atfd, const char *
 	r = apk_dir_foreach_file_sorted(atfd, path, mkpkg_process_dirent, ctx, NULL);
 	if (r) goto done;
 
+	apk_blob_t user = apk_id_cache_resolve_user(idc, fi.uid);
+	apk_blob_t group = apk_id_cache_resolve_group(idc, fi.gid);
 	mode_t mode = fi.mode & ~S_IFMT;
-	// no need to record folder if it has no files, and the acl looks normal
-	if (!fi.uid && !fi.gid && mode == 0755 && adb_ra_num(&ctx->files) == 0) {
-		// root directory and flag allows pruning it
-		if (!entry && !ctx->rootnode) goto done;
+	if (mode == 0755 && adb_ra_num(&ctx->files) == 0 && apk_blob_compare(user, root) == 0 && apk_blob_compare(group, root) == 0) {
+		// Prune empty directory with default acl if possible
+		if (!entry && !ctx->compat_rootnode) return 0;
+		if ( entry && ctx->num_dirents && !ctx->compat_dirnode) return 0;
 	}
 
 	adb_wo_alloca(&fio, &schema_dir, &ctx->db);
 	adb_wo_alloca(&acl, &schema_acl, &ctx->db);
 	adb_wo_blob(&fio, ADBI_DI_NAME, dirname);
 	adb_wo_int(&acl, ADBI_ACL_MODE, mode);
-	adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi.uid));
-	adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi.gid));
+	adb_wo_blob(&acl, ADBI_ACL_USER, user);
+	adb_wo_blob(&acl, ADBI_ACL_GROUP, group);
 	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs(&ctx->db, openat(atfd, path, O_DIRECTORY | O_RDONLY | O_CLOEXEC)));
 	adb_wo_obj(&fio, ADBI_DI_ACL, &acl);
 	adb_wo_obj(&fio, ADBI_DI_FILES, &ctx->files);
@@ -396,6 +405,25 @@ static int assign_fields(struct apk_out *out, apk_blob_t *vals, int num_vals, st
 	return 0;
 }
 
+static void mkpkg_setup_compat(struct mkpkg_ctx *ctx)
+{
+	static const char compat_versions[] = {
+		"3.0.0_pre3\0"
+		"3.0.0_rc9\0"
+	};
+	apk_blob_t compat_ver = APK_BLOB_STR(ctx->compat);
+	int i = 0;
+
+	for (const char *v = compat_versions; *v; v += strlen(v) + 1, i++)
+		if (apk_version_compare(compat_ver, APK_BLOB_STR(v)) & APK_VERSION_LESS) break;
+
+	switch (i) {
+	case 0: ctx->compat_rootnode = 1; // fallthrough
+	case 1: ctx->compat_dirnode = 1;  // fallthrough
+	default:
+	}
+}
+
 static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
 {
 	struct apk_out *out = &ac->out;
@@ -410,6 +438,7 @@ static int mkpkg_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	apk_blob_t uid = APK_BLOB_PTR_LEN((char*)d.data, uid_len);
 
 	ctx->ac = ac;
+	mkpkg_setup_compat(ctx);
 	apk_string_array_init(&ctx->pathnames);
 	adb_w_init_alloca(&ctx->db, ADB_SCHEMA_PACKAGE, 40);
 	adb_wo_alloca(&pkg, &schema_package, &ctx->db);

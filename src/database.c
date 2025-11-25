@@ -241,6 +241,9 @@ void apk_db_dir_prepare(struct apk_database *db, struct apk_db_dir *dir, struct 
 	if (dir->created) return;
 	dir->created = 1;
 
+	if (dir->parent && !dir->parent->created)
+		apk_db_dir_prepare(db, dir->parent, apk_default_acl_dir, apk_default_acl_dir);
+
 	apk_fsdir_get(&d, APK_BLOB_PTR_LEN(dir->name, dir->namelen), db->extract_flags, db->ctx, APK_BLOB_NULL);
 	if (!expected_acl) {
 		/* Directory should not exist. Create it. */
