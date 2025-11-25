@@ -5,7 +5,7 @@ project(
 	version: run_command('./get-version.sh', check: true).stdout().strip(),
 	meson_version: '>=0.64'
 )
-so_version = run_command('cat', 'VERSION', check: true).stdout().strip().split()[0]
+so_version = run_command('cat', 'SOVERSION', check: true).stdout().strip()
 
 pkgc = import('pkgconfig')
 
