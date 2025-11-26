@@ -104,19 +104,19 @@ build:fedora:
     - docker-alpine
     - x86_64
 
-upload-release:
+publish-static-build:
   stage: release
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   script:
     - |-
       apk add curl
-      for artifact in build-normal/src/apk.static-*; do
+      for artifact in build-static/src/apk.static-*; do
         ! [ -f "$artifact" ] && { echo "No artifacts found"; exit 1; }
         ARCH=${artifact#*-}
         echo "Uploading binary for $ARCH"
         curl --fail -H "JOB-TOKEN: $CI_JOB_TOKEN" -T "$artifact" -o /dev/null ${PACKAGE_ENDPOINT}/$CI_COMMIT_TAG/$ARCH/apk.static
         done
-    - echo "Making a release"
+    - echo "Publishing release binaries"
   release:
     name: $CI_COMMIT_TAG
     description: "Release $CI_COMMIT_TAG"
