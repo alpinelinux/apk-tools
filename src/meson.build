@@ -88,9 +88,6 @@ if lua_bin.found()
 	lua_env.append('LUA_PATH', meson.current_source_dir() / '?.lua', separator: ';')
 
 	genhelp_args = [lua_bin, genhelp_script, '@INPUT@']
-	if not get_option('compressed-help')
-		genhelp_args += ['--no-zlib']
-	endif
 
 	generated_help = custom_target(
 		'help.h',

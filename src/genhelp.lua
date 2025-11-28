@@ -150,24 +150,37 @@ end
 local scapp = { }
 scapp.__index = scapp
 
-function scapp:compress_none(data)
-	return data
-end
-
-function scapp:compress_gzip(data)
-	local zlib = require 'zlib'
+function scapp:compress(data)
 	local level = 9
-	if type(zlib.version()) == "string" then
-		-- lua-lzlib interface
-		return zlib.compress(data, level)
-	else
-		-- lua-zlib interface
-		return zlib.deflate(level)(data, "finish")
+	local ok, ret = pcall(function()
+		local zlib = require 'zlib'
+		if type(zlib.version()) == "string" then
+			-- lua-lzlib interface
+			return zlib.compress(data, level)
+		else
+			-- lua-zlib interface
+			return zlib.deflate(level)(data, "finish")
+		end
+	end)
+	if not ok then
+		local tmp = os.tmpname()
+		local f = io.open(tmp, 'w')
+		f:write(data)
+		f:close()
+
+		local p = io.popen(('gzip -%d < %s'):format(level, tmp), 'r')
+		if p ~= nil then
+			ret = p:read("*all")
+			p:close()
+		end
+		os.remove(tmp)
+		-- change gzip header to zlib one, remove trailing size
+		ret = "\x78\xda" .. ret:sub(11, -4)
 	end
+	return ret
 end
 
 function scapp:main(arg)
-	self.compress = self.compress_gzip
 	self.format = "apk"
 	self.debug = false
 	self.enabled_applets = {}
@@ -178,8 +191,6 @@ function scapp:main(arg)
 			self.debug = true
 		elseif fn == '--format=bash' then
 			self.format = "bash"
-		elseif fn == '--no-zlib' or fn == '--no-compress' then
-			self.compress = self.compress_none
 		else
 			doc = new_scdoc()
 			doc:parse(fn)
