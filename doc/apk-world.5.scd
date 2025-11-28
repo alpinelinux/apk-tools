@@ -15,7 +15,7 @@ changes.
 # PACKAGE SPECIFICATION
 
 This is a plaintext file with one constraint using dependency notation per line.
-Each line has the format: *name{@tag}{[<>~=]version}*.
+Each line has the format: *[!]name{@tag}{[<>~=]version}*.
 
 When modifying existing installation, the installed version is preferred unless
 an upgrade is requested or a world constraint or package dependency requires
@@ -36,6 +36,10 @@ equal to, less than, greater than, greater than or equal, prefix match, greater
 than or prefix match, or less than or prefix match to the specified version.
 The *~* operator constrains the package to the prefix match of the version number.
 
+The optional *!* in front of the name changes the dependency constraint to
+a conflict and ensures that any package matching the specification is not
+installed.
+
 *busybox*
 	Installs busybox from the untagged repository from which it is
 	available.
@@ -44,6 +48,9 @@ The *~* operator constrains the package to the prefix match of the version numbe
 	Allows installation of busybox and it's dependencies from a repository
 	tagged with "edge". Tagged repositories will not be prioritized. If a
 	version from an untagged repository is a better fit it will be used.
+
+*!unwanted*
+	Prevents installation of unwanted as a dependency by creating a conflict.
 
 *busybox=1.6.1*
 	Install busybox version 1.6.1.
