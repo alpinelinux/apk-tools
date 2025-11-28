@@ -102,7 +102,6 @@ apk_src = [
 ]
 
 apk_cargs = [
-	'-D_ATFILE_SOURCE',
 	'-DAPK_VERSION="' + meson.project_version() + '"',
 ]
 

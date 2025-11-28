@@ -21,7 +21,6 @@ unit_test_exe = executable('unit_tests',
 		libfetch_dep.partial_dependency(includes: true),
 		libportability_dep.partial_dependency(includes: true),
 	],
-	c_args: apk_cargs,
 )
 
 test('unit_tests', unit_test_exe,

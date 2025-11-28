@@ -13,7 +13,6 @@ py_ext = py_inst.extension_module(
 	],
 	install: true,
 	gnu_symbol_visibility: 'hidden',
-	c_args: apk_cargs,
 )
 
 env = environment()
