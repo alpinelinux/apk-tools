@@ -1,41 +1,17 @@
 man_filenames = [
     'apk.8.scd',
-    'apk-adbdump.8.scd',
-    'apk-adbgen.8.scd',
-    'apk-adbsign.8.scd',
-    'apk-add.8.scd',
-    'apk-audit.8.scd',
-    'apk-cache.5.scd',
-    'apk-cache.8.scd',
-    'apk-convdb.8.scd',
-    'apk-convndx.8.scd',
-    'apk-del.8.scd',
-    'apk-dot.8.scd',
-    'apk-extract.8.scd',
-    'apk-fetch.8.scd',
-    'apk-fix.8.scd',
-    'apk-index.8.scd',
-    'apk-info.8.scd',
     'apk-keys.5.scd',
-    'apk-list.8.scd',
-    'apk-manifest.8.scd',
-    'apk-mkndx.8.scd',
-    'apk-mkpkg.8.scd',
     'apk-package.5.scd',
-    'apk-policy.8.scd',
     'apk-protected_paths.5.scd',
-    'apk-query.8.scd',
     'apk-repositories.5.scd',
-    'apk-search.8.scd',
-    'apk-stats.8.scd',
-    'apk-update.8.scd',
-    'apk-upgrade.8.scd',
     'apk-v2.5.scd',
     'apk-v3.5.scd',
-    'apk-verify.8.scd',
-    'apk-version.8.scd',
     'apk-world.5.scd',
 ]
+foreach a : applets
+	man_filenames += [ 'apk-' + a + '.8.scd' ]
+endforeach
+
 man_files = files(man_filenames)
 
 if scdoc_dep.found()

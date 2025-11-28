@@ -8,6 +8,7 @@ option('lua', description: 'Build luaapk (lua bindings)', type: 'feature', value
 option('lua_bin', description: 'Lua binary name', type: 'string', value: '')
 option('lua_pc', description: 'Lua pkgconfig file name', type: 'string', value: '')
 option('lua_version', description: 'Lua version to use with unset lua_bin and lua_pc', type: 'string', value: '5.3')
+option('minimal', description: 'Build with minimal set of commands', type: 'boolean', value: false)
 option('python', description: 'Build python binding', type: 'feature', value: 'auto')
 option('tests', description: 'Build tests', type: 'feature', value: 'auto')
 option('url_backend', description: 'URL backend', type: 'combo', choices: ['libfetch', 'wget'], value: 'libfetch')

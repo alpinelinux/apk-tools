@@ -170,6 +170,7 @@ function scapp:main(arg)
 	self.compress = self.compress_gzip
 	self.format = "apk"
 	self.debug = false
+	self.enabled_applets = {}
 
 	local f = {}
 	for _, fn in ipairs(arg) do
@@ -182,6 +183,7 @@ function scapp:main(arg)
 		else
 			doc = new_scdoc()
 			doc:parse(fn)
+			self.enabled_applets[doc.applet] = true
 			table.insert(f, doc)
 		end
 	end

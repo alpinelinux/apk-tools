@@ -81,18 +81,23 @@ local function render_optgroups(doc, out, groups)
 	end
 end
 
-local function render(doc, out)
+local function render(doc, out, enabled_applets)
 	local width = doc.width
 
 	if not doc.applet then return end
 	table.insert(out, doc.applet .. "\0")
 	table.insert(out, table.concat(doc.usage, "\n"))
 	table.insert(out, "\n")
+	local header = nil
 	if #doc.commands > 0 then
 		for _, cmd in ipairs(doc.commands) do
 			if type(cmd) == "string" then
-				table.insert(out, "\n" .. cmd .. ":\n")
-			else
+				header = "\n" .. cmd .. ":\n"
+			elseif enabled_applets[cmd[1]] then
+				if header then
+					table.insert(out, header)
+					header = nil
+				end
 				table.insert(out, ("  %-10s %s\n"):format(cmd[1], cmd[2]))
 			end
 		end
@@ -138,7 +143,7 @@ local M = {}
 
 function M:generate(app, docs)
 	local out = {}
-	for _, doc in ipairs(docs) do render(doc, out) end
+	for _, doc in ipairs(docs) do render(doc, out, app.enabled_applets) end
 	for _, doc in ipairs(docs) do render_optgroups(doc, out, true) end
 	for _, doc in ipairs(docs) do render_optgroups(doc, out, false) end
 	table.insert(out, "\0")

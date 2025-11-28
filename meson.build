@@ -40,6 +40,44 @@ add_project_arguments('-D_FILE_OFFSET_BITS=64', language: 'c')
 # If we're a subproject we only want the static lib and not files
 subproject = meson.is_subproject()
 
+# applet configuration
+applets = [
+	'adbdump',
+	'add',
+	'audit',
+	'cache',
+	'del',
+	'extract',
+	'fetch',
+	'fix',
+	'info',
+	'list',
+	'manifest',
+	'policy',
+	'query',
+	'update',
+	'upgrade',
+	'search',
+	'stats',
+	'verify',
+	'version',
+]
+
+if not get_option('minimal')
+	applets += [
+		'adbgen',
+		'adbsign',
+		'convdb',
+		'convndx',
+		'dot',
+		'index',
+		'mkndx',
+		'mkpkg',
+	]
+elif not get_option('tests').disabled()
+	error('Tests are not supported with minimal build')
+endif
+
 subdir('doc')
 subdir('portability')
 if get_option('url_backend') == 'libfetch'
@@ -48,10 +86,10 @@ else
 	libfetch_dep = dependency('', required: false)
 endif
 subdir('src')
-if(lua_dep.found())
+if lua_dep.found()
 	subdir('lua')
 endif
-if(python_dep.found())
+if python_dep.found()
 	subdir('python')
 endif
 subdir('test')
