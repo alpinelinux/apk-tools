@@ -163,7 +163,7 @@ if apk_uvol_db_target != ''
 	apk_cargs += ['-DAPK_UVOL_DB_TARGET="@0@"'.format(apk_uvol_db_target)]
 endif
 
-if get_option('zstd')
+if libzstd_dep.found()
 	libapk_src += [ 'io_zstd.c' ]
 	apk_cargs += [ '-DHAVE_ZSTD' ]
 endif

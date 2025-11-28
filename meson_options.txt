@@ -12,4 +12,4 @@ option('python', description: 'Build python binding', type: 'feature', value: 'a
 option('tests', description: 'Build tests', type: 'feature', value: 'auto')
 option('url_backend', description: 'URL backend', type: 'combo', choices: ['libfetch', 'wget'], value: 'libfetch')
 option('uvol_db_target', description: 'Default target for uvol database layer', type: 'string')
-option('zstd', description: 'Build with zstd support', type: 'boolean', value: true)
+option('zstd', description: 'Build with zstd support', type: 'feature', value: 'auto', deprecated: {'true': 'enabled', 'false': 'disabled'})

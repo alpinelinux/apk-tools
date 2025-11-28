@@ -46,7 +46,7 @@ build:alpine-alt-config:
   image: alpinelinux/build-base:latest-x86_64
   script:
     - abuild-apk add -u meson $ALPINE_DEPS
-    - meson setup build -Durl_backend=wget -Dzstd=false
+    - meson setup build -Durl_backend=wget -Dzstd=disabled
     - ninja -C build
   tags:
     - docker-alpine
