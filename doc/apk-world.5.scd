@@ -30,6 +30,9 @@ That is, the dependencies are selected from the tagged repository if the
 available only from the tagged repository. If the dependency can be satisfied
 from non-tagged repository it will be preferred.
 
+Adding *!* in front of a package name ensures that the package gets excluded 
+from getting installed as a dependency. 
+
 To constrain the acceptable versions of the package, use the *=*, *<*, *>*,
 *>=*, *~*, *>~* or *<~* operators. Respectively, these require the package is
 equal to, less than, greater than, greater than or equal, prefix match, greater
@@ -44,6 +47,9 @@ The *~* operator constrains the package to the prefix match of the version numbe
 	Allows installation of busybox and it's dependencies from a repository
 	tagged with "edge". Tagged repositories will not be prioritized. If a
 	version from an untagged repository is a better fit it will be used.
+
+*!unwanted*
+	Prevents installation of unwanted as a dependency by creating a conflict.
 
 *busybox=1.6.1*
 	Install busybox version 1.6.1.
