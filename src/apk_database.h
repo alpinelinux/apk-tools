@@ -197,7 +197,7 @@ struct apk_database {
 	unsigned int active_layers;
 	unsigned int num_dir_update_errors;
 
-	unsigned int root_dev_works : 1;
+	unsigned int script_memfd_ok : 1;
 	unsigned int performing_preupgrade : 1;
 	unsigned int usermode : 1;
 	unsigned int root_tmpfs : 1;
@@ -212,6 +212,9 @@ struct apk_database {
 	unsigned int sorted_installed_packages : 1;
 	unsigned int scripts_tar : 1;
 	unsigned int indent_level : 1;
+	unsigned int root_proc_ok : 1;
+	unsigned int root_dev_ok : 1;
+	unsigned int need_unshare : 1;
 
 	struct apk_dependency_array *world;
 	struct apk_id_cache *id_cache;

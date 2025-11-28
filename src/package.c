@@ -734,7 +734,7 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 
 	argv[0] = fn;
 
-	if (db->root_dev_works) {
+	if (db->script_memfd_ok) {
 		/* Linux kernel >= 6.3 */
 		fd = memfd_create(fn, MFD_EXEC);
 		if (fd < 0 && errno == EINVAL) {
