@@ -51,7 +51,7 @@ struct apk_installed_package *apk_pkg_install(struct apk_database *db,
 	apk_db_dir_instance_array_init(&ipkg->diris);
 
 	/* Overlay override information resides in a nameless package */
-	if (pkg->name != NULL) {
+	if (pkg->name) {
 		db->sorted_installed_packages = 0;
 		db->installed.stats.packages++;
 		db->installed.stats.bytes += pkg->installed_size;
@@ -70,13 +70,14 @@ void apk_pkg_uninstall(struct apk_database *db, struct apk_package *pkg)
 	if (ipkg == NULL)
 		return;
 
-	if (db != NULL) {
-		db->sorted_installed_packages = 0;
-		db->installed.stats.packages--;
-		db->installed.stats.bytes -= pkg->installed_size;
+	if (pkg->name) {
+		list_del(&ipkg->installed_pkgs_list);
+		if (db) {
+			db->sorted_installed_packages = 0;
+			db->installed.stats.packages--;
+			db->installed.stats.bytes -= pkg->installed_size;
+		}
 	}
-
-	list_del(&ipkg->installed_pkgs_list);
 
 	if (apk_array_len(ipkg->triggers) != 0) {
 		list_del(&ipkg->trigger_pkgs_list);
