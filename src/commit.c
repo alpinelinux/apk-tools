@@ -316,6 +316,7 @@ static int run_commit_hooks(struct apk_database *db, int type)
 static void sync_if_needed(struct apk_database *db)
 {
 	struct apk_ctx *ac = db->ctx;
+	if (ac->flags & APK_SIMULATE) return;
 	if (ac->sync == APK_NO) return;
 	if (ac->sync == APK_AUTO && (ac->root_set || db->usermode || !running_on_host())) return;
 	apk_out_progress_note(&ac->out, "syncing disks...");
