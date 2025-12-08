@@ -556,6 +556,7 @@ static int parse_options(int argc, char **argv, struct apk_string_array **args, 
 	struct apk_opt_match m;
 	bool applet_arg_pending = false;
 	int r;
+	char *arg;
 
 	applet = applet_from_arg0(argv[0]);
 	if (!applet) {
@@ -581,7 +582,7 @@ static int parse_options(int argc, char **argv, struct apk_string_array **args, 
 		case 0:
 			break;
 		case OPT_MATCH_NON_OPTION:
-			char *arg = opt_parse_arg(&st);
+			arg = opt_parse_arg(&st);
 			if (applet_arg_pending && strcmp(arg, applet->name) == 0)
 				applet_arg_pending = false;
 			else if (arg[0] || !applet || !applet->remove_empty_arguments)

@@ -429,6 +429,7 @@ static void mkpkg_setup_compat(struct mkpkg_ctx *ctx)
 	case 0: ctx->compat_rootnode = 1; // fallthrough
 	case 1: ctx->compat_dirnode = 1;  // fallthrough
 	default:
+		break;
 	}
 }
 
