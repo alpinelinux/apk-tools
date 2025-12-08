@@ -2031,8 +2031,6 @@ int apk_db_open(struct apk_database *db)
 		db->root_dev_ok = faccessat(db->root_fd, "dev/null", R_OK, 0) == 0;
 		db->need_unshare = db->usermode || (!db->root_proc_ok || !db->root_dev_ok);
 	}
-	if (db->root_dev_ok) db->script_memfd_ok = faccessat(db->root_fd, "dev/fd/0", R_OK, 0) == 0;
-	else db->script_memfd_ok = access("/dev/fd/0", R_OK) == 0;
 
 	db->id_cache = apk_ctx_get_id_cache(ac);
 
@@ -2431,7 +2429,9 @@ int apk_db_run_script(struct apk_database *db, const char *hook_type, const char
 	struct apk_out *out = &ac->out;
 	struct apk_process p;
 	int r, env_size_save = apk_array_len(ac->script_environment);
+	char fd_path[NAME_MAX];
 	const char *argv0 = apk_last_path_segment(argv[0]);
+	const char *path = (fd < 0) ? argv[0] : apk_fmts(fd_path, sizeof fd_path, "/proc/self/fd/%d", fd);
 
 	r = apk_process_init(&p, argv[0], logpfx, out, NULL);
 	if (r != 0) goto err;
@@ -2456,8 +2456,7 @@ int apk_db_run_script(struct apk_database *db, const char *hook_type, const char
 			if (ac->root_set && chroot(".") != 0) script_panic("chroot");
 		}
 		char **envp = &ac->script_environment->item[0];
-		if (fd >= 0) fexecve(fd, argv, envp);
-		execve(argv[0], argv, envp);
+		execve(path, argv, envp);
 		script_panic("execve");
 	}
 	r = apk_process_run(&p);

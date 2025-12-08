@@ -197,7 +197,7 @@ struct apk_database {
 	unsigned int active_layers;
 	unsigned int num_dir_update_errors;
 
-	unsigned int script_memfd_ok : 1;
+	unsigned int memfd_failed : 1;
 	unsigned int performing_preupgrade : 1;
 	unsigned int usermode : 1;
 	unsigned int root_tmpfs : 1;
