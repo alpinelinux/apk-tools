@@ -79,7 +79,7 @@ static int fetch_maperror(struct fetch_error fe)
 	case FETCH_ERRCAT_URL:
 		return APKE_URL_FORMAT;
 	case FETCH_ERRCAT_ERRNO:
-		return fe.code;
+		return fe.code ?: EIO;
 	case FETCH_ERRCAT_NETDB:
 		return fetch_maperr(netdb_err, ARRAY_SIZE(netdb_err), fe.code, APKE_DNS_FAIL);
 	case FETCH_ERRCAT_HTTP:
