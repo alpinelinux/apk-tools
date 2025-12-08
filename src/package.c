@@ -763,6 +763,13 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	if (created) {
 		close(fd);
 		fd = -1;
+	} else {
+#ifdef F_ADD_SEALS
+#ifndef F_SEAL_EXEC
+#define F_SEAL_EXEC	0x0020
+#endif
+		fcntl(fd, F_ADD_SEALS, F_SEAL_EXEC);
+#endif
 	}
 
 	apk_msg(out, "%sExecuting " PKG_VER_FMT ".%s",
