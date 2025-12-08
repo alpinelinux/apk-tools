@@ -70,6 +70,7 @@ struct mkpkg_ctx {
 	unsigned output_stdout : 1;
 	unsigned compat_rootnode : 1;
 	unsigned compat_dirnode : 1;
+	unsigned xattrs : 1;
 };
 
 #define MKPKG_OPTIONS(OPT) \
@@ -81,6 +82,7 @@ struct mkpkg_ctx {
 	OPT(OPT_MKPKG_script,		APK_OPT_ARG APK_OPT_SH("s") "script") \
 	OPT(OPT_MKPKG_stdout,		"stdout") \
 	OPT(OPT_MKPKG_trigger,		APK_OPT_ARG APK_OPT_SH("t") "trigger") \
+	OPT(OPT_MKPKG_xattrs,		APK_OPT_BOOL "xattrs") \
 
 APK_OPTIONS(mkpkg_options_desc, MKPKG_OPTIONS);
 
@@ -133,6 +135,7 @@ static int mkpkg_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 		apk_hash_init(&ictx->link_by_inode, &mkpkg_hardlink_hash_ops, 256);
 		apk_string_array_init(&ictx->triggers);
 		ictx->compat = "3.0.0_pre1";
+		ictx->xattrs = 1;
 		break;
 	case OPT_MKPKG_compat:
 		ictx->compat = optarg;
@@ -171,6 +174,9 @@ static int mkpkg_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 		break;
 	case OPT_MKPKG_trigger:
 		apk_string_array_add(&ictx->triggers, (char*) optarg);
+		break;
+	case OPT_MKPKG_xattrs:
+		ictx->xattrs = APK_OPTARG_VAL(optarg);
 		break;
 	default:
 		return -ENOTSUP;
@@ -327,7 +333,8 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const c
 	adb_wo_int(&acl, ADBI_ACL_MODE, fi.mode & 07777);
 	adb_wo_blob(&acl, ADBI_ACL_USER, apk_id_cache_resolve_user(idc, fi.uid));
 	adb_wo_blob(&acl, ADBI_ACL_GROUP, apk_id_cache_resolve_group(idc, fi.gid));
-	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs(&ctx->db, openat(dirfd, entry, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)));
+	if (ctx->xattrs)
+		adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs(&ctx->db, openat(dirfd, entry, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)));
 	adb_wo_obj(&fio, ADBI_FI_ACL, &acl);
 
 	adb_wa_append_obj(&ctx->files, &fio);
@@ -369,7 +376,8 @@ static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int atfd, const char *
 	adb_wo_int(&acl, ADBI_ACL_MODE, mode);
 	adb_wo_blob(&acl, ADBI_ACL_USER, user);
 	adb_wo_blob(&acl, ADBI_ACL_GROUP, group);
-	adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs(&ctx->db, openat(atfd, path, O_DIRECTORY | O_RDONLY | O_CLOEXEC)));
+	if (ctx->xattrs)
+		adb_wo_val(&acl, ADBI_ACL_XATTRS, create_xattrs(&ctx->db, openat(atfd, path, O_DIRECTORY | O_RDONLY | O_CLOEXEC)));
 	adb_wo_obj(&fio, ADBI_DI_ACL, &acl);
 	adb_wo_obj(&fio, ADBI_DI_FILES, &ctx->files);
 	adb_wa_append_obj(&ctx->paths, &fio);

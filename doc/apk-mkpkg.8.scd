@@ -47,3 +47,6 @@ apk mkpkg - create apkv3 package files
 *--trigger*, *-t* _TRIGGER_
 	Append _TRIGGER_ path specification to list triggers which affect
 	when the *trigger* script is executed.
+
+*--xattrs*[=*BOOL*]
+	Specify if xattrs should be included in the metadata.

@@ -12,7 +12,7 @@ echo "root:x:${uid}:${gid}:root:/root:/bin/sh" > etc/passwd
 echo "root:x:${gid}:root" > etc/group
 mkdir -p files/usr/share/foo/bar
 
-$APK --root=. mkpkg --compat=3.0.0_pre2 -I name:compat -I version:1.0 -F files -o compat-1.0.apk
+$APK --root=. mkpkg --no-xattrs --compat=3.0.0_pre2 -I name:compat -I version:1.0 -F files -o compat-1.0.apk
 $APK adbdump compat-1.0.apk | sed -n '/^paths:/,$p' | diff -u /dev/fd/4 4<<EOF - || assert "wrong fetch result"
 paths: # 5 items
   - acl:
@@ -41,7 +41,7 @@ paths: # 5 items
       group: root
 EOF
 
-$APK --root=. mkpkg --compat=3.0.0_pre3 -I name:compat -I version:1.0 -F files -o compat-1.0.apk
+$APK --root=. mkpkg --no-xattrs --compat=3.0.0_pre3 -I name:compat -I version:1.0 -F files -o compat-1.0.apk
 $APK adbdump compat-1.0.apk | sed -n '/^paths:/,$p' | diff -u /dev/fd/4 4<<EOF - || assert "wrong fetch result"
 paths: # 4 items
   - name: usr
@@ -66,7 +66,7 @@ paths: # 4 items
       group: root
 EOF
 
-$APK --root=. mkpkg --compat=3.0.0_rc9 -I name:compat -I version:1.0 -F files -o compat-1.0.apk
+$APK --root=. mkpkg --no-xattrs --compat=3.0.0_rc9 -I name:compat -I version:1.0 -F files -o compat-1.0.apk
 $APK adbdump compat-1.0.apk | sed -n '/^paths:/,$p' | diff -u /dev/fd/4 4<<EOF - || assert "wrong fetch result"
 paths: # 1 items
   - name: usr/share/foo/bar
