@@ -2030,6 +2030,16 @@ int apk_db_open(struct apk_database *db)
 		db->root_proc_ok = faccessat(db->root_fd, "proc/self", R_OK, 0) == 0;
 		db->root_dev_ok = faccessat(db->root_fd, "dev/null", R_OK, 0) == 0;
 		db->need_unshare = db->usermode || (!db->root_proc_ok || !db->root_dev_ok);
+
+		// Check if unshare() works. It could be disabled, or seccomp filtered (docker).
+		if (db->need_unshare && !db->usermode && unshare(0) < 0) {
+			db->need_unshare = 0;
+			db->memfd_failed = !db->root_proc_ok;
+		}
+	} else {
+		db->root_proc_ok = access("/proc/self", R_OK) == 0;
+		db->root_dev_ok = 1;
+		db->memfd_failed = !db->root_proc_ok;
 	}
 
 	db->id_cache = apk_ctx_get_id_cache(ac);

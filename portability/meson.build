@@ -3,7 +3,6 @@ cc = meson.get_compiler('c')
 libportability_src = []
 
 check_symbols = [
-	['fexecve', '', 'NEED_FEXECVE', 'unistd.h'],
 	['getrandom', 'getrandom.c', 'NEED_GETRANDOM', 'sys/random.h'],
 	['memrchr', 'memrchr.c', 'NEED_MEMRCHR', 'string.h'],
 	['memfd_create', '', 'NEED_MEMFD_CREATE', 'sys/mman.h'],
@@ -14,6 +13,7 @@ check_symbols = [
 	['strchrnul', 'strchrnul.c', 'NEED_STRCHRNUL', 'string.h'],
 	['strlcpy', 'strlcpy.c', 'NEED_STRLCPY', 'string.h'],
 	['SOCK_CLOEXEC', 'socket.c', 'NEED_SOCK_CLOEXEC', 'sys/socket.h'],
+	['unshare', '', 'NEED_UNSHARE', 'sched.h'],
 ]
 
 foreach f : check_symbols
