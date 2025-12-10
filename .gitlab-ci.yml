@@ -20,7 +20,9 @@ variables:
     - meson test -C build
     - install -s -m0755 build-static/src/apk build-static/src/apk.static-$ARCH
   artifacts:
+    when: always
     paths:
+      - build/meson-logs/testlog.txt
       - build-static/src/apk.static-*
     reports:
       junit: build/**/*.junit.xml
@@ -98,6 +100,9 @@ build:fedora:
     - meson compile -C build
     - meson test -C build
   artifacts:
+    when: always
+    paths:
+      - build/meson-logs/testlog.txt
     reports:
       junit: build/**/*.junit.xml
   tags:
