@@ -174,8 +174,6 @@ function scapp:compress(data)
 			p:close()
 		end
 		os.remove(tmp)
-		-- change gzip header to zlib one, remove trailing size
-		ret = "\x78\xda" .. ret:sub(11, -4)
 	end
 	return ret
 end

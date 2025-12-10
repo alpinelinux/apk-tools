@@ -48,12 +48,41 @@ static inline int is_group(struct apk_applet *applet, const char *topic)
 void apk_applet_help(struct apk_applet *applet, struct apk_out *out)
 {
 #ifndef NO_HELP
-	char buf[uncompressed_help_size];
-	unsigned long len = uncompressed_help_size;
+	unsigned char buf[uncompressed_help_size];
 	int num = 0;
+	int ret;
 
-	uncompress((unsigned char*) buf, &len, compressed_help, sizeof compressed_help);
-	for (const char *ptr = buf, *msg; *ptr && ptr < &buf[len]; ptr = msg + strlen(msg) + 1) {
+	if (uncompressed_help_size == 0) {
+		apk_err(out, "No help included");
+		return;
+	}
+
+	z_stream strm = {
+		.zalloc = Z_NULL, /* determines internal malloc routine in zlib */
+		.zfree = Z_NULL, /* determines internal malloc routine in zlib */
+		.opaque = Z_NULL, /* determines internal malloc routine in zlib */
+		.avail_in = sizeof compressed_help,
+		.next_in = (unsigned char *) compressed_help,
+		.avail_out = uncompressed_help_size,
+		.next_out = buf,
+	};
+
+	/* Use inflateInit2 with windowBits=47 (15+32) to auto-detect gzip or zlib format */
+	ret = inflateInit2(&strm, 15 + 32);
+	if (ret != Z_OK) {
+		apk_err(out, "Help decompression init failed");
+		return;
+	}
+
+	ret = inflate(&strm, Z_FINISH);
+	inflateEnd(&strm);
+
+	if (ret != Z_STREAM_END) {
+		apk_err(out, "Help decompression failed");
+		return;
+	}
+
+	for (const char *ptr = (const char *) buf, *msg; *ptr && ptr < (const char *) &buf[strm.total_out]; ptr = msg + strlen(msg) + 1) {
 		msg = ptr + strlen(ptr) + 1;
 		if (is_group(applet, ptr)) {
 			fputc('\n', stdout);
