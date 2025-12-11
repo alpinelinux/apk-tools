@@ -1773,7 +1773,8 @@ static int unshare_mount_namespace(struct apk_database *db)
 	// Create /proc and /dev in the chroot if needed
 	if (!db->root_proc_ok) {
 		mkdir("proc", 0755);
-		mount("/proc", "proc", NULL, MS_BIND, NULL);
+		if (mount("/proc", "proc", NULL, MS_BIND|MS_REC, NULL) < 0)
+			mount("proc", "proc", "proc", 0, NULL);
 	}
 	if (!db->root_dev_ok) {
 		mkdir("dev", 0755);
