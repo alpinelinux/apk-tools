@@ -2445,7 +2445,10 @@ int apk_db_run_script(struct apk_database *db, const char *hook_type, const char
 	const char *path = (fd < 0) ? argv[0] : apk_fmts(fd_path, sizeof fd_path, "/proc/self/fd/%d", fd);
 
 	r = apk_process_init(&p, argv[0], logpfx, out, NULL);
-	if (r != 0) goto err;
+	if (r != 0) {
+		apk_err(out, "%s: process init: %s", argv0, apk_error_str(r));
+		goto err;
+	}
 
 	enb.arr = &ac->script_environment;
 	enb.pos = 0;
