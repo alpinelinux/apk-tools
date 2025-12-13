@@ -63,12 +63,11 @@ int apk_process_init(struct apk_process *p, const char *argv0, const char *logpf
 	};
 	if (IS_ERR(is)) return -PTR_ERR(is);
 
-	if (is) {
-		ret = pipe2(p->pipe_stdin, O_CLOEXEC);
-		if (ret < 0) return errno;
-	} else {
-		p->pipe_stdin[0] = open("/dev/null", O_RDONLY);
-		if (p->pipe_stdin[0] < 0) return errno;
+	ret = pipe2(p->pipe_stdin, O_CLOEXEC);
+	if (ret < 0) return errno;
+
+	if (!is) {
+		close(p->pipe_stdin[1]);
 		p->pipe_stdin[1] = -1;
 	}
 
