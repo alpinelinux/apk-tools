@@ -573,7 +573,7 @@ static int fdi_close(struct apk_istream *is)
 	int r = is->err;
 	struct apk_fd_istream *fis = container_of(is, struct apk_fd_istream, is);
 
-	close(fis->fd);
+	if (fis->fd > STDERR_FILENO) close(fis->fd);
 	free(fis);
 	return r < 0 ? r : 0;
 }
