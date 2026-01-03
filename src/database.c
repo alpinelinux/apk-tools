@@ -1995,6 +1995,7 @@ void apk_db_init(struct apk_database *db, struct apk_ctx *ac)
 	apk_package_array_init(&db->installed.sorted_packages);
 	apk_repoparser_init(&db->repoparser, &ac->out, &db_repoparser_ops);
 	db->root_fd = -1;
+	db->lock_fd = -1;
 	db->noarch = apk_atomize_dup(&db->atoms, APK_BLOB_STRLIT("noarch"));
 }
 
@@ -2221,7 +2222,10 @@ static int apk_db_write_layers(struct apk_database *db)
 
 	for (i = 0; i < APK_DB_LAYER_NUM; i++) {
 		struct layer_data *ld = &layers[i];
-		if (!(db->active_layers & BIT(i))) continue;
+		if (!(db->active_layers & BIT(i))) {
+			ld->fd = -1;
+			continue;
+		}
 
 		ld->fd = openat(db->root_fd, apk_db_layer_name(i), O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 		if (ld->fd < 0) {
@@ -2250,7 +2254,7 @@ static int apk_db_write_layers(struct apk_database *db)
 	pkgs = apk_db_sorted_installed_packages(db);
 	apk_array_foreach_item(pkg, pkgs) {
 		struct layer_data *ld = &layers[pkg->layer];
-		if (!ld->fd) continue;
+		if (ld->fd < 0) continue;
 		apk_db_fdb_write(db, pkg->ipkg, ld->installed);
 		apk_db_scriptdb_write(db, pkg->ipkg, ld->scripts);
 		apk_db_triggers_write(db, pkg->ipkg, ld->triggers);
@@ -2306,7 +2310,7 @@ int apk_db_write_config(struct apk_database *db)
 	if (db->ctx->open_flags & APK_OPENF_CREATE) {
 		apk_make_dirs(db->root_fd, "lib/apk/db", 0755, 0755);
 		apk_make_dirs(db->root_fd, "etc/apk", 0755, 0755);
-	} else if (db->lock_fd == 0) {
+	} else if (db->lock_fd < 0) {
 		apk_err(out, "Refusing to write db without write lock!");
 		return -1;
 	}
@@ -2359,8 +2363,8 @@ void apk_db_close(struct apk_database *db)
 
 	remount_cache_ro(db);
 
-	if (db->cache_fd > 0) close(db->cache_fd);
-	if (db->lock_fd > 0) close(db->lock_fd);
+	if (db->cache_fd >= 0) close(db->cache_fd);
+	if (db->lock_fd >= 0) close(db->lock_fd);
 }
 
 int apk_db_get_tag_id(struct apk_database *db, apk_blob_t tag)
@@ -2503,7 +2507,7 @@ err:
 
 int apk_db_cache_active(struct apk_database *db)
 {
-	return db->cache_fd > 0 && db->ctx->cache_packages;
+	return db->cache_fd >= 0 && db->ctx->cache_packages;
 }
 
 struct foreach_cache_item_ctx {
