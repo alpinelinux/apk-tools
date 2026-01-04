@@ -35,7 +35,7 @@ In addition to the global options (see *apk*(8)), and query options
 *--output*, *-o* _DIR_
 	Write the downloaded file(s) to _DIR_.
 
-*--simulate*[=_BOOL_], *-s*
+*--simulate*[=_BOOL_]
 	Simulate the requested operation without making any changes.
 
 	*Note*: this option is unreliable if needed indexes are not up-to-date
