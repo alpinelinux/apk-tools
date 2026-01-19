@@ -369,7 +369,7 @@ static ssize_t progress_read(struct apk_istream *is, void *ptr, size_t size)
 static int progress_close(struct apk_istream *is)
 {
 	struct apk_progress_istream *pis = container_of(is, struct apk_progress_istream, is);
-	return apk_istream_close(pis->pis);
+	return apk_istream_close_error(pis->pis, is->err);
 }
 
 static const struct apk_istream_ops progress_istream_ops = {
