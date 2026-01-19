@@ -2584,7 +2584,7 @@ struct apk_package *apk_db_get_pkg_by_name(struct apk_database *db, apk_blob_t f
 			struct apk_package *pkg = p->pkg;
 
 			if (pkg->name != name) continue;
-			if (filesize && pkg->size != filesize) continue;
+			if (pkg->size != filesize) continue;
 
 			r = apk_blob_subst(buf, sizeof buf, name_format, apk_pkg_subst, pkg);
 			if (r < 0) continue;
