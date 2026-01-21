@@ -24,6 +24,7 @@
 # include <stdarg.h>
 # include <mntent.h>
 # include <sys/vfs.h>
+# include <sys/wait.h>
 # include <sys/mount.h>
 # include <sys/statvfs.h>
 # include <linux/magic.h>
@@ -1756,6 +1757,18 @@ static int write_file(const char *fn, const char *fmt, ...)
 	return ret;
 }
 
+static bool unshare_check(void)
+{
+	int status;
+
+	if (unshare(0) < 0) return false;
+	pid_t pid = fork();
+	if (pid == -1) return false;
+	if (pid == 0) _Exit(unshare(CLONE_NEWNS) < 0 ? 1 : 0);
+	while (waitpid(pid, &status, 0) < 0 && errno == EINTR);
+	return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
 static int unshare_mount_namespace(struct apk_database *db)
 {
 	if (db->usermode) {
@@ -1870,6 +1883,11 @@ static void remount_cache_ro(struct apk_database *db)
 	db->cache_remount_dir = NULL;
 }
 #else
+static bool unshare_check(void)
+{
+	return false;
+}
+
 static int unshare_mount_namespace(struct apk_database *db)
 {
 	return 0;
@@ -2033,7 +2051,7 @@ int apk_db_open(struct apk_database *db)
 		db->need_unshare = db->usermode || (!db->root_proc_ok || !db->root_dev_ok);
 
 		// Check if unshare() works. It could be disabled, or seccomp filtered (docker).
-		if (db->need_unshare && !db->usermode && unshare(0) < 0) {
+		if (db->need_unshare && !db->usermode && !unshare_check()) {
 			db->need_unshare = 0;
 			db->memfd_failed = !db->root_proc_ok;
 		}
