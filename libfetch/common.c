@@ -952,9 +952,9 @@ fetchFreeURLList(struct url_list *ue)
 static const char *
 fetch_read_word(FILE *f)
 {
-	static char word[1024];
+	static char word[4096];
 
-	if (fscanf(f, " %1023s ", word) != 1)
+	if (fscanf(f, " %4095s ", word) != 1)
 		return (NULL);
 	return (word);
 }
@@ -1007,16 +1007,20 @@ fetch_netrc_auth(struct url *url)
 				goto ferr;
 			if (snprintf(url->user, sizeof(url->user),
 				"%s", word) > (int)sizeof(url->user)) {
-				fetch_info("login name in .netrc is too long");
 				url->user[0] = '\0';
+				fetch_info("login name in .netrc is too long (exceeds %d bytes)",
+				    (int)sizeof(url->user) - 1);
+				goto ferr;
 			}
 		} else if (strcmp(word, "password") == 0) {
 			if ((word = fetch_read_word(f)) == NULL)
 				goto ferr;
 			if (snprintf(url->pwd, sizeof(url->pwd),
 				"%s", word) > (int)sizeof(url->pwd)) {
-				fetch_info("password in .netrc is too long");
 				url->pwd[0] = '\0';
+				fetch_info("password in .netrc is too long (exceeds %d bytes)",
+				    (int)sizeof(url->pwd) - 1);
+				goto ferr;
 			}
 		} else if (strcmp(word, "account") == 0) {
 			if ((word = fetch_read_word(f)) == NULL)
