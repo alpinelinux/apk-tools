@@ -599,7 +599,7 @@ static int compare_providers(struct apk_solver_state *ss,
 		    (solver_flags & APK_SOLVERF_INSTALLED)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r) {
-				dbg_printf("    prefer installed\n");
+				dbg_printf("    prefer installed (preupgrade)\n");
 				return r;
 			}
 		}
@@ -628,10 +628,11 @@ static int compare_providers(struct apk_solver_state *ss,
 		}
 
 		/* Prefer installed */
-		if (!(solver_flags & (APK_SOLVERF_REMOVE|APK_SOLVERF_UPGRADE))) {
+		if (!(solver_flags & (APK_SOLVERF_REMOVE|APK_SOLVERF_UPGRADE)) &&
+		    (pkgA->name == pkgB->name || pA->version != &apk_atom_null || pB->version != &apk_atom_null)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r) {
-				dbg_printf("    prefer installed\n");
+				dbg_printf("    prefer installed (non-upgrade)\n");
 				return r;
 			}
 		}
