@@ -6,6 +6,8 @@ variables:
   PACKAGE_ENDPOINT: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic"
   ALPINE_DEPS: "make gcc git scdoc musl-dev linux-headers openssl-dev zlib-dev lua5.3-dev lua5.3-lzlib cmocka-dev python3-dev"
   ALPINE_STATIC_DEPS: "zlib-static openssl-libs-static"
+  KUBERNETES_CPU_REQUEST: 2
+  KUBERNETES_MEMORY_REQUEST: 256Mi
 
 .build:alpine:
   stage: build
@@ -40,7 +42,7 @@ build:alpine:
         - ppc64le
         - riscv64
   tags:
-    - docker-alpine
+    - ci-build
     - $ARCH
 
 build:alpine-alt-config:
@@ -51,7 +53,7 @@ build:alpine-alt-config:
     - meson setup build -Durl_backend=wget -Dzstd=disabled
     - ninja -C build
   tags:
-    - docker-alpine
+    - ci-build
     - x86_64
 
 build:alpine-muon:
@@ -64,7 +66,7 @@ build:alpine-muon:
     - muon setup -Dpython=disabled -Dc_link_args="-static" -Dprefer_static=true -Ddefault_library=static build-static
     - ninja -C build-static src/apk
   tags:
-    - docker-alpine
+    - ci-build
     - x86_64
 
 build:alpine-legacy:
@@ -74,7 +76,7 @@ build:alpine-legacy:
     - abuild-apk add -u $ALPINE_DEPS zstd-dev
     - make -j$(nproc) check
   tags:
-    - docker-alpine
+    - ci-build
     - x86_64
 
 build:debian:
@@ -88,7 +90,7 @@ build:debian:
     - meson setup build
     - ninja -C build
   tags:
-    - docker-alpine
+    - ci-build
     - x86_64
 
 build:fedora:
@@ -106,7 +108,7 @@ build:fedora:
     reports:
       junit: build/**/*.junit.xml
   tags:
-    - docker-alpine
+    - ci-build
     - x86_64
 
 publish-static:
@@ -149,4 +151,4 @@ publish-static:
     - if: $CI_COMMIT_TAG
   tags:
     - docker-alpine
-    - x86_64
+    - ci-fast
