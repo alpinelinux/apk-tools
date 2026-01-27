@@ -80,8 +80,8 @@ struct apk_progress_istream {
 struct apk_istream *apk_progress_istream(struct apk_progress_istream *pis, struct apk_istream *is, struct apk_progress *p);
 
 struct apk_indent {
-	FILE *f;
-	unsigned int x, indent, width;
+	struct apk_out *out;
+	unsigned int x, indent, err;
 };
 
 void apk_print_indented_init(struct apk_indent *i, struct apk_out *out, int err);
