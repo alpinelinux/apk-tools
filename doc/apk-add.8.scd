@@ -6,7 +6,7 @@ apk add - add or update constraints to _world_ and commit changes
 
 # SYNOPSIS
 
-*apk add* [<_options_>...] _constraints_...
+*apk add* [<_options_>...] [_constraints_|_file_]...
 
 # DESCRIPTION
 
@@ -19,6 +19,11 @@ To upgrade individual packages without modifying _world_ use *apk-fix*(8).
 By default *apk* tries to select a set of packages so that all constraints
 are satisfied. This means that some packages can be held back in an older
 version if there is direct or implicit dependencies to the older version.
+
+If a _file_ is added, a constraint against the package identity hash will
+be add. This constraint ensure that the exact file gets installed and kept.
+To later upgrade or downgrade back to a repository version, use
+*apk upgrade --available*.
 
 # OPTIONS
 
