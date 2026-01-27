@@ -2736,6 +2736,7 @@ static int apk_db_install_v2meta(struct apk_extract_ctx *ectx, struct apk_istrea
 	apk_blob_t l, token = APK_BLOB_STR("\n");
 	int r;
 
+	apk_array_truncate(ctx->ipkg->replaces, 0);
 	while (apk_istream_get_delim(is, token, &l) == 0) {
 		r = read_info_line(ctx, l);
 		if (r < 0) return r;
