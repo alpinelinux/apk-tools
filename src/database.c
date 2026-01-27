@@ -1151,6 +1151,8 @@ static int apk_db_fdb_write(struct apk_database *db, struct apk_installed_packag
 		bbuf = APK_BLOB_BUF(buf);
 
 		apk_array_foreach_item(file, diri->files) {
+			if (file->audited) continue;
+
 			apk_blob_push_blob(&bbuf, APK_BLOB_STR("R:"));
 			apk_blob_push_blob(&bbuf, APK_BLOB_PTR_LEN(file->name, file->namelen));
 			apk_blob_push_blob(&bbuf, APK_BLOB_STR("\n"));
