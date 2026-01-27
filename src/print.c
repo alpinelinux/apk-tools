@@ -405,7 +405,12 @@ void apk_print_indented_init(struct apk_indent *i, struct apk_out *out, int err)
 static int apk_indent_vfprint(struct apk_indent *i, const char *fmt, va_list va)
 {
 	struct apk_out *out = i->out;
-	if (out->log) vfprintf(out->log, fmt, va);
+	if (out->log) {
+		va_list va2;
+		va_copy(va2, va);
+		vfprintf(out->log, fmt, va2);
+		va_end(va2);
+	}
 	return vfprintf(i->err ? i->out->err : i->out->out, fmt, va);
 }
 
