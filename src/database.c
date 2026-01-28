@@ -1319,7 +1319,7 @@ static int apk_db_read_layer(struct apk_database *db, unsigned layer)
 	 * 4. scripts db
 	 */
 
-	fd = openat(db->root_fd, apk_db_layer_name(layer), O_RDONLY | O_CLOEXEC);
+	fd = openat(db->root_fd, apk_db_layer_name(layer), O_RDONLY | O_CLOEXEC | O_DIRECTORY);
 	if (fd < 0) return -errno;
 
 	if (!(flags & APK_OPENF_NO_WORLD)) {
