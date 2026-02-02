@@ -1258,7 +1258,7 @@ int apk_ostream_fmt(struct apk_ostream *os, const char *fmt, ...)
 
 void apk_ostream_copy_meta(struct apk_ostream *os, struct apk_istream *is)
 {
-	struct apk_file_meta meta;
+	struct apk_file_meta meta = { 0 };
 	apk_istream_get_meta(is, &meta);
 	os->ops->set_meta(os, &meta);
 }
