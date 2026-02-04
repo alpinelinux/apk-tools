@@ -91,7 +91,7 @@ static unsigned long csum_hash(apk_blob_t csum)
 	/* Checksum's highest bits have the most "randomness", use that
 	 * directly as hash */
 	if (csum.len >= sizeof(uint32_t))
-		return apk_unaligned_u32(csum.ptr);
+		return apk_unaligned_le32(csum.ptr);
 	return 0;
 }
 

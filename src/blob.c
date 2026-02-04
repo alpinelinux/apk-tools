@@ -98,7 +98,7 @@ static uint32_t murmur3_32(const void *pkey, uint32_t len, uint32_t seed)
 	int i;
 
 	for (i = 0; i < nblocks; i++, key += 4) {
-		k  = apk_unaligned_u32(key);
+		k  = apk_unaligned_le32(key);
 		k *= c1;
 		k  = rotl32(k, 15);
 		k *= c2;
