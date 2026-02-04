@@ -178,7 +178,7 @@ struct apk_array {
 	uint32_t num;
 	uint32_t capacity : 31;
 	uint32_t allocated : 1;
-};
+} __attribute__((aligned(sizeof(void *))));
 
 extern const struct apk_array _apk_array_empty;
 
