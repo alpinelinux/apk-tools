@@ -73,7 +73,7 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, uint64_t sz, struct
 		uint16_t mode;
 
 		if (target.len < 2) goto err_schema;
-		mode = le16toh(*(uint16_t*)target.ptr);
+		mode = apk_unaligned_le16(target.ptr);
 		target.ptr += 2;
 		target.len -= 2;
 		switch (mode) {
