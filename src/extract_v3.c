@@ -81,10 +81,7 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, uint64_t sz, struct
 		case S_IFCHR:
 		case S_IFIFO:
 			if (target.len != sizeof(uint64_t)) goto err_schema;
-			struct unaligned64 {
-				uint64_t value;
-			} __attribute__((packed));
-			fi.device = le64toh(((struct unaligned64 *)target.ptr)->value);
+			fi.device = apk_unaligned_le64(target.ptr);
 			break;
 		case S_IFLNK:
 		case S_IFREG:

@@ -150,37 +150,29 @@ static inline uint64_t apk_calc_installed_size(uint64_t size)
 	return ROUND_UP(size, 4096ULL);
 }
 
-#if defined(__x86_64__) || defined(__i386__)
 static inline uint16_t apk_unaligned_le16(const void *ptr)
 {
-	return *(const uint16_t *)ptr;
+	struct unaligned16 { uint16_t value; } __attribute__((packed));
+	return le16toh(((struct unaligned16 *) ptr)->value);
 }
+
 static inline uint32_t apk_unaligned_le32(const void *ptr)
 {
-	return *(const uint32_t *)ptr;
+	struct unaligned32 { uint32_t value; } __attribute__((packed));
+	return le32toh(((struct unaligned32 *) ptr)->value);
 }
+
 static inline uint64_t apk_unaligned_le64(const void *ptr)
 {
-	return *(const uint64_t *)ptr;
+	struct unaligned64 { uint64_t value; } __attribute__((packed));
+	return le64toh(((struct unaligned64 *) ptr)->value);
 }
-#else
-static inline uint16_t apk_unaligned_le16(const void *ptr)
+
+static inline uint64_t apk_aligned32_le64(const void *ptr)
 {
-	const uint8_t *p = ptr;
-	return p[0] | (uint16_t)p[1] << 8;
+	struct unaligned64 { uint64_t value; } __attribute__((aligned(4)));
+	return le64toh(((struct unaligned64 *) ptr)->value);
 }
-static inline uint32_t apk_unaligned_le32(const void *ptr)
-{
-	const uint8_t *p = ptr;
-	return p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
-}
-static inline uint64_t apk_unaligned_le64(const void *ptr)
-{
-	const uint8_t *p = ptr;
-	return p[0] | (uint64_t)p[1] << 8 | (uint64_t)p[2] << 16 | (uint64_t)p[3] << 24 |
-		(uint64_t)p[4] << 32 | (uint64_t)p[5] << 40 | (uint64_t)p[6] << 48 | (uint64_t)p[7] << 56;
-}
-#endif
 
 time_t apk_get_build_time(time_t);
 

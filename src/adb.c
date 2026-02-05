@@ -434,7 +434,7 @@ uint64_t adb_r_int(const struct adb *db, adb_val_t v)
 	case ADB_TYPE_INT_64:
 		ptr = adb_r_deref(db, v, 0, sizeof(uint64_t));
 		if (!ptr) return 0;
-		return apk_unaligned_le64(ptr);
+		return apk_aligned32_le64(ptr);
 	default:
 		return 0;
 	}
