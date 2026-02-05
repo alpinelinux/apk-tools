@@ -165,6 +165,8 @@ struct apk_istream *apk_istream_zlib(struct apk_istream *is, int raw, apk_multip
 		.is.ops = &gunzip_istream_ops,
 		.is.buf = (uint8_t*)(gis + 1),
 		.is.buf_size = apk_io_bufsize,
+		.is.ptr = (uint8_t*)(gis + 1),
+		.is.end = (uint8_t*)(gis + 1),
 		.zis = is,
 		.cb = cb,
 		.cbctx = ctx,

@@ -82,7 +82,7 @@ struct apk_istream {
 	unsigned int flags;
 	struct apk_progress *prog;
 	const struct apk_istream_ops *ops;
-};
+} __attribute__((aligned(8)));
 
 typedef int (*apk_archive_entry_parser)(void *ctx,
 					const struct apk_file_info *ae,
@@ -144,6 +144,7 @@ struct apk_segment_istream {
 	struct apk_istream *pis;
 	uint64_t bytes_left;
 	time_t mtime;
+	uint8_t align;
 };
 struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct apk_istream *is, uint64_t len, time_t mtime);
 

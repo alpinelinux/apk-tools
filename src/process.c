@@ -316,6 +316,8 @@ struct apk_istream *apk_process_istream(char * const* argv, struct apk_out *out,
 		.is.ops = &process_istream_ops,
 		.is.buf = (uint8_t *)(pis + 1),
 		.is.buf_size = apk_io_bufsize,
+		.is.ptr = (uint8_t *)(pis + 1),
+		.is.end = (uint8_t *)(pis + 1),
 	};
 	r = apk_process_init(&pis->proc, apk_last_path_segment(argv[0]), logpfx, out, NULL);
 	if (r != 0) goto err;

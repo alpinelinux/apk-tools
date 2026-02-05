@@ -161,6 +161,8 @@ struct apk_istream *apk_io_url_istream(const char *url, time_t since)
 		.is.ops = &fetch_istream_ops,
 		.is.buf = (uint8_t*)(fis+1),
 		.is.buf_size = apk_io_bufsize,
+		.is.ptr = (uint8_t*)(fis+1),
+		.is.end = (uint8_t*)(fis+1),
 		.fetchIO = io,
 		.urlstat = fis->urlstat,
 	};

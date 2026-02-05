@@ -33,6 +33,9 @@
 #define HAVE_O_TMPFILE
 #endif
 
+// The granularity for the file offset and istream buffer alignment synchronization.
+#define APK_ISTREAM_ALIGN_SYNC 8
+
 size_t apk_io_bufsize = 128*1024;
 
 
@@ -111,16 +114,18 @@ ssize_t apk_istream_read_max(struct apk_istream *is, void *ptr, size_t size)
 		if (left > is->buf_size/4) {
 			r = is->ops->read(is, ptr, left);
 			if (r <= 0) break;
+			is->ptr = is->end = &is->buf[(is->ptr - is->buf + r) % APK_ISTREAM_ALIGN_SYNC];
 			left -= r;
 			ptr += r;
 			continue;
 		}
 
-		r = is->ops->read(is, is->buf, is->buf_size);
+		is->ptr = is->end = &is->buf[(is->ptr - is->buf) % APK_ISTREAM_ALIGN_SYNC];
+
+		r = is->ops->read(is, is->ptr, is->buf + is->buf_size - is->ptr);
 		if (r <= 0) break;
 
-		is->ptr = is->buf;
-		is->end = is->buf + r;
+		is->end = is->ptr + r;
 	}
 
 	if (r < 0) return apk_istream_error(is, r);
@@ -136,19 +141,20 @@ int apk_istream_read(struct apk_istream *is, void *ptr, size_t size)
 
 static int __apk_istream_fill(struct apk_istream *is)
 {
-	ssize_t sz;
-
 	if (is->err) return is->err;
 
-	if (is->ptr != is->buf) {
-		sz = is->end - is->ptr;
-		memmove(is->buf, is->ptr, sz);
-		is->ptr = is->buf;
-		is->end = is->buf + sz;
-	} else if (is->end-is->ptr == is->buf_size)
-		return -ENOBUFS;
+	size_t offs = is->ptr - is->buf;
+	if (offs >= APK_ISTREAM_ALIGN_SYNC) {
+		size_t buf_used = is->end - is->ptr;
+		uint8_t *ptr = &is->buf[offs % APK_ISTREAM_ALIGN_SYNC];
+		memmove(ptr, is->ptr, buf_used);
+		is->ptr = ptr;
+		is->end = ptr + buf_used;
+	} else {
+		if (is->end == is->buf+is->buf_size) return -ENOBUFS;
+	}
 
-	sz = is->ops->read(is, is->end, is->buf + is->buf_size - is->end);
+	ssize_t sz = is->ops->read(is, is->end, is->buf + is->buf_size - is->end);
 	if (sz <= 0) return apk_istream_error(is, sz ?: 1);
 	is->end += sz;
 	return 0;
@@ -282,6 +288,7 @@ static ssize_t segment_read(struct apk_istream *is, void *ptr, size_t size)
 		if (r == 0) r = -ECONNABORTED;
 	} else {
 		sis->bytes_left -= r;
+		sis->align += r;
 	}
 	return r;
 }
@@ -290,6 +297,7 @@ static int segment_close(struct apk_istream *is)
 {
 	struct apk_segment_istream *sis = container_of(is, struct apk_segment_istream, is);
 
+	if (!sis->pis->ptr) sis->pis->ptr = sis->pis->end = &is->buf[sis->align % APK_ISTREAM_ALIGN_SYNC];
 	if (sis->bytes_left) apk_istream_skip(sis->pis, sis->bytes_left);
 	return is->err < 0 ? is->err : 0;
 }
@@ -316,6 +324,9 @@ struct apk_istream *apk_istream_segment(struct apk_segment_istream *sis, struct 
 		sis->is.end = sis->is.ptr + len;
 		is->ptr += len;
 	} else {
+		// Calculated at segment_closet again, set to null to catch if
+		// the inner istream is used before segment close.
+		sis->align = is->end - is->buf;
 		is->ptr = is->end = 0;
 	}
 	sis->bytes_left -= sis->is.end - sis->is.ptr;
@@ -600,6 +611,8 @@ struct apk_istream *apk_istream_from_fd(int fd)
 		.is.ops = &fd_istream_ops,
 		.is.buf = (uint8_t *)(fis + 1),
 		.is.buf_size = apk_io_bufsize,
+		.is.ptr = (uint8_t *)(fis + 1),
+		.is.end = (uint8_t *)(fis + 1),
 		.fd = fd,
 	};
 

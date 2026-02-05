@@ -119,3 +119,65 @@ APK_TEST(io_foreach_config_file) {
 
 	assert_int_equal(0, apk_dir_foreach_config_file(MOCKFD, assert_path_entry, NULL, apk_filename_is_hidden, "a", "b", NULL));
 }
+
+APK_TEST(io_istream_align) {
+	struct apk_istream *is = apk_istream_from_file(AT_FDCWD, "/dev/zero");
+	struct apk_segment_istream seg;
+	size_t bufsz = 1024*1024;
+	uint8_t *buf = malloc(bufsz), *ptr;
+
+	assert_int_equal(0, apk_istream_read(is, buf, 1024));
+
+	ptr = apk_istream_get(is, 1024);
+	assert_ptr_ok(ptr);
+	assert_int_equal(0, (uintptr_t)ptr & 7);
+
+	assert_ptr_ok(apk_istream_get(is, 7));
+	assert_ptr_ok(apk_istream_get(is, apk_io_bufsize - 1024));
+	assert_ptr_ok(apk_istream_get(is, 1));
+
+	ptr = apk_istream_get(is, 64);
+	assert_ptr_ok(ptr);
+	assert_int_equal(0, (uintptr_t)ptr & 7);
+
+	assert_int_equal(0, apk_istream_read(is, buf, bufsz - 1));
+	assert_int_equal(0, apk_istream_read(is, buf, 1));
+	ptr = apk_istream_get(is, 64);
+	assert_ptr_ok(ptr);
+	assert_int_equal(0, (uintptr_t)ptr & 7);
+
+	apk_istream_segment(&seg, is, 1024-1, 0);
+	apk_istream_close(&seg.is);
+	assert_ptr_ok(apk_istream_get(is, 1));
+	ptr = apk_istream_get(is, 64);
+	assert_ptr_ok(ptr);
+	assert_int_equal(0, (uintptr_t)ptr & 7);
+
+	apk_istream_segment(&seg, is, bufsz-1, 0);
+	apk_istream_close(&seg.is);
+	assert_ptr_ok(apk_istream_get(is, 1));
+	ptr = apk_istream_get(is, 64);
+	assert_ptr_ok(ptr);
+	assert_int_equal(0, (uintptr_t)ptr & 7);
+
+	assert_ptr_ok(apk_istream_get(is, 7));
+	apk_istream_segment(&seg, is, bufsz-7, 0);
+	assert_int_equal(0, apk_istream_read(&seg.is, buf, bufsz-10));
+	assert_int_equal(0, apk_istream_read(&seg.is, buf, 1));
+	apk_istream_close(&seg.is);
+	ptr = apk_istream_get(is, 64);
+	assert_ptr_ok(ptr);
+	assert_int_equal(0, (uintptr_t)ptr & 7);
+
+	apk_istream_segment(&seg, is, bufsz*2+1, 0);
+	assert_int_equal(0, apk_istream_read(&seg.is, buf, bufsz));
+	assert_int_equal(0, apk_istream_read(&seg.is, buf, bufsz));
+	apk_istream_close(&seg.is);
+	assert_int_equal(0, apk_istream_read(is, buf, 7));
+	ptr = apk_istream_get(is, 64);
+	assert_ptr_ok(ptr);
+	assert_int_equal(0, (uintptr_t)ptr & 7);
+
+	apk_istream_close(is);
+	free(buf);
+}
