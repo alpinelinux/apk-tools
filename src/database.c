@@ -1996,6 +1996,7 @@ void apk_db_init(struct apk_database *db, struct apk_ctx *ac)
 	apk_repoparser_init(&db->repoparser, &ac->out, &db_repoparser_ops);
 	db->root_fd = -1;
 	db->lock_fd = -1;
+	db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
 	db->noarch = apk_atomize_dup(&db->atoms, APK_BLOB_STRLIT("noarch"));
 }
 
@@ -2020,7 +2021,6 @@ int apk_db_open(struct apk_database *db)
 	setup_cache_repository(db, APK_BLOB_STR(ac->cache_dir));
 	db->root_fd = apk_ctx_fd_root(ac);
 	db->root_tmpfs = (ac->root_tmpfs == APK_AUTO) ? detect_tmpfs(db->root_fd) : ac->root_tmpfs;
-	db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
 	db->usermode = !!(ac->open_flags & APK_OPENF_USERMODE);
 
 	if (!(ac->open_flags & APK_OPENF_CREATE)) {
