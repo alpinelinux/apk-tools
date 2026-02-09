@@ -338,7 +338,7 @@ int apk_deps_write_layer(struct apk_database *db, struct apk_dependency_array *d
 		apk_blob_push_dep(&blob, db, dep);
 
 		blob = apk_blob_pushed(APK_BLOB_BUF(tmp), blob);
-		if (APK_BLOB_IS_NULL(blob) || 
+		if (APK_BLOB_IS_NULL(blob) ||
 		    apk_ostream_write(os, blob.ptr, blob.len) < 0)
 			return -1;
 

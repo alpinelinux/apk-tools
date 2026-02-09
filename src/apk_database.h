@@ -30,7 +30,7 @@ struct apk_db_acl {
 	uid_t uid;
 	gid_t gid;
 	uint8_t xattr_hash_len;
-	uint8_t xattr_hash[];
+	uint8_t xattr_hash[0];
 } __attribute__((packed));
 
 static inline apk_blob_t apk_acl_digest_blob(struct apk_db_acl *acl) {

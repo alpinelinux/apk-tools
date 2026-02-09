@@ -98,7 +98,7 @@ struct apk_package {
 	unsigned char cached : 1;
 	unsigned char layer : 3;
 	uint8_t digest_alg;
-	uint8_t digest[];
+	uint8_t digest[0];
 };
 
 static inline apk_blob_t apk_pkg_hash_blob(const struct apk_package *pkg) {
