@@ -205,16 +205,18 @@ struct apk_provider_array *apk_name_sorted_providers(struct apk_name *name)
 
 static struct apk_db_acl *__apk_db_acl_atomize(struct apk_database *db, mode_t mode, uid_t uid, gid_t gid, uint8_t hash_len, const uint8_t *hash)
 {
-	struct {
-		struct apk_db_acl acl;
-		uint8_t digest[APK_DIGEST_LENGTH_MAX];
-	} data;
+	struct apk_db_acl *acl;
 	apk_blob_t *b;
 
-	data.acl = (struct apk_db_acl) { .mode = mode & 07777, .uid = uid, .gid = gid, .xattr_hash_len = hash_len };
-	if (hash_len) memcpy(data.digest, hash, hash_len);
+	acl = alloca(sizeof(*acl) + hash_len);
+	acl->mode = mode & 07777;
+	acl->uid = uid;
+	acl->gid = gid;
+	acl->xattr_hash_len = hash_len;
 
-	b = apk_atomize_dup(&db->atoms, APK_BLOB_PTR_LEN((char*) &data, sizeof(data.acl) + hash_len));
+	if (hash_len) memcpy(acl->xattr_hash, hash, hash_len);
+
+	b = apk_atomize_dup(&db->atoms, APK_BLOB_PTR_LEN((char*) acl, sizeof(*acl) + hash_len));
 	return (struct apk_db_acl *) b->ptr;
 }
 
