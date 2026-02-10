@@ -114,7 +114,7 @@ struct adb_sign_hdr {
 struct adb_sign_v0 {
 	struct adb_sign_hdr hdr;
 	uint8_t id[16];
-	uint8_t sig[0];
+	uint8_t sig[];
 };
 
 /* Schema */
