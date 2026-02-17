@@ -759,11 +759,7 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 	if (!db->memfd_failed) {
 		/* Linux kernel >= 6.3 */
 		fd = memfd_create(fn, MFD_EXEC|MFD_ALLOW_SEALING);
-		if (fd < 0 && errno == EINVAL) {
-			/* Linux kernel < 6.3 */
-			fd = memfd_create(fn, MFD_ALLOW_SEALING);
-			if (fd < 0) db->memfd_failed = 1;
-		}
+		if (fd < 0) db->memfd_failed = 1;
 	}
 	if (!db->script_dirs_checked) {
 		if (fd < 0 && apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0) {
@@ -791,7 +787,8 @@ int apk_ipkg_run_script(struct apk_installed_package *ipkg,
 		fd = -1;
 	} else {
 #ifdef F_ADD_SEALS
-		fcntl(fd, F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE);
+		fcntl(fd, F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW
+			| F_SEAL_WRITE | F_SEAL_FUTURE_WRITE | F_SEAL_EXEC);
 #endif
 	}
 

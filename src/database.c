@@ -1761,6 +1761,18 @@ static int write_file(const char *fn, const char *fmt, ...)
 	return ret;
 }
 
+static bool memfd_exec_check(void)
+{
+	char val[8];
+	bool ret = false;
+	int fd = open("/proc/sys/vm/memfd_noexec", O_RDONLY);
+	if (fd >= 0) {
+		if (read(fd, val, sizeof val) >= 1 && val[0] < '2') ret = true;
+		close(fd);
+	}
+	return ret;
+}
+
 static bool unshare_check(void)
 {
 	int status;
@@ -1887,30 +1899,12 @@ static void remount_cache_ro(struct apk_database *db)
 	db->cache_remount_dir = NULL;
 }
 #else
-static bool unshare_check(void)
-{
-	return false;
-}
-
-static int unshare_mount_namespace(struct apk_database *db)
-{
-	return 0;
-}
-
-static int detect_tmpfs(int fd)
-{
-	return 0;
-}
-
-static int remount_cache_rw(struct apk_database *db)
-{
-	return 0;
-}
-
-static void remount_cache_ro(struct apk_database *db)
-{
-	(void) db;
-}
+static bool memfd_exec_check(void) { return false; }
+static bool unshare_check(void) { return false; }
+static int unshare_mount_namespace(struct apk_database *db) { return 0; }
+static int detect_tmpfs(int fd) { return 0; }
+static int remount_cache_rw(struct apk_database *db) { return 0; }
+static void remount_cache_ro(struct apk_database *db) { }
 #endif
 
 static int setup_cache(struct apk_database *db)
@@ -2065,6 +2059,7 @@ int apk_db_open(struct apk_database *db)
 		db->root_dev_ok = 1;
 		db->memfd_failed = !db->root_proc_ok;
 	}
+	if (!db->memfd_failed) db->memfd_failed = !memfd_exec_check();
 
 	db->id_cache = apk_ctx_get_id_cache(ac);
 

@@ -12,3 +12,9 @@
 #ifndef F_SEAL_WRITE
 #define F_SEAL_WRITE	0x0008
 #endif
+#ifndef F_SEAL_FUTURE_WRITE
+#define F_SEAL_FUTURE_WRITE	0x0010
+#endif
+#ifndef F_SEAL_EXEC
+#define F_SEAL_EXEC	0x0020
+#endif
