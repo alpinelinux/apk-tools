@@ -87,7 +87,7 @@ static int mkndx_parse_option(void *ctx, struct apk_ctx *ac, int optch, const ch
 		ictx->pkgname_spec_set = 1;
 		break;
 	case OPT_MKNDX_rewrite_arch:
-		apk_err(out, "--rewrite-arch is removed, use instead: --pkgspec-name '%s/${name}-${package}.apk'", optarg);
+		apk_err(out, "--rewrite-arch is removed, use instead: --pkgname-spec '%s/${name}-${version}.apk'", optarg);
 		return -ENOTSUP;
 	default:
 		return -ENOTSUP;
