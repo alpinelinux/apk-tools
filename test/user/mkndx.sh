@@ -8,6 +8,9 @@ TESTDIR=$(realpath "${TESTDIR:-"$(dirname "$0")"/..}")
 setup_apkroot
 APK="$APK --allow-untrusted --no-interactive --no-cache"
 
+$APK mkpkg && assert "no parameters is an error"
+[ $? = 99 ] || assert "wrong error code"
+
 $APK mkpkg -I name:test-a -I version:1.0 -I tags:"tagA tagC=1" -o test-a-1.0.apk
 $APK mkpkg -I name:test-b -I version:1.0 -I tags:"tagB tagC=2" -o test-b-1.0.apk
 $APK mkpkg -I name:test-c -I version:1.0 -I "recommends:test-a" -o test-c-1.0.apk
