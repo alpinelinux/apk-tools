@@ -11,7 +11,10 @@ APK="$APK --allow-untrusted --no-interactive --no-cache"
 $APK mkpkg && assert "no parameters is an error"
 [ $? = 99 ] || assert "wrong error code"
 
+$APK mkpkg -I name:aaa -I version:1.0 -o aaa-1.0.apk
 $APK mkpkg -I name:test-a -I version:1.0 -I tags:"tagA tagC=1" -o test-a-1.0.apk
+$APK mkpkg -I name:test-a -I version:2.0 -o test-a-2.0.apk
+$APK mkpkg -I name:test-a -I version:3.0 -o test-a-3.0.apk
 $APK mkpkg -I name:test-b -I version:1.0 -I tags:"tagB tagC=2" -o test-b-1.0.apk
 $APK mkpkg -I name:test-c -I version:1.0 -I "recommends:test-a" -o test-c-1.0.apk
 
@@ -43,9 +46,12 @@ $APK fetch --url --simulate --from none --repository index.adb --pkgname-spec '$
 ./tes/test-b-1.0.apk
 EOF
 
-$APK mkndx -vv --filter-spec '${name}-${version}' --pkgname-spec 'http://test/${name}-${version}.apk' -x index.adb -o index-filtered.adb test-a-1.0
-$APK fetch --url --simulate --from none --repository index-filtered.adb --pkgname-spec '${name}_${version}.pkg' test-a 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong fetch result"
+$APK mkndx -vv -o index-unfiltered.adb aaa-1.0.apk test-a-1.0.apk test-a-2.0.apk test-a-3.0.apk test-b-1.0.apk test-c-1.0.apk
+$APK mkndx -vv --filter-spec '${name}-${version}' --pkgname-spec 'http://test/${name}-${version}.apk' -x index-unfiltered.adb -o index-filtered.adb test-a-1.0 aaa-1.0 test-c-1.0
+$APK fetch --url --simulate --from none --repository index-filtered.adb --pkgname-spec '${name}_${version}.pkg' "*" 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong fetch result"
+http://test/aaa-1.0.apk
 http://test/test-a-1.0.apk
+http://test/test-c-1.0.apk
 EOF
 
 $APK query --format=yaml --repository index.adb --fields name,recommends "test-c" 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong fetch result"

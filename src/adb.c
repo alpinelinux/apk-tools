@@ -606,12 +606,12 @@ int adb_ra_find(struct adb_obj *arr, int cur, struct adb_obj *tmpl)
 		unsigned m, l = ADBI_FIRST, r = adb_ra_num(arr) + 1;
 		while (l < r) {
 			m = (l + r) / 2;
-			if (adb_ro_cmpobj(tmpl, adb_ro_obj(arr, m, &obj), ADB_OBJCMP_INDEX) < 0)
+			if (adb_ro_cmpobj(tmpl, adb_ro_obj(arr, m, &obj), ADB_OBJCMP_INDEX) <= 0)
 				r = m;
 			else
 				l = m + 1;
 		}
-		cur = r - 1;
+		cur = r;
 	} else {
 		cur++;
 	}
