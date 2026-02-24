@@ -328,7 +328,8 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 			if (ctx->pkgname_spec_set &&
 			    (apk_blob_subst(buf, sizeof buf, ctx->pkgname_spec, adb_s_field_subst, &ctx->pkginfo) < 0 ||
 			     strcmp(apk_last_path_segment(buf), apk_last_path_segment(arg)) != 0))
-				apk_warn(out, "%s: not matching package name specification '%s'", arg, buf);
+				apk_warn(out, "%s: not matching package name specification '" BLOB_FMT "'",
+					arg, BLOB_PRINTF(ctx->pkgname_spec));
 
 			apk_dbg(out, "%s: indexed new package", arg);
 			val = adb_wa_append_obj(&ctx->pkgs, &ctx->pkginfo);
