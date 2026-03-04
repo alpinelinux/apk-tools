@@ -15,7 +15,7 @@ the checksums and cryptographic signature.
 
 *apk verify* prints a summary of the results on stdout, and exits with status
 code zero if all packages were successfully verified. If any failed, *apk
-verify* exits with a nonzero status.
+verify* exits with a non-zero status.
 
 # OPTIONS
 

@@ -40,7 +40,7 @@ following options:
 	dependencies cannot be satisfied.
 
 *--no-chown*
-	Deperecated alias for --usermode.
+	Deprecated alias for --usermode.
 
 *--upgrade*, *-u*
 	Upgrade _packages_ and their dependencies. Normally *apk add* will

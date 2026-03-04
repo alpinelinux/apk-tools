@@ -22,7 +22,7 @@ In the default mode, _query_ specifiers are interpreted as follows:
 
 In the *--recursive* mode, the _constraints_ specify a list of dependencies
 to satisfy and the solver algorithm is used to determine a list of packages
-that fullfill these constraints.
+that fulfil these constraints.
 
 The query executes in the following steps:
 . Each _query_ string is executed independently to select candidate packages
@@ -44,7 +44,7 @@ The applets supporting query specifiers recognize the following options:
 *--fields* _FIELDS_[:_REVERSE_FIELD_]
 	A comma separated list of fields to include in the output. An optional
 	specification to specify the field to output for the synthetic reverse
-	dependency fields can be specifed (*name*, *package* or *origin*).
+	dependency fields can be specified (*name*, *package* or *origin*).
 
 *--format* _FORMATSPEC_
 	Specify output format from *default*, *yaml* or *json*. The *default*
@@ -53,7 +53,7 @@ The applets supporting query specifiers recognize the following options:
 *--from* _FROMSPEC_
 	Search packages from: *system* (all system sources), *repositories*
 	(exclude installed database), *installed* (exclude normal repositories)
-	or *none* (commandline repositories only).
+	or *none* (command-line repositories only).
 
 *--installed*
 	Filter selection to installed packages.

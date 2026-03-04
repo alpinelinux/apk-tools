@@ -39,7 +39,7 @@ In addition to the global options (see *apk*(8)), and query options
 	Simulate the requested operation without making any changes.
 
 	*Note*: this option is unreliable if needed indexes are not up-to-date
-	as this omits refresing or downloading of missing indexes.
+	as this omits refreshing or downloading of missing indexes.
 
 *--stdout*, *-s*
 	Dump the .apk file(s) to stdout.

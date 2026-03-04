@@ -22,7 +22,7 @@ By default apk is non-interactive. See *FILES* or *--interactive* on changing
 this default to be interactive.
 
 Only _global options_ should be specified before _command_. For backwards
-compatilibity a best effort attempt is made to parse applet specific options
+compatibility a best effort attempt is made to parse applet specific options
 before the _command_, but this is deprecated and subject to be removed.
 
 # COMMANDS
@@ -141,7 +141,7 @@ The following options are available for all commands.
 	if */etc/apk/cache* symlink exists.
 
 *--cache-predownload*[=_BOOL_]
-	Download needed packages to cache before starting to commit a transtaction.
+	Download needed packages to cache before starting to commit a transaction.
 	Requires cache to be configured to be functional. Implies *--cache-packages*.
 
 *--check-certificate*[=_BOOL_]
@@ -451,7 +451,7 @@ timeout 120
 */etc/apk/commit_hooks.d/\**++
 */lib/apk/commit_hooks.d/\**
 	Hook scripts which are executed before anything has been written to the
-	filesystem and after all the changes have been commited. The script
+	filesystem and after all the changes have been committed. The script
 	executed gets as an argument the stage name (*pre-commit* or
 	*post-commit*). If the script returns failure during *pre-commit* stage,
 	the commit is aborted.

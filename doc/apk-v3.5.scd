@@ -56,7 +56,7 @@ sequence starts. The first slot is always the total number of slots, so
 all arrays and objects contain at least one item.
 
 The only real difference between arrays and objects in the wire encoding
-is that arrays are homogenous, whereas objects are heterogenous with a
+is that arrays are homogenous, whereas objects are heterogeneous with a
 separate defined type for each slot.
 
 The special type is used to represent three atoms:
@@ -138,11 +138,11 @@ metadata describing the version of the adb format in use.
 The SIG block contains one or more signatures of the ADB block. Signatures
 of the same version should be in the same SIG block. If in future, a new
 signature version is specified, and package should contain for compatibility
-reasons two different versions of signature during transiton time, then there
+reasons two different versions of signature during transition time, then there
 should be two signature blocks, one of each version.
 
 Unlike the v2 format, the key name used for the signature is not
-explicitly specified. Instead an intrisic ID of the key is used for the
+explicitly specified. Instead an intrinsic ID of the key is used for the
 lookup, so verifiers must find the key based in the key ID. Also unlike
 the v2 format, the ADB block is not signed directly, but it is hashed
 first by a secure digest (currently SHA512). After this a small payload

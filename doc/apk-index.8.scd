@@ -11,7 +11,7 @@ apk index - create repository index file from packages
 # DESCRIPTION
 
 *apk index* creates a repository index from a list of package files. See
-*apk-repositories*(5) for more information on repository indicies.
+*apk-repositories*(5) for more information on repository indices.
 
 Generally, the resulting index must be cryptographically signed before *apk*
 will accept it. See *abuild-sign*(1) for details.

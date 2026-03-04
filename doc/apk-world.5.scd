@@ -7,7 +7,7 @@ apk-world(5)
 # DESCRIPTION
 
 At /etc/apk/world, apk maintains the _world_, that is, a list of constraints
-the package selection needs to fulfill.
+the package selection needs to fulfil.
 
 If you edit this file manually, you should run *apk-fix*(8) to apply the
 changes.

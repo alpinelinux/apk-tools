@@ -16,7 +16,7 @@ are specified, all packages are upgraded if possible. If list of packages is
 provided, only those packages are upgraded along with needed dependencies.
 
 If dependencies mentioned in *--preupgrade-depends* (see *apk*(8)) match
-an upgradabable package, a preupgrade step is performed. During the preupgrade
+an upgradable package, a preupgrade step is performed. During the preupgrade
 step, the installed packages matching the preupgrade dependencies are upgraded
 if possible - their dependencies are enforced (but not upgraded unless required
 by the dependencies in the new package).

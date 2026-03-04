@@ -11,7 +11,7 @@ apk mkndx - create apkv3 repository index file from packages
 # DESCRIPTION
 
 *apk mkndx* creates a repository index from a list of package files. See
-*apk-repositories*(5) for more information on repository indicies.
+*apk-repositories*(5) for more information on repository indices.
 
 # OPTIONS
 
@@ -63,7 +63,7 @@ apk mkndx - create apkv3 repository index file from packages
 	- hash
 
 	Additionally a prefix of the variable can used with syntax: *${name:4}*. This
-	truncates the substition to maximum of 4 characters.
+	truncates the substitution to maximum of 4 characters.
 
 	The specification writer should ensure that the repository does not contain
 	multiple packages that would expand to same package filename.

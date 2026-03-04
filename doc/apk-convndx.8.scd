@@ -10,7 +10,7 @@ apk convndx - convert v2 indexes to v3 format
 
 # DESCRIPTION
 
-*apk convndx* reads the specifed _indexes_ and generates and merges them.
+*apk convndx* reads the specified _indexes_ and generates and merges them.
 The resulting data is written out to stdout in apkv3 index format.
 
 # OPTIONS

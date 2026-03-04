@@ -29,8 +29,8 @@ the user.
 
 APK will often display concatenation of *name*-*version* in its verbose
 output mode. The rule below on how a valid version number is defined allow
-that this format can be uniquely splitted back to the two components by
-finding the *last* occurance of *-[0-9]*. The dash in the beginning of this
+that this format can be uniquely split back to the two components by
+finding the *last* occurrence of *-[0-9]*. The dash in the beginning of this
 match is the splitting point: first portion is the *name* and second
 portion is the *version*.
 
@@ -62,7 +62,7 @@ Unfortunately it is not possible to deduce if a given string is of format
 
 	This can be followed with an optional *{~hash}* to indicate a commit
 	hash from where it was built. This can be any length string of
-	lower case hexdecimal digits (0-9a-f).
+	lower case hexadecimal digits (0-9a-f).
 
 	Finally an optional package build component *-r{number}* can follow.
 
@@ -217,7 +217,7 @@ Unfortunately it is not possible to deduce if a given string is of format
 *replaces* (*r*)
 	List of package names this package is allowed to replace files from.
 	Normally apk treats it as an error if multiple packages contain the
-	same file. Specifying a replaces declartion allows the package to
+	same file. Specifying a replaces declaration allows the package to
 	silently overwrite files from the listed packages.
 
 *install-if* (*install_if*, *i*)
@@ -245,7 +245,7 @@ Unfortunately it is not possible to deduce if a given string is of format
 	  the uvol volume manager should be used to install the images
 
 	In addition to controlling where the package content goes, this also
-	affects the installad database where the metadata of these packages
+	affects the installed database where the metadata of these packages
 	go. Each layer has a separate installed database.
 
 *tags*

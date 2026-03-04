@@ -15,7 +15,7 @@ apk mkpkg - create apkv3 package files
 # OPTIONS
 
 *--compat* _APK_VERSION_
-	Produces packages comptable with given apk versions. The default
+	Produces packages compatible with given apk versions. The default
 	currently is *3.0.0_pre1*.
 
 *--files*, *-F* _PATH_
