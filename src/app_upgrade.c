@@ -167,9 +167,9 @@ int apk_do_preupgrade(struct apk_database *db, unsigned short solver_flags, unsi
 	extern char **apk_argv;
 	char **argv = malloc(sizeof(char*[apk_argc+2]));
 	memcpy(argv, apk_argv, sizeof(char*[apk_argc]));
-	apk_argv[apk_argc] = "--no-self-upgrade";
-	apk_argv[apk_argc+1] = NULL;
-	execvp(apk_argv[0], apk_argv);
+	argv[apk_argc] = "--no-self-upgrade";
+	argv[apk_argc+1] = NULL;
+	execvp(argv[0], argv);
 	apk_err(out, "PANIC! Failed to re-execute new apk-tools!");
 	exit(1);
 
