@@ -94,7 +94,7 @@ fetch_parseuint(const char *str, const char **endptr, int radix, uintmax_t max)
 		if (isdigit(ch))
 			d = ch - '0';
 		else	d = tolower(ch) - 'a' + 10;
-		if (d > radix || val > maxx) goto err;
+		if (d >= radix || val > maxx) goto err;
 		val *= radix;
 		if (val > max-d) goto err;
 		val += d;
