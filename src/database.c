@@ -1149,7 +1149,7 @@ static int apk_db_fdb_write(struct apk_database *db, struct apk_installed_packag
 
 		bbuf = apk_blob_pushed(APK_BLOB_BUF(buf), bbuf);
 		if (APK_BLOB_IS_NULL(bbuf)) {
-			r = -ENOBUFS;
+			r = -APKE_BUFFER_SIZE;
 			goto err;
 		}
 		r = apk_ostream_write(os, bbuf.ptr, bbuf.len);
@@ -1174,7 +1174,7 @@ static int apk_db_fdb_write(struct apk_database *db, struct apk_installed_packag
 
 			bbuf = apk_blob_pushed(APK_BLOB_BUF(buf), bbuf);
 			if (APK_BLOB_IS_NULL(bbuf)) {
-				r = -ENOBUFS;
+				r = -APKE_BUFFER_SIZE;
 				goto err;
 			}
 			r = apk_ostream_write(os, bbuf.ptr, bbuf.len);

@@ -151,7 +151,7 @@ static int __apk_istream_fill(struct apk_istream *is)
 		is->ptr = ptr;
 		is->end = ptr + buf_used;
 	} else {
-		if (is->end == is->buf+is->buf_size) return -ENOBUFS;
+		if (is->end == is->buf+is->buf_size) return -APKE_BUFFER_SIZE;
 	}
 
 	ssize_t sz = is->ops->read(is, is->end, is->buf + is->buf_size - is->end);
@@ -1265,7 +1265,7 @@ int apk_ostream_fmt(struct apk_ostream *os, const char *fmt, ...)
 	va_start(va, fmt);
 	n = vsnprintf(buf, sizeof buf, fmt, va);
 	va_end(va);
-	if (n > sizeof buf) return apk_ostream_cancel(os, -ENOBUFS);
+	if (n > sizeof buf) return apk_ostream_cancel(os, -APKE_BUFFER_SIZE);
 	return apk_ostream_write(os, buf, n);
 }
 

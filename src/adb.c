@@ -1185,7 +1185,7 @@ int adb_s_field_subst(void *ctx, apk_blob_t var, apk_blob_t *to)
 		return -APKE_ADB_SCHEMA;
 	}
 	if (done.ptr != to->ptr) {
-		if (done.len > to->len) return -ENOBUFS;
+		if (done.len > to->len) return -APKE_BUFFER_SIZE;
 		memcpy(to->ptr, done.ptr, done.len);
 	}
 	to->ptr += done.len;

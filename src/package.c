@@ -875,7 +875,7 @@ int apk_pkg_write_index_header(struct apk_package *info, struct apk_ostream *os)
 	apk_blob_push_blob(&bbuf, APK_BLOB_STR("\n"));
 
 	if (APK_BLOB_IS_NULL(bbuf))
-		return apk_ostream_cancel(os, -ENOBUFS);
+		return apk_ostream_cancel(os, -APKE_BUFFER_SIZE);
 
 	bbuf = apk_blob_pushed(APK_BLOB_BUF(buf), bbuf);
 	if (apk_ostream_write(os, bbuf.ptr, bbuf.len) < 0 ||

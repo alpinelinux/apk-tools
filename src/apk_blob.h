@@ -68,7 +68,7 @@ int apk_blob_ends_with(apk_blob_t str, apk_blob_t suffix);
 apk_blob_t apk_blob_fmt(char *str, size_t sz, const char *fmt, ...)
 	__attribute__ ((format (printf, 3, 4)));
 
-#define apk_fmt(args...) ({ apk_blob_t b = apk_blob_fmt(args); b.ptr ? b.len : -ENOBUFS; })
+#define apk_fmt(args...) ({ apk_blob_t b = apk_blob_fmt(args); b.ptr ? b.len : -APKE_BUFFER_SIZE; })
 #define apk_fmts(args...) ({ apk_blob_fmt(args).ptr; })
 
 int apk_blob_subst(char *buf, size_t sz, apk_blob_t fmt, int (*res)(void *ctx, apk_blob_t var, apk_blob_t *to), void *ctx);

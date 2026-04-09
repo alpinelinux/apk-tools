@@ -187,7 +187,7 @@ int apk_blob_subst(char *buf, size_t sz, apk_blob_t fmt, int (*res)(void *ctx, a
 
 	while (apk_blob_split(fmt, var_start, &prefix, &key)) {
 		apk_blob_push_blob(&to, prefix);
-		if (APK_BLOB_IS_NULL(to)) return -ENOBUFS;
+		if (APK_BLOB_IS_NULL(to)) return -APKE_BUFFER_SIZE;
 		if (!apk_blob_split(key, var_end, &key, &fmt)) return -APKE_FORMAT_INVALID;
 		char *max_advance = to.ptr + to.len;
 		if (apk_blob_split(key, colon, &key, &len)) {
@@ -203,7 +203,7 @@ int apk_blob_subst(char *buf, size_t sz, apk_blob_t fmt, int (*res)(void *ctx, a
 	}
 	apk_blob_push_blob(&to, fmt);
 	apk_blob_push_blob(&to, APK_BLOB_PTR_LEN("", 1));
-	if (APK_BLOB_IS_NULL(to)) return -ENOBUFS;
+	if (APK_BLOB_IS_NULL(to)) return -APKE_BUFFER_SIZE;
 	return to.ptr - buf - 1;
 }
 
