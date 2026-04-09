@@ -894,7 +894,7 @@ int apk_db_read_overlay(struct apk_database *db, struct apk_istream *is)
 			break;
 		}
 
-		diri = apk_db_diri_get(db, bdir, pkg);
+		diri = apk_db_diri_get(db, bdir, NULL);
 		if (bfile.len == 0) {
 			diri->dir->created = 1;
 		} else {
@@ -3070,7 +3070,7 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 
 			if (!file->broken) {
 				ctrl = APK_FS_CTRL_COMMIT;
-				if (ofile && ofile->diri->pkg->name == NULL) {
+				if (ofile && !ofile->diri->pkg) {
 					// File was from overlay, delete the package's version
 					ctrl = APK_FS_CTRL_CANCEL;
 				} else if (!apk_protect_mode_none(diri->dir->protect_mode) &&

@@ -916,16 +916,15 @@ int apk_pkg_cmp_display(const struct apk_package *a, const struct apk_package *b
 
 int apk_pkg_replaces_dir(const struct apk_package *a, const struct apk_package *b)
 {
-	const struct apk_installed_package *ai = a->ipkg, *bi = b->ipkg;
-
 	/* Prefer overlay */
-	if (a->name == NULL) return APK_PKG_REPLACES_NO;
-	if (b->name == NULL) return APK_PKG_REPLACES_YES;
+	if (!a) return APK_PKG_REPLACES_NO;
+	if (!b) return APK_PKG_REPLACES_YES;
 
 	/* Upgrading package? */
 	if (a->name == b->name) return APK_PKG_REPLACES_YES;
 
 	/* Replace files on removal */
+	const struct apk_installed_package *ai = a->ipkg, *bi = b->ipkg;
 	if (ai->to_be_removed) return APK_PKG_REPLACES_YES;
 	if (bi->to_be_removed) return APK_PKG_REPLACES_NO;
 
@@ -949,16 +948,17 @@ int apk_pkg_replaces_dir(const struct apk_package *a, const struct apk_package *
 
 int apk_pkg_replaces_file(const struct apk_package *a, const struct apk_package *b)
 {
-	const struct apk_installed_package *ai = a->ipkg, *bi = b->ipkg;
 	int a_prio = -1, b_prio = -1;
 
 	/* Overlay file? Replace the ownership, but extraction will keep the overlay file. */
-	if (a->name == NULL) return APK_PKG_REPLACES_YES;
+	if (!a) return APK_PKG_REPLACES_YES;
+	if (!b) return APK_PKG_REPLACES_NO;
 
 	/* Upgrading package? */
 	if (a->name == b->name) return APK_PKG_REPLACES_YES;
 
 	/* Replace files on removal */
+	const struct apk_installed_package *ai = a->ipkg, *bi = b->ipkg;
 	if (ai->to_be_removed) return APK_PKG_REPLACES_YES;
 	if (bi->to_be_removed) return APK_PKG_REPLACES_NO;
 
