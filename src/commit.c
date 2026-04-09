@@ -715,7 +715,7 @@ static void print_broken_deps(struct print_state *ps, struct apk_dependency_arra
 
 static void analyze_package(struct print_state *ps, struct apk_package *pkg, unsigned int tag)
 {
-	char pkgtext[256];
+	char pkgtext[PKG_VER_MAX];
 
 	ps->label = apk_fmts(pkgtext, sizeof pkgtext, PKG_VER_FMT, PKG_VER_PRINTF(pkg));
 

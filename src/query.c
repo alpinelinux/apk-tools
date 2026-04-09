@@ -321,7 +321,7 @@ static void pkgser_serialize_name(struct pkgser_ctx *pc, struct apk_name *name)
 
 static void pkgser_serialize_package(struct pkgser_ctx *pc, struct apk_package *pkg)
 {
-	char buf[FILENAME_MAX];
+	char buf[PKG_VER_MAX];
 	apk_ser_string(pc->ser, apk_blob_fmt(buf, sizeof buf, PKG_VER_FMT, PKG_VER_PRINTF(pkg)));
 }
 
@@ -941,7 +941,7 @@ static int apk_query_summarize(struct apk_ctx *ac, struct apk_query_spec *qs, st
 		}
 		apk_ser_end(ser);
 	} else if (apk_array_len(s.pkgs)) {
-		char buf[FILENAME_MAX];
+		char buf[PKG_VER_MAX];
 		apk_array_qsort(s.pkgs, apk_package_array_qsort);
 		apk_ser_start_array(ser, apk_array_len(s.pkgs));
 		apk_array_foreach_item(pkg, s.pkgs) {

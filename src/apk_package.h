@@ -115,6 +115,7 @@ int apk_package_array_qsort(const void *a, const void *b);
 #define APK_PROVIDER_FROM_PACKAGE(pkg)	  (struct apk_provider){(pkg),(pkg)->version}
 #define APK_PROVIDER_FROM_PROVIDES(pkg,p) (struct apk_provider){(pkg),(p)->version}
 
+#define PKG_VER_MAX		256
 #define PKG_VER_FMT		"%s-" BLOB_FMT
 #define PKG_VER_PRINTF(pkg)	(pkg)->name->name, BLOB_PRINTF(*(pkg)->version)
 #define PKG_VER_STRLEN(pkg)	(strlen(pkg->name->name) + 1 + pkg->version->len)
