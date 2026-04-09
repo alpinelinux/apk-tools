@@ -608,6 +608,10 @@ struct apk_package *apk_db_pkg_add(struct apk_database *db, struct apk_package_t
 		old_repos = idb->repos;
 		idb->repos |= pkg->repos;
 		if (!idb->filename_ndx) idb->filename_ndx = pkg->filename_ndx;
+		if (!old_repos && idb->size != pkg->size) {
+			idb->size = pkg->size;
+			db->idb_dirty = 1;
+		}
 	}
 	if (idb->repos && !old_repos) {
 		pkg->name->has_repository_providers = 1;

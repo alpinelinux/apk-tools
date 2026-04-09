@@ -32,9 +32,11 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 	struct apk_database *db = ac->db;
 	const char *msg = "OK:";
 	char buf[64];
+	int r = db->repositories.unavailable + db->repositories.stale;
 
-	if (apk_out_verbosity(out) < 1)
-		return db->repositories.unavailable + db->repositories.stale;
+	if (db->idb_dirty && apk_db_write_config(db) != 0) r++;
+
+	if (apk_out_verbosity(out) < 1) return r;
 
 	apk_db_foreach_repository(repo, db) {
 		if (!repo->available) continue;
@@ -50,8 +52,7 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 
 	apk_msg(out, "%s %d distinct packages available", msg,
 		db->available.packages.num_items);
-
-	return db->repositories.unavailable + db->repositories.stale;
+	return r;
 }
 
 static struct apk_applet apk_update = {

@@ -215,6 +215,7 @@ struct apk_database {
 	unsigned int root_proc_ok : 1;
 	unsigned int root_dev_ok : 1;
 	unsigned int need_unshare : 1;
+	unsigned int idb_dirty : 1;
 
 	struct apk_dependency_array *world;
 	struct apk_id_cache *id_cache;
