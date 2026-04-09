@@ -686,18 +686,18 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo, str
 	struct apk_istream *is;
 	struct apk_ostream *os;
 	struct apk_extract_ctx ectx;
-	char cache_url[NAME_MAX], download_url[PATH_MAX];
+	char cache_filename[NAME_MAX], download_url[PATH_MAX];
 	int r, download_fd, cache_fd, tee_flags = 0;
 	time_t download_mtime = 0;
 
 	if (pkg != NULL) {
-		r = apk_repo_package_url(db, &db->cache_repository, pkg, &cache_fd, cache_url, sizeof cache_url);
+		r = apk_repo_package_url(db, &db->cache_repository, pkg, &cache_fd, cache_filename, sizeof cache_filename);
 		if (r < 0) return r;
 		r = apk_repo_package_url(db, repo, pkg, &download_fd, download_url, sizeof download_url);
 		if (r < 0) return r;
 		tee_flags = APK_ISTREAM_TEE_COPY_META;
 	} else {
-		r = apk_repo_index_cache_url(db, repo, &cache_fd, cache_url, sizeof cache_url);
+		r = apk_repo_index_cache_url(db, repo, &cache_fd, cache_filename, sizeof cache_filename);
 		if (r < 0) return r;
 		download_mtime = repo->mtime;
 		download_fd = AT_FDCWD;
@@ -707,7 +707,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo, str
 	}
 	if (db->ctx->flags & APK_SIMULATE) return 0;
 
-	os = apk_ostream_to_file_safe(cache_fd, cache_url, 0644);
+	os = apk_ostream_to_file_safe(cache_fd, cache_filename, 0644);
 	if (IS_ERR(os)) return PTR_ERR(os);
 
 	is = apk_istream_from_fd_url_if_modified(download_fd, download_url, apk_db_url_since(db, download_mtime));
@@ -717,7 +717,7 @@ int apk_cache_download(struct apk_database *db, struct apk_repository *repo, str
 	if (pkg) apk_extract_verify_identity(&ectx, pkg->digest_alg, apk_pkg_digest_blob(pkg));
 	r = apk_extract(&ectx, is);
 	if (r == -APKE_FILE_UNCHANGED) {
-		if (!tee_flags) utimensat(cache_fd, cache_url, NULL, 0);
+		if (!tee_flags) utimensat(cache_fd, cache_filename, NULL, 0);
 		return r;
 	}
 	if (pkg) pkg->cached = 1;
@@ -1531,15 +1531,15 @@ static int load_index(struct apk_database *db, struct apk_istream *is, int repo)
 static bool is_index_stale(struct apk_database *db, struct apk_repository *repo)
 {
 	struct stat st;
-	char cache_url[NAME_MAX];
+	char cache_filename[NAME_MAX];
 	int cache_fd;
 
 	if (!db->autoupdate) return false;
 	if (!repo->is_remote) return false;
 	if (!db->ctx->cache_max_age) return true;
 	if (db->ctx->force & APK_FORCE_REFRESH) return true;
-	if (apk_repo_index_cache_url(db, repo, &cache_fd, cache_url, sizeof cache_url) < 0) return true;
-	if (fstatat(cache_fd, cache_url, &st, 0) != 0) return true;
+	if (apk_repo_index_cache_url(db, repo, &cache_fd, cache_filename, sizeof cache_filename) < 0) return true;
+	if (fstatat(cache_fd, cache_filename, &st, 0) != 0) return true;
 	repo->mtime = st.st_mtime;
 	return (time(NULL) - st.st_mtime) > db->ctx->cache_max_age;
 }
@@ -1613,7 +1613,7 @@ static void open_repository(struct apk_database *db, int repo_num)
 	const char *error_action = "constructing url";
 	unsigned int repo_mask = BIT(repo_num);
 	unsigned int available_repos = 0;
-	char open_url[NAME_MAX];
+	char open_url[PATH_MAX];
 	int r, update_error = 0, open_fd = AT_FDCWD;
 
 	error_action = "opening";
@@ -3153,7 +3153,7 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	struct apk_istream *is = NULL;
 	struct apk_repository *repo;
 	struct apk_package *pkg = ipkg->pkg;
-	char file_url[PATH_MAX], cache_url[NAME_MAX];
+	char file_url[PATH_MAX], cache_filename[NAME_MAX];
 	int r, file_fd = AT_FDCWD, cache_fd = AT_FDCWD;
 	bool need_copy = false;
 
@@ -3176,9 +3176,9 @@ static int apk_db_unpack_pkg(struct apk_database *db,
 	is = apk_progress_istream(&pis, is, prog);
 	if (need_copy) {
 		struct apk_istream *origis = is;
-		r = apk_repo_package_url(db, &db->cache_repository, pkg, &cache_fd, cache_url, sizeof cache_url);
+		r = apk_repo_package_url(db, &db->cache_repository, pkg, &cache_fd, cache_filename, sizeof cache_filename);
 		if (r == 0)
-			is = apk_istream_tee(is, apk_ostream_to_file_safe(cache_fd, cache_url, 0644),
+			is = apk_istream_tee(is, apk_ostream_to_file_safe(cache_fd, cache_filename, 0644),
 				APK_ISTREAM_TEE_COPY_META|APK_ISTREAM_TEE_OPTIONAL);
 		if (is == origis)
 			apk_warn(out, PKG_VER_FMT": unable to cache package",
