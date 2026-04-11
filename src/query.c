@@ -660,13 +660,14 @@ static int ser_match_string(struct apk_serializer *ser, apk_blob_t scalar, int m
 static void pkgpkgser_match_dependency(struct pkgser_ctx *pc, struct apk_dependency_array *deps, bool provides)
 {
 	struct apk_serializer *ser = pc->ser;
-	// TODO: This dependency operator/version is not used for normal dependencies; only for provides
-	// where the provided version is matched same as normal package version.
 	struct match_ctx *m = container_of(ser, struct match_ctx, ser);
 	if (m->done_matching) return;
 	apk_array_foreach(dep, deps) {
-		if (!match_string(m, dep->name->name)) continue;
-		if (provides && !apk_version_match(*m->dep.version, m->dep.op, *dep->version)) continue;
+		if (!match_blob(m, APK_BLOB_STR(dep->name->name))) continue;
+		if (m->dep.op != APK_DEPMASK_ANY) {
+			if (provides && !apk_version_match(*m->dep.version, m->dep.op, *dep->version)) continue;
+			if (!provides && (m->dep.op != dep->op || apk_blob_compare(*m->dep.version, *dep->version))) continue;
+		}
 		m->qm.name = dep->name;
 		m->cb(m->cb_ctx, &m->qm);
 		m->has_matches = true;

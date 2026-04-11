@@ -176,6 +176,12 @@ $APK query --summarize reverse-install-if:origin "apk*" 2>&1 | diff -u /dev/fd/4
 apk-tools
 EOF
 
+$APK query --format yaml --fields origin,package --match depends "musl>=1.2.3_git20230424" 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong result"
+# 1 items
+- package: apk-tools-2.14.6-r3
+  origin: apk-tools
+EOF
+
 $APK query --format json --installed "musl*" 2>&1 | diff -u /dev/fd/4 4<<EOF - || assert "wrong result"
 [
   {
