@@ -85,6 +85,7 @@ static int apk_extract_v3_file(struct apk_extract_ctx *ectx, uint64_t sz, struct
 			break;
 		case S_IFLNK:
 		case S_IFREG:
+			if (target.len >= PATH_MAX-1) goto err_schema;
 			target_path = alloca(target.len + 1);
 			memcpy(target_path, target.ptr, target.len);
 			target_path[target.len] = 0;
