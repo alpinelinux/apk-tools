@@ -1,5 +1,6 @@
 man_filenames = [
     'apk.8.scd',
+    'apk-cache.5.scd',
     'apk-keys.5.scd',
     'apk-package.5.scd',
     'apk-protected_paths.5.scd',
