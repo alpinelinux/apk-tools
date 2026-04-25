@@ -134,4 +134,4 @@ apk query --format yaml --recursive apk-tools
 apk query --match name,provides cmd:apk --fields origin
 
 \# print source packages with specific dependency name++
-apk query --match dependency so:libapk.so.2.14.9 --fields origin
+apk query --match depends so:libapk.so.2.14.9 --fields origin
