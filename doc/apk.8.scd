@@ -337,7 +337,7 @@ The following options are available for all commands which commit the database.
 
 The following options are available for all commands which generate APKv3 files.
 
-*--compression, -C* _ALGORITHM[:LEVEL]_
+*--compression*, *-c* _ALGORITHM[:LEVEL]_
 	Compress the file with given _ALGORITHM_ and _LEVEL_. Supported algorithms:
 	- none
 	- deflate (level 1-9)
