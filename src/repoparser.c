@@ -143,6 +143,7 @@ static bool is_url(apk_blob_t word)
 static bool is_keyword(apk_blob_t word)
 {
 	if (word.ptr[0] == '@') return false; // tag
+	if (word.ptr[0] == '$') return false; // variable
 	return !is_url(word);
 }
 

@@ -70,18 +70,21 @@ APK_TEST(repoparser_variables) {
 		"set var-foo=bad-name\n"
 		"set APK_FOO=reserved\n"
 		"http://${mirror}/ ${comp}\n"
+		"set mirror=/alpine\n"
+		"${mirror}/main\n"
 		"v2 foobar main\n",
 		"WARNING: repositories:1: invalid option: -unknown\n"
 		"WARNING: repositories:8: undefined variable: undefined\n"
 		"WARNING: repositories:11: invalid variable definition: var-foo=bad-name\n"
 		"WARNING: repositories:12: invalid variable definition: APK_FOO=reserved\n"
-		"WARNING: repositories:14: invalid url: foobar\n",
+		"WARNING: repositories:16: invalid url: foobar\n",
 		"http://alpine.org/main:APKINDEX.tar.gz:\n"
 		"http://example.com/main:APKINDEX.tar.gz:\n"
 		"http://example.com/main:APKINDEX.tar.gz:\n"
 		"http://example.com/alpine/main:APKINDEX.tar.gz:\n"
 		"http://example.com/alpine/community:APKINDEX.tar.gz:\n"
 		"http://example.com/alpine/testing:APKINDEX.tar.gz:\n"
+		"/alpine/main:APKINDEX.tar.gz:\n"
 		);
 }
 
