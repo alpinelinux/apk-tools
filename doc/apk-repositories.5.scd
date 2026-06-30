@@ -40,10 +40,9 @@ Each line follows one of the following syntax:
 
 *ndx \[@tag\] url*++
 *\[v2|v3\] \[@tag\] url \[component...\]*
-	If a repository declaration omits the type field, it defaults to the type
-	defined in latest *default* command, or if absent, to *v2* (or *ndx* if *url*
-	ends with *.adb* or *.tar.gz*). If the format is *v3* or the *ndx* filename
-	ends with *.adb* a v3 format index file required.
+	If a repository declaration omits the type field, it defaults to *v2*
+	(or *ndx* if *url* ends with *.adb* or *.tar.gz*). If the format is *v3*
+	or the *ndx* filename ends with *.adb* a v3 format index file required.
 
 	The optional *@tag* can be present to indicate that the repository should
 	not be used by default. Refer to *apk-world*(5) on how to enable installation
