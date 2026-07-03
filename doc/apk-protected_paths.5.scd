@@ -47,13 +47,25 @@ The initial symbol must be one of:
 
 Lines starting with *#* and empty lines are ignored.
 
-# EXAMPLES
+# DEFAULTS
+
+Even if _/etc/apk/protected_paths.d/\*.list_  is empty, the following is used by
+default:
 
 ```
-# This line is ignored; it is a comment.
 +etc/
 @etc/init.d
 !etc/apk
+```
+
+The contents of _/etc/apk/protected_paths.d/\*.list_ are applied after the
+above defaults. When a flag overrides the _protected_paths.d_ directory, it also
+overrides these defaults.
+
+# MORE EXAMPLES
+
+```
+# This line is ignored; it is a comment.
 \-etc/ssl/certs/ca-cert-\*.pem
 ```
 
