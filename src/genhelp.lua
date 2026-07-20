@@ -187,8 +187,8 @@ function scapp:main(arg)
 	for _, fn in ipairs(arg) do
 		if fn == '--debug' then
 			self.debug = true
-		elseif fn == '--format=bash' then
-			self.format = "bash"
+		elseif fn:match("^%-%-format=") then
+			self.format = fn:match("^%-%-format=(.*)$")
 		else
 			doc = new_scdoc()
 			doc:parse(fn)
