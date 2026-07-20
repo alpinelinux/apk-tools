@@ -110,6 +110,18 @@ if lua_bin.found()
 		install: true,
 		install_dir: join_paths(get_option('datadir'), 'bash-completion', 'completions')
 	)
+
+	generated_zsh_completion = custom_target(
+		'apk.zsh-completion',
+		capture: true,
+		output: '_apk_zsh',
+		input: man_files,
+		command: [lua_bin, genhelp_script, '--format=zsh', '@INPUT@'],
+		depend_files: 'genhelp_zsh.lua',
+		env: lua_env,
+		install: true,
+		install_dir: join_paths(get_option('datadir'), 'zsh', 'site-functions')
+	)
 else
 	generated_help = custom_target(
 		'help.h',
