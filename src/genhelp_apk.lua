@@ -48,10 +48,7 @@ local function render_options(doc, out, options)
 			table.insert(out, fmt:format(k, v))
 		end
 
-		v = table.concat(v, " ")
-		local i = v:find("%.%s")
-		if not i then i = v:find("%.$") end
-		if i then v = v:sub(1, i-1) end
+		v = first_sentence(table.concat(v, " "))
 		v = textwrap(v, width - nindent - 1)
 
 		table.insert(out, v[1])

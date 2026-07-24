@@ -21,6 +21,33 @@ Applet pages: apk-*.8.scd
  - From OPTIONS take each option and it's first sentence (within the first line)
 --]]
 
+-- Take the first sentence of a (possibly multi-line) description.
+-- stop at ". " or a trailing ".".
+function first_sentence(text)
+	local i = text:find("%.%s")
+	if not i then i = text:find("%.$") end
+	if i then text = text:sub(1, i - 1) end
+	return text
+end
+
+-- Name completion rule per applet
+applet_argument_completion = {
+	add="available",
+	del="installed",
+	dot="available",
+	fetch="available",
+	fix="installed",
+	index="available",
+	info="available",
+	list="available",
+	manifest="available",
+	mkndx="available",
+	policy="available",
+	query="available",
+	search="available",
+	upgrade="installed",
+}
+
 local scdoc = {
 	usage_prefix = "Usage: ",
 }

@@ -73,25 +73,9 @@ local function collect_flags(doc)
 	return opts
 end
 
-local wildcard_installed = 'COMPREPLY=($(compgen -W "$(__apk_installed_pkgs "${cur}")" -- ${cur}))'
-local wildcard_available = 'COMPREPLY=($(compgen -W "$(__apk_available_pkgs "${cur}")" -- ${cur}))'
-
--- Applets needing package name completion
-local applet_wildcard = {
-	add=wildcard_available,
-	del=wildcard_installed,
-	dot=wildcard_available,
-	fetch=wildcard_available,
-	fix=wildcard_installed,
-	index=wildcard_available,
-	info=wildcard_available,
-	list=wildcard_available,
-	manifest=wildcard_available,
-	mkndx=wildcard_available,
-	policy=wildcard_available,
-	query=wildcard_available,
-	search=wildcard_available,
-	upgrade=wildcard_installed,
+local completion_function = {
+	available='COMPREPLY=($(compgen -W "$(__apk_available_pkgs "${cur}")" -- ${cur}))',
+	installed='COMPREPLY=($(compgen -W "$(__apk_installed_pkgs "${cur}")" -- ${cur}))',
 }
 
 function M:generate(app, docs)
@@ -113,7 +97,7 @@ function M:generate(app, docs)
 	local t_applet = {}
 	for _, name in ipairs(applets) do
 		local o = table.concat(options[name], " ")
-		local wildcard = applet_wildcard[name] or "COMPREPLY=()"
+		local wildcard = completion_function[applet_argument_completion[name]] or "COMPREPLY=()"
 		table.insert(t_applet, template_applet:format(name, o, wildcard))
 	end
 

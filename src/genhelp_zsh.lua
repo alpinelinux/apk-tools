@@ -46,15 +46,6 @@ _apk "$@"
 
 local M = {}
 
--- Take the first sentence of a (possibly multi-line) description, same
--- cutoff rule genhelp_bash.lua uses: stop at ". " or a trailing ".".
-local function first_sentence(text)
-	local i = text:find("%.%s")
-	if not i then i = text:find("%.$") end
-	if i then text = text:sub(1, i - 1) end
-	return text
-end
-
 -- Escape text for use inside a single-quoted zsh _arguments spec, where
 -- '[', ']' and ':' are field delimiters and must be escaped to appear
 -- literally, and embedded single quotes must close/re-open the string.
@@ -75,22 +66,10 @@ local function describe_escape(s)
 	return s
 end
 
--- Applets needing package name completion (mirrors genhelp_bash.lua)
-local applet_wildcard = {
-	add="__apk_available_pkgs",
-	del="__apk_installed_pkgs",
-	dot="__apk_available_pkgs",
-	fetch="__apk_available_pkgs",
-	fix="__apk_installed_pkgs",
-	index="__apk_available_pkgs",
-	info="__apk_available_pkgs",
-	list="__apk_available_pkgs",
-	manifest="__apk_available_pkgs",
-	mkndx="__apk_available_pkgs",
-	policy="__apk_available_pkgs",
-	query="__apk_available_pkgs",
-	search="__apk_available_pkgs",
-	upgrade="__apk_installed_pkgs",
+-- Applets name completion functions
+local completion_function = {
+	available="__apk_available_pkgs",
+	installed="__apk_installed_pkgs",
 }
 
 -- Build one or more zsh _arguments spec strings (each already wrapped in
@@ -179,7 +158,7 @@ function M:generate(app, docs)
 		for _, s in ipairs(options[name]) do
 			table.insert(opt_lines, "\t\t\t\t\t\t" .. s .. " \\\n")
 		end
-		local wildcard = applet_wildcard[name]
+		local wildcard = completion_function[applet_argument_completion[name]]
 		local tail = wildcard
 			and ("\t\t\t\t\t\t'*:package:%s'\n"):format(wildcard)
 			or "\t\t\t\t\t\t'*:arg:_default'\n"
