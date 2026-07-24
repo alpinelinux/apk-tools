@@ -24,6 +24,7 @@
 #include "apk_balloc.h"
 #include "apk_print.h"
 #include "apk_xattr.h"
+#include "apk_fs.h"
 
 struct mkpkg_hardlink_key {
 	dev_t device;
@@ -224,6 +225,8 @@ static int mkpkg_scan_dirent(void *pctx, int dirfd, const char *path, const char
 	if (r) return r;
 	if (!S_ISDIR(fi.mode)) return 0;
 
+	if (apk_fs_is_malicious_filename(APK_BLOB_STR(entry))) return -APKE_ADB_SCHEMA;
+
 	int n = apk_pathbuilder_push(&ctx->pb, entry);
 	apk_string_array_add(&ctx->pathnames, apk_balloc_cstr(&ctx->ba, apk_pathbuilder_get(&ctx->pb)));
 	r = apk_dir_foreach_file_sorted(dirfd, entry, mkpkg_scan_dirent, ctx, NULL);
@@ -269,6 +272,8 @@ static int mkpkg_process_dirent(void *pctx, int dirfd, const char *path, const c
 		} symlink;
 	} ft;
 	int r, n;
+
+	if (apk_fs_is_malicious_filename(APK_BLOB_STR(entry))) return -APKE_ADB_SCHEMA;
 
 	ctx->num_dirents++;
 	r = apk_fileinfo_get(dirfd, entry, APK_FI_NOFOLLOW | APK_FI_DIGEST(APK_DIGEST_SHA256), &fi, NULL);
@@ -382,7 +387,7 @@ static int mkpkg_process_directory(struct mkpkg_ctx *ctx, int atfd, const char *
 	adb_wo_obj(&fio, ADBI_DI_FILES, &ctx->files);
 	adb_wa_append_obj(&ctx->paths, &fio);
 done:
-	if (r) apk_err(out, "failed to process directory '%s': %d", apk_pathbuilder_cstr(&ctx->pb), r);
+	if (r) apk_err(out, "failed to process directory '%s': %s", entry, apk_error_str(r));
 	return r;
 }
 

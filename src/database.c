@@ -2727,14 +2727,6 @@ static int read_info_line(void *_ctx, apk_blob_t line)
 	return 0;
 }
 
-static int contains_control_character(const char *str)
-{
-	for (const uint8_t *p = (const uint8_t *) str; *p; p++) {
-		if (*p < 0x20 || *p == 0x7f) return 1;
-	}
-	return 0;
-}
-
 static int apk_db_install_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
 {
 	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
@@ -2804,7 +2796,6 @@ static int apk_db_install_script(struct apk_extract_ctx *ectx, unsigned int type
 static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_file_info *ae, struct apk_istream *is)
 {
 	struct install_ctx *ctx = container_of(ectx, struct install_ctx, ectx);
-	static const char dot1[] = "/./", dot2[] = "/../";
 	struct apk_database *db = ctx->db;
 	struct apk_ctx *ac = db->ctx;
 	struct apk_out *out = &ac->out;
@@ -2816,17 +2807,6 @@ static int apk_db_install_file(struct apk_extract_ctx *ectx, const struct apk_fi
 	int ret = 0, r;
 
 	apk_db_run_pending_script(ctx);
-
-	/* Sanity check the file name */
-	if (ae->name[0] == '/' || contains_control_character(ae->name) ||
-	    strncmp(ae->name, &dot1[1], 2) == 0 ||
-	    strncmp(ae->name, &dot2[1], 3) == 0 ||
-	    strstr(ae->name, dot1) || strstr(ae->name, dot2)) {
-		apk_warn(out, PKG_VER_FMT": ignoring malicious file %s",
-			PKG_VER_PRINTF(pkg), ae->name);
-		ipkg->broken_files = 1;
-		return 0;
-	}
 
 	/* Installable entry */
 	if (!S_ISDIR(ae->mode)) {

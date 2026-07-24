@@ -266,6 +266,28 @@ static const struct apk_fsdir_ops *apk_fsops_get(apk_blob_t dir)
 	return &fsdir_ops_fsys;
 }
 
+bool apk_fs_is_malicious_filename(apk_blob_t file)
+{
+	const uint8_t *ptr = (const uint8_t *) file.ptr;
+	for (int i = 0; i < file.len; i++) {
+		if (ptr[i] < 0x20 || ptr[i] == '/' || ptr[i] == 0x7f) return true;
+	}
+	switch (file.len) {
+	case 2: if (ptr[1] != '.') break; // fallthrough
+	case 1: if (ptr[0] != '.') break; // fallthrough
+	case 0: return true;
+	}
+	return false;
+}
+
+bool apk_fs_is_malicious_pathname(apk_blob_t path)
+{
+	apk_blob_t dir;
+	while (apk_blob_split(path, APK_BLOB_STRLIT("/"), &dir, &path))
+		if (apk_fs_is_malicious_filename(dir)) return true;
+	return path.len > 0 && apk_fs_is_malicious_filename(path);
+}
+
 static bool need_checksum(const struct apk_file_info *fi)
 {
 	switch (fi->mode & S_IFMT) {

@@ -51,6 +51,9 @@ struct apk_fsdir_ops {
 #define APK_FSEXTRACTF_NO_SYS_XATTRS	0x0004
 #define APK_FSEXTRACTF_NO_DEVICES	0x0008
 
+bool apk_fs_is_malicious_filename(apk_blob_t file);
+bool apk_fs_is_malicious_pathname(apk_blob_t path);
+
 int apk_fs_extract(struct apk_ctx *, const struct apk_file_info *, struct apk_istream *, unsigned int, apk_blob_t);
 
 void apk_fsdir_get(struct apk_fsdir *, apk_blob_t dir, unsigned int extract_flags, struct apk_ctx *ac, apk_blob_t pkgctx);

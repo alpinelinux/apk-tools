@@ -12,6 +12,7 @@
 
 #include "apk_defines.h"
 #include "apk_tar.h"
+#include "apk_fs.h"
 
 struct tar_header {
 	/* ustar header, Posix 1003.1 */
@@ -221,13 +222,18 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 			break;
 		}
 
-		if (strnlen(entry.name, PATH_MAX) >= PATH_MAX-10 ||
+		size_t entry_len = strnlen(entry.name, PATH_MAX);
+		if (entry_len >= PATH_MAX-10 ||
 		    (entry.link_target && strnlen(entry.link_target, PATH_MAX) >= PATH_MAX-10)) {
 			r = -ENAMETOOLONG;
 			goto err;
 		}
 
 		if (entry.mode & S_IFMT) {
+			if (apk_fs_is_malicious_pathname(APK_BLOB_PTR_LEN((char*) entry.name, entry_len))) {
+				r = -APKE_FORMAT_INVALID;
+				goto err;
+			}
 			apk_istream_segment(&segment, is, entry.size, entry.mtime);
 			r = parser(ctx, &entry, &segment.is);
 			if (r != 0) goto err;

@@ -9,6 +9,16 @@ assert() {
 	exit 1
 }
 
+skip_test() {
+	exit 77
+}
+
+require_programs() {
+	for PROG in "$@"; do
+		which "$PROG" > /dev/null || skip_test
+	done
+}
+
 glob_one() {
 	# shellcheck disable=SC2048 # argument is wildcard needing expansion
 	for a in $*; do

@@ -13,6 +13,7 @@
 #include "apk_extract.h"
 #include "apk_adb.h"
 #include "apk_pathbuilder.h"
+#include "apk_fs.h"
 
 struct apk_extract_v3_ctx {
 	struct apk_extract_ctx *ectx;
@@ -137,6 +138,26 @@ done:
 	return r;
 }
 
+static int apk_extract_v3_validate_filetree(struct adb_obj *pkg)
+{
+	struct adb_obj paths, path, files, file;
+
+	adb_ro_obj(pkg, ADBI_PKG_PATHS, &paths);
+
+	for (int p = ADBI_FIRST; p <= adb_ra_num(&paths); p++) {
+		adb_ro_obj(&paths, p, &path);
+		apk_blob_t pathname = adb_ro_blob(&path, ADBI_DI_NAME);
+		if (pathname.len && apk_fs_is_malicious_pathname(pathname)) return -APKE_FORMAT_INVALID;
+		adb_ro_obj(&path, ADBI_DI_FILES, &files);
+
+		for (int f = ADBI_FIRST; f <= adb_ra_num(&files); f++) {
+			adb_ro_obj(&files, f, &file);
+			if (apk_fs_is_malicious_filename(adb_ro_blob(&file, ADBI_FI_NAME))) return -APKE_FORMAT_INVALID;
+		}
+	}
+	return 0;
+}
+
 static int apk_extract_v3_next_file(struct apk_extract_ctx *ectx)
 {
 	struct apk_extract_v3_ctx *ctx = ectx->pctx;
@@ -148,6 +169,9 @@ static int apk_extract_v3_next_file(struct apk_extract_ctx *ectx)
 		ctx->cur_path = ADBI_FIRST;
 		ctx->cur_file = ADBI_FIRST;
 		adb_r_rootobj(&ctx->db, &ctx->pkg, &schema_package);
+
+		r = apk_extract_v3_validate_filetree(&ctx->pkg);
+		if (r < 0) return r;
 
 		r = ectx->ops->v3meta(ectx, &ctx->pkg);
 		if (r < 0) return r;
@@ -175,9 +199,7 @@ static int apk_extract_v3_next_file(struct apk_extract_ctx *ectx)
 
 		for (; ctx->cur_file <= adb_ra_num(&ctx->files); ctx->cur_file++) {
 			adb_ro_obj(&ctx->files, ctx->cur_file, &ctx->file);
-
 			n = apk_pathbuilder_pushb(&ctx->pb, adb_ro_blob(&ctx->file, ADBI_FI_NAME));
-
 			target = adb_ro_blob(&ctx->file, ADBI_FI_TARGET);
 			if (adb_ro_int(&ctx->file, ADBI_FI_SIZE) != 0 && APK_BLOB_IS_NULL(target))
 				return 0;
