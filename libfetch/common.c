@@ -929,7 +929,7 @@ fetchAppendURLList(struct url_list *dst, const struct url_list *src)
 		dst->urls[j] = src->urls[i];
 		dst->urls[j].doc = strdup(src->urls[i].doc);
 		if (dst->urls[j].doc == NULL) {
-			while (i-- > 0)
+			while (j-- > dst->length)
 				free(dst->urls[j].doc);
 			fetch_syserr();
 			return -1;
