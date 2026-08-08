@@ -375,14 +375,16 @@ fetch_cache_put(conn_t *conn, int (*closecb)(conn_t *))
 
 	global_count = host_count = 0;
 	last = NULL;
-	for (iter = connection_cache; iter; last = iter, iter = next_cached) {
+	for (iter = connection_cache; iter; iter = next_cached) {
 		next_cached = iter->next_cached;
 		++global_count;
 		if (strcmp(conn->cache_url->host, iter->cache_url->host) == 0)
 			++host_count;
 		if (global_count < cache_global_limit &&
-		    host_count < cache_per_host_limit)
+		    host_count < cache_per_host_limit) {
+			last = iter;
 			continue;
+		}
 		--global_count;
 		if (last != NULL)
 			last->next_cached = iter->next_cached;
