@@ -982,7 +982,7 @@ fetch_netrc_auth(struct url *url)
 			return (-1);
 		}
 	} else {
-		if ((p = getenv("HOME")) != NULL) {
+		if ((p = getenv("HOME")) == NULL) {
 			struct passwd *pwd;
 
 			if ((pwd = getpwuid(getuid())) == NULL ||
