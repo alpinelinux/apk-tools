@@ -1191,15 +1191,19 @@ fetchIO_unopen(void *io_cookie, ssize_t (*io_read)(void *, void *, size_t),
 ssize_t
 fetchIO_read(fetchIO *f, void *buf, size_t len)
 {
-	if (f->io_read == NULL)
-		return EBADF;
+	if (f->io_read == NULL) {
+		errno = EBADF;
+		return -1;
+	}
 	return (*f->io_read)(f->io_cookie, buf, len);
 }
 
 ssize_t
 fetchIO_write(fetchIO *f, const void *buf, size_t len)
 {
-	if (f->io_write == NULL)
-		return EBADF;
+	if (f->io_write == NULL) {
+		errno = EBADF;
+		return -1;
+	}
 	return (*f->io_write)(f->io_cookie, buf, len);
 }
