@@ -456,6 +456,7 @@ fetch_cache_get(const struct url *url, int af)
 				connection_cache = conn->next_cached;
 			return conn;
 		}
+		last_conn = conn;
 	}
 
 	return NULL;
