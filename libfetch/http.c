@@ -104,7 +104,7 @@
 			    || (xyz) == HTTP_TEMP_REDIRECT \
 			    || (xyz) == HTTP_SEE_OTHER)
 
-#define HTTP_ERROR(xyz) ((xyz) > 400 && (xyz) < 599)
+#define HTTP_ERROR(xyz) ((xyz) >= 400 && (xyz) < 600)
 
 static int http_cmd(conn_t *, const char *, ...) LIBFETCH_PRINTFLIKE(2, 3);
 
