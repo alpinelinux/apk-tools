@@ -1044,7 +1044,7 @@ fetch_netrc_auth(struct url *url)
 }
 
 #define MAX_ADDRESS_BYTES	sizeof(struct in6_addr)
-#define MAX_ADDRESS_STRING	(4*8+1)
+#define MAX_ADDRESS_STRING	INET6_ADDRSTRLEN
 #define MAX_CIDR_STRING		(MAX_ADDRESS_STRING+4)
 
 static size_t host_to_address(uint8_t *buf, size_t buf_len, const char *host, size_t len)
