@@ -1028,7 +1028,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 				if (!HTTP_REDIRECT(conn->err))
 					break;
 				if (new)
-					free(new);
+					fetchFreeURL(new);
 				if (verbose)
 					fetch_info("%d redirect to %s", conn->err, p);
 				if (*p == '/')
@@ -1186,6 +1186,9 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 protocol_error:
 	http_seterr(HTTP_PROTOCOL_ERROR);
 ouch:
+	/* new aliases url once the retry loop has consumed a redirect */
+	if (new != NULL && new != url)
+		fetchFreeURL(new);
 	if (url != URL)
 		fetchFreeURL(url);
 	if (purl)
