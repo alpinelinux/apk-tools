@@ -270,10 +270,14 @@ static int __adb_m_stream(struct adb *db, struct apk_istream *is, uint32_t expec
 		switch (type) {
 		case ADB_BLOCK_ADB:
 			allowed = BIT(ADB_BLOCK_SIG) | BIT(ADB_BLOCK_DATA);
+			if (sz < 16 || sz > ADB_VALUE_MASK) {
+				r = -APKE_ADB_BLOCK;
+				goto err;
+			}
 			db->adb.ptr = malloc(sz);
 			db->adb.len = sz;
-			if (db->adb.len < 16) {
-				r = -APKE_ADB_BLOCK;
+			if (!db->adb.ptr) {
+				r = -ENOMEM;
 				goto err;
 			}
 			if ((r = apk_istream_read(is, db->adb.ptr, sz)) < 0) goto err;
