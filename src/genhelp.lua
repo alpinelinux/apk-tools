@@ -206,7 +206,7 @@ function scapp:compress(data)
 end
 
 function scapp:main(arg)
-	self.format = "apk"
+	self.format = "help"
 	self.debug = false
 	self.enabled_applets = {}
 
@@ -225,7 +225,7 @@ function scapp:main(arg)
 	end
 	table.sort(f, function(a, b) return a.applet < b.applet end)
 
-	local plugin = require(('genhelp_%s'):format(self.format))
+	local plugin = require(('%s/gen_%s'):format(self.format, self.format))
 	local output = plugin:generate(self, f)
 	print(output)
 end

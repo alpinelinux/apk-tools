@@ -82,53 +82,14 @@ apk_cargs = [
 	'-DAPK_VERSION="' + meson.project_version() + '"',
 ]
 
+genhelp_script = files('genhelp.lua')
+lua_env = environment()
+lua_env.append('LUA_PATH', meson.current_source_dir() / '?.lua', separator: ';')
+
+subdir('help')
 if lua_bin.found()
-	genhelp_script = files('genhelp.lua')
-	lua_env = environment()
-	lua_env.append('LUA_PATH', meson.current_source_dir() / '?.lua', separator: ';')
-
-	genhelp_args = [lua_bin, genhelp_script, '@INPUT@']
-
-	generated_help = custom_target(
-		'help.h',
-		capture: true,
-		output: 'help.h',
-		input: man_files,
-		command: genhelp_args,
-		depend_files: 'genhelp_apk.lua',
-		env: lua_env,
-	)
-
-	generated_bash_completion = custom_target(
-		'apk.bash-completion',
-		capture: true,
-		output: '_apk',
-		input: man_files,
-		command: [lua_bin, genhelp_script, '--format=bash', '@INPUT@'],
-		depend_files: 'genhelp_bash.lua',
-		env: lua_env,
-		install: true,
-		install_dir: join_paths(get_option('datadir'), 'bash-completion', 'completions')
-	)
-
-	generated_zsh_completion = custom_target(
-		'apk.zsh-completion',
-		capture: true,
-		output: '_apk_zsh',
-		input: man_files,
-		command: [lua_bin, genhelp_script, '--format=zsh', '@INPUT@'],
-		depend_files: 'genhelp_zsh.lua',
-		env: lua_env,
-		install: true,
-		install_dir: join_paths(get_option('datadir'), 'zsh', 'site-functions')
-	)
-else
-	generated_help = custom_target(
-		'help.h',
-		capture: true,
-		output: 'help.h',
-		command: ['echo', '#define NO_HELP'],
-	)
+	subdir('bash')
+	subdir('zsh')
 endif
 
 apk_src += [ generated_help ]
