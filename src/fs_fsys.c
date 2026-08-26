@@ -128,9 +128,11 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 			}
 		} else {
 			// Hardlink needs to be done against the temporary name
+			apk_blob_t b_link_target = APK_BLOB_STR(link_target);
+			if (apk_fs_is_malicious_pathname(b_link_target)) return -APKE_ADB_SCHEMA;
 			if (pkgctx.ptr)
 				link_target = format_tmpname(&ac->dctx, pkgctx, get_dirname(link_target),
-					APK_BLOB_STR(link_target), tmpname_linktarget);
+					b_link_target, tmpname_linktarget);
 			if (linkat(atfd, link_target, atfd, fn, 0) < 0) return -errno;
 		}
 		break;
