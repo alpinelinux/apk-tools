@@ -664,7 +664,6 @@ static unsigned iovec_memcmp(struct iovec *vec, size_t nvec, void *base)
 
 static adb_val_t adb_w_error(struct adb *db, int rc)
 {
-	assert(!"adb error");
 	db->schema = 0;
 	return ADB_ERROR(rc);
 }
