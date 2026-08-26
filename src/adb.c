@@ -809,19 +809,19 @@ adb_val_t adb_w_copy(struct adb *db, struct adb *srcdb, adb_val_t v)
 		goto copy;
 	case ADB_TYPE_BLOB_8:
 		ptr = adb_r_deref(srcdb, v, 0, 1);
-		if (!ptr) return adb_w_error(db, EINVAL);
+		if (!ptr) return adb_w_error(db, APKE_ADB_SCHEMA);
 		align = sizeof(uint8_t);
 		sz = align + *(uint8_t*) ptr;
 		goto copy;
 	case ADB_TYPE_BLOB_16:
 		ptr = adb_r_deref(srcdb, v, 0, 2);
-		if (!ptr) return adb_w_error(db, EINVAL);
+		if (!ptr) return adb_w_error(db, APKE_ADB_SCHEMA);
 		align = sizeof(uint16_t);
 		sz = align + *(uint16_t*) ptr;
 		goto copy;
 	case ADB_TYPE_BLOB_32:
 		ptr = adb_r_deref(srcdb, v, 0, 4);
-		if (!ptr) return adb_w_error(db, EINVAL);
+		if (!ptr) return adb_w_error(db, APKE_ADB_SCHEMA);
 		align = sizeof(uint32_t);
 		sz = align + *(uint32_t*) ptr;
 		goto copy;
@@ -838,7 +838,7 @@ adb_val_t adb_w_copy(struct adb *db, struct adb *srcdb, adb_val_t v)
 		return ADB_VAL(ADB_VAL_TYPE(v), adb_w_data1(db, cpy, sizeof(adb_val_t[sz]), sizeof(adb_val_t)));
 	}
 	default:
-		return adb_w_error(db, ENOSYS);
+		return adb_w_error(db, APKE_ADB_SCHEMA);
 	}
 copy:
 	ptr = adb_r_deref(srcdb, v, 0, sz);
@@ -989,7 +989,7 @@ int adb_wo_copyobj(struct adb_obj *o, struct adb_obj *src)
 
 adb_val_t adb_wo_val(struct adb_obj *o, unsigned i, adb_val_t v)
 {
-	if (i >= o->obj[ADBI_NUM_ENTRIES]) return adb_w_error(o->db, E2BIG);
+	if (i >= o->obj[ADBI_NUM_ENTRIES]) return adb_w_error(o->db, APKE_ADB_LIMIT);
 	if (ADB_IS_ERROR(v)) return adb_w_error(o->db, ADB_VAL_VALUE(v));
 	if (v != ADB_NULL && i >= o->num) o->num = i + 1;
 	return o->obj[i] = v;
@@ -997,7 +997,7 @@ adb_val_t adb_wo_val(struct adb_obj *o, unsigned i, adb_val_t v)
 
 adb_val_t adb_wo_val_fromstring(struct adb_obj *o, unsigned i, apk_blob_t val)
 {
-	if (i >= o->obj[ADBI_NUM_ENTRIES]) return adb_w_error(o->db, E2BIG);
+	if (i >= o->obj[ADBI_NUM_ENTRIES]) return adb_w_error(o->db, APKE_ADB_LIMIT);
 	if (i >= o->num) o->num = i + 1;
 	return o->obj[i] = adb_w_fromstring(o->db, adb_ro_kind(o, i), val);
 }
