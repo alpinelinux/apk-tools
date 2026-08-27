@@ -1612,6 +1612,13 @@ static const struct apk_repoparser_ops db_repoparser_ops = {
 	.repository = add_repository_component,
 };
 
+static bool is_index_cacheable(struct apk_database *db, struct apk_repository *repo)
+{
+	if (db->ctx->flags & APK_NO_CACHE) return false;
+	if (!repo->stale) return true;
+	return db->cache_writable;
+}
+
 static void open_repository(struct apk_database *db, int repo_num)
 {
 	struct apk_out *out = &db->ctx->out;
@@ -1625,7 +1632,7 @@ static void open_repository(struct apk_database *db, int repo_num)
 	error_action = "opening";
 	if (!(db->ctx->flags & APK_NO_NETWORK)) available_repos = repo_mask;
 
-	if (repo->is_remote && !(db->ctx->flags & APK_NO_CACHE)) {
+	if (repo->is_remote && is_index_cacheable(db, repo)) {
 		error_action = "opening from cache";
 		if (repo->stale) {
 			update_error = apk_cache_download(db, repo, NULL, NULL);
@@ -1923,21 +1930,25 @@ static int setup_cache(struct apk_database *db)
 	db->cache_fd = openat(db->root_fd, db->cache_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 	if (db->cache_fd >= 0) {
 		db->ctx->cache_packages = 1;
-		return remount_cache_rw(db);
-	}
-	if (db->ctx->cache_dir_set || errno != ENOENT) return -errno;
+		int r = remount_cache_rw(db);
+		if (r != 0) return r;
+	} else {
+		if (db->ctx->cache_dir_set || errno != ENOENT) return -errno;
 
-	// The default cache does not exists, fallback to static cache directory
-	db->cache_dir = apk_static_cache_dir;
-	db->cache_fd = openat(db->root_fd, db->cache_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
-	if (db->cache_fd < 0) {
-		apk_make_dirs(db->root_fd, db->cache_dir, 0755, 0755);
+		// The default cache does not exists, fallback to static cache directory
+		db->cache_dir = apk_static_cache_dir;
 		db->cache_fd = openat(db->root_fd, db->cache_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 		if (db->cache_fd < 0) {
-			if (db->ctx->open_flags & APK_OPENF_WRITE) return -EROFS;
-			db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
+			apk_make_dirs(db->root_fd, db->cache_dir, 0755, 0755);
+			db->cache_fd = openat(db->root_fd, db->cache_dir, O_DIRECTORY | O_RDONLY | O_CLOEXEC);
+			if (db->cache_fd < 0) {
+				if (db->ctx->open_flags & APK_OPENF_WRITE) return -EROFS;
+				db->cache_fd = -APKE_CACHE_NOT_AVAILABLE;
+			}
 		}
 	}
+	if (db->cache_fd >= 0 && faccessat(db->cache_fd, ".", W_OK, 0) == 0)
+		db->cache_writable = 1;
 	return 0;
 }
 
