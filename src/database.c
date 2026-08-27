@@ -1530,18 +1530,24 @@ static int load_index(struct apk_database *db, struct apk_istream *is, int repo)
 
 static bool is_index_stale(struct apk_database *db, struct apk_repository *repo)
 {
+	struct apk_ctx *ac = db->ctx;
 	struct stat st;
 	char cache_filename[NAME_MAX];
 	int cache_fd;
 
-	if (!db->autoupdate) return false;
 	if (!repo->is_remote) return false;
-	if (!db->ctx->cache_max_age) return true;
-	if (db->ctx->force & APK_FORCE_REFRESH) return true;
+	if (ac->flags & APK_NO_NETWORK) return false;
+
+	bool autoupdate = (ac->open_flags & APK_OPENF_WRITE) && !(ac->open_flags & APK_OPENF_NO_AUTOUPDATE);
+	if (autoupdate) {
+		if (!ac->cache_max_age) return true;
+		if (ac->force & APK_FORCE_REFRESH) return true;
+	}
 	if (apk_repo_index_cache_url(db, repo, &cache_fd, cache_filename, sizeof cache_filename) < 0) return true;
 	if (fstatat(cache_fd, cache_filename, &st, 0) != 0) return true;
 	repo->mtime = st.st_mtime;
-	return (time(NULL) - st.st_mtime) > db->ctx->cache_max_age;
+	if (!autoupdate) return false;
+	return (time(NULL) - st.st_mtime) > ac->cache_max_age;
 }
 
 static int add_repository_component(struct apk_repoparser *rp, apk_blob_t url, const char *index_file, apk_blob_t tag)
@@ -2011,10 +2017,6 @@ int apk_db_open(struct apk_database *db)
 		msg = "Invalid open flags (internal error)";
 		goto ret_r;
 	}
-	if ((ac->open_flags & APK_OPENF_WRITE) &&
-	    !(ac->open_flags & APK_OPENF_NO_AUTOUPDATE) &&
-	    !(ac->flags & APK_NO_NETWORK))
-		db->autoupdate = 1;
 
 	setup_cache_repository(db, APK_BLOB_STR(ac->cache_dir));
 	db->root_fd = apk_ctx_fd_root(ac);

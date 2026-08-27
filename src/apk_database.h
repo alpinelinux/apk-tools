@@ -201,7 +201,7 @@ struct apk_database {
 	unsigned int performing_preupgrade : 1;
 	unsigned int usermode : 1;
 	unsigned int root_tmpfs : 1;
-	unsigned int autoupdate : 1;
+	unsigned int _unused : 1;
 	unsigned int write_arch : 1;
 	unsigned int script_dirs_checked : 1;
 	unsigned int open_complete : 1;
