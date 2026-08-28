@@ -269,6 +269,7 @@ bool apk_fs_is_malicious_filename(apk_blob_t file)
 		if (ptr[i] < 0x20 || ptr[i] == '/' || ptr[i] == 0x7f) return true;
 	}
 	switch (file.len) {
+	case 5+48: return apk_blob_starts_with(file, APK_BLOB_STRLIT(".apk."));
 	case 2: if (ptr[1] != '.') break; // fallthrough
 	case 1: if (ptr[0] != '.') break; // fallthrough
 	case 0: return true;
