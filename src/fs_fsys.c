@@ -109,9 +109,6 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 	}
 
 	switch (fi->mode & S_IFMT) {
-	case S_IFDIR:
-		if (mkdirat(atfd, fn, fi->mode & 07777) < 0 && errno != EEXIST) return -errno;
-		break;
 	case S_IFREG:
 		if (!link_target) {
 			int flags = O_RDWR | O_CREAT | O_TRUNC | O_CLOEXEC | O_EXCL;
@@ -145,6 +142,8 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 		if (extract_flags & APK_FSEXTRACTF_NO_DEVICES) return -APKE_NOT_EXTRACTED;
 		if (mknodat(atfd, fn, fi->mode, fi->device) < 0) return -errno;
 		break;
+	default:
+		return -APKE_NOT_EXTRACTED;
 	}
 
 	ret |= fsys_fixup_permissions(atfd, fn, fi->mode, fi->uid, fi->gid, false, extract_flags);
