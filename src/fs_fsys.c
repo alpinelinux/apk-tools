@@ -17,13 +17,22 @@
 
 #define TMPNAME_MAX (PATH_MAX + 64)
 
+static int fsys_fixup_permissions(int atfd, const char *pathname, mode_t mode, uid_t uid, gid_t gid, bool reset_mode, unsigned int extract_flags)
+{
+	int ret = 0;
+
+	if (extract_flags & APK_FSEXTRACTF_NO_CHOWN) return 0;
+	if (fchownat(atfd, pathname, uid, gid, AT_SYMLINK_NOFOLLOW) < 0) ret |= APK_EXTRACTW_OWNER;
+	if ((reset_mode || (mode & 07000) != 0) && fchmodat(atfd, pathname, mode & 07777, AT_SYMLINK_NOFOLLOW) < 0) ret |= APK_EXTRACTW_PERMISSION;
+	return ret;
+}
+
 static int fsys_dir_create(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid)
 {
+	int atfd = apk_ctx_fd_dest(d->ac);
 	const char *dirname = apk_pathbuilder_cstr(&d->pb);
-	if (mkdirat(apk_ctx_fd_dest(d->ac), dirname, mode) < 0) return -errno;
-	if (d->extract_flags & APK_FSEXTRACTF_NO_CHOWN) return 0;
-	if (fchownat(apk_ctx_fd_dest(d->ac), dirname, uid, gid, 0) < 0) return APK_EXTRACTW_OWNER;
-	return 0;
+	if (mkdirat(atfd, dirname, mode) < 0) return -errno;
+	return fsys_fixup_permissions(atfd, dirname, mode, uid, gid, false, d->extract_flags);
 }
 
 static int fsys_dir_delete(struct apk_fsdir *d)
@@ -45,16 +54,8 @@ static int fsys_dir_check(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid
 
 static int fsys_dir_update_perms(struct apk_fsdir *d, mode_t mode, uid_t uid, gid_t gid)
 {
-	int fd = apk_ctx_fd_dest(d->ac), ret = 0;
 	const char *dirname = apk_pathbuilder_cstr(&d->pb);
-
-	if (fchmodat(fd, dirname, mode & 07777, 0) != 0) {
-		if (errno == ENOENT) return -ENOENT;
-		ret |= APK_EXTRACTW_PERMISSION;
-	}
-	if (d->extract_flags & APK_FSEXTRACTF_NO_CHOWN) return ret;
-	if (fchownat(fd, dirname, uid, gid, 0) != 0) ret |= APK_EXTRACTW_OWNER;
-	return ret;
+	return fsys_fixup_permissions(apk_ctx_fd_dest(d->ac), dirname, mode, uid, gid, true, d->extract_flags);
 }
 
 static const char *format_tmpname(struct apk_digest_ctx *dctx, apk_blob_t pkgctx,
@@ -95,7 +96,7 @@ static int is_system_xattr(const char *name)
 static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi, struct apk_istream *is, unsigned int extract_flags, apk_blob_t pkgctx)
 {
 	char tmpname_file[TMPNAME_MAX], tmpname_linktarget[TMPNAME_MAX];
-	int fd, r = -1, atflags = 0, ret = 0;
+	int fd, r = -1, ret = 0;
 	int atfd = apk_ctx_fd_dest(ac);
 	const char *fn = fi->name, *link_target = fi->link_target;
 
@@ -135,7 +136,6 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 		break;
 	case S_IFLNK:
 		if (symlinkat(link_target, atfd, fn) < 0) return -errno;
-		atflags |= AT_SYMLINK_NOFOLLOW;
 		break;
 	case S_IFBLK:
 	case S_IFCHR:
@@ -145,13 +145,7 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 		break;
 	}
 
-	if (!(extract_flags & APK_FSEXTRACTF_NO_CHOWN)) {
-		if (fchownat(atfd, fn, fi->uid, fi->gid, atflags) != 0)
-			ret |= APK_EXTRACTW_OWNER;
-		/* chown resets suid bit so we need set it again */
-		if ((fi->mode & 07000) && fchmodat(atfd, fn, fi->mode, atflags) != 0)
-			ret |= APK_EXTRACTW_PERMISSION;
-	}
+	ret |= fsys_fixup_permissions(atfd, fn, fi->mode, fi->uid, fi->gid, false, extract_flags);
 
 	/* extract xattrs */
 	if (!S_ISLNK(fi->mode) && fi->xattrs && apk_array_len(fi->xattrs) != 0) {
@@ -175,7 +169,7 @@ static int fsys_file_extract(struct apk_ctx *ac, const struct apk_file_info *fi,
 		struct timespec times[2];
 		times[0].tv_sec  = times[1].tv_sec  = fi->mtime;
 		times[0].tv_nsec = times[1].tv_nsec = 0;
-		if (utimensat(atfd, fn, times, atflags) != 0) ret |= APK_EXTRACTW_MTIME;
+		if (utimensat(atfd, fn, times, AT_SYMLINK_NOFOLLOW) != 0) ret |= APK_EXTRACTW_MTIME;
 	}
 
 	return ret;
