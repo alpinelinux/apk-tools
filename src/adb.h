@@ -42,6 +42,7 @@ typedef uint32_t adb_val_t;
 /* Generic */
 #define ADBI_NUM_ENTRIES	0x00
 #define ADBI_FIRST		0x01
+#define ADBI_MAX		0x1000000
 
 /* File Header */
 #define ADB_FORMAT_MAGIC	0x2e424441	// ADB.
