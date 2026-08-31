@@ -44,3 +44,14 @@ Please report a confidential issue in the project GitLab at:
 
 If you are unwilling to use GitLab for reporting, please reach out
 to timo.teras@iki.fi.
+
+The best report is to just submit a patch/commit fixing the issue
+with approriate commit message.
+
+If you prefer not write code, all security reports are welcome. In most
+cases, proof-of-concept is not required, but might become useful to
+validate the fix.
+
+Please explicitly mention if you would like to be credited in the
+potential commits by including the exact "Reported-By:" line you would
+like to see.
