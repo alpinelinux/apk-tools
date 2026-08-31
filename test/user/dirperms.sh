@@ -1,10 +1,8 @@
 #!/bin/sh
 
+REQUIRE_FAKEROOT=yes
 TESTDIR=$(realpath "${TESTDIR:-"$(dirname "$0")"/..}")
 . "$TESTDIR"/testlib.sh
-
-require_programs fakeroot
-[ "$FAKEROOTKEY" ] || exec fakeroot "$0" "$@"
 
 setup_apkroot
 APK="$APK --allow-untrusted --no-interactive"

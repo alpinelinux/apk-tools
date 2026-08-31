@@ -61,3 +61,15 @@ setup_apkroot() {
 }
 
 [ "$APK" ] || assert "APK environment variable not set"
+
+if [ "$REQUIRE_FAKEROOT" = "yes" ]; then
+	if [ -z "$FAKEROOTKEY" ]; then
+		require_programs fakeroot
+		export TEST_LIBRARY_PATH="$LD_LIBRARY_PATH"
+		exec fakeroot -- "$0" "$@"
+	fi
+	# fakeroot prepends /usr/lib and other of its own library paths
+	# which might give us wrong libap.so. Shuffle our library path
+	# to be in the front.
+	export LD_LIBRARY_PATH="$TEST_LIBRARY_PATH:${LD_LIBRARY_PATH%:"$TEST_LIBRARY_PATH"}"
+fi
