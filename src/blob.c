@@ -443,7 +443,7 @@ void apk_blob_pull_hexdump(apk_blob_t *b, apk_blob_t to)
 	if (unlikely(APK_BLOB_IS_NULL(*b)))
 		return;
 
-	if (unlikely(to.len > b->len * 2))
+	if (unlikely(to.len * 2 > b->len))
 		goto err;
 
 	r = 0;
@@ -588,6 +588,7 @@ void apk_blob_pull_digest(apk_blob_t *b, struct apk_digest *d)
 	switch (encoding) {
 	case 'X':
 		apk_blob_pull_hexdump(b, APK_DIGEST_BLOB(*d));
+		if (APK_BLOB_IS_NULL(*b)) goto fail;
 		if (d->alg == APK_DIGEST_SHA1 &&
 		    b->len == 24 /* hexdump length of difference */ &&
 		    dx(b->ptr[0]) != 0xff) {
@@ -597,6 +598,7 @@ void apk_blob_pull_digest(apk_blob_t *b, struct apk_digest *d)
 		break;
 	case 'Q':
 		apk_blob_pull_base64(b, APK_DIGEST_BLOB(*d));
+		if (APK_BLOB_IS_NULL(*b)) goto fail;
 		if (d->alg == APK_DIGEST_SHA1 &&
 		    b->len == 16 /* base64 length of difference */ &&
 		    b64decode[(unsigned char)b->ptr[0]] != 0xff) {

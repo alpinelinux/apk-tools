@@ -35,7 +35,7 @@ adb_val_t adb_wo_pkginfo(struct adb_obj *obj, unsigned int f, apk_blob_t val)
 	case ADBI_PI_REPO_COMMIT:
 		if (val.len < 40) break;
 		apk_blob_pull_hexdump(&val, APK_BLOB_BUF(buf));
-		if (val.ptr) v = adb_w_blob(obj->db, APK_BLOB_BUF(buf));
+		if (!APK_BLOB_IS_NULL(val)) v = adb_w_blob(obj->db, APK_BLOB_BUF(buf));
 		break;
 	default:
 		return adb_wo_val_fromstring(obj, f, val);
@@ -152,10 +152,10 @@ static adb_val_t xattr_fromstring(struct adb *db, apk_blob_t val)
 	b[0].len++;
 
 	if (hex.len & 1) return ADB_ERROR(EINVAL);
-	if (hex.len/2 > sizeof buf) return ADB_ERROR(E2BIG);
+	if (hex.len/2 > sizeof buf) return ADB_ERROR(APKE_ADB_LIMIT);
 	b[1] = APK_BLOB_PTR_LEN(buf, hex.len / 2);
 	apk_blob_pull_hexdump(&hex, b[1]);
-	if (APK_BLOB_IS_NULL(hex)) return ADB_ERROR(EINVAL);
+	if (APK_BLOB_IS_NULL(hex)) return ADB_ERROR(APKE_ADB_SCHEMA);
 
 	return adb_w_blob_vec(db, ARRAY_SIZE(b), b);
 }
@@ -231,13 +231,12 @@ static adb_val_t hexblob_fromstring(struct adb *db, apk_blob_t val)
 {
 	char buf[256];
 
-	if (val.len & 1) return ADB_ERROR(EINVAL);
-	if (val.len/2 > sizeof buf) return ADB_ERROR(E2BIG);
+	if (val.len&1) return ADB_ERROR(APKE_ADB_SCHEMA);
+	if (val.len/2 > sizeof buf) return ADB_ERROR(APKE_ADB_LIMIT);
 
 	apk_blob_t b = APK_BLOB_PTR_LEN(buf, val.len / 2);
 	apk_blob_pull_hexdump(&val, b);
-	if (APK_BLOB_IS_NULL(val))
-		return ADB_ERROR(EINVAL);
+	if (APK_BLOB_IS_NULL(val)) return ADB_ERROR(APKE_ADB_SCHEMA);
 
 	return adb_w_blob(db, b);
 }
