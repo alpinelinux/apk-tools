@@ -2192,7 +2192,7 @@ static int load_apkindex(void *sctx, const struct apk_file_info *fi,
 	r = 0;
 	repo = &ctx->db->repos[ctx->repo];
 
-	if (strcmp(fi->name, "DESCRIPTION") == 0) {
+	if (strcmp(fi->name, "DESCRIPTION") == 0 && fi->size <= 160) {
 		r = apk_blob_from_istream(is, fi->size, &repo->description);
 	} else if (strcmp(fi->name, "APKINDEX") == 0) {
 		ctx->found = 1;

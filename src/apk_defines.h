@@ -138,6 +138,7 @@ extern char **apk_argv;
 #error APK_DEFAULT_ARCH not detected for this architecture
 #endif
 
+#define APK_MAX_SCRIPT_SIZE	262144	/* package install script size 256kb */
 #define APK_MAX_REPOS		32	/* see struct apk_package */
 #define APK_MAX_TAGS		16	/* see solver; unsigned short */
 #define APK_CACHE_CSUM_BYTES	4

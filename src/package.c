@@ -582,6 +582,7 @@ int apk_sign_ctx_process_file(struct apk_sign_ctx *ctx,
 	if (ctx->action == APK_SIGN_VERIFY_IDENTITY) return 0;
 	if (ctx->signature.pkey != NULL) return 0;
 	if (ctx->keys_fd < 0) return 0;
+	if (fi->size > 65536) return 0;
 
 	for (i = 0; i < ARRAY_SIZE(signature_type); i++) {
 		size_t slen = strlen(signature_type[i].type);
@@ -996,9 +997,10 @@ static int apk_ipkg_assign_script(struct apk_installed_package *ipkg, unsigned i
 
 int apk_ipkg_add_script(struct apk_installed_package *ipkg,
 			struct apk_istream *is,
-			unsigned int type, unsigned int size)
+			unsigned int type, uint64_t size)
 {
 	apk_blob_t b;
+	if (size > APK_MAX_SCRIPT_SIZE) return -1;
 	apk_blob_from_istream(is, size, &b);
 	return apk_ipkg_assign_script(ipkg, type, b);
 }
