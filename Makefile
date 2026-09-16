@@ -4,7 +4,7 @@
 -include config.mk
 
 PACKAGE := apk-tools
-VERSION := 2.14.11
+VERSION := 2.14.12
 SO_VERSION := 2.14.10
 
 export VERSION SO_VERSION
