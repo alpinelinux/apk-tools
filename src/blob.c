@@ -488,9 +488,11 @@ void apk_blob_pull_csum(apk_blob_t *b, struct apk_checksum *csum)
 	switch (encoding) {
 	case 'X':
 		apk_blob_pull_hexdump(b, APK_BLOB_CSUM(*csum));
+		if (APK_BLOB_IS_NULL(*b)) goto fail;
 		break;
 	case 'Q':
 		apk_blob_pull_base64(b, APK_BLOB_CSUM(*csum));
+		if (APK_BLOB_IS_NULL(*b)) goto fail;
 		break;
 	default:
 	fail:
@@ -508,7 +510,7 @@ void apk_blob_pull_hexdump(apk_blob_t *b, apk_blob_t to)
 	if (unlikely(APK_BLOB_IS_NULL(*b)))
 		return;
 
-	if (unlikely(to.len > b->len * 2))
+	if (unlikely(to.len * 2 > b->len))
 		goto err;
 
 	r = 0;
