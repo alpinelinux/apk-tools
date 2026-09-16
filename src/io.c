@@ -556,7 +556,6 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 	static void *splice_buffer = NULL;
 	unsigned char *buf;
 	size_t bufsz, done = 0, togo;
-	ssize_t r;
 
 	bufsz = size;
 	if (!splice_buffer) splice_buffer = malloc(256*1024);
@@ -568,7 +567,7 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 		if (cb != NULL) cb(cb_ctx, done);
 
 		togo = min(size - done, bufsz);
-		r = apk_istream_read(is, buf, togo);
+		ssize_t r = apk_istream_read(is, buf, togo);
 		if (r <= 0) {
 			if (r) return r;
 			if (size != APK_IO_ALL && done != size) {
@@ -577,13 +576,10 @@ ssize_t apk_istream_splice(struct apk_istream *is, int fd, size_t size,
 			break;
 		}
 
-		if (write(fd, buf, r) != r) {
-			if (r < 0)
-				r = -errno;
-			return r;
-		}
-
-		done += r;
+		ssize_t w = write(fd, buf, r);
+		if (w < 0) return -errno;
+		done += w;
+		if (w != r) break;
 	}
 	return done;
 }
