@@ -71,22 +71,25 @@ static int blob_realloc(apk_blob_t *b, size_t newsize)
 	return 0;
 }
 
-static void handle_extended_header(struct apk_file_info *fi, apk_blob_t hdr)
+static int handle_extended_header(struct apk_file_info *fi, apk_blob_t hdr)
 {
 	apk_blob_t name, value;
 
-	while (1) {
+	while (hdr.len) {
 		char *start = hdr.ptr;
-		unsigned int len = apk_blob_pull_uint(&hdr, 10);
+		uint64_t len = apk_blob_pull_uint(&hdr, 10);
 		apk_blob_pull_char(&hdr, ' ');
-		if (!apk_blob_split(hdr, APK_BLOB_STR("="), &name, &hdr)) break;
-		if (len < hdr.ptr - start + 1) break;
-		len -= hdr.ptr - start + 1;
-		if (hdr.len < len) break;
-		value = APK_BLOB_PTR_LEN(hdr.ptr, len);
-		hdr = APK_BLOB_PTR_LEN(hdr.ptr+len, hdr.len-len);
+		if (APK_BLOB_IS_NULL(hdr) ||
+		    !apk_blob_split(hdr, APK_BLOB_STR("="), &name, &hdr))
+			return -APKE_V2PKG_FORMAT;
+		uint64_t prefix_len = hdr.ptr - start + 1;
+		if (len < prefix_len) return -APKE_V2PKG_FORMAT;
+		len -= prefix_len;
+		if (len > (uint64_t)hdr.len) return -APKE_V2PKG_FORMAT;
+		value = APK_BLOB_PTR_LEN(hdr.ptr, (long)len);
+		hdr = APK_BLOB_PTR_LEN(hdr.ptr + len, hdr.len - (long)len);
 		apk_blob_pull_char(&hdr, '\n');
-		if (APK_BLOB_IS_NULL(hdr)) break;
+		if (APK_BLOB_IS_NULL(hdr)) return -APKE_V2PKG_FORMAT;
 		value.ptr[value.len] = 0;
 
 		if (apk_blob_compare(name, APK_BLOB_STR("path")) == 0) {
@@ -110,6 +113,7 @@ static void handle_extended_header(struct apk_file_info *fi, apk_blob_t hdr)
 			}
 		}
 	}
+	return 0;
 }
 
 int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
@@ -169,7 +173,8 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 		if (entry.size >= SSIZE_MAX-512) goto err;
 
 		if (paxlen) {
-			handle_extended_header(&entry, APK_BLOB_PTR_LEN(pax.ptr, paxlen));
+			if ((r = handle_extended_header(&entry, APK_BLOB_PTR_LEN(pax.ptr, paxlen))) != 0)
+				goto err;
 			apk_fileinfo_hash_xattr(&entry, APK_DIGEST_SHA1);
 		}
 
