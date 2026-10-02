@@ -139,7 +139,8 @@ static int token_cmp(struct token_state *ta, struct token_state *tb)
 static void token_parse_digits(struct token_state *t, apk_blob_t *b)
 {
 	char *start = b->ptr;
-	t->number = apk_blob_pull_uint(b, 10);
+	if (apk_blob_pull_uint_checked(b, 10, &t->number) != 0)
+		t->token = TOKEN_INVALID;
 	t->value = APK_BLOB_PTR_LEN(start, b->ptr - start);
 	if (t->value.len == 0) t->token = TOKEN_INVALID;
 }

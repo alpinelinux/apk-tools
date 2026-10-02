@@ -93,6 +93,8 @@ void apk_blob_push_fmt(apk_blob_t *to, const char *fmt, ...)
 
 void apk_blob_pull_char(apk_blob_t *b, int expected);
 uint64_t apk_blob_pull_uint(apk_blob_t *b, int radix);
+/* Returns -1 on overflow; consumes all digits and stores UINT64_MAX. */
+int apk_blob_pull_uint_checked(apk_blob_t *b, int radix, uint64_t *value);
 void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to);
 void apk_blob_pull_hexdump(apk_blob_t *b, apk_blob_t to);
 int apk_blob_pull_blob_match(apk_blob_t *b, apk_blob_t match);

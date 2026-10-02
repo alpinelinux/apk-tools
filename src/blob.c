@@ -415,23 +415,39 @@ void apk_blob_pull_char(apk_blob_t *b, int expected)
 	b->len --;
 }
 
-uint64_t apk_blob_pull_uint(apk_blob_t *b, int radix)
+int apk_blob_pull_uint_checked(apk_blob_t *b, int radix, uint64_t *value)
 {
-	uint64_t val;
+	uint64_t val = 0;
+	bool overflow = false;
 	int ch;
 
-	val = 0;
+	if (radix <= 0) {
+		*value = 0;
+		return -1;
+	}
 	while (b->len && b->ptr[0] != 0) {
 		ch = dx(b->ptr[0]);
 		if (ch >= radix)
 			break;
-		val *= radix;
-		val += ch;
+		if (val > (UINT64_MAX - ch) / radix) {
+			overflow = true;
+			val = UINT64_MAX;
+		} else if (!overflow) {
+			val = val * radix + ch;
+		}
 
 		b->ptr++;
 		b->len--;
 	}
 
+	*value = val;
+	return overflow ? -1 : 0;
+}
+
+uint64_t apk_blob_pull_uint(apk_blob_t *b, int radix)
+{
+	uint64_t val;
+	apk_blob_pull_uint_checked(b, radix, &val);
 	return val;
 }
 
