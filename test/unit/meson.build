@@ -9,6 +9,7 @@ unit_test_src = [
 	'package_test.c',
 	'process_test.c',
 	'repoparser_test.c',
+	'tar_test.c',
 	'version_test.c',
 	'main.c'
 ]
