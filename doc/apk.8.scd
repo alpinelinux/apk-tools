@@ -445,8 +445,9 @@ timeout 120
 	on package metadata field *arch* for the list.
 
 */etc/apk/cache*
-	This is expected to be a symlink to directory what apk will use
-	as package cache. See also *apk-cache*(5) and *apk-cache*(8).
+	This is expected to be a symlink to the directory that apk will use
+	as the package cache. See also */var/cache/apk* below, *apk-cache*(5) and
+	*apk-cache*(8).
 
 */etc/apk/commit_hooks.d/\**++
 */lib/apk/commit_hooks.d/\**
@@ -499,7 +500,7 @@ timeout 120
 */etc/apk/cert.pem*
 	Client certificate to use for authentication.
 
-## System files
+## System files and directories
 
 */lib/apk/db/lock*
 	A lock file used to allow only one concurrent write transaction on
@@ -526,6 +527,10 @@ timeout 120
 
 */var/log/apk.log*
 	Log file for changes done to the system.
+
+*/var/cache/apk*
+	If the */etc/apk/cache* symlink does not exist or is dangling, this directory
+	is used as a cache for repository indices.
 
 # NOTES
 
