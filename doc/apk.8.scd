@@ -378,7 +378,7 @@ The following options are available for all commands which generate APKv3 files.
 	Specify a custom HTTP level *Authorization*, *Referer* or *User-Agent* header.
 
 *HTTP_PROXY*, *http_proxy*++
-*HTTPS_PROXY*, *https_proxy*++
+*HTTPS_PROXY*, *https_proxy*
 	If set, these variables should contain the proxy URL for *http*
 	and *https* connections respectively.
 
