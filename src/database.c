@@ -3116,10 +3116,15 @@ static uint8_t apk_db_migrate_files_for_priority(struct apk_database *db,
 				apk_hash_delete_hashed(&db->installed.files,
 						       APK_BLOB_BUF(&key), hash);
 			} else {
-				if (fileids && fileid_get(&d, key.filename, &id))
-					fileid_array_add(fileids, id);
 				db->installed.stats.files++;
 			}
+			// Track the device/inode of every file the new package owns,
+			// including the ones the old package also had. A path that is
+			// only in the old package can alias one of these through a
+			// directory symlink (e.g. /bin -> usr/bin), and must not be
+			// removed then.
+			if (fileids && fileid_get(&d, key.filename, &id))
+				fileid_array_add(fileids, id);
 
 			apk_hash_insert_hashed(&db->installed.files, file, hash);
 		}
