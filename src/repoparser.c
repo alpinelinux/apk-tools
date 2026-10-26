@@ -37,6 +37,8 @@ int apk_variable_set(struct apk_hash *vars, apk_blob_t key, apk_blob_t value, ui
 	unsigned long hash = apk_hash_from_key(vars, key);
 	struct apk_variable *var = apk_hash_get_hashed(vars, key, hash);
 
+	if (key.len > 255) return -APKE_REPO_VARIABLE;
+
 	if (!var) {
 		var = malloc(sizeof *var + key.len);
 		if (!var) return -ENOMEM;
@@ -123,7 +125,7 @@ static int apk_repoparser_parse_set(struct apk_repoparser *rp, apk_blob_t line)
 	}
 
 	if (!apk_blob_split(line, APK_BLOB_STRLIT("="), &key, &value) ||
-	    apk_blob_starts_with(key, APK_BLOB_STRLIT("APK_")) ||
+	    key.len > 255 || apk_blob_starts_with(key, APK_BLOB_STRLIT("APK_")) ||
 	    !isalpha(key.ptr[0]) || apk_blob_spn(key, APK_CTYPE_VARIABLE_NAME, NULL, NULL)) {
 		apk_warn(rp->out, "%s:%d: invalid variable definition: " BLOB_FMT, rp->file, rp->line, BLOB_PRINTF(line));
 		return -APKE_REPO_VARIABLE;

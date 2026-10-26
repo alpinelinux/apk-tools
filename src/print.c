@@ -84,7 +84,7 @@
 	func(APKE_NOT_EXTRACTED,	"file not extracted") \
 	func(APKE_REPO_SYNTAX,		"repositories file syntax error") \
 	func(APKE_REPO_KEYWORD,		"unsupported repositories file keyword") \
-	func(APKE_REPO_VARIABLE,	"undefined repositories file variable") \
+	func(APKE_REPO_VARIABLE,	"undefined or too long repositories file variable") \
 	func(APKE_BUFFER_SIZE,		"internal buffer too small") \
 
 const char *apk_error_str(int error)
